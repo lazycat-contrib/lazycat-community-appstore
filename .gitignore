@@ -17,8 +17,9 @@ coverage.*
 *.coverprofile
 profile.cov
 
-# Dependency directories (remove the comment below to include it)
+# Dependency directories
 # vendor/
+client/node_modules/
 
 # Go workspace file
 go.work
@@ -26,6 +27,20 @@ go.work.sum
 
 # env file
 .env
+
+# App runtime and generated build outputs
+data/
+/dist/
+client/dist/
+client/tsconfig.tsbuildinfo
+lazycat/client/content/
+lazycat/server/content/
+web/dist/*
+!web/dist/README.md
+
+# Logs and OS metadata
+*.log
+.DS_Store
 
 # Editor/IDE
 # .idea/

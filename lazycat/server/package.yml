@@ -1,0 +1,18 @@
+package: community.lazycat.app.lazycat-community-appstore-server
+version: 0.1.0
+name: LazyCat Community App Store Server
+description: Self-hosted LazyCat LPK app store server with embedded web console.
+author: Lazycat Community
+license: MIT
+homepage: https://github.com/lazycat-contrib/lazycat-community-appstore
+min_os_version: 1.5.0
+permissions:
+  required:
+    - net.internet
+locales:
+  zh:
+    name: 懒猫社区软件商店服务端
+    description: 带嵌入式 Web 控制台的自托管 LazyCat LPK 软件商店服务端。
+  en:
+    name: LazyCat Community App Store Server
+    description: Self-hosted LazyCat LPK app store server with embedded web console.

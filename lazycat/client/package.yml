@@ -1,0 +1,18 @@
+package: community.lazycat.app.lazycat-community-appstore-client
+version: 0.1.0
+name: LazyCat Community App Store Client
+description: Standalone LazyCat LPK source browser and installer client.
+author: Lazycat Community
+license: MIT
+homepage: https://github.com/lazycat-contrib/lazycat-community-appstore
+min_os_version: 1.5.0
+permissions:
+  required:
+    - net.internet
+locales:
+  zh:
+    name: 懒猫社区软件商店客户端
+    description: 可独立部署的 LazyCat LPK 软件源浏览与安装客户端。
+  en:
+    name: LazyCat Community App Store Client
+    description: Standalone LazyCat LPK source browser and installer client.

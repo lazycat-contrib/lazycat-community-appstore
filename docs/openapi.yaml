@@ -1,0 +1,1394 @@
+openapi: 3.0.3
+info:
+  title: LazyCat Community App Store API
+  version: 0.1.0
+  description: REST API for the self-hosted LazyCat LPK app store server.
+servers:
+  - url: http://localhost:8080
+security:
+  - cookieAuth: []
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      tags: [System]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Server is healthy.
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+        "422":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Verify a registration email token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        "200":
+          description: Email verified.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and set the session cookie
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Clear the session cookie
+      responses:
+        "200":
+          description: Logged out.
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Return the current authenticated user
+      responses:
+        "200":
+          description: Current user.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/me/tokens:
+    get:
+      tags: [Tokens]
+      summary: List API tokens for the current user
+      responses:
+        "200":
+          description: Token records. Raw token values are not returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tokens:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/APIToken"
+    post:
+      tags: [Tokens]
+      summary: Create an API token for CI/CD publishing
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        "201":
+          description: Token created. The raw token is returned once.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  record:
+                    $ref: "#/components/schemas/APIToken"
+
+  /api/v1/me/tokens/{id}:
+    delete:
+      tags: [Tokens]
+      summary: Delete an API token
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Token deleted.
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/me/favorites:
+    get:
+      tags: [Social]
+      summary: List favorited apps and submitters
+      responses:
+        "200":
+          description: Favorites.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FavoriteData"
+
+  /api/v1/apps:
+    get:
+      tags: [Apps]
+      summary: List visible apps
+      security: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Admin-only status filter.
+          schema:
+            $ref: "#/components/schemas/AppStatus"
+        - name: submitter
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Apps visible to the current request.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apps:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AppSummary"
+    post:
+      tags: [Apps]
+      summary: Submit an app with either an uploaded LPK or an external LPK URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAppRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CreateAppMultipart"
+      responses:
+        "201":
+          description: App submitted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: "#/components/schemas/AppSummary"
+        "403":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/apps/{id}:
+    get:
+      tags: [Apps]
+      summary: Get app detail
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: App detail.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app:
+                    $ref: "#/components/schemas/AppDetail"
+        "404":
+          $ref: "#/components/responses/Error"
+    patch:
+      tags: [Apps]
+      summary: Update app metadata or create a review request
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAppRequest"
+      responses:
+        "200":
+          description: App updated directly.
+        "202":
+          description: Review request created.
+        "403":
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [Apps]
+      summary: Delete an app and associated records
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: App deleted.
+        "403":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/apps/{id}/unlist:
+    post:
+      tags: [Apps]
+      summary: Unlist an app
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: App unlisted.
+
+  /api/v1/apps/{id}/versions:
+    post:
+      tags: [Versions]
+      summary: Upload or link a new app version
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVersionRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CreateVersionMultipart"
+      responses:
+        "201":
+          description: Version created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    $ref: "#/components/schemas/Version"
+        "403":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/apps/{id}/versions/{versionId}/download:
+    get:
+      tags: [Versions]
+      summary: Redirect to the version LPK URL and increment download count
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ID"
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "302":
+          description: Redirect to the LPK file.
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/apps/{id}/screenshots:
+    post:
+      tags: [Screenshots]
+      summary: Upload an app screenshot
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                caption:
+                  type: string
+      responses:
+        "201":
+          description: Screenshot uploaded.
+
+  /api/v1/apps/{id}/screenshots/reorder:
+    patch:
+      tags: [Screenshots]
+      summary: Reorder screenshots
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, sortOrder]
+                    properties:
+                      id:
+                        type: integer
+                      sortOrder:
+                        type: integer
+      responses:
+        "200":
+          description: Screenshots reordered.
+
+  /api/v1/apps/{id}/screenshots/{screenshotId}:
+    delete:
+      tags: [Screenshots]
+      summary: Delete a screenshot
+      parameters:
+        - $ref: "#/components/parameters/ID"
+        - name: screenshotId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Screenshot deleted.
+
+  /api/v1/apps/{id}/comments:
+    post:
+      tags: [Comments]
+      summary: Create a comment or feedback entry
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body:
+                  type: string
+      responses:
+        "201":
+          description: Comment created.
+
+  /api/v1/comments/{id}:
+    delete:
+      tags: [Comments]
+      summary: Delete a comment
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Comment deleted.
+
+  /api/v1/apps/{id}/favorites:
+    post:
+      tags: [Social]
+      summary: Toggle app favorite
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Favorite state toggled.
+
+  /api/v1/submitters/{id}/favorites:
+    post:
+      tags: [Social]
+      summary: Toggle submitter favorite
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Favorite state toggled.
+
+  /api/v1/apps/{id}/outdated-marks:
+    post:
+      tags: [Social]
+      summary: Mark an app as outdated
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Outdated mark created.
+    delete:
+      tags: [Social]
+      summary: Clear the current user's outdated mark
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Outdated mark cleared.
+
+  /api/v1/apps/{id}/collaborator-requests:
+    post:
+      tags: [Collaboration]
+      summary: Request collaborator access for an app
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+      responses:
+        "201":
+          description: Request created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  request:
+                    $ref: "#/components/schemas/CollaboratorRequest"
+    get:
+      tags: [Collaboration]
+      summary: List collaborator requests for an app
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Collaborator requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requests:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CollaboratorRequest"
+
+  /api/v1/collaborator-requests/{id}/approve:
+    post:
+      tags: [Collaboration]
+      summary: Approve a collaborator request
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Request approved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  request:
+                    $ref: "#/components/schemas/CollaboratorRequest"
+
+  /api/v1/collaborator-requests/{id}/reject:
+    post:
+      tags: [Collaboration]
+      summary: Reject a collaborator request
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Request rejected.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  request:
+                    $ref: "#/components/schemas/CollaboratorRequest"
+
+  /api/v1/apps/{id}/visibility:
+    patch:
+      tags: [Visibility]
+      summary: Replace visible user group IDs for an app
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [groupIds]
+              properties:
+                groupIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        "200":
+          description: Visibility updated.
+
+  /api/v1/groups:
+    get:
+      tags: [Groups]
+      summary: List groups owned by the current user
+      responses:
+        "200":
+          description: User groups.
+    post:
+      tags: [Groups]
+      summary: Create a user group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupRequest"
+      responses:
+        "201":
+          description: Group created.
+
+  /api/v1/groups/{id}/members/{userId}:
+    post:
+      tags: [Groups]
+      summary: Add a member to a group
+      parameters:
+        - $ref: "#/components/parameters/ID"
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Member added.
+    delete:
+      tags: [Groups]
+      summary: Remove a member from a group
+      parameters:
+        - $ref: "#/components/parameters/ID"
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Member removed.
+
+  /api/v1/categories:
+    get:
+      tags: [Taxonomy]
+      summary: List public categories
+      security: []
+      responses:
+        "200":
+          description: Categories.
+
+  /api/v1/tags:
+    get:
+      tags: [Taxonomy]
+      summary: List public tags
+      security: []
+      responses:
+        "200":
+          description: Tags.
+
+  /api/v1/collections:
+    get:
+      tags: [Collections]
+      summary: List public collections and their visible apps
+      security: []
+      responses:
+        "200":
+          description: Collections.
+
+  /api/v1/admin/reviews:
+    get:
+      tags: [Admin]
+      summary: List review requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED]
+      responses:
+        "200":
+          description: Reviews.
+
+  /api/v1/admin/reviews/{id}/approve:
+    post:
+      tags: [Admin]
+      summary: Approve a review request
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Review approved.
+
+  /api/v1/admin/reviews/{id}/reject:
+    post:
+      tags: [Admin]
+      summary: Reject a review request
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Review rejected.
+
+  /api/v1/admin/categories:
+    get:
+      tags: [Admin]
+      summary: Admin list categories
+      responses:
+        "200":
+          description: Categories.
+    post:
+      tags: [Admin]
+      summary: Create a category
+      requestBody:
+        $ref: "#/components/requestBodies/TaxonomyBody"
+      responses:
+        "201":
+          description: Category created.
+
+  /api/v1/admin/categories/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update a category
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        $ref: "#/components/requestBodies/TaxonomyBody"
+      responses:
+        "200":
+          description: Category updated.
+    delete:
+      tags: [Admin]
+      summary: Delete a category
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Category deleted.
+
+  /api/v1/admin/tags:
+    get:
+      tags: [Admin]
+      summary: Admin list tags
+      responses:
+        "200":
+          description: Tags.
+    post:
+      tags: [Admin]
+      summary: Create a tag
+      requestBody:
+        $ref: "#/components/requestBodies/TaxonomyBody"
+      responses:
+        "201":
+          description: Tag created.
+
+  /api/v1/admin/tags/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update a tag by ID or slug
+      parameters:
+        - $ref: "#/components/parameters/IDOrSlug"
+      requestBody:
+        $ref: "#/components/requestBodies/TaxonomyBody"
+      responses:
+        "200":
+          description: Tag updated.
+    delete:
+      tags: [Admin]
+      summary: Delete a tag by ID or slug
+      parameters:
+        - $ref: "#/components/parameters/IDOrSlug"
+      responses:
+        "200":
+          description: Tag deleted.
+
+  /api/v1/admin/collections:
+    get:
+      tags: [Admin]
+      summary: Admin list collections
+      responses:
+        "200":
+          description: Collections.
+    post:
+      tags: [Admin]
+      summary: Create a collection
+      requestBody:
+        $ref: "#/components/requestBodies/CollectionBody"
+      responses:
+        "201":
+          description: Collection created.
+
+  /api/v1/admin/collections/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update a collection
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        $ref: "#/components/requestBodies/CollectionBody"
+      responses:
+        "200":
+          description: Collection updated.
+    delete:
+      tags: [Admin]
+      summary: Delete a collection
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Collection deleted.
+
+  /api/v1/admin/users:
+    get:
+      tags: [Admin]
+      summary: Site admin list users
+      responses:
+        "200":
+          description: Users.
+
+  /api/v1/admin/users/{id}:
+    patch:
+      tags: [Admin]
+      summary: Site admin update user role or email verification state
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  $ref: "#/components/schemas/UserRole"
+                emailVerified:
+                  type: boolean
+      responses:
+        "200":
+          description: User updated.
+
+  /api/v1/admin/settings:
+    get:
+      tags: [Admin]
+      summary: Site admin list settings
+      responses:
+        "200":
+          description: Site settings.
+    patch:
+      tags: [Admin]
+      summary: Site admin update settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        "200":
+          description: Settings updated.
+
+  /source/v1/index.json:
+    get:
+      tags: [Source]
+      summary: Public software source feed
+      security: []
+      parameters:
+        - name: password
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: X-Source-Password
+          in: header
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Source index with public approved apps.
+        "401":
+          $ref: "#/components/responses/Error"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: lazycat_store_session
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API token
+
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+    IDOrSlug:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    Error:
+      description: Structured API error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  requestBodies:
+    TaxonomyBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name]
+            properties:
+              name:
+                type: string
+              slug:
+                type: string
+              description:
+                type: string
+              parentId:
+                type: integer
+                nullable: true
+              sortOrder:
+                type: integer
+    CollectionBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [name]
+            properties:
+              name:
+                type: string
+              slug:
+                type: string
+              description:
+                type: string
+              kind:
+                type: string
+                enum: [MANUAL, RECENT_UPDATED, MOST_DOWNLOADED]
+              appIds:
+                type: array
+                items:
+                  type: integer
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+            details:
+              nullable: true
+
+    UserRole:
+      type: string
+      enum: [USER, SOFTWARE_ADMIN, SITE_ADMIN]
+
+    User:
+      type: object
+      required: [id, username, role, emailVerified, createdAt]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+          nullable: true
+        role:
+          $ref: "#/components/schemas/UserRole"
+        emailVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    RegisterRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    APIToken:
+      type: object
+      required: [id, user_id, name, prefix]
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        name:
+          type: string
+        prefix:
+          type: string
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    AppStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED, UNLISTED]
+
+    VersionStatus:
+      type: string
+      enum: [PENDING, APPROVED, REJECTED]
+
+    SourceType:
+      type: string
+      enum: [LOCAL, WEBDAV, S3, GITHUB]
+
+    AppSummary:
+      type: object
+      required: [id, ownerId, owner, name, slug, status, allowUnreviewedUpdates, commentsEnabled, downloadCount, tags, visibleGroupIds, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        ownerId:
+          type: integer
+        owner:
+          type: string
+        categoryId:
+          type: integer
+          nullable: true
+        category:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        iconUrl:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/AppStatus"
+        allowUnreviewedUpdates:
+          type: boolean
+        commentsEnabled:
+          type: boolean
+        downloadCount:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        visibleGroupIds:
+          type: array
+          items:
+            type: integer
+        latestVersion:
+          $ref: "#/components/schemas/Version"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AppDetail:
+      allOf:
+        - $ref: "#/components/schemas/AppSummary"
+        - type: object
+          properties:
+            versions:
+              type: array
+              items:
+                $ref: "#/components/schemas/Version"
+            screenshots:
+              type: array
+              items:
+                $ref: "#/components/schemas/Screenshot"
+            comments:
+              type: array
+              items:
+                $ref: "#/components/schemas/Comment"
+            favorites:
+              type: integer
+            outdatedMarks:
+              type: integer
+            canManageApp:
+              type: boolean
+            canUploadVersion:
+              type: boolean
+
+    Version:
+      type: object
+      required: [id, appId, uploaderId, version, status, sourceType, downloadUrl, fileSize, sha256, createdAt]
+      properties:
+        id:
+          type: integer
+        appId:
+          type: integer
+        uploaderId:
+          type: integer
+        version:
+          type: string
+        changelog:
+          type: string
+        status:
+          $ref: "#/components/schemas/VersionStatus"
+        sourceType:
+          $ref: "#/components/schemas/SourceType"
+        downloadUrl:
+          type: string
+        upstreamDownloadUrl:
+          type: string
+          description: Original upstream LPK URL exposed by source feeds so clients can apply per-source mirrors.
+        storagePath:
+          type: string
+        fileSize:
+          type: integer
+          format: int64
+        sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Screenshot:
+      type: object
+      properties:
+        id:
+          type: integer
+        appId:
+          type: integer
+        imageUrl:
+          type: string
+        caption:
+          type: string
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+        appId:
+          type: integer
+        userId:
+          type: integer
+        username:
+          type: string
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+        kind:
+          type: string
+          enum: [APP_SUBMISSION, VERSION_UPLOAD, APP_INFO_UPDATE]
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        appId:
+          type: integer
+          nullable: true
+        versionId:
+          type: integer
+          nullable: true
+        requesterId:
+          type: integer
+        reviewerId:
+          type: integer
+          nullable: true
+        note:
+          type: string
+        reviewNote:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CollaboratorRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        appId:
+          type: integer
+        userId:
+          type: integer
+        user_id:
+          type: integer
+          description: Backward-compatible snake_case requester ID.
+        username:
+          type: string
+        email:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateAppRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        categoryId:
+          type: integer
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        allowUnreviewedUpdates:
+          type: boolean
+        commentsEnabled:
+          type: boolean
+        version:
+          type: string
+        changelog:
+          type: string
+        sourceType:
+          $ref: "#/components/schemas/SourceType"
+        downloadUrl:
+          type: string
+        sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+
+    CreateAppMultipart:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        categoryId:
+          type: integer
+        tags:
+          type: string
+          description: Comma-separated tags.
+        allowUnreviewedUpdates:
+          type: boolean
+        version:
+          type: string
+        changelog:
+          type: string
+        file:
+          type: string
+          format: binary
+
+    UpdateAppRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        categoryId:
+          type: integer
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        allowUnreviewedUpdates:
+          type: boolean
+        commentsEnabled:
+          type: boolean
+
+    CreateVersionRequest:
+      type: object
+      required: [version, downloadUrl, sha256]
+      properties:
+        version:
+          type: string
+        changelog:
+          type: string
+        sourceType:
+          $ref: "#/components/schemas/SourceType"
+        downloadUrl:
+          type: string
+        sha256:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+
+    CreateVersionMultipart:
+      type: object
+      required: [version, file]
+      properties:
+        version:
+          type: string
+        changelog:
+          type: string
+        file:
+          type: string
+          format: binary
+
+    CreateGroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+
+    FavoriteData:
+      type: object
+      properties:
+        apps:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppSummary"
+        submitters:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"

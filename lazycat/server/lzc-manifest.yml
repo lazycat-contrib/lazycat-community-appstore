@@ -1,0 +1,42 @@
+usage: |
+  打开应用后使用部署参数中设置的管理员账号登录。
+  软件源地址为 /source/v1/index.json，可被独立客户端或其他订阅方使用。
+
+application:
+  subdomain: lazycat-appstore-server
+  background_task: true
+  public_path:
+    - /
+  upstreams:
+    - location: /
+      backend: http://127.0.0.1:8080/
+      backend_launch_command: /lzcapp/pkg/content/store-server
+  environment:
+    - APP_ADDR=127.0.0.1:8080
+    - BASE_URL=https://${LAZYCAT_APP_DOMAIN}
+    - SITE_PUBLIC_URL=https://${LAZYCAT_APP_DOMAIN}
+    - CLIENT_ORIGINS=https://${LAZYCAT_APP_DOMAIN}
+    - DB_DRIVER=sqlite3
+    - DB_DSN=/lzcapp/var/data/store.db
+    - STORAGE_BACKEND=local
+    - LOCAL_STORAGE_PATH=/lzcapp/var/files
+    - SITE_MAX_LPK_SIZE=524288000
+    - SITE_MAX_VERSIONS=10
+    - REQUIRE_EMAIL_VERIFY=false
+    - SOURCE_PASSWORD={{ .U.source_password }}
+    - SOURCE_PASSWORD_ROTATION=0
+    - GITHUB_MIRROR={{ .U.github_mirror }}
+    - ADMIN_USERNAME={{ .U.admin_username }}
+    - ADMIN_PASSWORD={{ .U.admin_password }}
+    - SESSION_SECRET={{ stable_secret "session_secret_v1" }}
+  health_check:
+    test_url: http://127.0.0.1:8080/healthz
+    start_period: 10s
+    timeout: 5s
+  injects:
+    - id: open-save-chooser
+      on: browser
+      when:
+        - /*
+      do:
+        - src: file:///lzcapp/pkg/content/lazycat-injects/lzc-file-chooser-inject.js

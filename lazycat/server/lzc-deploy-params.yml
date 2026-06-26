@@ -1,0 +1,38 @@
+params:
+  - id: admin_username
+    type: string
+    name: "Admin Username"
+    description: "Initial site administrator username"
+    default_value: "admin"
+    optional: false
+  - id: admin_password
+    type: secret
+    name: "Admin Password"
+    description: "Initial site administrator password"
+    default_value: "$random(len=20)"
+    optional: false
+  - id: source_password
+    type: secret
+    name: "Source Password"
+    description: "Optional password for /source/v1/index.json"
+    optional: true
+  - id: github_mirror
+    type: string
+    name: "GitHub Mirror"
+    description: "Optional GitHub download mirror base URL"
+    optional: true
+
+locales:
+  zh:
+    admin_username:
+      name: "管理员用户名"
+      description: "初始站点管理员用户名"
+    admin_password:
+      name: "管理员密码"
+      description: "初始站点管理员密码"
+    source_password:
+      name: "软件源密码"
+      description: "可选的 /source/v1/index.json 访问密码"
+    github_mirror:
+      name: "GitHub 镜像"
+      description: "可选的 GitHub 下载镜像基础 URL"

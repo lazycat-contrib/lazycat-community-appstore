@@ -1,0 +1,339 @@
+package server
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"io/fs"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+
+	"entgo.io/ent/dialect"
+
+	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/internal/config"
+	"lazycat.community/appstore/internal/storage"
+	"lazycat.community/appstore/web"
+
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
+)
+
+type Server struct {
+	cfg     config.Config
+	db      *ent.Client
+	storage storage.Backend
+	mailer  Mailer
+	mux     *http.ServeMux
+	web     http.Handler
+}
+
+func New(cfg config.Config) (*Server, error) {
+	if err := ensureSQLiteDir(cfg); err != nil {
+		return nil, err
+	}
+
+	client, err := openEnt(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if err := client.Schema.Create(context.Background()); err != nil {
+		_ = client.Close()
+		return nil, fmt.Errorf("migrate database: %w", err)
+	}
+
+	backend, err := newStorageBackend(cfg)
+	if err != nil {
+		_ = client.Close()
+		return nil, err
+	}
+	s := &Server{
+		cfg:     cfg,
+		db:      client,
+		storage: backend,
+		mailer:  newSMTPMailer(cfg),
+		mux:     http.NewServeMux(),
+	}
+	s.web = embeddedWebHandler()
+	if err := s.bootstrap(context.Background()); err != nil {
+		_ = client.Close()
+		return nil, err
+	}
+	s.routes()
+	return s, nil
+}
+
+func newStorageBackend(cfg config.Config) (storage.Backend, error) {
+	switch strings.ToLower(cfg.StorageBackend) {
+	case "", "local":
+		return storage.NewLocalBackend(cfg.LocalStoragePath, "/files/"), nil
+	case "webdav":
+		if cfg.WebDAVURL == "" {
+			return nil, fmt.Errorf("WEBDAV_URL is required when STORAGE_BACKEND=webdav")
+		}
+		return storage.NewWebDAVBackend(cfg.WebDAVURL, cfg.WebDAVUser, cfg.WebDAVPass, cfg.WebDAVPublicURL), nil
+	case "s3":
+		if cfg.S3Endpoint == "" || cfg.S3Bucket == "" {
+			return nil, fmt.Errorf("S3_ENDPOINT and S3_BUCKET are required when STORAGE_BACKEND=s3")
+		}
+		return storage.NewS3Backend(storage.S3Options{
+			Endpoint:  cfg.S3Endpoint,
+			Bucket:    cfg.S3Bucket,
+			AccessKey: cfg.S3AccessKey,
+			SecretKey: cfg.S3SecretKey,
+			UseSSL:    cfg.S3UseSSL,
+			PublicURL: cfg.S3PublicURL,
+		})
+	case "github":
+		return storage.NewExternalLinkBackend("github"), nil
+	default:
+		return nil, fmt.Errorf("unsupported STORAGE_BACKEND %q", cfg.StorageBackend)
+	}
+}
+
+func (s *Server) Close() error {
+	return s.db.Close()
+}
+
+func (s *Server) Handler() http.Handler {
+	return securityHeaders(s.cors(s.mux))
+}
+
+func openEnt(cfg config.Config) (*ent.Client, error) {
+	switch cfg.DBDriver {
+	case "sqlite3":
+		return ent.Open(dialect.SQLite, sqliteDSN(cfg.DBDSN))
+	case "postgres":
+		return ent.Open(dialect.Postgres, cfg.DBDSN)
+	case "mysql":
+		return ent.Open(dialect.MySQL, cfg.DBDSN)
+	default:
+		return nil, fmt.Errorf("unsupported DB_DRIVER %q", cfg.DBDriver)
+	}
+}
+
+func sqliteDSN(dsn string) string {
+	if strings.Contains(dsn, "_fk=") {
+		return dsn
+	}
+	separator := "?"
+	if strings.Contains(dsn, "?") {
+		separator = "&"
+	}
+	return dsn + separator + "_fk=1"
+}
+
+func ensureSQLiteDir(cfg config.Config) error {
+	if cfg.DBDriver != "sqlite3" {
+		return nil
+	}
+	if strings.HasPrefix(cfg.DBDSN, "file:") || strings.Contains(cfg.DBDSN, "?") {
+		return nil
+	}
+	dir := filepath.Dir(cfg.DBDSN)
+	if dir == "." || dir == "" {
+		return nil
+	}
+	return os.MkdirAll(dir, 0o755)
+}
+
+func (s *Server) routes() {
+	s.mux.Handle("GET /files/", http.StripPrefix("/files/", http.HandlerFunc(s.handleLocalFile)))
+	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "lazycat-appstore-server"})
+	})
+
+	s.mux.HandleFunc("POST /api/v1/auth/register", s.handleRegister)
+	s.mux.HandleFunc("POST /api/v1/auth/verify-email", s.handleVerifyEmail)
+	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
+	s.mux.HandleFunc("POST /api/v1/auth/logout", s.handleLogout)
+	s.mux.HandleFunc("GET /api/v1/auth/me", s.withAuth(s.handleMe))
+	s.mux.HandleFunc("GET /api/v1/me/tokens", s.withAuth(s.handleListTokens))
+	s.mux.HandleFunc("POST /api/v1/me/tokens", s.withAuth(s.handleCreateToken))
+	s.mux.HandleFunc("DELETE /api/v1/me/tokens/{id}", s.withAuth(s.handleDeleteToken))
+	s.mux.HandleFunc("GET /api/v1/me/favorites", s.withAuth(s.handleListFavorites))
+
+	s.mux.HandleFunc("GET /api/v1/apps", s.handleListApps)
+	s.mux.HandleFunc("POST /api/v1/apps", s.withAuth(s.handleCreateApp))
+	s.mux.HandleFunc("GET /api/v1/apps/{id}", s.handleGetApp)
+	s.mux.HandleFunc("PATCH /api/v1/apps/{id}", s.withAuth(s.handleUpdateApp))
+	s.mux.HandleFunc("DELETE /api/v1/apps/{id}", s.withAuth(s.handleDeleteApp))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/unlist", s.withAuth(s.handleUnlistApp))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/versions", s.withAuth(s.handleCreateVersion))
+	s.mux.HandleFunc("GET /api/v1/apps/{id}/versions/{versionId}/download", s.handleDownloadVersion)
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/screenshots", s.withAuth(s.handleUploadScreenshot))
+	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/screenshots/reorder", s.withAuth(s.handleReorderScreenshots))
+	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/screenshots/{screenshotId}", s.withAuth(s.handleDeleteScreenshot))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/comments", s.withAuth(s.handleCreateComment))
+	s.mux.HandleFunc("DELETE /api/v1/comments/{id}", s.withAuth(s.handleDeleteComment))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/favorites", s.withAuth(s.handleToggleFavorite))
+	s.mux.HandleFunc("POST /api/v1/submitters/{id}/favorites", s.withAuth(s.handleToggleSubmitterFavorite))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/outdated-marks", s.withAuth(s.handleMarkOutdated))
+	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/outdated-marks", s.withAuth(s.handleClearOutdated))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/collaborator-requests", s.withAuth(s.handleCreateCollaboratorRequest))
+	s.mux.HandleFunc("GET /api/v1/apps/{id}/collaborator-requests", s.withAuth(s.handleListCollaboratorRequests))
+	s.mux.HandleFunc("POST /api/v1/collaborator-requests/{id}/approve", s.withAuth(s.handleApproveCollaboratorRequest))
+	s.mux.HandleFunc("POST /api/v1/collaborator-requests/{id}/reject", s.withAuth(s.handleRejectCollaboratorRequest))
+	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/visibility", s.withAuth(s.handleSetAppVisibility))
+	s.mux.HandleFunc("GET /api/v1/groups", s.withAuth(s.handleListGroups))
+	s.mux.HandleFunc("POST /api/v1/groups", s.withAuth(s.handleCreateGroup))
+	s.mux.HandleFunc("POST /api/v1/groups/{id}/members/{userId}", s.withAuth(s.handleAddGroupMember))
+	s.mux.HandleFunc("DELETE /api/v1/groups/{id}/members/{userId}", s.withAuth(s.handleRemoveGroupMember))
+	s.mux.HandleFunc("GET /api/v1/categories", s.handlePublicListCategories)
+	s.mux.HandleFunc("GET /api/v1/tags", s.handlePublicListTags)
+	s.mux.HandleFunc("GET /api/v1/collections", s.handlePublicListCollections)
+
+	admin := s.withRole(userRoleSoftwareAdmin, userRoleSiteAdmin)
+	s.mux.HandleFunc("GET /api/v1/admin/reviews", admin(s.handleListReviews))
+	s.mux.HandleFunc("POST /api/v1/admin/reviews/{id}/approve", admin(s.handleApproveReview))
+	s.mux.HandleFunc("POST /api/v1/admin/reviews/{id}/reject", admin(s.handleRejectReview))
+	s.mux.HandleFunc("GET /api/v1/admin/categories", admin(s.handleListCategories))
+	s.mux.HandleFunc("POST /api/v1/admin/categories", admin(s.handleCreateCategory))
+	s.mux.HandleFunc("PATCH /api/v1/admin/categories/{id}", admin(s.handleUpdateCategory))
+	s.mux.HandleFunc("DELETE /api/v1/admin/categories/{id}", admin(s.handleDeleteCategory))
+	s.mux.HandleFunc("GET /api/v1/admin/tags", admin(s.handleListTags))
+	s.mux.HandleFunc("POST /api/v1/admin/tags", admin(s.handleCreateTag))
+	s.mux.HandleFunc("PATCH /api/v1/admin/tags/{id}", admin(s.handleUpdateTag))
+	s.mux.HandleFunc("DELETE /api/v1/admin/tags/{id}", admin(s.handleDeleteTag))
+	s.mux.HandleFunc("GET /api/v1/admin/collections", admin(s.handleAdminListCollections))
+	s.mux.HandleFunc("POST /api/v1/admin/collections", admin(s.handleCreateCollection))
+	s.mux.HandleFunc("PATCH /api/v1/admin/collections/{id}", admin(s.handleUpdateCollection))
+	s.mux.HandleFunc("DELETE /api/v1/admin/collections/{id}", admin(s.handleDeleteCollection))
+	s.mux.HandleFunc("GET /api/v1/admin/users", s.withRole(userRoleSiteAdmin)(s.handleAdminListUsers))
+	s.mux.HandleFunc("PATCH /api/v1/admin/users/{id}", s.withRole(userRoleSiteAdmin)(s.handleAdminUpdateUser))
+	s.mux.HandleFunc("GET /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleGetSettings))
+	s.mux.HandleFunc("PATCH /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleUpdateSettings))
+
+	s.mux.HandleFunc("GET /source/v1/index.json", s.handleSourceIndex)
+
+	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if isAPINamespace(r.URL.Path) {
+			writeError(w, http.StatusNotFound, "NOT_FOUND", "Endpoint not found", nil)
+			return
+		}
+		if s.web != nil {
+			s.web.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path != "/" {
+			writeError(w, http.StatusNotFound, "NOT_FOUND", "Endpoint not found", nil)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"service": "lazycat-community-appstore-server",
+			"source":  s.cfg.BaseURL + "/source/v1/index.json",
+		})
+	})
+}
+
+func isAPINamespace(rawPath string) bool {
+	return strings.HasPrefix(rawPath, "/api/") || strings.HasPrefix(rawPath, "/source/") || strings.HasPrefix(rawPath, "/files/")
+}
+
+func embeddedWebHandler() http.Handler {
+	dist, err := web.Dist()
+	if err != nil {
+		return nil
+	}
+	if _, err := fs.Stat(dist, "index.html"); err != nil {
+		return nil
+	}
+	return spaFileServer{assets: dist}
+}
+
+type spaFileServer struct {
+	assets fs.FS
+}
+
+func (h spaFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
+	if name == "." || name == "" {
+		name = "index.html"
+	}
+	if info, err := fs.Stat(h.assets, name); err == nil && !info.IsDir() {
+		h.serveName(w, r, name)
+		return
+	}
+	if strings.Contains(path.Base(name), ".") {
+		http.NotFound(w, r)
+		return
+	}
+	h.serveName(w, r, "index.html")
+}
+
+func (h spaFileServer) serveName(w http.ResponseWriter, r *http.Request, name string) {
+	file, err := h.assets.Open(name)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || info.IsDir() {
+		http.NotFound(w, r)
+		return
+	}
+	data, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "read embedded asset", http.StatusInternalServerError)
+		return
+	}
+	http.ServeContent(w, r, path.Base(name), info.ModTime(), bytes.NewReader(data))
+}
+
+func (s *Server) handleLocalFile(w http.ResponseWriter, r *http.Request) {
+	full, err := safeLocalFilePath(s.cfg.LocalStoragePath, r.URL.Path)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "FILE_NOT_FOUND", "File not found", nil)
+		return
+	}
+	file, err := os.Open(full)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "FILE_NOT_FOUND", "File not found", nil)
+		return
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || info.IsDir() {
+		writeError(w, http.StatusNotFound, "FILE_NOT_FOUND", "File not found", nil)
+		return
+	}
+	http.ServeContent(w, r, info.Name(), info.ModTime(), file)
+}
+
+func safeLocalFilePath(root, rawPath string) (string, error) {
+	if strings.TrimSpace(rawPath) == "" || rawPath == "/" {
+		return "", fmt.Errorf("empty path")
+	}
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return "", err
+	}
+	clean := filepath.Clean(strings.TrimLeft(filepath.ToSlash(rawPath), "/"))
+	full, err := filepath.Abs(filepath.Join(rootAbs, filepath.FromSlash(clean)))
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(rootAbs, full)
+	if err != nil {
+		return "", err
+	}
+	if rel == "." || rel == ".." || filepath.IsAbs(rel) || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("file path escapes root")
+	}
+	return full, nil
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "same-origin")
+		next.ServeHTTP(w, r)
+	})
+}
