@@ -39,7 +39,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
-import { installWithLazyCat, queryInstalledApplications } from './lazycatSdk';
+import { installWithLazyCat, queryInstalledApplications, type InstalledApplication } from './lazycatSdk';
 
 type User = {
   id: number;
@@ -328,7 +328,7 @@ const serverAdminTab: NavItem = { key: 'admin', labelKey: 'nav.admin', icon: Shi
 const clientTabs: NavItem[] = [
   { key: 'sources', labelKey: 'nav.sources', icon: Cloud },
   { key: 'search', labelKey: 'nav.install', icon: Download },
-  { key: 'profile', labelKey: 'nav.device', icon: Server },
+  { key: 'profile', labelKey: 'nav.installed', icon: Archive },
 ];
 
 type SortMode = 'recent' | 'downloads' | 'name';
@@ -1655,7 +1655,7 @@ function ProfileView({
   const [tokens, setTokens] = useState<APITokenRecord[]>([]);
   const [newToken, setNewToken] = useState('');
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
-  const [installedApps, setInstalledApps] = useState<Array<{ appid?: string; title?: string; version?: string; status?: number }>>([]);
+  const [installedApps, setInstalledApps] = useState<InstalledApplication[]>([]);
   const [installedState, setInstalledState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [installedError, setInstalledError] = useState('');
   const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
@@ -1693,7 +1693,7 @@ function ProfileView({
   const isDirectPublishUser = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const sourceCacheReady = sourceStats.syncedSourceCount > 0;
   const installCatalogReady = sourceStats.installableSourceAppCount > 0;
-  const deviceQueryReady = installedState === 'loaded';
+  const installedLookupReady = installedState === 'loaded';
   const sourceCacheBody =
     sourceStats.sourceCount === 0
       ? t('profile.clientSourceMissing')
@@ -1706,14 +1706,14 @@ function ProfileView({
       : sourceStats.sourceAppCount > 0
         ? t('profile.clientInstallMissingInstallable', { count: sourceStats.sourceAppCount })
         : t('profile.clientInstallMissing');
-  const deviceReadinessBody =
+  const installedReadinessBody =
     installedState === 'loaded'
-      ? t('profile.clientDeviceLoaded', { count: installedApps.length })
+      ? t('profile.clientInstalledLoaded', { count: installedApps.length })
       : installedState === 'loading'
-        ? t('profile.clientDeviceLoading')
+        ? t('profile.clientInstalledLoading')
         : installedState === 'error'
-          ? installedError || t('profile.clientDeviceError')
-          : t('profile.clientDeviceIdle');
+          ? installedError || t('profile.clientInstalledError')
+          : t('profile.clientInstalledIdle');
 
   useEffect(() => {
     if (!user) return;
@@ -1907,24 +1907,24 @@ function ProfileView({
               <strong>{t('profile.clientInstallTitle')}</strong>
               <small>{installCatalogBody}</small>
             </div>
-            <div className={cx('readiness-step', deviceQueryReady && 'ready')}>
-              <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loading' ? 'pending' : deviceQueryReady ? 'synced' : 'unsynced')}>
-                {installedState === 'error' ? <AlertCircle size={14} /> : deviceQueryReady ? <Check size={14} /> : <Gauge size={14} />}
-                {t(`profile.deviceState.${installedState}`)}
+            <div className={cx('readiness-step', installedLookupReady && 'ready')}>
+              <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loading' ? 'pending' : installedLookupReady ? 'synced' : 'unsynced')}>
+                {installedState === 'error' ? <AlertCircle size={14} /> : installedLookupReady ? <Check size={14} /> : <Gauge size={14} />}
+                {t(`profile.installedState.${installedState}`)}
               </span>
-              <strong>{t('profile.clientDeviceTitle')}</strong>
-              <small>{deviceReadinessBody}</small>
+              <strong>{t('profile.clientInstalledTitle')}</strong>
+              <small>{installedReadinessBody}</small>
             </div>
           </div>
         </section>
         <div className="split">
           <div className="panel profile-card">
             <AvatarIcon seed="lazycat-standalone-client" title={t('profile.clientTitle')} size={74} className="avatar-large" />
-            <h2>{t('profile.clientDeviceTitle')}</h2>
-            <p>{t('profile.clientDeviceHelp')}</p>
-            <div className={cx('device-state', installedState)}>
+            <h2>{t('profile.clientInstalledTitle')}</h2>
+            <p>{t('profile.clientInstalledHelp')}</p>
+            <div className={cx('installed-state', installedState)}>
               <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loaded' ? 'synced' : 'unsynced')}>
-                {t(`profile.deviceState.${installedState}`)}
+                {t(`profile.installedState.${installedState}`)}
               </span>
               {installedState === 'error' && <small>{installedError}</small>}
             </div>

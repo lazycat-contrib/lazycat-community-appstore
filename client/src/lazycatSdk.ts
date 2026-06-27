@@ -1,3 +1,14 @@
+export type InstalledApplication = {
+  appid?: string;
+  title?: string;
+  version?: string;
+  status?: number;
+};
+
+export type InstalledApplicationsResponse = {
+  infoList?: InstalledApplication[];
+};
+
 type InstallTarget = {
   name: string;
   appId?: string;
@@ -23,9 +34,9 @@ async function getGateway() {
   return gateway;
 }
 
-export async function queryInstalledApplications() {
+export async function queryInstalledApplications(): Promise<InstalledApplicationsResponse> {
   const gateway = await getGateway();
-  return gateway.pkgm.QueryApplication({ deployIds: [] });
+  return gateway.pkgm.QueryApplication({ appidList: [] });
 }
 
 export async function installWithLazyCat(target: InstallTarget): Promise<InstallResult> {

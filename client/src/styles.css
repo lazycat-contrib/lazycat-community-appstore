@@ -1320,7 +1320,7 @@ textarea {
   justify-items: center;
 }
 
-.device-state {
+.installed-state {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1331,7 +1331,7 @@ textarea {
   gap: 6px;
 }
 
-.device-state small {
+.installed-state small {
   color: var(--muted);
   overflow-wrap: anywhere;
   max-width: 100%;
