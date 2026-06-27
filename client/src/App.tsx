@@ -233,10 +233,13 @@ type InstallActivity = {
 type ClientSourceStats = {
   sourceCount: number;
   syncedSourceCount: number;
+  staleSourceCount: number;
   failedSourceCount: number;
   sourceAppCount: number;
   installableSourceAppCount: number;
 };
+
+const SOURCE_STALE_MS = 24 * 60 * 60 * 1000;
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -319,6 +322,12 @@ function belongsToSource(app: SourceApp, source: SourceSubscription) {
   return app.sourceId ? app.sourceId === source.id : app.sourceName === source.name;
 }
 
+function isSourceStale(source: SourceSubscription) {
+  if (!source.lastSync || source.lastError) return false;
+  const syncedAt = Date.parse(source.lastSync);
+  return Number.isFinite(syncedAt) && Date.now() - syncedAt > SOURCE_STALE_MS;
+}
+
 function reviewFieldLabel(key: string, t: (key: string, options?: any) => string) {
   const labels: Record<string, string> = {
     name: t('common.name'),
@@ -386,7 +395,7 @@ function ThemeToggle({ mode, onChange }: { mode: ThemeMode; onChange: (mode: The
 
 type SortMode = 'recent' | 'downloads' | 'name';
 type SourceAppFilter = 'all' | 'installable' | 'installed' | 'incomplete';
-type SourceHealth = 'syncing' | 'failed' | 'synced' | 'unsynced';
+type SourceHealth = 'syncing' | 'failed' | 'stale' | 'synced' | 'unsynced';
 type SourceHealthFilter = 'all' | Exclude<SourceHealth, 'syncing'>;
 
 function verificationTokenFromURL() {
@@ -459,7 +468,8 @@ export function App() {
   const sourceStats = useMemo<ClientSourceStats>(() => {
     return {
       sourceCount: sources.length,
-      syncedSourceCount: sources.filter((source) => source.lastSync && !source.lastError).length,
+      syncedSourceCount: sources.filter((source) => source.lastSync && !source.lastError && !isSourceStale(source)).length,
+      staleSourceCount: sources.filter(isSourceStale).length,
       failedSourceCount: sources.filter((source) => source.lastError).length,
       sourceAppCount: sourceApps.length,
       installableSourceAppCount: sourceApps.filter(hasInstallableVersion).length,
@@ -1366,6 +1376,10 @@ function SearchView({
             <span>{t('search.installableApps')}</span>
             <strong>{sourceStats.installableSourceAppCount}</strong>
           </div>
+          <div className={cx(sourceStats.staleSourceCount > 0 && 'warning')}>
+            <span>{t('search.staleSources')}</span>
+            <strong>{sourceStats.staleSourceCount}</strong>
+          </div>
           <div className={cx(sourceStats.failedSourceCount > 0 && 'warning')}>
             <span>{t('search.failedSources')}</span>
             <strong>{sourceStats.failedSourceCount}</strong>
@@ -1623,6 +1637,7 @@ function SourcesView({
   function healthFor(source: SourceSubscription): SourceHealth {
     if (syncingID === source.id) return 'syncing';
     if (source.lastError) return 'failed';
+    if (isSourceStale(source)) return 'stale';
     if (source.lastSync) return 'synced';
     return 'unsynced';
   }
@@ -1630,6 +1645,7 @@ function SourcesView({
   const sourceHealthFilterItems: Array<{ key: SourceHealthFilter; label: string; count: number }> = [
     { key: 'all', label: t('sources.filters.all'), count: sources.length },
     { key: 'synced', label: t('sources.filters.synced'), count: sources.filter((source) => healthFor(source) === 'synced').length },
+    { key: 'stale', label: t('sources.filters.stale'), count: sources.filter((source) => healthFor(source) === 'stale').length },
     { key: 'unsynced', label: t('sources.filters.unsynced'), count: sources.filter((source) => healthFor(source) === 'unsynced').length },
     { key: 'failed', label: t('sources.filters.failed'), count: sources.filter((source) => healthFor(source) === 'failed').length },
   ];
@@ -1668,6 +1684,10 @@ function SourcesView({
         <div>
           <span>{t('search.syncedSources')}</span>
           <strong>{sourceStats.syncedSourceCount}</strong>
+        </div>
+        <div className={cx(sourceStats.staleSourceCount > 0 && 'warning')}>
+          <span>{t('search.staleSources')}</span>
+          <strong>{sourceStats.staleSourceCount}</strong>
         </div>
         <div>
           <span>{t('search.installableApps')}</span>
@@ -1764,6 +1784,16 @@ function SourcesView({
               const syncedAppCount = source.lastAppCount ?? sourceScopedApps.length;
               const installableAppCount = source.lastInstallableCount ?? sourceScopedApps.filter(hasInstallableVersion).length;
               const health = healthFor(source);
+              const healthHint =
+                health === 'failed'
+                  ? t('sources.healthHints.failed')
+                  : health === 'stale'
+                    ? t('sources.healthHints.stale')
+                    : health === 'unsynced'
+                      ? t('sources.healthHints.unsynced')
+                      : health === 'syncing'
+                        ? t('sources.healthHints.syncing')
+                        : t('sources.healthHints.synced');
               return (
                 <div className="source-row" key={source.id}>
                   <div>
@@ -1773,7 +1803,7 @@ function SourcesView({
                     </div>
                     <span className="source-url" title={source.url}>{source.url}</span>
                     <div className="source-facts">
-                      <small>{source.lastSync ? t('sources.lastSync', { time: formatDate(source.lastSync) }) : t('sources.neverSynced')}</small>
+                      <small>{source.lastSync ? t(health === 'stale' ? 'sources.lastSyncStale' : 'sources.lastSync', { time: formatDate(source.lastSync) }) : t('sources.neverSynced')}</small>
                       <small>{t('sources.syncedAppCount', { count: syncedAppCount })}</small>
                       <small>{t('sources.installableAppCount', { count: installableAppCount })}</small>
                     </div>
@@ -1781,6 +1811,12 @@ function SourcesView({
                       <p className="inline-alert">
                         <AlertCircle size={15} />
                         <span>{source.lastError}</span>
+                      </p>
+                    )}
+                    {!source.lastError && (
+                      <p className={cx(health === 'synced' ? 'inline-success' : 'inline-warning')}>
+                        {health === 'synced' ? <Check size={15} /> : <AlertCircle size={15} />}
+                        <span>{healthHint}</span>
                       </p>
                     )}
                     <div className="source-edit-grid">
@@ -2101,8 +2137,16 @@ function ProfileView({
   const sourceCacheBody =
     sourceStats.sourceCount === 0
       ? t('profile.clientSourceMissing')
+      : sourceStats.syncedSourceCount === 0 && sourceStats.staleSourceCount > 0
+        ? t('profile.clientSourceStale', { count: sourceStats.staleSourceCount })
       : sourceStats.syncedSourceCount === 0
         ? t('profile.clientSourceNeedsSync', { count: sourceStats.sourceCount })
+        : sourceStats.staleSourceCount > 0
+          ? t('profile.clientSourcePartlyStale', {
+              synced: sourceStats.syncedSourceCount,
+              stale: sourceStats.staleSourceCount,
+              total: sourceStats.sourceCount,
+            })
         : t('profile.clientSourceReady', { synced: sourceStats.syncedSourceCount, total: sourceStats.sourceCount });
   const installCatalogBody =
     sourceStats.installableSourceAppCount > 0

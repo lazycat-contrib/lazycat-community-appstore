@@ -854,6 +854,7 @@ textarea {
 
 .status-badge.unlisted,
 .status-badge.draft,
+.status-badge.stale,
 .status-badge.unsynced {
   color: var(--amber);
   border-color: var(--status-warning-line);
@@ -1061,12 +1062,27 @@ textarea {
   line-height: 1.45;
 }
 
+.inline-warning {
+  margin: 8px 0 0;
+  color: var(--amber);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .inline-alert span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
 .inline-success span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.inline-warning span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -2173,6 +2189,23 @@ code {
   .version-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .source-row > div,
+  .review-row > div,
+  .version-row > div,
+  .source-row span,
+  .source-edit-grid,
+  .source-edit-grid input {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .source-row .row-actions,
+  .review-row .row-actions,
+  .version-row .row-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .detail-summary {
