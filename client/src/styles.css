@@ -1481,6 +1481,43 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.source-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.source-detail-urls {
+  display: grid;
+  gap: 10px;
+}
+
+.source-detail-urls h3 {
+  margin: 0;
+}
+
+.detail-url-row {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.detail-url-row span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detail-url-row code {
+  color: var(--ink);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
 .detail-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -222,6 +222,7 @@ type InstallActivity = {
   status: 'running' | 'success' | 'error';
   progress: number;
   stageKey: string;
+  resultMode?: string;
   messageKey?: string;
   messageParams?: Record<string, string | number>;
 };
@@ -297,6 +298,20 @@ function shortSHA(value?: string) {
   return value ? value.slice(0, 16) : '-';
 }
 
+function normalizeAppIdentity(value?: string) {
+  return (value || '').trim().toLowerCase();
+}
+
+function findInstalledApplication(app: StoreApp | SourceApp, installedApps: InstalledApplication[]) {
+  const appID = normalizeAppIdentity(app.slug);
+  const appName = normalizeAppIdentity(app.name);
+  return installedApps.find((item) => {
+    const installedID = normalizeAppIdentity(item.appid);
+    if (appID && installedID) return appID === installedID;
+    return appName !== '' && normalizeAppIdentity(item.title) === appName;
+  });
+}
+
 function belongsToSource(app: SourceApp, source: SourceSubscription) {
   return app.sourceId ? app.sourceId === source.id : app.sourceName === source.name;
 }
@@ -369,6 +384,10 @@ export function App() {
   const [activeSubmitter, setActiveSubmitter] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
+  const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
+  const [installedApps, setInstalledApps] = useState<InstalledApplication[]>([]);
+  const [installedState, setInstalledState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+  const [installedError, setInstalledError] = useState('');
   const [installActivity, setInstallActivity] = useState<InstallActivity | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
@@ -377,6 +396,7 @@ export function App() {
   const navItems = HAS_API ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : clientTabs;
   const modeLabel = HAS_API ? t('mode.serverStore') : t('mode.standaloneClient');
   const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
+  const drawerOpen = Boolean(selectedApp || selectedSourceApp);
 
   const [sources, setSources] = useState<SourceSubscription[]>(() => {
     const saved = localStorage.getItem('lazycat.sources');
@@ -527,6 +547,22 @@ export function App() {
     });
   }
 
+  async function loadInstalledApps(options: { quiet?: boolean } = {}) {
+    setInstalledState('loading');
+    setInstalledError('');
+    try {
+      const result = await queryInstalledApplications();
+      setInstalledApps(result?.infoList || []);
+      setInstalledState('loaded');
+      if (!options.quiet) setToast({ tone: 'success', message: t('profile.installedRefreshed') });
+    } catch (error) {
+      const message = errorMessage(error, t('profile.lazycatSdkUnavailable'));
+      setInstalledState('error');
+      setInstalledError(message);
+      if (!options.quiet) setToast({ tone: 'error', message });
+    }
+  }
+
   async function installApp(app: StoreApp | SourceApp) {
     await runAction(setToast, t('toast.installFailed'), async () => {
       const version = app.latestVersion;
@@ -567,9 +603,11 @@ export function App() {
         status: success ? 'success' : 'error',
         progress: 100,
         stageKey: success ? 'installActivity.stageDone' : 'installActivity.stageFailed',
+        resultMode: result.mode,
         messageKey: result.messageKey,
         messageParams: result.messageParams,
       });
+      if (result.mode === 'lazycat-sdk') void loadInstalledApps({ quiet: true });
       setToast({
         tone: success ? 'success' : 'error',
         message: t(result.messageKey, result.messageParams),
@@ -688,8 +726,8 @@ export function App() {
 
   return (
     <div className="shell">
-      <a className="skip-link" href="#main-content" inert={!!selectedApp} aria-hidden={selectedApp ? true : undefined}>{t('common.skipToMain')}</a>
-      <aside className="sidebar" inert={!!selectedApp} aria-hidden={selectedApp ? true : undefined}>
+      <a className="skip-link" href="#main-content" inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>{t('common.skipToMain')}</a>
+      <aside className="sidebar" inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>
         <div className="brand">
           <div className="brand-mark">
             <Archive size={22} />
@@ -719,7 +757,7 @@ export function App() {
         </div>
       </aside>
 
-      <main className="main" id="main-content" tabIndex={-1} inert={!!selectedApp} aria-hidden={selectedApp ? true : undefined}>
+      <main className="main" id="main-content" tabIndex={-1} inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>
         <header className="topbar">
           <div className="searchbox">
             <Search size={18} />
@@ -796,10 +834,12 @@ export function App() {
                 query={query}
                 mode={HAS_API ? 'server' : 'client'}
                 sourceStats={sourceStats}
+                installedApps={installedApps}
                 onCategory={setActiveCategory}
                 onSubmitter={setActiveSubmitter}
                 onSortMode={setSortMode}
                 onOpen={openApp}
+                onOpenSource={setSelectedSourceApp}
                 onInstall={installApp}
                 onGoSources={() => setTab('sources')}
               />
@@ -811,13 +851,34 @@ export function App() {
                 sourceApps={sourceApps}
                 onSync={syncSource}
                 onSyncAll={syncAllSources}
+                onOpenSource={setSelectedSourceApp}
                 onInstall={installApp}
+                installedApps={installedApps}
                 sourceStats={sourceStats}
                 onSourceDeleted={(source) => setSourceApps((current) => current.filter((app) => !belongsToSource(app, source)))}
                 setToast={setToast}
               />
             )}
-            {tab === 'profile' && <ProfileView user={user} setUser={setUser} apps={apps} groups={groups} setGroups={setGroups} categories={categories} sourceStats={sourceStats} onOpen={openApp} refreshAll={refreshAll} setToast={setToast} hasAPI={HAS_API} onNavigate={setTab} />}
+            {tab === 'profile' && (
+              <ProfileView
+                user={user}
+                setUser={setUser}
+                apps={apps}
+                groups={groups}
+                setGroups={setGroups}
+                categories={categories}
+                sourceStats={sourceStats}
+                installedApps={installedApps}
+                installedState={installedState}
+                installedError={installedError}
+                onLoadInstalled={loadInstalledApps}
+                onOpen={openApp}
+                refreshAll={refreshAll}
+                setToast={setToast}
+                hasAPI={HAS_API}
+                onNavigate={setTab}
+              />
+            )}
             {tab === 'admin' && (
               user && canReview ? (
                 <AdminPanel user={user} reviews={reviews} onApprove={approveReview} setToast={setToast} />
@@ -834,7 +895,7 @@ export function App() {
         )}
       </main>
 
-      <MobileTabs tab={tab} setTab={setTab} items={navItems} inert={!!selectedApp} />
+      <MobileTabs tab={tab} setTab={setTab} items={navItems} inert={drawerOpen} />
 
       {selectedApp && (
         <AppDrawer
@@ -850,6 +911,17 @@ export function App() {
           }}
           onListRefresh={refreshAll}
           setToast={setToast}
+        />
+      )}
+
+      {selectedSourceApp && (
+        <SourceAppDrawer
+          app={selectedSourceApp}
+          installedMatch={findInstalledApplication(selectedSourceApp, installedApps)}
+          installedState={installedState}
+          onClose={() => setSelectedSourceApp(null)}
+          onInstall={installApp}
+          onLoadInstalled={loadInstalledApps}
         />
       )}
 
@@ -870,6 +942,9 @@ export function App() {
             <div className="install-panel-meta">
               <small>{t('installActivity.source', { source: installActivity.source })}</small>
               <small>{t('installActivity.checksum', { checksum: installActivity.checksum })}</small>
+              {installActivity.resultMode && (
+                <small>{t('installActivity.resultMode', { mode: t(`installActivity.modes.${installActivity.resultMode}`) })}</small>
+              )}
             </div>
             {installActivity.messageKey && <p>{t(installActivity.messageKey, installActivity.messageParams)}</p>}
           </div>
@@ -1124,10 +1199,12 @@ function SearchView({
   query,
   mode,
   sourceStats,
+  installedApps,
   onCategory,
   onSubmitter,
   onSortMode,
   onOpen,
+  onOpenSource,
   onInstall,
   onGoSources,
 }: {
@@ -1141,10 +1218,12 @@ function SearchView({
   query: string;
   mode: 'server' | 'client';
   sourceStats: ClientSourceStats;
+  installedApps: InstalledApplication[];
   onCategory: (category: string) => void;
   onSubmitter: (submitter: string) => void;
   onSortMode: (mode: SortMode) => void;
   onOpen: (app: StoreApp) => void;
+  onOpenSource: (app: SourceApp) => void;
   onInstall: (app: StoreApp | SourceApp) => void;
   onGoSources: () => void;
 }) {
@@ -1193,6 +1272,8 @@ function SearchView({
           <SectionTitle icon={Download} title={t('search.subscribedApps')} />
           <SourceAppGrid
             apps={filteredSourceApps}
+            installedApps={installedApps}
+            onOpen={onOpenSource}
             onInstall={onInstall}
             onGoSources={onGoSources}
             emptyTitle={sourceEmptyTitle}
@@ -1249,7 +1330,7 @@ function SearchView({
       </section>
       <section className="panel">
         <SectionTitle icon={Cloud} title={t('search.subscribedApps')} />
-        <SourceAppGrid apps={filteredSourceApps} onInstall={onInstall} onGoSources={onGoSources} />
+        <SourceAppGrid apps={filteredSourceApps} installedApps={installedApps} onOpen={onOpenSource} onInstall={onInstall} onGoSources={onGoSources} />
       </section>
     </section>
   );
@@ -1257,6 +1338,8 @@ function SearchView({
 
 function SourceAppGrid({
   apps,
+  installedApps,
+  onOpen,
   onInstall,
   onGoSources,
   showEmptyAction = true,
@@ -1264,6 +1347,8 @@ function SourceAppGrid({
   emptyBody,
 }: {
   apps: SourceApp[];
+  installedApps: InstalledApplication[];
+  onOpen: (app: SourceApp) => void;
   onInstall: (app: SourceApp) => void;
   onGoSources: () => void;
   showEmptyAction?: boolean;
@@ -1292,15 +1377,17 @@ function SourceAppGrid({
         const installable = hasInstallableVersion(app);
         const hasChecksum = Boolean(app.latestVersion?.sha256);
         const hasSize = Boolean(app.latestVersion?.size && app.latestVersion.size > 0);
+        const installedMatch = findInstalledApplication(app, installedApps);
         return (
           <article className="source-app-card" key={`${app.sourceId || app.sourceName}-${app.id}`}>
-            <div className="app-open static">
+            <button type="button" className="app-open" onClick={() => onOpen(app)} aria-label={t('app.open', { name: app.name })}>
               <AvatarIcon seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} />
               <div>
                 <h3>{app.name}</h3>
                 <p>{app.summary || t('common.lpkApp')}</p>
               </div>
-            </div>
+              <ChevronRight size={18} />
+            </button>
             <div className="app-meta">
               <span><Cloud size={14} /> {app.sourceName}</span>
               <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
@@ -1320,6 +1407,12 @@ function SourceAppGrid({
                 <Archive size={13} />
                 {hasSize ? t('app.sizeReady') : t('app.sizeMissing')}
               </span>
+              {installedMatch && (
+                <span className="status-badge synced">
+                  <Check size={13} />
+                  {t('app.installed')}
+                </span>
+              )}
             </div>
             <button
               type="button"
@@ -1344,7 +1437,9 @@ function SourcesView({
   sourceApps,
   onSync,
   onSyncAll,
+  onOpenSource,
   onInstall,
+  installedApps,
   sourceStats,
   onSourceDeleted,
   setToast,
@@ -1354,7 +1449,9 @@ function SourcesView({
   sourceApps: SourceApp[];
   onSync: (source: SourceSubscription) => Promise<void>;
   onSyncAll: () => Promise<void>;
+  onOpenSource: (app: SourceApp) => void;
   onInstall: (app: SourceApp) => void;
+  installedApps: InstalledApplication[];
   sourceStats: ClientSourceStats;
   onSourceDeleted: (source: SourceSubscription) => void;
   setToast: (toast: Toast) => void;
@@ -1599,9 +1696,173 @@ function SourcesView({
 
       <section className="panel">
         <SectionTitle icon={Download} title={t('sources.syncedApps')} />
-        <SourceAppGrid apps={sourceApps} onInstall={onInstall} onGoSources={() => undefined} showEmptyAction={false} />
+        <SourceAppGrid apps={sourceApps} installedApps={installedApps} onOpen={onOpenSource} onInstall={onInstall} onGoSources={() => undefined} showEmptyAction={false} />
       </section>
     </section>
+  );
+}
+
+function SourceAppDrawer({
+  app,
+  installedMatch,
+  installedState,
+  onClose,
+  onInstall,
+  onLoadInstalled,
+}: {
+  app: SourceApp;
+  installedMatch?: InstalledApplication;
+  installedState: 'idle' | 'loading' | 'loaded' | 'error';
+  onClose: () => void;
+  onInstall: (app: SourceApp) => void;
+  onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerTitleId = `source-app-drawer-title-${app.sourceId || app.sourceName}-${app.id}`;
+  const latestVersion = app.latestVersion;
+  const installable = hasInstallableVersion(app);
+  const hasChecksum = Boolean(latestVersion?.sha256);
+  const hasSize = Boolean(latestVersion?.size && latestVersion.size > 0);
+  const trustState: 'ready' | 'caution' | 'blocked' = !installable ? 'blocked' : hasChecksum && hasSize ? 'ready' : 'caution';
+  const TrustIcon = trustState === 'ready' ? ShieldCheck : trustState === 'caution' ? Gauge : AlertCircle;
+  const trustTitle = trustState === 'ready' ? t('sourceDetail.trustReadyTitle') : trustState === 'caution' ? t('sourceDetail.trustCautionTitle') : t('sourceDetail.trustBlockedTitle');
+  const trustBody = trustState === 'ready' ? t('sourceDetail.trustReadyBody') : trustState === 'caution' ? t('sourceDetail.trustCautionBody') : t('sourceDetail.trustBlockedBody');
+  const installedBody = installedMatch
+    ? t('sourceDetail.installedBody', { version: installedMatch.version || '-' })
+    : installedState === 'loaded'
+      ? t('sourceDetail.notInstalledLoaded')
+      : t('sourceDetail.notInstalledIdle');
+  const trustFacts = [
+    { label: t('drawer.installStatus'), value: installable ? t('app.installReady') : t('app.installMissingVersion') },
+    { label: t('sourceDetail.source'), value: app.sourceName },
+    { label: t('drawer.artifactChecksum'), value: hasChecksum ? t('drawer.checksumShort', { hash: shortSHA(latestVersion?.sha256) }) : t('drawer.checksumMissing') },
+    { label: t('drawer.artifactSize'), value: hasSize ? formatBytes(latestVersion?.size) : t('drawer.sizeMissing') },
+  ];
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, [app.id]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="drawer-backdrop" onClick={onClose}>
+      <article
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={drawerTitleId}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button ref={closeButtonRef} type="button" className="icon-button close" aria-label={t('common.close')} onClick={onClose}>
+          <X size={17} />
+        </button>
+        <header className="detail-head">
+          <AvatarIcon seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} className="detail-avatar" />
+          <div>
+            <span className="eyebrow subtle">{t('sourceDetail.eyebrow')}</span>
+            <h2 id={drawerTitleId}>{app.name}</h2>
+            <p>{app.summary || t('common.lpkApp')}</p>
+            <div className="app-meta">
+              <span><Cloud size={14} /> {app.sourceName}</span>
+              <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
+              <span><Star size={14} /> {latestVersion?.version || t('app.noPublishedVersion')}</span>
+              {installedMatch && (
+                <span className="status-badge synced">
+                  <Check size={13} />
+                  {t('app.installed')}
+                </span>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <section className={cx('install-trust', trustState)} aria-label={t('drawer.installReadiness')}>
+          <div className="install-trust-lead">
+            <TrustIcon size={22} />
+            <div>
+              <strong>{trustTitle}</strong>
+              <span>{trustBody}</span>
+              {!installable && <small>{t('sourceDetail.installBlockedHint')}</small>}
+            </div>
+          </div>
+          <div className="trust-facts" role="list">
+            {trustFacts.map((fact) => (
+              <div role="listitem" key={fact.label}>
+                <span>{fact.label}</span>
+                <strong>{fact.value}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="source-detail-actions">
+            <button type="button" className="install-button" disabled={!installable} onClick={() => void onInstall(app)}>
+              <Download size={17} />
+              <span>{installable ? t('common.install') : t('common.unavailable')}</span>
+            </button>
+            <button type="button" className="secondary-button" disabled={installedState === 'loading'} onClick={() => void onLoadInstalled()}>
+              <RefreshCw size={17} />
+              <span>{installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}</span>
+            </button>
+          </div>
+        </section>
+
+        <section className={cx('install-trust', installedMatch ? 'ready' : 'caution')} aria-label={t('sourceDetail.installedTitle')}>
+          <div className="install-trust-lead">
+            {installedMatch ? <Check size={22} /> : <Gauge size={22} />}
+            <div>
+              <strong>{installedMatch ? t('sourceDetail.installedTitle') : t('sourceDetail.notInstalledTitle')}</strong>
+              <span>{installedBody}</span>
+              {installedMatch?.appid && <small>{installedMatch.appid}</small>}
+            </div>
+          </div>
+        </section>
+
+        <section className="detail-summary" aria-label={t('drawer.metadata')}>
+          <div>
+            <span>{t('sourceDetail.source')}</span>
+            <strong>{app.sourceName}</strong>
+          </div>
+          <div>
+            <span>{t('common.category')}</span>
+            <strong>{app.category || t('common.uncategorized')}</strong>
+          </div>
+          <div>
+            <span>{t('drawer.latestVersion')}</span>
+            <strong>{latestVersion?.version || t('app.noPublishedVersion')}</strong>
+          </div>
+          <div>
+            <span>{t('drawer.artifactSource')}</span>
+            <strong>{latestVersion?.sourceType || t('drawer.sourceMissing')}</strong>
+          </div>
+        </section>
+
+        <section className="source-detail-urls">
+          <h3>{t('sourceDetail.downloadDetails')}</h3>
+          <div className="detail-url-row">
+            <span>{t('common.downloadUrl')}</span>
+            <code>{latestVersion?.downloadUrl || '-'}</code>
+          </div>
+          {latestVersion?.upstreamDownloadUrl && (
+            <div className="detail-url-row">
+              <span>{t('sourceDetail.upstreamUrl')}</span>
+              <code>{latestVersion.upstreamDownloadUrl}</code>
+            </div>
+          )}
+          <div className="detail-url-row">
+            <span>{t('common.sha256')}</span>
+            <code>{latestVersion?.sha256 || '-'}</code>
+          </div>
+        </section>
+      </article>
+    </div>
   );
 }
 
@@ -1613,6 +1874,10 @@ function ProfileView({
   setGroups,
   categories,
   sourceStats,
+  installedApps,
+  installedState,
+  installedError,
+  onLoadInstalled,
   onOpen,
   refreshAll,
   setToast,
@@ -1626,6 +1891,10 @@ function ProfileView({
   setGroups: (groups: Group[]) => void;
   categories: Category[];
   sourceStats: ClientSourceStats;
+  installedApps: InstalledApplication[];
+  installedState: 'idle' | 'loading' | 'loaded' | 'error';
+  installedError: string;
+  onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
   onOpen: (app: StoreApp) => void;
   refreshAll: (options?: { silent?: boolean }) => Promise<void>;
   setToast: (toast: Toast) => void;
@@ -1655,9 +1924,6 @@ function ProfileView({
   const [tokens, setTokens] = useState<APITokenRecord[]>([]);
   const [newToken, setNewToken] = useState('');
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
-  const [installedApps, setInstalledApps] = useState<InstalledApplication[]>([]);
-  const [installedState, setInstalledState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
-  const [installedError, setInstalledError] = useState('');
   const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
   const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
   const authHint = mode === 'login' ? t('auth.loginHint') : mode === 'register' ? t('auth.registerHint') : t('auth.verifyHint');
@@ -1842,22 +2108,6 @@ function ProfileView({
     });
   }
 
-  async function loadInstalledApps() {
-    setInstalledState('loading');
-    setInstalledError('');
-    try {
-      const result = await queryInstalledApplications();
-      setInstalledApps(result?.infoList || []);
-      setInstalledState('loaded');
-      setToast({ tone: 'success', message: t('profile.installedRefreshed') });
-    } catch (error) {
-      const message = errorMessage(error, t('profile.lazycatSdkUnavailable'));
-      setInstalledState('error');
-      setInstalledError(message);
-      setToast({ tone: 'error', message });
-    }
-  }
-
   function submissionStep(app: StoreApp) {
     if (app.status === 'PENDING') return { key: 'pending', tone: 'pending' };
     if (app.status === 'REJECTED') return { key: 'rejected', tone: 'rejected' };
@@ -1928,7 +2178,7 @@ function ProfileView({
               </span>
               {installedState === 'error' && <small>{installedError}</small>}
             </div>
-            <button type="button" className="primary-button" disabled={installedState === 'loading'} onClick={() => void loadInstalledApps()}>
+            <button type="button" className="primary-button" disabled={installedState === 'loading'} onClick={() => void onLoadInstalled()}>
               <RefreshCw size={18} />
               <span>{installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}</span>
             </button>
@@ -2431,7 +2681,7 @@ function ProfileView({
               ))
             )}
           </div>
-          <button type="button" className="secondary-button" disabled={installedState === 'loading'} onClick={() => void loadInstalledApps()}>
+          <button type="button" className="secondary-button" disabled={installedState === 'loading'} onClick={() => void onLoadInstalled()}>
             <RefreshCw size={18} />
             <span>{installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}</span>
           </button>
