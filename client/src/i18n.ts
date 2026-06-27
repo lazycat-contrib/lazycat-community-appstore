@@ -11,6 +11,15 @@ const resources = {
         zh: '中文',
         en: 'English',
       },
+      theme: {
+        label: '主题',
+        toggle: '切换主题，当前 {{mode}}',
+        modes: {
+          system: '跟随系统',
+          light: '浅色',
+          dark: '深色',
+        },
+      },
       common: {
         all: '全部',
         app: '应用',
@@ -730,6 +739,15 @@ const resources = {
         label: 'Language',
         zh: '中文',
         en: 'English',
+      },
+      theme: {
+        label: 'Theme',
+        toggle: 'Switch theme, current {{mode}}',
+        modes: {
+          system: 'System',
+          light: 'Light',
+          dark: 'Dark',
+        },
       },
       common: {
         all: 'All',

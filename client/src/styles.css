@@ -3,20 +3,109 @@
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  background: #edf0ec;
-  color: #1d2421;
+  background: var(--app-bg);
+  color: var(--ink);
+  --app-bg: #edf0ec;
   --ink: #1d2421;
   --muted: #63706a;
   --line: #d5ddd4;
   --paper: #fbfcf8;
   --surface: #ffffff;
+  --field: #fbfcf8;
+  --subtle-surface: #f7faf5;
   --green: #0f6b4d;
   --green-strong: #084a36;
   --mint: #cfeee0;
   --blue: #225c9b;
   --red: #b83333;
   --amber: #b7781b;
+  --on-strong: #ffffff;
+  --sidebar-bg: #16231d;
+  --sidebar-ink: #f6f8f4;
+  --sidebar-muted: #aab8b1;
+  --sidebar-item: #dce4df;
+  --sidebar-hover: #25372f;
+  --sidebar-line: #334a40;
+  --brand-mark-bg: #b9e6cf;
+  --brand-mark-ink: #0b3c2c;
+  --hero-ink: #ffffff;
+  --hero-muted: #d7e5dc;
+  --hero-accent: #a9e3c5;
+  --status-success-bg: #f1faf5;
+  --status-success-line: #b8dfca;
+  --status-info-bg: #f3f7fc;
+  --status-info-line: #bed2e8;
+  --status-warning-bg: #fffaf0;
+  --status-warning-line: #ead3ad;
+  --status-danger-bg: #fff8f8;
+  --status-danger-line: #e4b8b8;
+  --avatar-bg: #e6f4ed;
+  --avatar-line: #c8e7d7;
+  --backdrop: rgba(22, 35, 29, 0.44);
+  --disabled-bg: #e9eee8;
+  --install-panel-bg: #16231d;
+  --install-panel-line: #2f4a3e;
+  --install-panel-success: #6eb58d;
+  --install-panel-error: #c86d6d;
+  --install-panel-muted: #d7e5dc;
+  --install-panel-control: rgba(255, 255, 255, 0.08);
+  --install-panel-control-line: #3f5b4e;
+  --progress-track: #30453b;
+  --progress-fill: #b9e6cf;
+  --toast-bg: #1d2421;
   --radius: 8px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --app-bg: #0f1512;
+  --ink: #e9f0eb;
+  --muted: #a8b5ae;
+  --line: #2c3932;
+  --paper: #111a15;
+  --surface: #17211b;
+  --field: #111a15;
+  --subtle-surface: #132018;
+  --green: #68d39e;
+  --green-strong: #96e3b8;
+  --mint: #174c38;
+  --blue: #7ab2f3;
+  --red: #ff8a8a;
+  --amber: #f2bd66;
+  --on-strong: #07110c;
+  --sidebar-bg: #0b120f;
+  --sidebar-ink: #f3f8f5;
+  --sidebar-muted: #9aaba2;
+  --sidebar-item: #d8e4dd;
+  --sidebar-hover: #1c2b23;
+  --sidebar-line: #2b4035;
+  --brand-mark-bg: #164a37;
+  --brand-mark-ink: #d8f5e6;
+  --hero-ink: #f5fbf7;
+  --hero-muted: #bbcbc2;
+  --hero-accent: #7cddb0;
+  --status-success-bg: #10261b;
+  --status-success-line: #2d6949;
+  --status-info-bg: #102033;
+  --status-info-line: #315b86;
+  --status-warning-bg: #2b2110;
+  --status-warning-line: #71511c;
+  --status-danger-bg: #301818;
+  --status-danger-line: #7d3939;
+  --avatar-bg: #10281d;
+  --avatar-line: #25573d;
+  --backdrop: rgba(0, 0, 0, 0.58);
+  --disabled-bg: #1a241e;
+  --install-panel-bg: #0b120f;
+  --install-panel-line: #284537;
+  --install-panel-success: #3f9865;
+  --install-panel-error: #944444;
+  --install-panel-muted: #bbcbc2;
+  --install-panel-control: rgba(255, 255, 255, 0.07);
+  --install-panel-control-line: #314f42;
+  --progress-track: #203329;
+  --progress-fill: #65d99d;
+  --toast-bg: #e9f0eb;
 }
 
 * {
@@ -27,6 +116,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--app-bg);
+  color: var(--ink);
 }
 
 button,
@@ -37,6 +128,31 @@ textarea {
 
 select {
   font: inherit;
+}
+
+select option {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+body,
+.sidebar,
+.main,
+.panel,
+.searchbox,
+.mode-pill,
+.language-select,
+.icon-button,
+.user-pill,
+.primary-button,
+.secondary-button,
+.install-button,
+.drawer,
+.mobile-tabs {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
 
 button {
@@ -62,7 +178,7 @@ textarea {
   z-index: 100;
   transform: translateY(-140%);
   background: var(--green-strong);
-  color: white;
+  color: var(--on-strong);
   border-radius: 8px;
   padding: 10px 12px;
   text-decoration: none;
@@ -83,8 +199,8 @@ textarea {
   top: 0;
   height: 100vh;
   padding: 22px;
-  background: #16231d;
-  color: #f6f8f4;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-ink);
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -102,8 +218,8 @@ textarea {
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #b9e6cf;
-  color: #0b3c2c;
+  background: var(--brand-mark-bg);
+  color: var(--brand-mark-ink);
   font-weight: 800;
 }
 
@@ -122,7 +238,7 @@ textarea {
 
 .sidebar .brand span,
 .sidebar .server-card span {
-  color: #aab8b1;
+  color: var(--sidebar-muted);
 }
 
 .brand strong {
@@ -156,12 +272,12 @@ textarea {
   gap: 11px;
   padding: 0 12px;
   border-radius: 8px;
-  color: #dce4df;
+  color: var(--sidebar-item);
 }
 
 .nav-item.active,
 .nav-item:hover {
-  background: #25372f;
+  background: var(--sidebar-hover);
 }
 
 .server-card {
@@ -170,7 +286,7 @@ textarea {
   gap: 10px;
   align-items: center;
   padding: 12px;
-  border: 1px solid #334a40;
+  border: 1px solid var(--sidebar-line);
   border-radius: 8px;
   min-width: 0;
 }
@@ -309,17 +425,17 @@ textarea {
 .install-button {
   background: var(--green);
   border-color: var(--green);
-  color: white;
+  color: var(--on-strong);
 }
 
 .secondary-button {
-  background: #f7faf5;
+  background: var(--subtle-surface);
 }
 
 .danger-button {
   color: var(--red);
-  border-color: #e4b8b8;
-  background: #fff8f8;
+  border-color: var(--status-danger-line);
+  background: var(--status-danger-bg);
 }
 
 .page-grid {
@@ -355,7 +471,7 @@ textarea {
   background:
     linear-gradient(90deg, rgba(17, 35, 29, 0.96), rgba(17, 35, 29, 0.82)),
     repeating-linear-gradient(135deg, #1b3329 0 16px, #213b31 16px 32px);
-  color: white;
+  color: var(--hero-ink);
   display: grid;
   align-content: center;
   gap: 18px;
@@ -371,7 +487,7 @@ textarea {
 .setup-copy p {
   max-width: 620px;
   margin: 0;
-  color: #d7e5dc;
+  color: var(--hero-muted);
   line-height: 1.65;
 }
 
@@ -435,7 +551,7 @@ textarea {
   background:
     linear-gradient(90deg, rgba(17, 35, 29, 0.94), rgba(17, 35, 29, 0.78)),
     repeating-linear-gradient(135deg, #1b3329 0 16px, #213b31 16px 32px);
-  color: white;
+  color: var(--hero-ink);
   padding: clamp(22px, 4vw, 42px);
   display: flex;
   justify-content: space-between;
@@ -451,14 +567,14 @@ textarea {
 }
 
 .hero-band p {
-  color: #d7e5dc;
+  color: var(--hero-muted);
   margin: 0;
   max-width: 680px;
   line-height: 1.6;
 }
 
 .eyebrow {
-  color: #a9e3c5;
+  color: var(--hero-accent);
   text-transform: uppercase;
   font-size: 12px;
   font-weight: 800;
@@ -580,7 +696,7 @@ textarea {
   min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcf8;
+  background: var(--field);
   color: var(--ink);
   padding: 8px 10px;
 }
@@ -649,8 +765,8 @@ textarea {
   width: 46px;
   height: 46px;
   border-radius: 8px;
-  background: #e6f4ed;
-  border: 1px solid #c8e7d7;
+  background: var(--avatar-bg);
+  border: 1px solid var(--avatar-line);
   overflow: hidden;
 }
 
@@ -694,7 +810,7 @@ textarea {
   border: 1px solid var(--line);
   padding: 0 8px;
   color: var(--muted);
-  background: #fbfcf8;
+  background: var(--field);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
@@ -706,42 +822,42 @@ textarea {
 
 .status-badge.approved {
   color: var(--green);
-  border-color: #b8dfca;
-  background: #f1faf5;
+  border-color: var(--status-success-line);
+  background: var(--status-success-bg);
 }
 
 .status-badge.synced {
   color: var(--green);
-  border-color: #b8dfca;
-  background: #f1faf5;
+  border-color: var(--status-success-line);
+  background: var(--status-success-bg);
 }
 
 .status-badge.pending {
   color: var(--blue);
-  border-color: #bed2e8;
-  background: #f3f7fc;
+  border-color: var(--status-info-line);
+  background: var(--status-info-bg);
 }
 
 .status-badge.syncing {
   color: var(--blue);
-  border-color: #bed2e8;
-  background: #f3f7fc;
+  border-color: var(--status-info-line);
+  background: var(--status-info-bg);
 }
 
 .status-badge.rejected,
 .status-badge.blocked,
 .status-badge.failed {
   color: var(--red);
-  border-color: #e4b8b8;
-  background: #fff8f8;
+  border-color: var(--status-danger-line);
+  background: var(--status-danger-bg);
 }
 
 .status-badge.unlisted,
 .status-badge.draft,
 .status-badge.unsynced {
   color: var(--amber);
-  border-color: #ead3ad;
-  background: #fffaf0;
+  border-color: var(--status-warning-line);
+  background: var(--status-warning-bg);
 }
 
 .client-summary-grid {
@@ -788,7 +904,7 @@ textarea {
   min-height: 72px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcf8;
+  background: var(--field);
   padding: 10px;
   display: grid;
   gap: 5px;
@@ -882,7 +998,7 @@ textarea {
 
 .review-note {
   margin: 8px 0 0;
-  border-left: 3px solid #bed2e8;
+  border-left: 3px solid var(--status-info-line);
   padding-left: 8px;
   color: var(--muted);
   font-size: 13px;
@@ -901,7 +1017,7 @@ textarea {
   min-height: 24px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcf8;
+  background: var(--field);
   padding: 3px 7px;
   display: inline-flex;
   align-items: center;
@@ -974,7 +1090,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0 10px;
-  background: #fbfcf8;
+  background: var(--field);
   color: var(--ink);
   min-width: 0;
 }
@@ -995,7 +1111,7 @@ textarea {
 
 .segmented button.active {
   background: var(--green);
-  color: white;
+  color: var(--on-strong);
   border-color: var(--green);
 }
 
@@ -1014,7 +1130,7 @@ textarea {
   min-height: 72px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcf8;
+  background: var(--field);
   padding: 10px;
   display: grid;
   align-content: center;
@@ -1073,7 +1189,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 9px 10px;
-  background: #fbfcf8;
+  background: var(--field);
   color: var(--ink);
 }
 
@@ -1085,7 +1201,7 @@ textarea {
 .workflow-strip {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcf8;
+  background: var(--field);
   padding: 12px;
   display: grid;
   gap: 10px;
@@ -1121,7 +1237,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 4px 8px;
-  background: white;
+  background: var(--surface);
   color: var(--ink);
   display: inline-flex;
   align-items: center;
@@ -1141,9 +1257,9 @@ textarea {
 
 .readiness-step {
   min-width: 0;
-  border: 1px solid #ead3ad;
+  border: 1px solid var(--status-warning-line);
   border-radius: 8px;
-  background: #fffaf0;
+  background: var(--status-warning-bg);
   padding: 10px;
   display: grid;
   gap: 6px;
@@ -1151,8 +1267,8 @@ textarea {
 }
 
 .readiness-step.ready {
-  border-color: #c8e7d7;
-  background: #f7faf5;
+  border-color: var(--status-success-line);
+  background: var(--status-success-bg);
 }
 
 .readiness-step strong {
@@ -1169,7 +1285,7 @@ textarea {
 .artifact-section {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcf8;
+  background: var(--field);
   padding: 12px;
   display: grid;
   gap: 12px;
@@ -1219,7 +1335,7 @@ textarea {
 
 .artifact-mode button.active {
   border-color: var(--green);
-  background: #f1faf5;
+  background: var(--status-success-bg);
 }
 
 .artifact-mode button span {
@@ -1289,7 +1405,7 @@ textarea {
   min-height: 72px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcf8;
+  background: var(--field);
   padding: 12px;
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr) auto;
@@ -1330,7 +1446,7 @@ textarea {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcf8;
+  background: var(--field);
   padding: 10px;
   display: grid;
   justify-items: center;
@@ -1346,7 +1462,7 @@ textarea {
 .drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(22, 35, 29, 0.44);
+  background: var(--backdrop);
   display: flex;
   justify-content: flex-end;
   z-index: 20;
@@ -1390,25 +1506,25 @@ textarea {
 .install-trust {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #f7faf5;
+  background: var(--subtle-surface);
   padding: 14px;
   display: grid;
   gap: 12px;
 }
 
 .install-trust.ready {
-  border-color: #b8dfca;
-  background: #f1faf5;
+  border-color: var(--status-success-line);
+  background: var(--status-success-bg);
 }
 
 .install-trust.caution {
-  border-color: #ead3ad;
-  background: #fffaf0;
+  border-color: var(--status-warning-line);
+  background: var(--status-warning-bg);
 }
 
 .install-trust.blocked {
-  border-color: #e4b8b8;
-  background: #fff8f8;
+  border-color: var(--status-danger-line);
+  background: var(--status-danger-bg);
 }
 
 .install-trust-lead {
@@ -1506,7 +1622,7 @@ textarea {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcf8;
+  background: var(--field);
   padding: 12px;
   display: grid;
   gap: 6px;
@@ -1535,7 +1651,7 @@ textarea {
   min-height: 76px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcf8;
+  background: var(--field);
   padding: 12px;
   display: grid;
   gap: 6px;
@@ -1572,7 +1688,8 @@ textarea {
   min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: white;
+  background: var(--field);
+  color: var(--ink);
   padding: 0 10px;
 }
 
@@ -1598,7 +1715,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0 10px;
-  background: #fbfcf8;
+  background: var(--field);
   color: var(--ink);
   min-width: 0;
 }
@@ -1644,7 +1761,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
-  background: #f7faf5;
+  background: var(--subtle-surface);
 }
 
 .maintenance-grid {
@@ -1654,7 +1771,7 @@ textarea {
 }
 
 .nested-panel {
-  background: #fbfcf8;
+  background: var(--field);
 }
 
 .checkbox-list {
@@ -1683,7 +1800,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
-  background: white;
+  background: var(--surface);
 }
 
 .screenshot-item img {
@@ -1730,7 +1847,7 @@ textarea {
 
 .primary-button:disabled,
 .install-button:disabled {
-  background: #e9eee8;
+  background: var(--disabled-bg);
   border-color: var(--line);
   color: var(--muted);
   opacity: 1;
@@ -1769,23 +1886,23 @@ textarea {
   bottom: calc(20px + env(safe-area-inset-bottom));
   z-index: 35;
   width: min(460px, calc(100vw - 40px));
-  background: #16231d;
-  color: white;
+  background: var(--install-panel-bg);
+  color: var(--hero-ink);
   border-radius: 8px;
   padding: 14px;
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) 44px;
   gap: 12px;
   align-items: start;
-  border: 1px solid #2f4a3e;
+  border: 1px solid var(--install-panel-line);
 }
 
 .install-panel.success {
-  border-color: #6eb58d;
+  border-color: var(--install-panel-success);
 }
 
 .install-panel.error {
-  border-color: #c86d6d;
+  border-color: var(--install-panel-error);
 }
 
 .install-panel-body {
@@ -1810,7 +1927,7 @@ textarea {
 .install-panel-body > span,
 .install-panel-body p,
 .install-panel-meta small {
-  color: #d7e5dc;
+  color: var(--install-panel-muted);
   font-size: 13px;
   line-height: 1.45;
   overflow-wrap: anywhere;
@@ -1827,14 +1944,14 @@ textarea {
 }
 
 .install-panel .icon-button {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: #3f5b4e;
-  color: white;
+  background: var(--install-panel-control);
+  border-color: var(--install-panel-control-line);
+  color: var(--hero-ink);
 }
 
 .progress {
   height: 6px;
-  background: #30453b;
+  background: var(--progress-track);
   border-radius: 99px;
   overflow: hidden;
   margin-top: 8px;
@@ -1843,7 +1960,7 @@ textarea {
 .progress span {
   display: block;
   height: 100%;
-  background: #b9e6cf;
+  background: var(--progress-fill);
   transition: width 160ms ease;
 }
 
@@ -1856,8 +1973,8 @@ textarea {
   min-height: 44px;
   border-radius: 8px;
   padding: 10px 14px;
-  background: #1d2421;
-  color: white;
+  background: var(--toast-bg);
+  color: var(--on-strong);
 }
 
 .toast.success {
@@ -2001,7 +2118,7 @@ code {
     padding-bottom: env(safe-area-inset-bottom);
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    background: #fbfcf8;
+    background: var(--field);
     border-top: 1px solid var(--line);
   }
 

@@ -18,6 +18,8 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
+  Monitor,
+  Moon,
   PackagePlus,
   Plus,
   RefreshCw,
@@ -27,6 +29,7 @@ import {
   ShieldCheck,
   Save,
   Star,
+  Sun,
   Tag,
   Trash2,
   Upload,
@@ -331,6 +334,10 @@ function reviewFieldLabel(key: string, t: (key: string, options?: any) => string
 
 type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'admin';
 type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
+type ThemeMode = 'system' | 'light' | 'dark';
+type ResolvedTheme = Exclude<ThemeMode, 'system'>;
+
+const THEME_STORAGE_KEY = 'lazycat.theme';
 
 const serverBaseTabs: NavItem[] = [
   { key: 'home', labelKey: 'nav.store', icon: Home },
@@ -345,6 +352,37 @@ const clientTabs: NavItem[] = [
   { key: 'search', labelKey: 'nav.install', icon: Download },
   { key: 'profile', labelKey: 'nav.installed', icon: Archive },
 ];
+
+function readThemeMode(): ThemeMode {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+function readSystemTheme(): ResolvedTheme {
+  if (typeof window === 'undefined' || !window.matchMedia) return 'light';
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function nextThemeMode(mode: ThemeMode): ThemeMode {
+  if (mode === 'system') return 'light';
+  if (mode === 'light') return 'dark';
+  return 'system';
+}
+
+function ThemeToggle({ mode, onChange }: { mode: ThemeMode; onChange: (mode: ThemeMode) => void }) {
+  const { t } = useTranslation();
+  const Icon = mode === 'system' ? Monitor : mode === 'dark' ? Moon : Sun;
+  const label = t('theme.toggle', { mode: t(`theme.modes.${mode}`) });
+  return (
+    <button type="button" className="icon-button" aria-label={label} title={label} onClick={() => onChange(nextThemeMode(mode))}>
+      <Icon size={18} />
+    </button>
+  );
+}
 
 type SortMode = 'recent' | 'downloads' | 'name';
 type SourceAppFilter = 'all' | 'installable' | 'installed' | 'incomplete';
@@ -365,6 +403,8 @@ function reviewKindKey(value?: string) {
 
 export function App() {
   const { t } = useTranslation();
+  const [themeMode, setThemeMode] = useState<ThemeMode>(readThemeMode);
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(readSystemTheme);
   const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'sources'));
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [sourceApps, setSourceApps] = useState<SourceApp[]>(() => {
@@ -400,6 +440,7 @@ export function App() {
   const modeLabel = HAS_API ? t('mode.serverStore') : t('mode.standaloneClient');
   const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
   const drawerOpen = Boolean(selectedApp || selectedSourceApp);
+  const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
 
   const [sources, setSources] = useState<SourceSubscription[]>(() => {
     const saved = localStorage.getItem('lazycat.sources');
@@ -439,6 +480,29 @@ export function App() {
     document.documentElement.lang = currentLanguage === 'en' ? 'en' : 'zh-CN';
     document.title = t('appName');
   }, [currentLanguage, t]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+    } catch {
+      // Storage can be blocked by privacy settings; the active theme still applies for this session.
+    }
+  }, [themeMode]);
+
+  useEffect(() => {
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!media) return;
+    const updateSystemTheme = () => setSystemTheme(media.matches ? 'dark' : 'light');
+    updateSystemTheme();
+    media.addEventListener('change', updateSystemTheme);
+    return () => media.removeEventListener('change', updateSystemTheme);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.dataset.themePreference = themeMode;
+    document.documentElement.style.colorScheme = resolvedTheme;
+  }, [resolvedTheme, themeMode]);
 
   useEffect(() => {
     localStorage.setItem('lazycat.sources', JSON.stringify(sources));
@@ -721,6 +785,8 @@ export function App() {
             await refreshAll();
           }}
           setToast={setToast}
+          themeMode={themeMode}
+          onThemeModeChange={setThemeMode}
         />
         {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
       </>
@@ -780,6 +846,7 @@ export function App() {
                 <option value="en">{t('language.en')}</option>
               </select>
             </label>
+            <ThemeToggle mode={themeMode} onChange={setThemeMode} />
             <button type="button" className="icon-button" aria-label={HAS_API ? t('topbar.refreshStore') : t('topbar.syncAllSources')} onClick={() => void (HAS_API ? refreshAll() : syncAllSources())}>
               <RefreshCw size={18} />
             </button>
@@ -962,7 +1029,17 @@ export function App() {
   );
 }
 
-function SetupWizard({ onComplete, setToast }: { onComplete: (user: User) => Promise<void>; setToast: (toast: Toast) => void }) {
+function SetupWizard({
+  onComplete,
+  setToast,
+  themeMode,
+  onThemeModeChange,
+}: {
+  onComplete: (user: User) => Promise<void>;
+  setToast: (toast: Toast) => void;
+  themeMode: ThemeMode;
+  onThemeModeChange: (mode: ThemeMode) => void;
+}) {
   const { t } = useTranslation();
   const [form, setForm] = useState({
     username: 'admin',
@@ -1030,6 +1107,7 @@ function SetupWizard({ onComplete, setToast }: { onComplete: (user: User) => Pro
                 <option value="en">{t('language.en')}</option>
               </select>
             </label>
+            <ThemeToggle mode={themeMode} onChange={onThemeModeChange} />
           </div>
           <label>
             <span>{t('common.username')}</span>
