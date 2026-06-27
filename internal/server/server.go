@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -59,7 +60,7 @@ func New(cfg config.Config) (*Server, error) {
 		mailer:  newSMTPMailer(cfg),
 		mux:     http.NewServeMux(),
 	}
-	s.web = embeddedWebHandler()
+	s.web = embeddedWebHandler(cfg)
 	if err := s.bootstrap(context.Background()); err != nil {
 		_ = client.Close()
 		return nil, err
@@ -237,7 +238,7 @@ func isAPINamespace(rawPath string) bool {
 	return strings.HasPrefix(rawPath, "/api/") || strings.HasPrefix(rawPath, "/source/") || strings.HasPrefix(rawPath, "/files/")
 }
 
-func embeddedWebHandler() http.Handler {
+func embeddedWebHandler(cfg config.Config) http.Handler {
 	dist, err := web.Dist()
 	if err != nil {
 		return nil
@@ -245,17 +246,22 @@ func embeddedWebHandler() http.Handler {
 	if _, err := fs.Stat(dist, "index.html"); err != nil {
 		return nil
 	}
-	return spaFileServer{assets: dist}
+	return spaFileServer{assets: dist, cfg: cfg}
 }
 
 type spaFileServer struct {
 	assets fs.FS
+	cfg    config.Config
 }
 
 func (h spaFileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
 	if name == "." || name == "" {
 		name = "index.html"
+	}
+	if name == "app-config.js" {
+		h.serveAppConfig(w, r)
+		return
 	}
 	if info, err := fs.Stat(h.assets, name); err == nil && !info.IsDir() {
 		h.serveName(w, r, name)
@@ -286,6 +292,21 @@ func (h spaFileServer) serveName(w http.ResponseWriter, r *http.Request, name st
 		return
 	}
 	http.ServeContent(w, r, path.Base(name), info.ModTime(), bytes.NewReader(data))
+}
+
+func (h spaFileServer) serveAppConfig(w http.ResponseWriter, r *http.Request) {
+	configJSON, err := json.Marshal(map[string]string{
+		"apiBaseURL":        "",
+		"defaultSourceURL":  strings.TrimRight(h.cfg.BaseURL, "/") + "/source/v1/index.json",
+		"defaultSourceName": "Community Store",
+	})
+	if err != nil {
+		http.Error(w, "build app config", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = fmt.Fprintf(w, "window.LAZYCAT_APPSTORE_CONFIG = Object.assign(%s, { apiBaseURL: window.location.origin, defaultSourceURL: window.location.origin + \"/source/v1/index.json\" });\n", configJSON)
 }
 
 func (s *Server) handleLocalFile(w http.ResponseWriter, r *http.Request) {

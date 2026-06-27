@@ -6,6 +6,7 @@ import {
   Check,
   ChevronRight,
   Cloud,
+  Copy,
   Download,
   Gauge,
   Heart,
@@ -780,6 +781,7 @@ export function App() {
                 onOpen={openApp}
                 onInstall={installApp}
                 onNavigate={setTab}
+                setToast={setToast}
               />
             )}
             {tab === 'search' && (
@@ -1010,6 +1012,7 @@ function HomeView({
   onOpen,
   onInstall,
   onNavigate,
+  setToast,
 }: {
   apps: StoreApp[];
   categories: Category[];
@@ -1017,10 +1020,23 @@ function HomeView({
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp) => void;
   onNavigate: (tab: TabKey) => void;
+  setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
   const latest = [...apps].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).slice(0, 6);
   const approvedCount = apps.filter((app) => app.status === 'APPROVED').length;
+  const sourceFeedURL = `${API_BASE || window.location.origin}/source/v1/index.json`;
+
+  async function copySourceFeed() {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error(t('home.copySourceUnsupported'));
+      await navigator.clipboard.writeText(sourceFeedURL);
+      setToast({ tone: 'success', message: t('home.sourceCopied') });
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('home.copySourceFailed')) });
+    }
+  }
+
   return (
     <section className="page-grid">
       <div className="hero-band">
@@ -1059,8 +1075,18 @@ function HomeView({
         </div>
         <div className="metric-card source-feed-card">
           <span>{t('home.sourceUrl')}</span>
-          <strong>/source/v1/index.json</strong>
+          <strong>{sourceFeedURL}</strong>
           <small>{t('home.openSourceFeed')}</small>
+          <div className="source-feed-actions">
+            <button type="button" className="secondary-button compact-button" onClick={() => void copySourceFeed()}>
+              <Copy size={16} />
+              <span>{t('home.copySourceFeed')}</span>
+            </button>
+            <button type="button" className="secondary-button compact-button" onClick={() => onNavigate('search')}>
+              <Download size={16} />
+              <span>{t('home.browseInstallable')}</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1349,10 +1375,17 @@ function SourcesView({
     }
   }
 
+  const normalizedDraftURL = normalizedSourceURL(draft.url);
+  const sourceNameReady = Boolean(draft.name.trim());
+  const sourceURLReady = Boolean(normalizedDraftURL);
+  const sourcePasswordReady = Boolean(draft.password.trim());
+  const sourceMirrorReady = Boolean(draft.mirror.trim());
+  const canAddSource = sourceNameReady && sourceURLReady;
+
   function addSource(event: FormEvent) {
     event.preventDefault();
     const name = draft.name.trim();
-    const url = normalizedSourceURL(draft.url);
+    const url = normalizedDraftURL;
     if (!name) {
       setToast({ tone: 'error', message: t('sources.nameRequired') });
       return;
@@ -1367,7 +1400,7 @@ function SourcesView({
     }
     setSources((current) => [...current, { id: crypto.randomUUID(), ...draft, name, url }]);
     setDraft(emptyDraft);
-    setToast({ tone: 'success', message: t('sources.added') });
+    setToast({ tone: 'success', message: t('sources.addedNext') });
   }
 
   function updateSource(id: string, patch: Partial<SourceSubscription>) {
@@ -1428,6 +1461,40 @@ function SourcesView({
       <section className="split">
       <form className="panel form-panel" onSubmit={addSource} noValidate>
         <SectionTitle icon={Cloud} title={t('sources.addTitle')} />
+        <div className="source-readiness" aria-label={t('sources.addReadiness')}>
+          <div className={cx('readiness-step', sourceNameReady && 'ready')}>
+            <span className={cx('status-badge', sourceNameReady ? 'approved' : 'unlisted')}>
+              {sourceNameReady ? <Check size={14} /> : <AlertCircle size={14} />}
+              {sourceNameReady ? t('sources.ready') : t('sources.needsValue')}
+            </span>
+            <strong>{t('sources.readinessName')}</strong>
+            <small>{sourceNameReady ? t('sources.readinessNameReady') : t('sources.readinessNameMissing')}</small>
+          </div>
+          <div className={cx('readiness-step', sourceURLReady && 'ready')}>
+            <span className={cx('status-badge', sourceURLReady ? 'approved' : 'unlisted')}>
+              {sourceURLReady ? <Check size={14} /> : <AlertCircle size={14} />}
+              {sourceURLReady ? t('sources.ready') : t('sources.needsValue')}
+            </span>
+            <strong>{t('sources.readinessUrl')}</strong>
+            <small>{sourceURLReady ? t('sources.readinessUrlReady') : t('sources.readinessUrlMissing')}</small>
+          </div>
+          <div className={cx('readiness-step', sourcePasswordReady && 'ready')}>
+            <span className={cx('status-badge', sourcePasswordReady ? 'synced' : 'unsynced')}>
+              <KeyRound size={14} />
+              {sourcePasswordReady ? t('sources.filled') : t('sources.optional')}
+            </span>
+            <strong>{t('sources.readinessPassword')}</strong>
+            <small>{sourcePasswordReady ? t('sources.readinessPasswordReady') : t('sources.readinessPasswordOptional')}</small>
+          </div>
+          <div className={cx('readiness-step', sourceMirrorReady && 'ready')}>
+            <span className={cx('status-badge', sourceMirrorReady ? 'synced' : 'unsynced')}>
+              <Link size={14} />
+              {sourceMirrorReady ? t('sources.filled') : t('sources.optional')}
+            </span>
+            <strong>{t('sources.readinessMirror')}</strong>
+            <small>{sourceMirrorReady ? t('sources.readinessMirrorReady') : t('sources.readinessMirrorOptional')}</small>
+          </div>
+        </div>
         <label>
           <span>{t('common.name')}</span>
           <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
@@ -1444,7 +1511,8 @@ function SourcesView({
           <span>{t('sources.mirror')}</span>
           <input value={draft.mirror} onChange={(event) => setDraft({ ...draft, mirror: event.target.value })} />
         </label>
-        <button type="submit" className="primary-button">
+        {!canAddSource && <p className="field-help">{t('sources.addBlocked')}</p>}
+        <button type="submit" className="primary-button" disabled={!canAddSource}>
           <Cloud size={18} />
           <span>{t('sources.add')}</span>
         </button>

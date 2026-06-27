@@ -98,6 +98,28 @@ func TestEnvBootstrapStillCreatesDefaultAdmin(t *testing.T) {
 	app.login("admin", "changeme")
 }
 
+func TestEmbeddedAppConfigUsesSameOriginAPI(t *testing.T) {
+	app := newTestApp(t)
+
+	rec := app.do(http.MethodGet, "/app-config.js", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("app config status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"window.LAZYCAT_APPSTORE_CONFIG",
+		"apiBaseURL: window.location.origin",
+		`defaultSourceURL: window.location.origin + "/source/v1/index.json"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("app config missing %q, body = %s, headers = %v", want, body, rec.Header())
+		}
+	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+}
+
 func TestAdminCanCreateCollectionAndPublicCanListIt(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()

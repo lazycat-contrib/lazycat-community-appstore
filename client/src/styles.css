@@ -528,6 +528,13 @@ textarea {
   line-height: 1.25;
 }
 
+.source-feed-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .section-title {
   display: flex;
   align-items: center;
@@ -1117,6 +1124,12 @@ textarea {
 .submission-readiness {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.source-readiness {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
 }
 
