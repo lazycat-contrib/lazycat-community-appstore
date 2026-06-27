@@ -2691,6 +2691,25 @@ function AppDrawer({
   const drawerTitleId = `app-drawer-title-${app.id}`;
   const latestVersion = app.latestVersion;
   const installable = hasInstallableVersion(app);
+  const hasChecksum = Boolean(latestVersion?.sha256);
+  const hasFileSize = Boolean(latestVersion && latestVersion.fileSize > 0);
+  const trustState: 'ready' | 'caution' | 'blocked' = !installable ? 'blocked' : hasChecksum && hasFileSize ? 'ready' : 'caution';
+  const TrustIcon = trustState === 'ready' ? ShieldCheck : trustState === 'caution' ? Gauge : AlertCircle;
+  const trustTitle = trustState === 'ready' ? t('drawer.trustReadyTitle') : trustState === 'caution' ? t('drawer.trustCautionTitle') : t('drawer.trustBlockedTitle');
+  const trustBody = trustState === 'ready' ? t('drawer.trustReadyBody') : trustState === 'caution' ? t('drawer.trustCautionBody') : t('drawer.trustBlockedBody');
+  const installNextStep = canUploadVersion ? t('drawer.installBlockedMaintainer') : t('drawer.installBlockedUser');
+  const trustFacts = [
+    { label: t('drawer.installStatus'), value: installable ? t('app.installReady') : t('app.installMissingVersion') },
+    { label: t('drawer.artifactSource'), value: latestVersion?.sourceType || t('drawer.sourceMissing') },
+    { label: t('drawer.artifactChecksum'), value: hasChecksum ? t('drawer.checksumShort', { hash: shortSHA(latestVersion?.sha256) }) : t('drawer.checksumMissing') },
+    { label: t('drawer.artifactSize'), value: hasFileSize ? formatBytes(latestVersion?.fileSize) : t('drawer.sizeMissing') },
+  ];
+  const communitySummary = t('drawer.communitySummary', {
+    favorites: app.favorites ?? 0,
+    comments: (app.comments || []).length,
+    outdated: app.outdatedMarks ?? 0,
+    screenshots: (app.screenshots || []).length,
+  });
 
   useEffect(() => {
     setAppForm({
@@ -2919,6 +2938,7 @@ function AppDrawer({
     await runAction(setToast, t('drawer.favoriteUpdateFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/favorites`, { method: 'POST' });
       setToast({ tone: 'success', message: t('drawer.favoriteUpdated') });
+      await onRefresh();
     });
   }
 
@@ -3001,6 +3021,28 @@ function AppDrawer({
             </>
           )}
         </div>
+        <section className={cx('install-trust', trustState)} aria-label={t('drawer.installReadiness')}>
+          <div className="install-trust-lead">
+            <TrustIcon size={19} />
+            <div>
+              <strong>{trustTitle}</strong>
+              <span>{trustBody}</span>
+              {!installable && <small>{installNextStep}</small>}
+            </div>
+          </div>
+          <div className="trust-facts" role="list">
+            {trustFacts.map((fact) => (
+              <div role="listitem" key={fact.label}>
+                <span>{fact.label}</span>
+                <strong>{fact.value}</strong>
+              </div>
+            ))}
+            <div role="listitem" className="trust-fact-wide">
+              <span>{t('drawer.communitySignals')}</span>
+              <strong>{communitySummary}</strong>
+            </div>
+          </div>
+        </section>
         <section className="detail-summary" aria-label={t('drawer.metadata')}>
           <div>
             <span>{t('drawer.latestVersion')}</span>
@@ -3019,12 +3061,6 @@ function AppDrawer({
             <strong>{t('drawer.sha256', { hash: shortSHA(latestVersion?.sha256) })}</strong>
           </div>
         </section>
-        {!installable && (
-          <p className="inline-note detail-note">
-            <AlertCircle size={16} />
-            <span>{t('drawer.installBlocked')}</span>
-          </p>
-        )}
         {(canMaintain || canUploadVersion) && (
           <section className="maintenance-grid">
             {canMaintain && (
@@ -3286,6 +3322,7 @@ function AppGrid({
     <div className="app-grid">
       {apps.map((app) => {
         const installable = hasInstallableVersion(app);
+        const hasChecksum = Boolean(app.latestVersion?.sha256);
         return (
           <article className="app-card" key={app.id}>
             <button type="button" className="app-open" onClick={() => void onOpen(app)} aria-label={t('app.open', { name: app.name })}>
@@ -3301,6 +3338,22 @@ function AppGrid({
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
               <span><Download size={14} /> {t('app.downloads', { count: app.downloadCount })}</span>
               {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
+            </div>
+            <div className="app-readiness" aria-label={t('app.installSignals')}>
+              <span className={cx('status-badge', installable ? 'approved' : 'blocked')}>
+                <Download size={13} />
+                {installable ? t('app.installReady') : t('app.installMissingVersion')}
+              </span>
+              <span className={cx('status-badge', hasChecksum ? 'synced' : 'unsynced')}>
+                <ShieldCheck size={13} />
+                {hasChecksum ? t('app.checksumReady') : t('app.checksumMissing')}
+              </span>
+              {app.status === 'APPROVED' && (
+                <span className="status-badge approved">
+                  <Check size={13} />
+                  {t('app.reviewed')}
+                </span>
+              )}
             </div>
             <button
               type="button"

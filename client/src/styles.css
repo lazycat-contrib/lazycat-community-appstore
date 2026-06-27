@@ -664,11 +664,19 @@ textarea {
   gap: 5px;
 }
 
+.app-readiness {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
 .status-badge {
   min-height: 26px;
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
+  gap: 5px;
   border-radius: 8px;
   border: 1px solid var(--line);
   padding: 0 8px;
@@ -677,6 +685,10 @@ textarea {
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.status-badge svg {
+  flex: 0 0 auto;
 }
 
 .status-badge.approved {
@@ -1174,6 +1186,106 @@ textarea {
   margin: 7px 0;
 }
 
+.install-trust {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7faf5;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.install-trust.ready {
+  border-color: #b8dfca;
+  background: #f1faf5;
+}
+
+.install-trust.caution {
+  border-color: #ead3ad;
+  background: #fffaf0;
+}
+
+.install-trust.blocked {
+  border-color: #e4b8b8;
+  background: #fff8f8;
+}
+
+.install-trust-lead {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.install-trust-lead > svg {
+  color: var(--green);
+  margin-top: 2px;
+}
+
+.install-trust.caution .install-trust-lead > svg {
+  color: var(--amber);
+}
+
+.install-trust.blocked .install-trust-lead > svg {
+  color: var(--red);
+}
+
+.install-trust-lead strong,
+.install-trust-lead span,
+.install-trust-lead small {
+  overflow-wrap: anywhere;
+}
+
+.install-trust-lead strong {
+  display: block;
+  line-height: 1.25;
+}
+
+.install-trust-lead span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.install-trust-lead small {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.trust-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.trust-facts div {
+  min-width: 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  padding-top: 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.trust-facts span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.trust-facts strong {
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.trust-fact-wide {
+  grid-column: 1 / -1;
+}
+
 .detail-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1378,6 +1490,14 @@ textarea {
   opacity: 0.55;
 }
 
+.primary-button:disabled,
+.install-button:disabled {
+  background: #e9eee8;
+  border-color: var(--line);
+  color: var(--muted);
+  opacity: 1;
+}
+
 .form-panel input:disabled {
   opacity: 0.62;
 }
@@ -1546,6 +1666,10 @@ code {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .trust-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .screenshot-form {
     grid-template-columns: 1fr;
   }
@@ -1608,6 +1732,10 @@ code {
   }
 
   .detail-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .trust-facts {
     grid-template-columns: 1fr;
   }
 
