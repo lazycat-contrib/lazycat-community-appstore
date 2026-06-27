@@ -347,6 +347,9 @@ const clientTabs: NavItem[] = [
 ];
 
 type SortMode = 'recent' | 'downloads' | 'name';
+type SourceAppFilter = 'all' | 'installable' | 'installed' | 'incomplete';
+type SourceHealth = 'syncing' | 'failed' | 'synced' | 'unsynced';
+type SourceHealthFilter = 'all' | Exclude<SourceHealth, 'syncing'>;
 
 function verificationTokenFromURL() {
   return new URLSearchParams(window.location.search).get('token') || '';
@@ -1228,13 +1231,35 @@ function SearchView({
   onGoSources: () => void;
 }) {
   const { t } = useTranslation();
+  const [sourceAppFilter, setSourceAppFilter] = useState<SourceAppFilter>('all');
   const sourceNeedle = query.trim().toLowerCase();
-  const filteredSourceApps = sourceApps.filter((app) => {
+  const searchableSourceApps = sourceApps.filter((app) => {
     if (!sourceNeedle) return true;
     return [app.name, app.summary, app.category, app.sourceName].filter(Boolean).join(' ').toLowerCase().includes(sourceNeedle);
   });
+  const sourceAppFilterItems: Array<{ key: SourceAppFilter; label: string; count: number }> = [
+    { key: 'all', label: t('search.sourceFilters.all'), count: searchableSourceApps.length },
+    { key: 'installable', label: t('search.sourceFilters.installable'), count: searchableSourceApps.filter(hasInstallableVersion).length },
+    { key: 'installed', label: t('search.sourceFilters.installed'), count: searchableSourceApps.filter((app) => Boolean(findInstalledApplication(app, installedApps))).length },
+    {
+      key: 'incomplete',
+      label: t('search.sourceFilters.incomplete'),
+      count: searchableSourceApps.filter((app) => !hasInstallableVersion(app) || !app.latestVersion?.sha256 || !app.latestVersion?.size).length,
+    },
+  ];
+  const filteredSourceApps = searchableSourceApps.filter((app) => {
+    if (sourceAppFilter === 'installable') return hasInstallableVersion(app);
+    if (sourceAppFilter === 'installed') return Boolean(findInstalledApplication(app, installedApps));
+    if (sourceAppFilter === 'incomplete') return !hasInstallableVersion(app) || !app.latestVersion?.sha256 || !app.latestVersion?.size;
+    return true;
+  });
   const sourceEmptyTitle = sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle');
-  const sourceEmptyBody = sourceApps.length === 0 ? t('search.noSyncedAppsBody') : t('search.noResultsBody');
+  const sourceEmptyBody =
+    sourceApps.length === 0
+      ? t('search.noSyncedAppsBody')
+      : sourceAppFilter === 'all'
+        ? t('search.noResultsBody')
+        : t('search.noFilterResultsBody');
 
   if (mode === 'client') {
     return (
@@ -1270,6 +1295,18 @@ function SearchView({
         </div>
         <section className="panel">
           <SectionTitle icon={Download} title={t('search.subscribedApps')} />
+          <div className="segmented filter-segmented" aria-label={t('search.sourceAppFilter')}>
+            {sourceAppFilterItems.map((item) => (
+              <button
+                type="button"
+                key={item.key}
+                className={cx(sourceAppFilter === item.key && 'active')}
+                onClick={() => setSourceAppFilter(item.key)}
+              >
+                {item.label} {item.count}
+              </button>
+            ))}
+          </div>
           <SourceAppGrid
             apps={filteredSourceApps}
             installedApps={installedApps}
@@ -1461,6 +1498,7 @@ function SourcesView({
   const [draft, setDraft] = useState(emptyDraft);
   const [syncingID, setSyncingID] = useState<string | null>(null);
   const [confirmDeleteSource, setConfirmDeleteSource] = useState<string | null>(null);
+  const [sourceHealthFilter, setSourceHealthFilter] = useState<SourceHealthFilter>('all');
 
   function normalizedSourceURL(rawURL: string) {
     try {
@@ -1504,12 +1542,20 @@ function SourcesView({
     setSources((current) => current.map((source) => (source.id === id ? { ...source, ...patch } : source)));
   }
 
-  function healthFor(source: SourceSubscription) {
+  function healthFor(source: SourceSubscription): SourceHealth {
     if (syncingID === source.id) return 'syncing';
     if (source.lastError) return 'failed';
     if (source.lastSync) return 'synced';
     return 'unsynced';
   }
+
+  const sourceHealthFilterItems: Array<{ key: SourceHealthFilter; label: string; count: number }> = [
+    { key: 'all', label: t('sources.filters.all'), count: sources.length },
+    { key: 'synced', label: t('sources.filters.synced'), count: sources.filter((source) => healthFor(source) === 'synced').length },
+    { key: 'unsynced', label: t('sources.filters.unsynced'), count: sources.filter((source) => healthFor(source) === 'unsynced').length },
+    { key: 'failed', label: t('sources.filters.failed'), count: sources.filter((source) => healthFor(source) === 'failed').length },
+  ];
+  const filteredSources = sources.filter((source) => sourceHealthFilter === 'all' || healthFor(source) === sourceHealthFilter);
 
   function deleteSource(source: SourceSubscription) {
     if (confirmDeleteSource !== source.id) {
@@ -1617,11 +1663,25 @@ function SourcesView({
 
       <section className="panel">
         <SectionTitle icon={Server} title={t('sources.subscriptions')} />
+        <div className="segmented filter-segmented" aria-label={t('sources.statusFilter')}>
+          {sourceHealthFilterItems.map((item) => (
+            <button
+              type="button"
+              key={item.key}
+              className={cx(sourceHealthFilter === item.key && 'active')}
+              onClick={() => setSourceHealthFilter(item.key)}
+            >
+              {item.label} {item.count}
+            </button>
+          ))}
+        </div>
         <div className="source-list">
           {sources.length === 0 ? (
             <EmptyState icon={Cloud} title={t('sources.empty')} />
+          ) : filteredSources.length === 0 ? (
+            <EmptyState icon={Cloud} title={t('sources.emptyFiltered')} body={t('sources.emptyFilteredBody')} />
           ) : (
-            sources.map((source) => {
+            filteredSources.map((source) => {
               const sourceScopedApps = sourceApps.filter((app) => belongsToSource(app, source));
               const syncedAppCount = source.lastAppCount ?? sourceScopedApps.length;
               const installableAppCount = source.lastInstallableCount ?? sourceScopedApps.filter(hasInstallableVersion).length;
