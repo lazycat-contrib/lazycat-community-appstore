@@ -504,6 +504,14 @@ textarea {
   min-width: 0;
 }
 
+.app-open > div {
+  min-width: 0;
+}
+
+.app-open > svg:last-child {
+  justify-self: end;
+}
+
 .app-open.static {
   grid-template-columns: 46px 1fr;
 }

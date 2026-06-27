@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from '@humation/react';
 import { humation1 } from '@humation/assets-humation-1';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
@@ -527,8 +527,8 @@ export function App() {
 
   return (
     <div className="shell">
-      <a className="skip-link" href="#main-content">{t('common.skipToMain')}</a>
-      <aside className="sidebar">
+      <a className="skip-link" href="#main-content" inert={!!selectedApp} aria-hidden={selectedApp ? true : undefined}>{t('common.skipToMain')}</a>
+      <aside className="sidebar" inert={!!selectedApp} aria-hidden={selectedApp ? true : undefined}>
         <div className="brand">
           <div className="brand-mark">
             <Archive size={22} />
@@ -542,7 +542,7 @@ export function App() {
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
-              <button key={item.key} className={cx('nav-item', tab === item.key && 'active')} onClick={() => setTab(item.key)}>
+              <button type="button" key={item.key} className={cx('nav-item', tab === item.key && 'active')} onClick={() => setTab(item.key)}>
                 <Icon size={19} />
                 <span>{t(item.labelKey)}</span>
               </button>
@@ -558,7 +558,7 @@ export function App() {
         </div>
       </aside>
 
-      <main className="main" id="main-content" tabIndex={-1}>
+      <main className="main" id="main-content" tabIndex={-1} inert={!!selectedApp} aria-hidden={selectedApp ? true : undefined}>
         <header className="topbar">
           <div className="searchbox">
             <Search size={18} />
@@ -578,11 +578,12 @@ export function App() {
                 <option value="en">{t('language.en')}</option>
               </select>
             </label>
-            <button className="icon-button" aria-label={HAS_API ? t('topbar.refreshStore') : t('topbar.syncAllSources')} onClick={() => void (HAS_API ? refreshAll() : syncAllSources())}>
+            <button type="button" className="icon-button" aria-label={HAS_API ? t('topbar.refreshStore') : t('topbar.syncAllSources')} onClick={() => void (HAS_API ? refreshAll() : syncAllSources())}>
               <RefreshCw size={18} />
             </button>
             {HAS_API && user ? (
               <button
+                type="button"
                 className="user-pill"
                 aria-label={user.username}
                 onClick={() =>
@@ -596,7 +597,7 @@ export function App() {
                 <span>{user.username}</span>
               </button>
             ) : HAS_API ? (
-              <button className="user-pill" aria-label={t('topbar.login')} onClick={() => setTab('profile')}>
+              <button type="button" className="user-pill" aria-label={t('topbar.login')} onClick={() => setTab('profile')}>
                 <LogIn size={16} />
                 <span>{t('topbar.login')}</span>
               </button>
@@ -666,7 +667,7 @@ export function App() {
         )}
       </main>
 
-      <MobileTabs tab={tab} setTab={setTab} items={navItems} />
+      <MobileTabs tab={tab} setTab={setTab} items={navItems} inert={!!selectedApp} />
 
       {selectedApp && (
         <AppDrawer
@@ -686,7 +687,7 @@ export function App() {
       )}
 
       {installing && (
-        <div className="install-panel">
+        <div className="install-panel" inert={!!selectedApp} aria-hidden={selectedApp ? true : undefined}>
           <Download size={20} />
           <div>
             <strong>{installing}</strong>
@@ -733,11 +734,11 @@ function HomeView({
           <h1>{t('home.title')}</h1>
           <p>{t('home.body')}</p>
           <div className="hero-actions">
-            <button className="primary-button" onClick={() => onNavigate('search')}>
+            <button type="button" className="primary-button" onClick={() => onNavigate('search')}>
               <Search size={18} />
               <span>{t('nav.discover')}</span>
             </button>
-            <button className="secondary-button" onClick={() => onNavigate('profile')}>
+            <button type="button" className="secondary-button" onClick={() => onNavigate('profile')}>
               <PackagePlus size={18} />
               <span>{t('home.submitApp')}</span>
             </button>
@@ -779,10 +780,20 @@ function HomeView({
                   <span>#{review.appId || review.versionId} · {formatDate(review.createdAt)}</span>
                 </div>
                 <div className="row-actions">
-                  <button className="icon-button ok" aria-label={t('toast.reviewApproved')} onClick={() => void onApprove(review, true)}>
+                  <button
+                    type="button"
+                    className="icon-button ok"
+                    aria-label={t('home.approveReview', { id: review.id, kind: review.kind.replaceAll('_', ' ') })}
+                    onClick={() => void onApprove(review, true)}
+                  >
                     <Check size={17} />
                   </button>
-                  <button className="icon-button danger" aria-label={t('toast.reviewRejected')} onClick={() => void onApprove(review, false)}>
+                  <button
+                    type="button"
+                    className="icon-button danger"
+                    aria-label={t('home.rejectReview', { id: review.id, kind: review.kind.replaceAll('_', ' ') })}
+                    onClick={() => void onApprove(review, false)}
+                  >
                     <X size={17} />
                   </button>
                 </div>
@@ -829,9 +840,9 @@ function CategoryView({
         <p>{t('search.serverDescription')}</p>
       </div>
       <div className="segmented">
-        <button className={cx(activeCategory === 'all' && 'active')} onClick={() => onCategory('all')}>{t('common.all')}</button>
+        <button type="button" className={cx(activeCategory === 'all' && 'active')} onClick={() => onCategory('all')}>{t('common.all')}</button>
         {categories.map((category) => (
-          <button key={category.id} className={cx(activeCategory === category.name && 'active')} onClick={() => onCategory(category.name)}>
+          <button type="button" key={category.id} className={cx(activeCategory === category.name && 'active')} onClick={() => onCategory(category.name)}>
             {category.name}
           </button>
         ))}
@@ -886,7 +897,7 @@ function SearchView({
             <h1>{t('search.clientTitle')}</h1>
             <p>{t('search.clientDescription')}</p>
           </div>
-          <button className="secondary-button" onClick={onGoSources}>
+          <button type="button" className="secondary-button" onClick={onGoSources}>
             <Cloud size={18} />
             <span>{t('search.noSyncedAppsAction')}</span>
           </button>
@@ -954,7 +965,7 @@ function SourceAppGrid({
         <Cloud size={28} />
         <strong>{t('search.noSyncedApps')}</strong>
         {showEmptyAction && (
-          <button className="secondary-button" onClick={onGoSources}>
+          <button type="button" className="secondary-button" onClick={onGoSources}>
             <Plus size={18} />
             <span>{t('search.noSyncedAppsAction')}</span>
           </button>
@@ -978,7 +989,7 @@ function SourceAppGrid({
             <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
             <span><Star size={14} /> {app.latestVersion?.version || '-'}</span>
           </div>
-          <button className="install-button" onClick={() => void onInstall(app)} aria-label={t('app.install', { name: app.name })}>
+          <button type="button" className="install-button" onClick={() => void onInstall(app)} aria-label={t('app.install', { name: app.name })}>
             <Download size={17} />
             <span>{t('common.install')}</span>
           </button>
@@ -1029,7 +1040,7 @@ function SourcesView({
           <h1>{t('sources.title')}</h1>
           <p>{t('sources.subtitle')}</p>
         </div>
-        <button className="primary-button" onClick={() => void onSyncAll()}>
+        <button type="button" className="primary-button" onClick={() => void onSyncAll()}>
           <RefreshCw size={18} />
           <span>{t('sources.syncAll')}</span>
         </button>
@@ -1054,7 +1065,7 @@ function SourcesView({
           <span>{t('sources.mirror')}</span>
           <input value={draft.mirror} onChange={(event) => setDraft({ ...draft, mirror: event.target.value })} />
         </label>
-        <button className="primary-button">
+        <button type="submit" className="primary-button">
           <Cloud size={18} />
           <span>{t('sources.add')}</span>
         </button>
@@ -1073,14 +1084,26 @@ function SourcesView({
                   <span>{source.url}</span>
                   {source.lastSync && <small>{t('sources.lastSync', { time: formatDate(source.lastSync) })}</small>}
                   <div className="source-edit-grid">
-                    <input value={source.password} type="password" placeholder={t('sources.passwordPlaceholder')} onChange={(event) => updateSource(source.id, { password: event.target.value })} />
-                    <input value={source.mirror} placeholder={t('sources.mirrorPlaceholder')} onChange={(event) => updateSource(source.id, { mirror: event.target.value })} />
+                    <input
+                      aria-label={t('sources.passwordFor', { name: source.name })}
+                      value={source.password}
+                      type="password"
+                      placeholder={t('sources.passwordPlaceholder')}
+                      onChange={(event) => updateSource(source.id, { password: event.target.value })}
+                    />
+                    <input
+                      aria-label={t('sources.mirrorFor', { name: source.name })}
+                      value={source.mirror}
+                      placeholder={t('sources.mirrorPlaceholder')}
+                      onChange={(event) => updateSource(source.id, { mirror: event.target.value })}
+                    />
                   </div>
                 </div>
                 <div className="row-actions">
                   <button
+                    type="button"
                     className="icon-button"
-                    aria-label={t('common.sync')}
+                    aria-label={t('sources.syncSource', { name: source.name })}
                     disabled={syncingID === source.id}
                     onClick={() =>
                       void (async () => {
@@ -1097,7 +1120,7 @@ function SourcesView({
                   >
                     <RefreshCw size={17} />
                   </button>
-                  <button className="icon-button danger" aria-label={t('common.delete')} onClick={() => setSources((current) => current.filter((item) => item.id !== source.id))}>
+                  <button type="button" className="icon-button danger" aria-label={t('sources.deleteSource', { name: source.name })} onClick={() => setSources((current) => current.filter((item) => item.id !== source.id))}>
                     <X size={17} />
                   </button>
                 </div>
@@ -1193,9 +1216,13 @@ function ProfileView({
       return;
     }
     await runAction(setToast, mode === 'login' ? t('auth.loginFailed') : t('auth.registerFailed'), async () => {
+      const body =
+        mode === 'login'
+          ? { username: authForm.username, password: authForm.password }
+          : authForm;
       const data = await api<{ user: User }>(`/api/v1/auth/${mode}`, {
         method: 'POST',
-        body: JSON.stringify(authForm),
+        body: JSON.stringify(body),
       });
       setUser(data.user);
       if (data.user.emailVerified === false) {
@@ -1284,7 +1311,7 @@ function ProfileView({
             <AvatarIcon seed="lazycat-standalone-client" title={t('profile.clientTitle')} size={74} className="avatar-large" />
             <h2>{t('profile.clientTitle')}</h2>
             <p>{t('profile.clientBody')}</p>
-            <button className="primary-button" onClick={() => void loadInstalledApps()}>
+            <button type="button" className="primary-button" onClick={() => void loadInstalledApps()}>
               <RefreshCw size={18} />
               <span>{t('profile.readInstalled')}</span>
             </button>
@@ -1343,7 +1370,7 @@ function ProfileView({
             </label>
           </>
         )}
-        <button className="primary-button">
+        <button type="submit" className="primary-button" aria-label={authSubmitLabel}>
           <LogIn size={18} />
           <span>{authSubmitLabel}</span>
         </button>
@@ -1360,6 +1387,7 @@ function ProfileView({
             <h2>{user.username}</h2>
             <p>{t('auth.emailPending')}</p>
             <button
+              type="button"
               className="secondary-button"
               onClick={() =>
                 void runAction(setToast, t('toast.logoutFailed'), async () => {
@@ -1379,7 +1407,7 @@ function ProfileView({
               <span>{t('auth.verifyToken')}</span>
               <input value={verifyToken} onChange={(event) => setVerifyToken(event.target.value)} />
             </label>
-            <button className="primary-button">
+            <button type="submit" className="primary-button">
               <Check size={18} />
               <span>{t('auth.completeVerification')}</span>
             </button>
@@ -1397,6 +1425,7 @@ function ProfileView({
         <h2>{user.username}</h2>
         <p>{user.role}</p>
         <button
+          type="button"
           className="secondary-button"
           onClick={() =>
             void runAction(setToast, t('toast.logoutFailed'), async () => {
@@ -1469,7 +1498,7 @@ function ProfileView({
           <span>{t('common.lpkFile')}</span>
           <input type="file" accept=".lpk" onChange={(event) => setFile(event.target.files?.[0] || null)} />
         </label>
-        <button className="primary-button">
+        <button type="submit" className="primary-button">
           <Upload size={18} />
           <span>{t('common.submit')}</span>
         </button>
@@ -1491,7 +1520,7 @@ function ProfileView({
             ))}
           </div>
           {newToken && <code className="token-output">{newToken}</code>}
-          <button className="secondary-button" onClick={() => void createToken()}>
+          <button type="button" className="secondary-button" onClick={() => void createToken()}>
             <KeyRound size={18} />
             <span>{t('token.generate')}</span>
           </button>
@@ -1525,7 +1554,7 @@ function ProfileView({
               </>
             )}
           </div>
-          <button className="secondary-button" onClick={() => void loadFavorites()}>
+          <button type="button" className="secondary-button" onClick={() => void loadFavorites()}>
             <RefreshCw size={18} />
             <span>{t('favorites.refresh')}</span>
           </button>
@@ -1546,7 +1575,7 @@ function ProfileView({
               ))
             )}
           </div>
-          <button className="secondary-button" onClick={() => void loadInstalledApps()}>
+          <button type="button" className="secondary-button" onClick={() => void loadInstalledApps()}>
             <RefreshCw size={18} />
             <span>{t('profile.readInstalled')}</span>
           </button>
@@ -1612,8 +1641,8 @@ function GroupPanel({
     <section className="panel form-panel">
       <SectionTitle icon={Users} title={t('groups.title')} />
       <form className="inline-form" onSubmit={createGroup}>
-        <input placeholder={t('groups.name')} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
-        <button className="icon-button" aria-label={t('groups.create')}><Plus size={17} /></button>
+        <input aria-label={t('groups.name')} placeholder={t('groups.name')} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+        <button type="submit" className="icon-button" aria-label={t('groups.create')}><Plus size={17} /></button>
       </form>
       <div className="review-list">
         {groups.length === 0 ? <EmptyState icon={Users} title={t('groups.empty')} /> : groups.map((group) => (
@@ -1624,12 +1653,13 @@ function GroupPanel({
             </div>
             <div className="inline-form compact-line group-member-actions">
               <input
+                aria-label={t('groups.userId')}
                 placeholder={t('groups.userId')}
                 value={memberDrafts[group.id] || ''}
                 onChange={(event) => setMemberDrafts((current) => ({ ...current, [group.id]: event.target.value }))}
               />
-              <button className="icon-button" aria-label={t('groups.addMember')} onClick={() => void addMember(group.id)}><Plus size={17} /></button>
-              <button className="icon-button danger" aria-label={t('groups.removeMember')} onClick={() => void removeMember(group.id)}><Trash2 size={17} /></button>
+              <button type="button" className="icon-button" aria-label={t('groups.addMember')} onClick={() => void addMember(group.id)}><Plus size={17} /></button>
+              <button type="button" className="icon-button danger" aria-label={t('groups.removeMember')} onClick={() => void removeMember(group.id)}><Trash2 size={17} /></button>
             </div>
           </div>
         ))}
@@ -1820,7 +1850,7 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
                 <input value={settings[key] || ''} onChange={(event) => setSettings({ ...settings, [key]: event.target.value })} />
               </label>
             ))}
-            <button className="primary-button">
+            <button type="submit" className="primary-button">
               <Settings size={18} />
               <span>{t('admin.saveSettings')}</span>
             </button>
@@ -1834,7 +1864,11 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
                     <strong>#{item.id} {item.username}</strong>
                     <span>{item.email || t('admin.noEmail')}</span>
                   </div>
-                  <select value={item.role} onChange={(event) => void updateUserRole(item.id, event.target.value as User['role'])}>
+                  <select
+                    aria-label={t('admin.userRoleFor', { username: item.username })}
+                    value={item.role}
+                    onChange={(event) => void updateUserRole(item.id, event.target.value as User['role'])}
+                  >
                     <option value="USER">USER</option>
                     <option value="SOFTWARE_ADMIN">SOFTWARE_ADMIN</option>
                     <option value="SITE_ADMIN">SITE_ADMIN</option>
@@ -1849,14 +1883,14 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
         <div className="panel form-panel">
           <SectionTitle icon={Layers3} title={t('admin.categoriesAndTags')} />
           <form className="inline-stack" onSubmit={createCategory}>
-            <input placeholder={t('admin.categoryName')} value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} />
-            <input placeholder="slug" value={categoryForm.slug} onChange={(event) => setCategoryForm({ ...categoryForm, slug: event.target.value })} />
-            <button className="secondary-button"><Plus size={17} /><span>{t('admin.category')}</span></button>
+            <input aria-label={t('admin.categoryName')} placeholder={t('admin.categoryName')} value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} />
+            <input aria-label={t('admin.categorySlug')} placeholder={t('admin.categorySlug')} value={categoryForm.slug} onChange={(event) => setCategoryForm({ ...categoryForm, slug: event.target.value })} />
+            <button type="submit" className="secondary-button"><Plus size={17} /><span>{t('admin.category')}</span></button>
           </form>
           <form className="inline-stack" onSubmit={createTag}>
-            <input placeholder={t('admin.tagName')} value={tagForm.name} onChange={(event) => setTagForm({ ...tagForm, name: event.target.value })} />
-            <input placeholder="slug" value={tagForm.slug} onChange={(event) => setTagForm({ ...tagForm, slug: event.target.value })} />
-            <button className="secondary-button"><Plus size={17} /><span>{t('admin.tag')}</span></button>
+            <input aria-label={t('admin.tagName')} placeholder={t('admin.tagName')} value={tagForm.name} onChange={(event) => setTagForm({ ...tagForm, name: event.target.value })} />
+            <input aria-label={t('admin.tagSlug')} placeholder={t('admin.tagSlug')} value={tagForm.slug} onChange={(event) => setTagForm({ ...tagForm, slug: event.target.value })} />
+            <button type="submit" className="secondary-button"><Plus size={17} /><span>{t('admin.tag')}</span></button>
           </form>
         </div>
         <section className="panel">
@@ -1866,11 +1900,11 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
               const draft = categoryDrafts[item.id] || { name: item.name, slug: item.slug };
               return (
                 <div className="edit-row" key={item.id}>
-                  <input value={draft.name} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, name: event.target.value } }))} />
-                  <input value={draft.slug} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: event.target.value } }))} />
+                  <input aria-label={t('admin.categoryNameFor', { name: item.name })} value={draft.name} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, name: event.target.value } }))} />
+                  <input aria-label={t('admin.categorySlugFor', { name: item.name })} value={draft.slug} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: event.target.value } }))} />
                   <div className="row-actions">
-                    <button className="icon-button" aria-label={t('admin.saveCategory')} onClick={() => void updateCategory(item)}><Save size={16} /></button>
-                    <button className="icon-button danger" aria-label={t('admin.deleteCategory')} onClick={() => void deleteCategory(item)}><Trash2 size={16} /></button>
+                    <button type="button" className="icon-button" aria-label={t('admin.saveCategoryNamed', { name: item.name })} onClick={() => void updateCategory(item)}><Save size={16} /></button>
+                    <button type="button" className="icon-button danger" aria-label={t('admin.deleteCategoryNamed', { name: item.name })} onClick={() => void deleteCategory(item)}><Trash2 size={16} /></button>
                   </div>
                 </div>
               );
@@ -1882,11 +1916,11 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
               const draft = tagDrafts[item.id] || { name: item.name, slug: item.slug };
               return (
                 <div className="edit-row" key={item.id}>
-                  <input value={draft.name} onChange={(event) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, name: event.target.value } }))} />
-                  <input value={draft.slug} onChange={(event) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: event.target.value } }))} />
+                  <input aria-label={t('admin.tagNameFor', { name: item.name })} value={draft.name} onChange={(event) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, name: event.target.value } }))} />
+                  <input aria-label={t('admin.tagSlugFor', { name: item.name })} value={draft.slug} onChange={(event) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: event.target.value } }))} />
                   <div className="row-actions">
-                    <button className="icon-button" aria-label={t('admin.saveTag')} onClick={() => void updateTag(item)}><Save size={16} /></button>
-                    <button className="icon-button danger" aria-label={t('admin.deleteTag')} onClick={() => void deleteTag(item)}><Trash2 size={16} /></button>
+                    <button type="button" className="icon-button" aria-label={t('admin.saveTagNamed', { name: item.name })} onClick={() => void updateTag(item)}><Save size={16} /></button>
+                    <button type="button" className="icon-button danger" aria-label={t('admin.deleteTagNamed', { name: item.name })} onClick={() => void deleteTag(item)}><Trash2 size={16} /></button>
                   </div>
                 </div>
               );
@@ -1913,7 +1947,7 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
             <span>{t('admin.appIds')}</span>
             <input value={collectionForm.appIds} onChange={(event) => setCollectionForm({ ...collectionForm, appIds: event.target.value })} />
           </label>
-          <button className="primary-button">
+          <button type="submit" className="primary-button">
             <Layers3 size={18} />
             <span>{t('admin.createCollection')}</span>
           </button>
@@ -1931,17 +1965,17 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
                 };
               return (
                 <div className="collection-edit-row" key={item.id}>
-                  <input value={draft.name} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, name: event.target.value } }))} />
-                  <input value={draft.slug} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: event.target.value } }))} />
-                  <select value={draft.kind} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, kind: event.target.value } }))}>
+                  <input aria-label={t('admin.collectionNameFor', { name: item.name })} value={draft.name} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, name: event.target.value } }))} />
+                  <input aria-label={t('admin.collectionSlugFor', { name: item.name })} value={draft.slug} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: event.target.value } }))} />
+                  <select aria-label={t('admin.collectionTypeFor', { name: item.name })} value={draft.kind} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, kind: event.target.value } }))}>
                     {collectionKindOptions.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <input value={draft.appIds} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, appIds: event.target.value } }))} />
+                  <input aria-label={t('admin.collectionAppIdsFor', { name: item.name })} value={draft.appIds} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, appIds: event.target.value } }))} />
                   <div className="row-actions">
-                    <button className="icon-button" aria-label={t('admin.saveCollection')} onClick={() => void updateCollection(item)}><Save size={16} /></button>
-                    <button className="icon-button danger" aria-label={t('admin.deleteCollection')} onClick={() => void deleteCollection(item)}><Trash2 size={16} /></button>
+                    <button type="button" className="icon-button" aria-label={t('admin.saveCollectionNamed', { name: item.name })} onClick={() => void updateCollection(item)}><Save size={16} /></button>
+                    <button type="button" className="icon-button danger" aria-label={t('admin.deleteCollectionNamed', { name: item.name })} onClick={() => void deleteCollection(item)}><Trash2 size={16} /></button>
                   </div>
                 </div>
               );
@@ -2006,6 +2040,8 @@ function AppDrawer({
   const [visibility, setVisibility] = useState<number[]>(app.visibleGroupIds || []);
   const canMaintain = !!user && (app.canManageApp ?? (user.role === 'SITE_ADMIN' || user.role === 'SOFTWARE_ADMIN' || user.id === app.ownerId));
   const canUploadVersion = !!user && (app.canUploadVersion || canMaintain);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const drawerTitleId = `app-drawer-title-${app.id}`;
 
   useEffect(() => {
     setAppForm({
@@ -2024,6 +2060,19 @@ function AppDrawer({
     if (!canMaintain) return;
     void loadCollaboratorRequests();
   }, [app.id, canMaintain]);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, [app.id]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   async function loadCollaboratorRequests() {
     await runAction(setToast, t('drawer.loadCollaboratorsFailed'), async () => {
@@ -2218,12 +2267,18 @@ function AppDrawer({
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
-      <article className="drawer" onClick={(event) => event.stopPropagation()}>
-        <button className="icon-button close" aria-label={t('common.close')} onClick={onClose}><X size={18} /></button>
+      <article
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={drawerTitleId}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button ref={closeButtonRef} type="button" className="icon-button close" aria-label={t('common.close')} onClick={onClose}><X size={18} /></button>
         <div className="detail-head">
           <AvatarIcon seed={app.slug || app.name} title={app.name} size={58} className="detail-avatar" />
           <div>
-            <h2>{app.name}</h2>
+            <h2 id={drawerTitleId}>{app.name}</h2>
             <p>{app.summary || app.description}</p>
             <div className="meta-line">
               <span>{app.owner}</span>
@@ -2233,43 +2288,43 @@ function AppDrawer({
           </div>
         </div>
         <div className="detail-actions">
-          <button className="primary-button" onClick={() => onInstall(app)}>
+          <button type="button" className="primary-button" onClick={() => onInstall(app)}>
             <Download size={18} />
             <span>{t('common.install')}</span>
           </button>
           {user && (
             <>
-              <button className="secondary-button" onClick={() => void toggleAppFavorite()}>
+              <button type="button" className="secondary-button" onClick={() => void toggleAppFavorite()}>
                 <Heart size={18} />
                 <span>{t('drawer.favorite')}</span>
               </button>
-              <button className="secondary-button" onClick={() => void toggleSubmitterFavorite()}>
+              <button type="button" className="secondary-button" onClick={() => void toggleSubmitterFavorite()}>
                 <Star size={18} />
                 <span>{t('drawer.submitter')}</span>
               </button>
-              <button className="secondary-button" onClick={() => void markOutdated()}>
+              <button type="button" className="secondary-button" onClick={() => void markOutdated()}>
                 <AlertCircle size={18} />
                 <span>{t('drawer.outdated')}</span>
               </button>
-              <button className="secondary-button" onClick={() => void clearOutdated()}>
+              <button type="button" className="secondary-button" onClick={() => void clearOutdated()}>
                 <Check size={18} />
                 <span>{t('drawer.clearOutdated')}</span>
               </button>
             </>
           )}
           {user && user.id !== app.ownerId && (
-            <button className="secondary-button" onClick={() => void requestCollaborator()}>
+            <button type="button" className="secondary-button" onClick={() => void requestCollaborator()}>
               <Users size={18} />
               <span>{t('drawer.collaborate')}</span>
             </button>
           )}
           {canMaintain && (
             <>
-              <button className="secondary-button" onClick={() => void unlistApp()}>
+              <button type="button" className="secondary-button" onClick={() => void unlistApp()}>
                 <Archive size={18} />
                 <span>{t('drawer.unlist')}</span>
               </button>
-              <button className="secondary-button danger-button" onClick={() => void deleteApp()}>
+              <button type="button" className="secondary-button danger-button" onClick={() => void deleteApp()}>
                 <Trash2 size={18} />
                 <span>{t('common.delete')}</span>
               </button>
@@ -2322,7 +2377,7 @@ function AppDrawer({
                   />
                   <span>{t('submitApp.allowUnreviewedUpdates')}</span>
                 </label>
-                <button className="secondary-button">
+                <button type="submit" className="secondary-button">
                   <Save size={18} />
                   <span>{t('drawer.saveInfo')}</span>
                 </button>
@@ -2359,7 +2414,7 @@ function AppDrawer({
                   <span>{t('common.lpkFile')}</span>
                   <input type="file" accept=".lpk" onChange={(event) => setVersionFile(event.target.files?.[0] || null)} />
                 </label>
-                <button className="secondary-button">
+                <button type="submit" className="secondary-button">
                   <Upload size={18} />
                   <span>{t('drawer.publishVersion')}</span>
                 </button>
@@ -2388,7 +2443,7 @@ function AppDrawer({
                     ))
                   )}
                 </div>
-                <button className="secondary-button" onClick={() => void saveVisibility()}>
+                <button type="button" className="secondary-button" onClick={() => void saveVisibility()}>
                   <Users size={18} />
                   <span>{t('drawer.saveVisibility')}</span>
                 </button>
@@ -2409,10 +2464,20 @@ function AppDrawer({
                         </div>
                         {request.status === 'PENDING' && (
                           <div className="row-actions">
-                            <button className="icon-button ok" aria-label={t('drawer.approveCollaborator')} onClick={() => void decideCollaboratorRequest(request.id, true)}>
+                            <button
+                              type="button"
+                              className="icon-button ok"
+                              aria-label={t('drawer.approveCollaboratorFor', { name: request.username || request.email || request.id })}
+                              onClick={() => void decideCollaboratorRequest(request.id, true)}
+                            >
                               <Check size={17} />
                             </button>
-                            <button className="icon-button danger" aria-label={t('drawer.rejectCollaborator')} onClick={() => void decideCollaboratorRequest(request.id, false)}>
+                            <button
+                              type="button"
+                              className="icon-button danger"
+                              aria-label={t('drawer.rejectCollaboratorFor', { name: request.username || request.email || request.id })}
+                              onClick={() => void decideCollaboratorRequest(request.id, false)}
+                            >
                               <X size={17} />
                             </button>
                           </div>
@@ -2435,13 +2500,13 @@ function AppDrawer({
                   {shot.caption && <figcaption>{shot.caption}</figcaption>}
                   {canMaintain && (
                     <div className="screenshot-actions">
-                      <button className="icon-button" aria-label={t('drawer.moveScreenshotUp')} disabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)}>
+                      <button type="button" className="icon-button" aria-label={t('drawer.moveScreenshotUp')} disabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)}>
                         <ArrowUp size={15} />
                       </button>
-                      <button className="icon-button" aria-label={t('drawer.moveScreenshotDown')} disabled={index === shots.length - 1} onClick={() => void moveScreenshot(shot.id, 1)}>
+                      <button type="button" className="icon-button" aria-label={t('drawer.moveScreenshotDown')} disabled={index === shots.length - 1} onClick={() => void moveScreenshot(shot.id, 1)}>
                         <ArrowDown size={15} />
                       </button>
-                      <button className="icon-button danger" aria-label={t('drawer.deleteScreenshot')} onClick={() => void deleteScreenshot(shot.id)}>
+                      <button type="button" className="icon-button danger" aria-label={t('drawer.deleteScreenshot')} onClick={() => void deleteScreenshot(shot.id)}>
                         <Trash2 size={15} />
                       </button>
                     </div>
@@ -2456,7 +2521,7 @@ function AppDrawer({
             <form className="comment-form screenshot-form" onSubmit={uploadScreenshot}>
               <input value={screenshotCaption} onChange={(event) => setScreenshotCaption(event.target.value)} placeholder={t('drawer.screenshotCaption')} />
               <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={(event) => setScreenshotFile(event.target.files?.[0] || null)} />
-              <button className="icon-button" aria-label={t('drawer.uploadScreenshot')}><Upload size={17} /></button>
+              <button type="submit" className="icon-button" aria-label={t('drawer.uploadScreenshot')}><Upload size={17} /></button>
             </form>
           )}
         </section>
@@ -2479,7 +2544,7 @@ function AppDrawer({
           {user && (
             <form className="comment-form" onSubmit={submitComment}>
               <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder={t('drawer.commentPlaceholder')} />
-              <button className="icon-button" aria-label={t('drawer.postComment')}><MessageSquare size={17} /></button>
+              <button type="submit" className="icon-button" aria-label={t('drawer.postComment')}><MessageSquare size={17} /></button>
             </form>
           )}
           <div className="comments">
@@ -2488,7 +2553,7 @@ function AppDrawer({
                 <div className="comment-head">
                   <strong>{comment.username}</strong>
                   {(canMaintain || user?.id === comment.userId) && (
-                    <button className="icon-button danger" aria-label={t('drawer.deleteComment')} onClick={() => void deleteComment(comment.id)}>
+                    <button type="button" className="icon-button danger" aria-label={t('drawer.deleteComment')} onClick={() => void deleteComment(comment.id)}>
                       <Trash2 size={15} />
                     </button>
                   )}
@@ -2510,7 +2575,7 @@ function AppGrid({ apps, onOpen, onInstall }: { apps: StoreApp[]; onOpen: (app: 
     <div className="app-grid">
       {apps.map((app) => (
         <article className="app-card" key={app.id}>
-          <button className="app-open" onClick={() => void onOpen(app)} aria-label={t('app.open', { name: app.name })}>
+          <button type="button" className="app-open" onClick={() => void onOpen(app)} aria-label={t('app.open', { name: app.name })}>
             <AvatarIcon seed={app.slug || app.name} title={app.name} />
             <div>
               <h3>{app.name}</h3>
@@ -2522,7 +2587,7 @@ function AppGrid({ apps, onOpen, onInstall }: { apps: StoreApp[]; onOpen: (app: 
             <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
             <span><Star size={14} /> {app.latestVersion?.version || app.status}</span>
           </div>
-          <button className="install-button" onClick={() => void onInstall(app)} aria-label={t('app.install', { name: app.name })}>
+          <button type="button" className="install-button" onClick={() => void onInstall(app)} aria-label={t('app.install', { name: app.name })}>
             <Download size={17} />
             <span>{t('common.install')}</span>
           </button>
@@ -2550,14 +2615,14 @@ function EmptyState({ icon: Icon, title }: { icon: typeof Home; title: string })
   );
 }
 
-function MobileTabs({ tab, setTab, items }: { tab: TabKey; setTab: (tab: TabKey) => void; items: readonly NavItem[] }) {
+function MobileTabs({ tab, setTab, items, inert }: { tab: TabKey; setTab: (tab: TabKey) => void; items: readonly NavItem[]; inert?: boolean }) {
   const { t } = useTranslation();
   return (
-    <nav className="mobile-tabs">
+    <nav className="mobile-tabs" inert={inert} aria-hidden={inert ? true : undefined}>
       {items.map((item) => {
         const Icon = item.icon;
         return (
-          <button key={item.key} className={cx(tab === item.key && 'active')} onClick={() => setTab(item.key)} aria-label={t(item.labelKey)}>
+          <button type="button" key={item.key} className={cx(tab === item.key && 'active')} onClick={() => setTab(item.key)} aria-label={t(item.labelKey)}>
             <Icon size={20} />
             <span>{t(item.labelKey)}</span>
           </button>
