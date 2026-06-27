@@ -544,6 +544,10 @@ textarea {
   margin-bottom: 14px;
 }
 
+.filter-segmented {
+  margin-bottom: 12px;
+}
+
 .filter-bar label {
   display: grid;
   gap: 6px;
@@ -655,6 +659,47 @@ textarea {
   gap: 5px;
 }
 
+.status-badge {
+  min-height: 26px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  padding: 0 8px;
+  color: var(--muted);
+  background: #fbfcf8;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-badge.approved {
+  color: var(--green);
+  border-color: #b8dfca;
+  background: #f1faf5;
+}
+
+.status-badge.pending {
+  color: var(--blue);
+  border-color: #bed2e8;
+  background: #f3f7fc;
+}
+
+.status-badge.rejected,
+.status-badge.blocked {
+  color: var(--red);
+  border-color: #e4b8b8;
+  background: #fff8f8;
+}
+
+.status-badge.unlisted,
+.status-badge.draft {
+  color: var(--amber);
+  border-color: #ead3ad;
+  background: #fffaf0;
+}
+
 .review-list,
 .source-list,
 .source-apps,
@@ -743,6 +788,39 @@ textarea {
 
 .segmented.compact {
   margin-bottom: 6px;
+}
+
+.status-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.status-summary div {
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 10px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+
+.status-summary strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.status-summary span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.compact-button {
+  min-height: 34px;
+  padding: 0 10px;
 }
 
 .split {

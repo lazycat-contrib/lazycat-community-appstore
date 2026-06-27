@@ -272,7 +272,7 @@ function shortSHA(value?: string) {
   return value ? value.slice(0, 16) : '-';
 }
 
-type TabKey = 'home' | 'categories' | 'search' | 'sources' | 'profile' | 'admin';
+type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'admin';
 type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
 
 const serverBaseTabs: NavItem[] = [
@@ -293,6 +293,14 @@ type SortMode = 'recent' | 'downloads' | 'name';
 
 function verificationTokenFromURL() {
   return new URLSearchParams(window.location.search).get('token') || '';
+}
+
+function statusKey(value?: string) {
+  return (value || 'UNKNOWN').toLowerCase().replaceAll('_', '');
+}
+
+function reviewKindKey(value?: string) {
+  return (value || 'APP_SUBMISSION').toLowerCase().replaceAll('_', '');
 }
 
 export function App() {
@@ -422,13 +430,15 @@ export function App() {
     });
   }
 
+  const storeApps = useMemo(() => apps.filter((app) => app.status === 'APPROVED'), [apps]);
+
   const submitters = useMemo(() => {
-    return Array.from(new Set(apps.map((app) => app.owner).filter(Boolean))).sort((a, b) => a.localeCompare(b));
-  }, [apps]);
+    return Array.from(new Set(storeApps.map((app) => app.owner).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  }, [storeApps]);
 
   const filteredApps = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const filtered = apps.filter((app) => {
+    const filtered = storeApps.filter((app) => {
       const categoryMatch = activeCategory === 'all' || app.category === activeCategory;
       const submitterMatch = activeSubmitter === 'all' || app.owner === activeSubmitter;
       const queryMatch =
@@ -444,7 +454,7 @@ export function App() {
       if (sortMode === 'name') return a.name.localeCompare(b.name);
       return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
     });
-  }, [apps, activeCategory, activeSubmitter, query, sortMode]);
+  }, [storeApps, activeCategory, activeSubmitter, query, sortMode]);
 
   async function openApp(app: StoreApp) {
     await runAction(setToast, t('toast.loadAppDetailFailed'), async () => {
@@ -655,35 +665,26 @@ export function App() {
             {tab === 'home' && (
               <HomeView
                 apps={filteredApps}
-                collections={collections}
-                reviews={reviews}
-                canReview={canReview}
-                onOpen={openApp}
-                onInstall={installApp}
-                onApprove={approveReview}
-                onNavigate={setTab}
-              />
-            )}
-            {tab === 'categories' && (
-              <CategoryView
-                apps={filteredApps}
                 categories={categories}
-                activeCategory={activeCategory}
-                onCategory={setActiveCategory}
+                collections={collections}
                 onOpen={openApp}
                 onInstall={installApp}
+                onNavigate={setTab}
               />
             )}
             {tab === 'search' && (
               <SearchView
                 apps={filteredApps}
                 sourceApps={sourceApps}
+                categories={categories}
                 submitters={submitters}
+                activeCategory={activeCategory}
                 activeSubmitter={activeSubmitter}
                 sortMode={sortMode}
                 query={query}
                 mode={HAS_API ? 'server' : 'client'}
                 sourceCount={sources.length}
+                onCategory={setActiveCategory}
                 onSubmitter={setActiveSubmitter}
                 onSortMode={setSortMode}
                 onOpen={openApp}
@@ -702,10 +703,10 @@ export function App() {
                 setToast={setToast}
               />
             )}
-            {tab === 'profile' && <ProfileView user={user} setUser={setUser} groups={groups} setGroups={setGroups} categories={categories} refreshAll={refreshAll} setToast={setToast} hasAPI={HAS_API} />}
+            {tab === 'profile' && <ProfileView user={user} setUser={setUser} apps={apps} groups={groups} setGroups={setGroups} categories={categories} onOpen={openApp} refreshAll={refreshAll} setToast={setToast} hasAPI={HAS_API} />}
             {tab === 'admin' && (
               user && canReview ? (
-                <AdminPanel user={user} setToast={setToast} />
+                <AdminPanel user={user} reviews={reviews} onApprove={approveReview} setToast={setToast} />
               ) : (
                 <EmptyState
                   icon={ShieldCheck}
@@ -879,21 +880,17 @@ function SetupWizard({ onComplete, setToast }: { onComplete: (user: User) => Pro
 
 function HomeView({
   apps,
+  categories,
   collections,
-  reviews,
-  canReview,
   onOpen,
   onInstall,
-  onApprove,
   onNavigate,
 }: {
   apps: StoreApp[];
+  categories: Category[];
   collections: Collection[];
-  reviews: Review[];
-  canReview: boolean;
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp) => void;
-  onApprove: (review: Review, approve: boolean) => void;
   onNavigate: (tab: TabKey) => void;
 }) {
   const { t } = useTranslation();
@@ -919,7 +916,7 @@ function HomeView({
         </div>
         <div className="hero-stack">
           <div><PackagePlus size={18} /> {t('home.upload')}</div>
-          <div><ShieldCheck size={18} /> {t('home.review')}</div>
+          <div><ShieldCheck size={18} /> {t('home.trusted')}</div>
           <div><Download size={18} /> {t('home.install')}</div>
         </div>
       </div>
@@ -931,9 +928,9 @@ function HomeView({
           <small>{t('home.approvedCount', { count: approvedCount })}</small>
         </div>
         <div className="metric-card">
-          <span>{t('home.pendingReviews')}</span>
-          <strong>{reviews.length}</strong>
-          <small>{t('home.pendingCount', { count: reviews.length })}</small>
+          <span>{t('common.category')}</span>
+          <strong>{categories.length}</strong>
+          <small>{t('home.categoryCount', { count: categories.length })}</small>
         </div>
         <div className="metric-card source-feed-card">
           <span>{t('home.sourceUrl')}</span>
@@ -941,40 +938,6 @@ function HomeView({
           <small>{t('home.openSourceFeed')}</small>
         </div>
       </section>
-
-      {canReview && reviews.length > 0 && (
-        <section className="panel">
-          <SectionTitle icon={ShieldCheck} title={t('home.pendingReviews')} />
-          <div className="review-list">
-            {reviews.slice(0, 4).map((review) => (
-              <div className="review-row" key={review.id}>
-                <div>
-                  <strong>{review.kind.replaceAll('_', ' ')}</strong>
-                  <span>#{review.appId || review.versionId} · {formatDate(review.createdAt)}</span>
-                </div>
-                <div className="row-actions">
-                  <button
-                    type="button"
-                    className="icon-button ok"
-                    aria-label={t('home.approveReview', { id: review.id, kind: review.kind.replaceAll('_', ' ') })}
-                    onClick={() => void onApprove(review, true)}
-                  >
-                    <Check size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button danger"
-                    aria-label={t('home.rejectReview', { id: review.id, kind: review.kind.replaceAll('_', ' ') })}
-                    onClick={() => void onApprove(review, false)}
-                  >
-                    <X size={17} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       <section className="panel">
         <SectionTitle icon={History} title={t('home.latest')} />
@@ -999,55 +962,18 @@ function HomeView({
   );
 }
 
-function CategoryView({
-  apps,
-  categories,
-  activeCategory,
-  onCategory,
-  onOpen,
-  onInstall,
-}: {
-  apps: StoreApp[];
-  categories: Category[];
-  activeCategory: string;
-  onCategory: (category: string) => void;
-  onOpen: (app: StoreApp) => void;
-  onInstall: (app: StoreApp) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <section className="page-grid">
-      <div className="page-heading">
-        <h1>{t('categories.title')}</h1>
-        <p>{t('search.serverDescription')}</p>
-      </div>
-      <div className="segmented">
-        <button type="button" className={cx(activeCategory === 'all' && 'active')} onClick={() => onCategory('all')}>{t('common.all')}</button>
-        {categories.map((category) => (
-          <button type="button" key={category.id} className={cx(activeCategory === category.name && 'active')} onClick={() => onCategory(category.name)}>
-            {category.name}
-          </button>
-        ))}
-      </div>
-      <AppGrid
-        apps={apps}
-        onOpen={onOpen}
-        onInstall={onInstall}
-        empty={{ title: t('search.noResultsTitle'), body: t('search.noResultsBody') }}
-      />
-    </section>
-  );
-}
-
 function SearchView({
   apps,
   sourceApps,
+  categories,
   submitters,
+  activeCategory,
   activeSubmitter,
   sortMode,
   query,
   mode,
   sourceCount,
+  onCategory,
   onSubmitter,
   onSortMode,
   onOpen,
@@ -1056,12 +982,15 @@ function SearchView({
 }: {
   apps: StoreApp[];
   sourceApps: SourceApp[];
+  categories: Category[];
   submitters: string[];
+  activeCategory: string;
   activeSubmitter: string;
   sortMode: SortMode;
   query: string;
   mode: 'server' | 'client';
   sourceCount: number;
+  onCategory: (category: string) => void;
   onSubmitter: (submitter: string) => void;
   onSortMode: (mode: SortMode) => void;
   onOpen: (app: StoreApp) => void;
@@ -1105,6 +1034,16 @@ function SearchView({
       </div>
       <section className="panel">
         <SectionTitle icon={Search} title={t('search.localStore')} />
+        {categories.length > 0 && (
+          <div className="segmented filter-segmented" aria-label={t('search.categoryFilter')}>
+            <button type="button" className={cx(activeCategory === 'all' && 'active')} onClick={() => onCategory('all')}>{t('common.all')}</button>
+            {categories.map((category) => (
+              <button type="button" key={category.id} className={cx(activeCategory === category.name && 'active')} onClick={() => onCategory(category.name)}>
+                {category.name}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="filter-bar">
           <label>
             <span>{t('search.sort')}</span>
@@ -1182,6 +1121,9 @@ function SourceAppGrid({
               <span><Cloud size={14} /> {app.sourceName}</span>
               <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
+              <span className={cx('status-badge', installable ? 'approved' : 'blocked')}>
+                {installable ? t('app.installReady') : t('app.installMissingVersion')}
+              </span>
               {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
             </div>
             <button
@@ -1379,18 +1321,22 @@ function SourcesView({
 function ProfileView({
   user,
   setUser,
+  apps,
   groups,
   setGroups,
   categories,
+  onOpen,
   refreshAll,
   setToast,
   hasAPI,
 }: {
   user: User | null;
   setUser: (user: User | null) => void;
+  apps: StoreApp[];
   groups: Group[];
   setGroups: (groups: Group[]) => void;
   categories: Category[];
+  onOpen: (app: StoreApp) => void;
   refreshAll: () => Promise<void>;
   setToast: (toast: Toast) => void;
   hasAPI: boolean;
@@ -1418,6 +1364,18 @@ function ProfileView({
   const [installedApps, setInstalledApps] = useState<Array<{ appid?: string; title?: string; version?: string; status?: number }>>([]);
   const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
   const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
+  const ownedApps = useMemo(() => {
+    if (!user) return [];
+    return apps
+      .filter((app) => app.ownerId === user.id)
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  }, [apps, user]);
+  const ownedStatusSummary = useMemo(() => {
+    const order = ['APPROVED', 'PENDING', 'REJECTED', 'UNLISTED'];
+    return order
+      .map((status) => ({ status, count: ownedApps.filter((app) => app.status === status).length }))
+      .filter((item) => item.count > 0);
+  }, [ownedApps]);
 
   useEffect(() => {
     if (!user) return;
@@ -1681,6 +1639,43 @@ function ProfileView({
           </button>
         </div>
 
+        <section className="panel">
+          <SectionTitle icon={PackagePlus} title={t('profile.mySubmissions')} />
+          {ownedStatusSummary.length > 0 && (
+            <div className="status-summary">
+              {ownedStatusSummary.map((item) => (
+                <div key={item.status}>
+                  <strong>{item.count}</strong>
+                  <span>{t(`statusLabels.${statusKey(item.status)}`)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="review-list">
+            {ownedApps.length === 0 ? (
+              <EmptyState icon={PackagePlus} title={t('profile.mySubmissionsEmpty')} body={t('profile.mySubmissionsEmptyBody')} />
+            ) : (
+              ownedApps.map((item) => (
+                <div className="review-row" key={item.id}>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
+                  </div>
+                  <div className="row-actions">
+                    <span className={cx('status-badge', statusKey(item.status))}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
+                    <button type="button" className="secondary-button compact-button" onClick={() => void onOpen(item)}>
+                      <ChevronRight size={17} />
+                      <span>{t('profile.openSubmission')}</span>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+
+      <section className="split">
         <form className="panel form-panel" onSubmit={submitUpload}>
           <SectionTitle icon={Upload} title={t('submitApp.title')} />
           <label>
@@ -1745,10 +1740,6 @@ function ProfileView({
             <span>{t('common.submit')}</span>
           </button>
         </form>
-      </div>
-
-      <section className="split">
-        <GroupPanel groups={groups} setGroups={setGroups} setToast={setToast} />
         <section className="panel">
           <SectionTitle icon={KeyRound} title={t('token.title')} />
           <div className="review-list">
@@ -1770,6 +1761,7 @@ function ProfileView({
       </section>
 
       <section className="split">
+        <GroupPanel groups={groups} setGroups={setGroups} setToast={setToast} />
         <section className="panel">
           <SectionTitle icon={Heart} title={t('favorites.title')} />
           <div className="review-list">
@@ -1908,7 +1900,17 @@ function GroupPanel({
   );
 }
 
-function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) => void }) {
+function AdminPanel({
+  user,
+  reviews,
+  onApprove,
+  setToast,
+}: {
+  user: User;
+  reviews: Review[];
+  onApprove: (review: Review, approve: boolean) => void;
+  setToast: (toast: Toast) => void;
+}) {
   const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [apps, setApps] = useState<StoreApp[]>([]);
@@ -2115,6 +2117,42 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
         <h1>{t('admin.title')}</h1>
         <p>{t('admin.body')}</p>
       </div>
+      <section className="panel">
+        <SectionTitle icon={ShieldCheck} title={t('admin.reviewQueue')} />
+        <div className="review-list">
+          {reviews.length === 0 ? (
+            <EmptyState icon={ShieldCheck} title={t('admin.noPendingReviews')} body={t('admin.noPendingReviewsBody')} />
+          ) : (
+            reviews.map((review) => (
+              <div className="review-row" key={review.id}>
+                <div>
+                  <strong>{t(`reviewKinds.${reviewKindKey(review.kind)}`)}</strong>
+                  <span>{t('admin.reviewTarget', { target: review.appId ? `#${review.appId}` : review.versionId ? `v#${review.versionId}` : '-' })} · {t('admin.requester', { id: review.requesterId })} · {formatDate(review.createdAt)}</span>
+                </div>
+                <div className="row-actions">
+                  <span className={cx('status-badge', statusKey(review.status))}>{t(`statusLabels.${statusKey(review.status)}`)}</span>
+                  <button
+                    type="button"
+                    className="icon-button ok"
+                    aria-label={t('admin.approveReview', { id: review.id })}
+                    onClick={() => void onApprove(review, true)}
+                  >
+                    <Check size={17} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button danger"
+                    aria-label={t('admin.rejectReview', { id: review.id })}
+                    onClick={() => void onApprove(review, false)}
+                  >
+                    <X size={17} />
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
       {isSiteAdmin && (
         <section className="split">
           <form className="panel form-panel" onSubmit={saveSettings}>
