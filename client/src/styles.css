@@ -1582,16 +1582,69 @@ textarea {
   position: fixed;
   right: 20px;
   bottom: 20px;
-  z-index: 30;
-  width: min(420px, calc(100vw - 40px));
+  z-index: 35;
+  width: min(460px, calc(100vw - 40px));
   background: #16231d;
   color: white;
   border-radius: 8px;
   padding: 14px;
   display: grid;
-  grid-template-columns: 22px 1fr auto;
+  grid-template-columns: 22px minmax(0, 1fr) 38px;
   gap: 12px;
+  align-items: start;
+  border: 1px solid #2f4a3e;
+}
+
+.install-panel.success {
+  border-color: #6eb58d;
+}
+
+.install-panel.error {
+  border-color: #c86d6d;
+}
+
+.install-panel-body {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.install-panel-head {
+  min-width: 0;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.install-panel-head strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.install-panel-body > span,
+.install-panel-body p,
+.install-panel-meta small {
+  color: #d7e5dc;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.install-panel-body p {
+  margin: 0;
+}
+
+.install-panel-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.install-panel .icon-button {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #3f5b4e;
+  color: white;
 }
 
 .progress {
@@ -1606,6 +1659,7 @@ textarea {
   display: block;
   height: 100%;
   background: #b9e6cf;
+  transition: width 160ms ease;
 }
 
 .toast {
@@ -1716,6 +1770,12 @@ code {
   .hero-band {
     display: grid;
     align-items: start;
+  }
+
+  .install-panel {
+    right: 14px;
+    bottom: 78px;
+    width: calc(100vw - 28px);
   }
 
   .drawer {

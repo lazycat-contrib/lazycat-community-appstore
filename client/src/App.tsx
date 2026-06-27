@@ -214,6 +214,17 @@ type Toast = {
   message: string;
 };
 
+type InstallActivity = {
+  title: string;
+  source: string;
+  checksum: string;
+  status: 'running' | 'success' | 'error';
+  progress: number;
+  stageKey: string;
+  messageKey?: string;
+  messageParams?: Record<string, string | number>;
+};
+
 type ClientSourceStats = {
   sourceCount: number;
   syncedSourceCount: number;
@@ -357,8 +368,7 @@ export function App() {
   const [activeSubmitter, setActiveSubmitter] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
-  const [installing, setInstalling] = useState<string | null>(null);
-  const [installProgress, setInstallProgress] = useState(0);
+  const [installActivity, setInstallActivity] = useState<InstallActivity | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
   const [setupRequired, setSetupRequired] = useState(false);
@@ -523,30 +533,46 @@ export function App() {
         setToast({ tone: 'error', message: t('toast.noInstallableVersion') });
         return;
       }
-      setInstalling(`${app.name} ${version.version}`);
-      setInstallProgress(0);
-      try {
-        for (const point of [18, 41, 68]) {
-          await new Promise((resolve) => window.setTimeout(resolve, 260));
-          setInstallProgress(point);
-        }
-        const downloadUrl =
-          'sourceName' in app ? version.downloadUrl : `${API_BASE}/api/v1/apps/${app.id}/versions/${(version as Version).id}/download`;
-        const result = await installWithLazyCat({
-          name: app.name,
-          appId: app.slug,
-          pkgId: app.slug,
-          downloadUrl,
-          sha256: version.sha256,
-        });
-        setInstallProgress(100);
-        setToast({
-          tone: result.mode === 'lazycat-sdk' || result.mode === 'download' ? 'success' : 'error',
-          message: t(result.messageKey, result.messageParams),
-        });
-      } finally {
-        window.setTimeout(() => setInstalling(null), 700);
-      }
+      const source = 'sourceName' in app ? app.sourceName : t('search.localStore');
+      const checksum = version.sha256 ? shortSHA(version.sha256) : t('app.checksumMissing');
+      setInstallActivity({
+        title: `${app.name} ${version.version}`,
+        source,
+        checksum,
+        status: 'running',
+        progress: 12,
+        stageKey: 'installActivity.stagePrepare',
+      });
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+      setInstallActivity((current) =>
+        current && current.title === `${app.name} ${version.version}`
+          ? { ...current, progress: 42, stageKey: version.sha256 ? 'installActivity.stageVerify' : 'installActivity.stageHandoff' }
+          : current,
+      );
+      const downloadUrl =
+        'sourceName' in app ? version.downloadUrl : `${API_BASE}/api/v1/apps/${app.id}/versions/${(version as Version).id}/download`;
+      const result = await installWithLazyCat({
+        name: app.name,
+        appId: app.slug,
+        pkgId: app.slug,
+        downloadUrl,
+        sha256: version.sha256,
+      });
+      const success = result.mode === 'lazycat-sdk' || result.mode === 'download';
+      setInstallActivity({
+        title: `${app.name} ${version.version}`,
+        source,
+        checksum,
+        status: success ? 'success' : 'error',
+        progress: 100,
+        stageKey: success ? 'installActivity.stageDone' : 'installActivity.stageFailed',
+        messageKey: result.messageKey,
+        messageParams: result.messageParams,
+      });
+      setToast({
+        tone: success ? 'success' : 'error',
+        message: t(result.messageKey, result.messageParams),
+      });
     });
   }
 
@@ -825,17 +851,30 @@ export function App() {
         />
       )}
 
-      {installing && (
-        <div className="install-panel" inert={!!selectedApp} aria-hidden={selectedApp ? true : undefined}>
+      {installActivity && (
+        <aside className={cx('install-panel', installActivity.status)} aria-live="polite" aria-label={t('installActivity.title')}>
           <Download size={20} />
-          <div>
-            <strong>{installing}</strong>
-            <div className="progress">
-              <span style={{ width: `${installProgress}%` }} />
+          <div className="install-panel-body">
+            <div className="install-panel-head">
+              <strong>{installActivity.title}</strong>
+              <span className={cx('status-badge', installActivity.status === 'running' ? 'syncing' : installActivity.status === 'success' ? 'approved' : 'failed')}>
+                {t(`installActivity.status.${installActivity.status}`)}
+              </span>
             </div>
+            <span>{t(installActivity.stageKey)}</span>
+            <div className="progress">
+              <span style={{ width: `${installActivity.progress}%` }} />
+            </div>
+            <div className="install-panel-meta">
+              <small>{t('installActivity.source', { source: installActivity.source })}</small>
+              <small>{t('installActivity.checksum', { checksum: installActivity.checksum })}</small>
+            </div>
+            {installActivity.messageKey && <p>{t(installActivity.messageKey, installActivity.messageParams)}</p>}
           </div>
-          <span>{installProgress}%</span>
-        </div>
+          <button type="button" className="icon-button" aria-label={t('installActivity.dismiss')} onClick={() => setInstallActivity(null)}>
+            <X size={17} />
+          </button>
+        </aside>
       )}
 
       {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
@@ -1225,6 +1264,8 @@ function SourceAppGrid({
     <div className="source-app-grid">
       {apps.map((app) => {
         const installable = hasInstallableVersion(app);
+        const hasChecksum = Boolean(app.latestVersion?.sha256);
+        const hasSize = Boolean(app.latestVersion?.size && app.latestVersion.size > 0);
         return (
           <article className="source-app-card" key={`${app.sourceId || app.sourceName}-${app.id}`}>
             <div className="app-open static">
@@ -1238,10 +1279,21 @@ function SourceAppGrid({
               <span><Cloud size={14} /> {app.sourceName}</span>
               <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
+              {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
+            </div>
+            <div className="app-readiness" aria-label={t('app.installSignals')}>
               <span className={cx('status-badge', installable ? 'approved' : 'blocked')}>
+                <Download size={13} />
                 {installable ? t('app.installReady') : t('app.installMissingVersion')}
               </span>
-              {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
+              <span className={cx('status-badge', hasChecksum ? 'synced' : 'unsynced')}>
+                <ShieldCheck size={13} />
+                {hasChecksum ? t('app.checksumReady') : t('app.checksumMissing')}
+              </span>
+              <span className={cx('status-badge', hasSize ? 'synced' : 'unsynced')}>
+                <Archive size={13} />
+                {hasSize ? t('app.sizeReady') : t('app.sizeMissing')}
+              </span>
             </div>
             <button
               type="button"

@@ -13,6 +13,7 @@ type InstallResult = {
 };
 
 let gateway: any = null;
+const INSTALL_HANDOFF_TIMEOUT_MS = 6000;
 
 async function getGateway() {
   const { lzcAPIGateway } = await import('@lazycatcloud/sdk');
@@ -34,13 +35,16 @@ export async function installWithLazyCat(target: InstallTarget): Promise<Install
 
   try {
     const gateway = await getGateway();
-    await gateway.pkgm.InstallLPK({
-      lpkUrl: target.downloadUrl,
-      waitUnitDone: true,
-      sha256: target.sha256 || undefined,
-      pkgId: target.pkgId || target.appId || undefined,
-      tmpTitle: target.name,
-    });
+    await withTimeout(
+      gateway.pkgm.InstallLPK({
+        lpkUrl: target.downloadUrl,
+        waitUnitDone: true,
+        sha256: target.sha256 || undefined,
+        pkgId: target.pkgId || target.appId || undefined,
+        tmpTitle: target.name,
+      }),
+      INSTALL_HANDOFF_TIMEOUT_MS,
+    );
     return { mode: 'lazycat-sdk', messageKey: 'installResult.sdkInstalled' };
   } catch (error) {
     console.warn('[lazycat-sdk] InstallLPK unavailable or install failed, falling back to download', error);
@@ -67,6 +71,22 @@ export async function installWithLazyCat(target: InstallTarget): Promise<Install
     console.warn('[lazycat-sdk] browser fallback download unavailable', error);
     return { mode: 'download-blocked', messageKey: 'installResult.browserVerifyUnavailable' };
   }
+}
+
+function withTimeout<T>(promise: PromiseLike<T> | T, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error('LazyCat SDK install timed out')), timeoutMs);
+    Promise.resolve(promise).then(
+      (value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
 }
 
 async function sha256Blob(blob: Blob) {
