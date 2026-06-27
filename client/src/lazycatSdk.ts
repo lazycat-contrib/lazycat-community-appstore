@@ -8,7 +8,8 @@ type InstallTarget = {
 
 type InstallResult = {
   mode: 'lazycat-sdk' | 'download' | 'missing-url' | 'checksum-failed' | 'download-blocked';
-  message: string;
+  messageKey: string;
+  messageParams?: Record<string, string | number>;
 };
 
 let gateway: any = null;
@@ -28,7 +29,7 @@ export async function queryInstalledApplications() {
 
 export async function installWithLazyCat(target: InstallTarget): Promise<InstallResult> {
   if (!target.downloadUrl) {
-    return { mode: 'missing-url', message: '没有可下载的 LPK 地址' };
+    return { mode: 'missing-url', messageKey: 'installResult.missingUrl' };
   }
 
   try {
@@ -40,31 +41,31 @@ export async function installWithLazyCat(target: InstallTarget): Promise<Install
       pkgId: target.pkgId || target.appId || undefined,
       tmpTitle: target.name,
     });
-    return { mode: 'lazycat-sdk', message: '已通过 LazyCat SDK 安装 LPK' };
+    return { mode: 'lazycat-sdk', messageKey: 'installResult.sdkInstalled' };
   } catch (error) {
     console.warn('[lazycat-sdk] InstallLPK unavailable or install failed, falling back to download', error);
   }
 
   if (!target.sha256) {
     window.open(target.downloadUrl, '_blank', 'noopener,noreferrer');
-    return { mode: 'download', message: '已打开 LPK 下载地址' };
+    return { mode: 'download', messageKey: 'installResult.downloadOpened' };
   }
 
   try {
     const response = await fetch(target.downloadUrl, { credentials: 'include' });
     if (!response.ok) {
-      return { mode: 'download-blocked', message: `LPK 下载失败：HTTP ${response.status}` };
+      return { mode: 'download-blocked', messageKey: 'installResult.downloadFailedHttp', messageParams: { status: response.status } };
     }
     const blob = await response.blob();
     const digest = await sha256Blob(blob);
     if (digest !== target.sha256.toLowerCase()) {
-      return { mode: 'checksum-failed', message: 'LPK 文件校验失败，已中止下载' };
+      return { mode: 'checksum-failed', messageKey: 'installResult.checksumFailed' };
     }
     downloadBlob(blob, `${safeFilename(target.name)}.lpk`);
-    return { mode: 'download', message: 'LPK 校验通过，已开始浏览器下载' };
+    return { mode: 'download', messageKey: 'installResult.checksumPassed' };
   } catch (error) {
     console.warn('[lazycat-sdk] browser fallback download unavailable', error);
-    return { mode: 'download-blocked', message: '当前浏览器无法校验该 LPK，请在 LazyCat 客户端内安装或检查源站 CORS 配置' };
+    return { mode: 'download-blocked', messageKey: 'installResult.browserVerifyUnavailable' };
   }
 }
 

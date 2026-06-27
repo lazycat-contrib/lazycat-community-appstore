@@ -35,8 +35,41 @@ textarea {
   font: inherit;
 }
 
+select {
+  font: inherit;
+}
+
 button {
   cursor: pointer;
+}
+
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--green) 72%, white);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: fixed;
+  left: 16px;
+  top: 10px;
+  z-index: 100;
+  transform: translateY(-140%);
+  background: var(--green-strong);
+  color: white;
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
 }
 
 .shell {
@@ -63,9 +96,7 @@ button {
   align-items: center;
 }
 
-.brand-mark,
-.app-icon,
-.avatar {
+.brand-mark {
   width: 46px;
   height: 46px;
   border-radius: 8px;
@@ -197,6 +228,28 @@ button {
   gap: 8px;
 }
 
+.mode-pill,
+.language-select {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.language-select select {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  min-height: 34px;
+}
+
 .icon-button,
 .user-pill,
 .primary-button,
@@ -249,6 +302,32 @@ button {
   gap: 18px;
 }
 
+.page-heading {
+  display: grid;
+  gap: 8px;
+  max-width: 860px;
+}
+
+.page-heading.with-action {
+  max-width: none;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 18px;
+}
+
+.page-heading h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1.05;
+}
+
+.page-heading p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+  max-width: 720px;
+}
+
 .hero-band {
   min-height: 210px;
   border-radius: 8px;
@@ -273,6 +352,8 @@ button {
 .hero-band p {
   color: #d7e5dc;
   margin: 0;
+  max-width: 680px;
+  line-height: 1.6;
 }
 
 .eyebrow {
@@ -281,6 +362,17 @@ button {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
+}
+
+.eyebrow.subtle {
+  color: var(--green);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
 }
 
 .hero-stack {
@@ -304,6 +396,41 @@ button {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 18px;
+}
+
+.store-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  min-height: 118px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+  align-content: center;
+}
+
+.metric-card span,
+.metric-card small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.metric-card strong {
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.source-feed-card strong {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: clamp(16px, 1.8vw, 22px);
+  line-height: 1.25;
 }
 
 .section-title {
@@ -352,7 +479,14 @@ button {
   gap: 12px;
 }
 
-.app-card {
+.source-app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.app-card,
+.source-app-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px;
@@ -370,6 +504,10 @@ button {
   min-width: 0;
 }
 
+.app-open.static {
+  grid-template-columns: 46px 1fr;
+}
+
 .app-open h3 {
   margin: 0 0 4px;
   white-space: nowrap;
@@ -384,6 +522,26 @@ button {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.humation-avatar {
+  display: block;
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  background: #e6f4ed;
+  border: 1px solid #c8e7d7;
+  overflow: hidden;
+}
+
+.avatar-large {
+  width: 74px;
+  height: 74px;
+}
+
+.detail-avatar {
+  width: 58px;
+  height: 58px;
 }
 
 .app-meta,
@@ -583,7 +741,7 @@ button {
   padding-right: 40px;
 }
 
-.detail-head .app-icon {
+.detail-head .detail-avatar {
   width: 58px;
   height: 58px;
 }
@@ -772,6 +930,10 @@ button {
   border-radius: 8px;
 }
 
+.action-empty {
+  align-content: center;
+}
+
 .install-panel {
   position: fixed;
   right: 20px;
@@ -855,6 +1017,24 @@ code {
     align-items: stretch;
   }
 
+  .top-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .mode-pill {
+    display: none;
+  }
+
+  .language-select span {
+    display: none;
+  }
+
+  .page-heading.with-action,
+  .store-metrics {
+    grid-template-columns: 1fr;
+  }
+
   .user-pill span {
     display: none;
   }
@@ -923,6 +1103,10 @@ code {
     grid-template-columns: 1fr;
   }
 
+  .source-app-grid {
+    grid-template-columns: 1fr;
+  }
+
   .hero-band h1 {
     font-size: 34px;
   }
@@ -932,5 +1116,14 @@ code {
   .version-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+
+  .language-select {
+    padding: 0 6px;
   }
 }

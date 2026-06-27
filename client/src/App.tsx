@@ -33,7 +33,11 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { Avatar } from '@humation/react';
+import { humation1 } from '@humation/assets-humation-1';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from './i18n';
 import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
 import { installWithLazyCat, queryInstalledApplications } from './lazycatSdk';
 
@@ -219,9 +223,13 @@ function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
 
+function AvatarIcon({ seed, title, size = 46, className }: { seed: string; title?: string; size?: number; className?: string }) {
+  return <Avatar assets={humation1} seed={seed || 'lazycat-app'} title={title} size={size} className={cx('humation-avatar', className)} />;
+}
+
 async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!HAS_API) {
-    throw new Error('未配置服务端 API');
+    throw new Error(i18n.t('toast.apiMissing'));
   }
   const response = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
@@ -249,18 +257,26 @@ function formatBytes(size?: number) {
 
 function formatDate(value?: string) {
   if (!value) return '-';
-  return new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  const locale = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en-US' : 'zh-CN';
+  return new Intl.DateTimeFormat(locale, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
-const tabs = [
-  { key: 'home', label: '首页', icon: Home },
-  { key: 'categories', label: '分类', icon: Layers3 },
-  { key: 'search', label: '搜索', icon: Search },
-  { key: 'sources', label: '软件源', icon: Cloud },
-  { key: 'profile', label: '我的', icon: UserRound },
-] as const;
+type TabKey = 'home' | 'categories' | 'search' | 'sources' | 'profile';
+type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
 
-type TabKey = (typeof tabs)[number]['key'];
+const serverTabs: NavItem[] = [
+  { key: 'home', labelKey: 'nav.store', icon: Home },
+  { key: 'categories', labelKey: 'nav.categories', icon: Layers3 },
+  { key: 'search', labelKey: 'nav.discover', icon: Search },
+  { key: 'profile', labelKey: 'nav.submitAdmin', icon: UserRound },
+];
+
+const clientTabs: NavItem[] = [
+  { key: 'sources', labelKey: 'nav.sources', icon: Cloud },
+  { key: 'search', labelKey: 'nav.install', icon: Download },
+  { key: 'profile', labelKey: 'nav.device', icon: Server },
+];
+
 type SortMode = 'recent' | 'downloads' | 'name';
 
 function verificationTokenFromURL() {
@@ -268,7 +284,8 @@ function verificationTokenFromURL() {
 }
 
 export function App() {
-  const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() ? 'profile' : 'home'));
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'sources'));
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [sourceApps, setSourceApps] = useState<SourceApp[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -285,6 +302,9 @@ export function App() {
   const [installProgress, setInstallProgress] = useState(0);
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
+  const navItems = HAS_API ? serverTabs : clientTabs;
+  const modeLabel = HAS_API ? t('mode.serverStore') : t('mode.standaloneClient');
+  const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
 
   const [sources, setSources] = useState<SourceSubscription[]>(() => {
     const saved = localStorage.getItem('lazycat.sources');
@@ -301,6 +321,21 @@ export function App() {
   });
 
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
+
+  useEffect(() => {
+    if (!navItems.some((item) => item.key === tab)) {
+      setTab(navItems[0].key);
+    }
+  }, [navItems, tab]);
+
+  useEffect(() => {
+    document.getElementById('main-content')?.focus({ preventScroll: true });
+  }, [tab]);
+
+  useEffect(() => {
+    document.documentElement.lang = currentLanguage === 'en' ? 'en' : 'zh-CN';
+    document.title = t('appName');
+  }, [currentLanguage, t]);
 
   useEffect(() => {
     localStorage.setItem('lazycat.sources', JSON.stringify(sources));
@@ -351,14 +386,14 @@ export function App() {
   }
 
   async function loadReviews() {
-    await runAction(setToast, '审核列表加载失败', async () => {
+    await runAction(setToast, t('toast.loadReviewsFailed'), async () => {
       const data = await api<{ reviews: Review[] }>('/api/v1/admin/reviews?status=PENDING');
       setReviews(data.reviews);
     });
   }
 
   async function loadGroups() {
-    await runAction(setToast, '群组加载失败', async () => {
+    await runAction(setToast, t('toast.loadGroupsFailed'), async () => {
       const data = await api<{ groups: Group[] }>('/api/v1/groups');
       setGroups(data.groups);
     });
@@ -389,17 +424,17 @@ export function App() {
   }, [apps, activeCategory, activeSubmitter, query, sortMode]);
 
   async function openApp(app: StoreApp) {
-    await runAction(setToast, '应用详情加载失败', async () => {
+    await runAction(setToast, t('toast.loadAppDetailFailed'), async () => {
       const data = await api<{ app: StoreApp }>(`/api/v1/apps/${app.id}`);
       setSelectedApp(data.app);
     });
   }
 
   async function installApp(app: StoreApp | SourceApp) {
-    await runAction(setToast, '安装失败', async () => {
+    await runAction(setToast, t('toast.installFailed'), async () => {
       const version = app.latestVersion;
       if (!version) {
-        setToast({ tone: 'error', message: '没有可安装版本' });
+        setToast({ tone: 'error', message: t('toast.noInstallableVersion') });
         return;
       }
       setInstalling(`${app.name} ${version.version}`);
@@ -419,7 +454,10 @@ export function App() {
           sha256: version.sha256,
         });
         setInstallProgress(100);
-        setToast({ tone: result.mode === 'lazycat-sdk' || result.mode === 'download' ? 'success' : 'error', message: result.message });
+        setToast({
+          tone: result.mode === 'lazycat-sdk' || result.mode === 'download' ? 'success' : 'error',
+          message: t(result.messageKey, result.messageParams),
+        });
       } finally {
         window.setTimeout(() => setInstalling(null), 700);
       }
@@ -427,22 +465,22 @@ export function App() {
   }
 
   async function approveReview(review: Review, approve: boolean) {
-    await runAction(setToast, '审核操作失败', async () => {
+    await runAction(setToast, t('toast.reviewActionFailed'), async () => {
       await api(`/api/v1/admin/reviews/${review.id}/${approve ? 'approve' : 'reject'}`, {
         method: 'POST',
         body: JSON.stringify({ note: approve ? 'Approved from client' : 'Rejected from client' }),
       });
-      setToast({ tone: approve ? 'success' : 'neutral', message: approve ? '已通过审核' : '已拒绝审核' });
+      setToast({ tone: approve ? 'success' : 'neutral', message: approve ? t('toast.reviewApproved') : t('toast.reviewRejected') });
       await refreshAll();
     });
   }
 
-  async function syncSource(source: SourceSubscription) {
+  async function syncSource(source: SourceSubscription, options: { quiet?: boolean } = {}) {
     const url = new URL(source.url);
     if (source.password) url.searchParams.set('password', source.password);
     const response = await fetch(url.toString(), { headers: source.password ? { 'X-Source-Password': source.password } : undefined });
-    if (response.status === 401) throw new Error('软件源密码无效，请更新访问密码');
-    if (!response.ok) throw new Error('软件源同步失败');
+    if (response.status === 401) throw new Error(t('toast.sourcePasswordInvalid'));
+    if (!response.ok) throw new Error(t('toast.sourceSyncFailed'));
     const data = await response.json();
     const mirroredDownloadURL = (version: any) => {
       const upstream = String(version.upstreamDownloadUrl || '');
@@ -469,28 +507,44 @@ export function App() {
     }));
     setSourceApps((current) => [...current.filter((app) => app.sourceName !== source.name), ...imported]);
     setSources((current) => current.map((item) => (item.id === source.id ? { ...item, lastSync: new Date().toISOString() } : item)));
-    setToast({ tone: 'success', message: '软件源已同步' });
+    if (!options.quiet) setToast({ tone: 'success', message: t('toast.sourceSynced') });
+  }
+
+  async function syncAllSources() {
+    if (sources.length === 0) {
+      setTab('sources');
+      setToast({ tone: 'neutral', message: t('toast.addSourceFirst') });
+      return;
+    }
+    await runAction(setToast, t('toast.sourceSyncFailed'), async () => {
+      for (const source of sources) {
+        await syncSource(source, { quiet: true });
+      }
+      setToast({ tone: 'success', message: t('toast.allSourcesSynced', { count: sources.length }) });
+      setTab('search');
+    });
   }
 
   return (
     <div className="shell">
+      <a className="skip-link" href="#main-content">{t('common.skipToMain')}</a>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
             <Archive size={22} />
           </div>
           <div>
-            <strong>懒猫软件商店</strong>
-            <span>LPK distribution</span>
+            <strong>{t('appName')}</strong>
+            <span>{modeLabel}</span>
           </div>
         </div>
         <nav className="nav">
-          {tabs.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             return (
               <button key={item.key} className={cx('nav-item', tab === item.key && 'active')} onClick={() => setTab(item.key)}>
                 <Icon size={19} />
-                <span>{item.label}</span>
+                <span>{t(item.labelKey)}</span>
               </button>
             );
           })}
@@ -498,27 +552,41 @@ export function App() {
         <div className="server-card">
           <Server size={18} />
           <div>
-            <span>Server</span>
-            <strong>{HAS_API ? API_BASE.replace(/^https?:\/\//, '') : '未配置'}</strong>
+            <span>{HAS_API ? t('mode.serverApi') : t('mode.sourceClient')}</span>
+            <strong>{HAS_API ? API_BASE.replace(/^https?:\/\//, '') : t('mode.notConfigured')}</strong>
           </div>
         </div>
       </aside>
 
-      <main className="main">
+      <main className="main" id="main-content" tabIndex={-1}>
         <header className="topbar">
           <div className="searchbox">
             <Search size={18} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索应用、标签、提交者" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
+              aria-label={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
+            />
           </div>
           <div className="top-actions">
-            <button className="icon-button" aria-label="刷新" onClick={() => void refreshAll()}>
+            <span className="mode-pill">{modeLabel}</span>
+            <label className="language-select">
+              <span>{t('language.label')}</span>
+              <select aria-label={t('language.label')} value={currentLanguage} onChange={(event) => void i18n.changeLanguage(event.target.value)}>
+                <option value="zh">{t('language.zh')}</option>
+                <option value="en">{t('language.en')}</option>
+              </select>
+            </label>
+            <button className="icon-button" aria-label={HAS_API ? t('topbar.refreshStore') : t('topbar.syncAllSources')} onClick={() => void (HAS_API ? refreshAll() : syncAllSources())}>
               <RefreshCw size={18} />
             </button>
-            {user ? (
+            {HAS_API && user ? (
               <button
                 className="user-pill"
+                aria-label={user.username}
                 onClick={() =>
-                  void runAction(setToast, '退出失败', async () => {
+                  void runAction(setToast, t('toast.logoutFailed'), async () => {
                     await api('/api/v1/auth/logout', { method: 'POST' });
                     setUser(null);
                   })
@@ -527,19 +595,19 @@ export function App() {
                 <LogOut size={16} />
                 <span>{user.username}</span>
               </button>
-            ) : (
-              <button className="user-pill" onClick={() => setTab('profile')}>
+            ) : HAS_API ? (
+              <button className="user-pill" aria-label={t('topbar.login')} onClick={() => setTab('profile')}>
                 <LogIn size={16} />
-                <span>登录</span>
+                <span>{t('topbar.login')}</span>
               </button>
-            )}
+            ) : null}
           </div>
         </header>
 
         {loading ? (
           <div className="loading-state">
             <Gauge size={28} />
-            <span>加载中</span>
+            <span>{t('common.loading')}</span>
           </div>
         ) : (
           <>
@@ -552,6 +620,7 @@ export function App() {
                 onOpen={openApp}
                 onInstall={installApp}
                 onApprove={approveReview}
+                onNavigate={setTab}
               />
             )}
             {tab === 'categories' && (
@@ -571,19 +640,33 @@ export function App() {
                 submitters={submitters}
                 activeSubmitter={activeSubmitter}
                 sortMode={sortMode}
+                query={query}
+                mode={HAS_API ? 'server' : 'client'}
+                sourceCount={sources.length}
                 onSubmitter={setActiveSubmitter}
                 onSortMode={setSortMode}
                 onOpen={openApp}
                 onInstall={installApp}
+                onGoSources={() => setTab('sources')}
               />
             )}
-            {tab === 'sources' && <SourcesView sources={sources} setSources={setSources} sourceApps={sourceApps} onSync={syncSource} onInstall={installApp} setToast={setToast} />}
+            {tab === 'sources' && (
+              <SourcesView
+                sources={sources}
+                setSources={setSources}
+                sourceApps={sourceApps}
+                onSync={syncSource}
+                onSyncAll={syncAllSources}
+                onInstall={installApp}
+                setToast={setToast}
+              />
+            )}
             {tab === 'profile' && <ProfileView user={user} setUser={setUser} groups={groups} setGroups={setGroups} categories={categories} refreshAll={refreshAll} setToast={setToast} hasAPI={HAS_API} />}
           </>
         )}
       </main>
 
-      <MobileTabs tab={tab} setTab={setTab} />
+      <MobileTabs tab={tab} setTab={setTab} items={navItems} />
 
       {selectedApp && (
         <AppDrawer
@@ -628,6 +711,7 @@ function HomeView({
   onOpen,
   onInstall,
   onApprove,
+  onNavigate,
 }: {
   apps: StoreApp[];
   collections: Collection[];
@@ -636,26 +720,57 @@ function HomeView({
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp) => void;
   onApprove: (review: Review, approve: boolean) => void;
+  onNavigate: (tab: TabKey) => void;
 }) {
+  const { t } = useTranslation();
   const latest = [...apps].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).slice(0, 6);
+  const approvedCount = apps.filter((app) => app.status === 'APPROVED').length;
   return (
     <section className="page-grid">
       <div className="hero-band">
         <div>
-          <span className="eyebrow">Community LPK</span>
-          <h1>从审核到安装的一条发布线</h1>
-          <p>已上架 {apps.filter((app) => app.status === 'APPROVED').length} 个应用，待处理 {reviews.length} 个审核。</p>
+          <span className="eyebrow">{t('home.eyebrow')}</span>
+          <h1>{t('home.title')}</h1>
+          <p>{t('home.body')}</p>
+          <div className="hero-actions">
+            <button className="primary-button" onClick={() => onNavigate('search')}>
+              <Search size={18} />
+              <span>{t('nav.discover')}</span>
+            </button>
+            <button className="secondary-button" onClick={() => onNavigate('profile')}>
+              <PackagePlus size={18} />
+              <span>{t('home.submitApp')}</span>
+            </button>
+          </div>
         </div>
         <div className="hero-stack">
-          <div><PackagePlus size={18} /> 上传</div>
-          <div><ShieldCheck size={18} /> 审核</div>
-          <div><Download size={18} /> 安装</div>
+          <div><PackagePlus size={18} /> {t('home.upload')}</div>
+          <div><ShieldCheck size={18} /> {t('home.review')}</div>
+          <div><Download size={18} /> {t('home.install')}</div>
         </div>
       </div>
 
+      <section className="store-metrics" aria-label={t('nav.store')}>
+        <div className="metric-card">
+          <span>{t('common.apps')}</span>
+          <strong>{approvedCount}</strong>
+          <small>{t('home.approvedCount', { count: approvedCount })}</small>
+        </div>
+        <div className="metric-card">
+          <span>{t('home.pendingReviews')}</span>
+          <strong>{reviews.length}</strong>
+          <small>{t('home.pendingCount', { count: reviews.length })}</small>
+        </div>
+        <div className="metric-card source-feed-card">
+          <span>{t('home.sourceUrl')}</span>
+          <strong>/source/v1/index.json</strong>
+          <small>{t('home.openSourceFeed')}</small>
+        </div>
+      </section>
+
       {canReview && reviews.length > 0 && (
         <section className="panel">
-          <SectionTitle icon={ShieldCheck} title="待审核" />
+          <SectionTitle icon={ShieldCheck} title={t('home.pendingReviews')} />
           <div className="review-list">
             {reviews.slice(0, 4).map((review) => (
               <div className="review-row" key={review.id}>
@@ -664,10 +779,10 @@ function HomeView({
                   <span>#{review.appId || review.versionId} · {formatDate(review.createdAt)}</span>
                 </div>
                 <div className="row-actions">
-                  <button className="icon-button ok" aria-label="通过" onClick={() => void onApprove(review, true)}>
+                  <button className="icon-button ok" aria-label={t('toast.reviewApproved')} onClick={() => void onApprove(review, true)}>
                     <Check size={17} />
                   </button>
-                  <button className="icon-button danger" aria-label="拒绝" onClick={() => void onApprove(review, false)}>
+                  <button className="icon-button danger" aria-label={t('toast.reviewRejected')} onClick={() => void onApprove(review, false)}>
                     <X size={17} />
                   </button>
                 </div>
@@ -678,7 +793,7 @@ function HomeView({
       )}
 
       <section className="panel">
-        <SectionTitle icon={History} title="最近更新" />
+        <SectionTitle icon={History} title={t('home.latest')} />
         <AppGrid apps={latest} onOpen={onOpen} onInstall={onInstall} />
       </section>
       {collections.map((collection) => (
@@ -706,10 +821,15 @@ function CategoryView({
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <section className="page-grid">
+      <div className="page-heading">
+        <h1>{t('categories.title')}</h1>
+        <p>{t('search.serverDescription')}</p>
+      </div>
       <div className="segmented">
-        <button className={cx(activeCategory === 'all' && 'active')} onClick={() => onCategory('all')}>全部</button>
+        <button className={cx(activeCategory === 'all' && 'active')} onClick={() => onCategory('all')}>{t('common.all')}</button>
         {categories.map((category) => (
           <button key={category.id} className={cx(activeCategory === category.name && 'active')} onClick={() => onCategory(category.name)}>
             {category.name}
@@ -727,38 +847,79 @@ function SearchView({
   submitters,
   activeSubmitter,
   sortMode,
+  query,
+  mode,
+  sourceCount,
   onSubmitter,
   onSortMode,
   onOpen,
   onInstall,
+  onGoSources,
 }: {
   apps: StoreApp[];
   sourceApps: SourceApp[];
   submitters: string[];
   activeSubmitter: string;
   sortMode: SortMode;
+  query: string;
+  mode: 'server' | 'client';
+  sourceCount: number;
   onSubmitter: (submitter: string) => void;
   onSortMode: (mode: SortMode) => void;
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp | SourceApp) => void;
+  onGoSources: () => void;
 }) {
+  const { t } = useTranslation();
+  const sourceNeedle = query.trim().toLowerCase();
+  const filteredSourceApps = sourceApps.filter((app) => {
+    if (!sourceNeedle) return true;
+    return [app.name, app.summary, app.category, app.sourceName].filter(Boolean).join(' ').toLowerCase().includes(sourceNeedle);
+  });
+
+  if (mode === 'client') {
+    return (
+      <section className="page-grid">
+        <div className="page-heading with-action">
+          <div>
+            <span className="eyebrow subtle">{t('search.sourceCount', { count: sourceCount })}</span>
+            <h1>{t('search.clientTitle')}</h1>
+            <p>{t('search.clientDescription')}</p>
+          </div>
+          <button className="secondary-button" onClick={onGoSources}>
+            <Cloud size={18} />
+            <span>{t('search.noSyncedAppsAction')}</span>
+          </button>
+        </div>
+        <section className="panel">
+          <SectionTitle icon={Download} title={t('search.subscribedApps')} />
+          <SourceAppGrid apps={filteredSourceApps} onInstall={onInstall} onGoSources={onGoSources} />
+        </section>
+      </section>
+    );
+  }
+
   return (
     <section className="page-grid">
+      <div className="page-heading">
+        <h1>{t('search.serverTitle')}</h1>
+        <p>{t('search.serverDescription')}</p>
+      </div>
       <section className="panel">
-        <SectionTitle icon={Search} title="本地商店" />
+        <SectionTitle icon={Search} title={t('search.localStore')} />
         <div className="filter-bar">
           <label>
-            <span>排序</span>
+            <span>{t('search.sort')}</span>
             <select value={sortMode} onChange={(event) => onSortMode(event.target.value as SortMode)}>
-              <option value="recent">最近更新</option>
-              <option value="downloads">下载最多</option>
-              <option value="name">名称</option>
+              <option value="recent">{t('search.recent')}</option>
+              <option value="downloads">{t('search.downloads')}</option>
+              <option value="name">{t('search.name')}</option>
             </select>
           </label>
           <label>
-            <span>提交者</span>
+            <span>{t('search.submitter')}</span>
             <select value={activeSubmitter} onChange={(event) => onSubmitter(event.target.value)}>
-              <option value="all">全部提交者</option>
+              <option value="all">{t('search.allSubmitters')}</option>
               {submitters.map((submitter) => (
                 <option key={submitter} value={submitter}>{submitter}</option>
               ))}
@@ -768,24 +929,62 @@ function SearchView({
         <AppGrid apps={apps} onOpen={onOpen} onInstall={onInstall} />
       </section>
       <section className="panel">
-        <SectionTitle icon={Cloud} title="订阅来源" />
-        <div className="source-apps">
-          {sourceApps.length === 0 ? (
-            <EmptyState icon={Cloud} title="没有同步的软件源应用" />
-          ) : (
-            sourceApps.map((app) => (
-              <button className="source-app-row" key={`${app.sourceName}-${app.id}`} onClick={() => void onInstall(app)}>
-                <div>
-                  <strong>{app.name}</strong>
-                  <span>{app.sourceName} · {app.latestVersion?.version || '-'}</span>
-                </div>
-                <Download size={18} />
-              </button>
-            ))
-          )}
-        </div>
+        <SectionTitle icon={Cloud} title={t('search.subscribedApps')} />
+        <SourceAppGrid apps={filteredSourceApps} onInstall={onInstall} onGoSources={onGoSources} />
       </section>
     </section>
+  );
+}
+
+function SourceAppGrid({
+  apps,
+  onInstall,
+  onGoSources,
+  showEmptyAction = true,
+}: {
+  apps: SourceApp[];
+  onInstall: (app: SourceApp) => void;
+  onGoSources: () => void;
+  showEmptyAction?: boolean;
+}) {
+  const { t } = useTranslation();
+  if (apps.length === 0) {
+    return (
+      <div className="empty-state action-empty">
+        <Cloud size={28} />
+        <strong>{t('search.noSyncedApps')}</strong>
+        {showEmptyAction && (
+          <button className="secondary-button" onClick={onGoSources}>
+            <Plus size={18} />
+            <span>{t('search.noSyncedAppsAction')}</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="source-app-grid">
+      {apps.map((app) => (
+        <article className="source-app-card" key={`${app.sourceName}-${app.id}`}>
+          <div className="app-open static">
+            <AvatarIcon seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} />
+            <div>
+              <h3>{app.name}</h3>
+              <p>{app.summary || t('common.lpkApp')}</p>
+            </div>
+          </div>
+          <div className="app-meta">
+            <span><Cloud size={14} /> {app.sourceName}</span>
+            <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
+            <span><Star size={14} /> {app.latestVersion?.version || '-'}</span>
+          </div>
+          <button className="install-button" onClick={() => void onInstall(app)} aria-label={t('app.install', { name: app.name })}>
+            <Download size={17} />
+            <span>{t('common.install')}</span>
+          </button>
+        </article>
+      ))}
+    </div>
   );
 }
 
@@ -794,6 +993,7 @@ function SourcesView({
   setSources,
   sourceApps,
   onSync,
+  onSyncAll,
   onInstall,
   setToast,
 }: {
@@ -801,11 +1001,14 @@ function SourcesView({
   setSources: (update: SourceSubscription[] | ((current: SourceSubscription[]) => SourceSubscription[])) => void;
   sourceApps: SourceApp[];
   onSync: (source: SourceSubscription) => Promise<void>;
+  onSyncAll: () => Promise<void>;
   onInstall: (app: SourceApp) => void;
   setToast: (toast: Toast) => void;
 }) {
+  const { t } = useTranslation();
   const emptyDraft = { name: '', url: DEFAULT_SOURCE_URL, password: '', mirror: '' };
   const [draft, setDraft] = useState(emptyDraft);
+  const [syncingID, setSyncingID] = useState<string | null>(null);
 
   function addSource(event: FormEvent) {
     event.preventDefault();
@@ -819,61 +1022,82 @@ function SourcesView({
   }
 
   return (
-    <section className="split">
+    <section className="page-grid">
+      <div className="page-heading with-action">
+        <div>
+          <span className="eyebrow subtle">{t('mode.standaloneClient')}</span>
+          <h1>{t('sources.title')}</h1>
+          <p>{t('sources.subtitle')}</p>
+        </div>
+        <button className="primary-button" onClick={() => void onSyncAll()}>
+          <RefreshCw size={18} />
+          <span>{t('sources.syncAll')}</span>
+        </button>
+      </div>
+
+      <section className="split">
       <form className="panel form-panel" onSubmit={addSource}>
-        <SectionTitle icon={Cloud} title="软件源" />
+        <SectionTitle icon={Cloud} title={t('sources.addTitle')} />
         <label>
-          <span>名称</span>
+          <span>{t('common.name')}</span>
           <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
         </label>
         <label>
-          <span>URL</span>
-          <input value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} />
+          <span>{t('sources.url')}</span>
+          <input type="url" value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} />
         </label>
         <label>
-          <span>访问密码</span>
+          <span>{t('sources.password')}</span>
           <input type="password" value={draft.password} onChange={(event) => setDraft({ ...draft, password: event.target.value })} />
         </label>
         <label>
-          <span>GitHub 镜像</span>
+          <span>{t('sources.mirror')}</span>
           <input value={draft.mirror} onChange={(event) => setDraft({ ...draft, mirror: event.target.value })} />
         </label>
         <button className="primary-button">
           <Cloud size={18} />
-          <span>添加软件源</span>
+          <span>{t('sources.add')}</span>
         </button>
       </form>
 
       <section className="panel">
-        <SectionTitle icon={Server} title="订阅" />
+        <SectionTitle icon={Server} title={t('sources.subscriptions')} />
         <div className="source-list">
           {sources.length === 0 ? (
-            <EmptyState icon={Cloud} title="还没有软件源" />
+            <EmptyState icon={Cloud} title={t('sources.empty')} />
           ) : (
             sources.map((source) => (
               <div className="source-row" key={source.id}>
                 <div>
                   <strong>{source.name}</strong>
                   <span>{source.url}</span>
-                  {source.lastSync && <small>{formatDate(source.lastSync)}</small>}
+                  {source.lastSync && <small>{t('sources.lastSync', { time: formatDate(source.lastSync) })}</small>}
                   <div className="source-edit-grid">
-                    <input value={source.password} type="password" placeholder="访问密码" onChange={(event) => updateSource(source.id, { password: event.target.value })} />
-                    <input value={source.mirror} placeholder="GitHub 镜像" onChange={(event) => updateSource(source.id, { mirror: event.target.value })} />
+                    <input value={source.password} type="password" placeholder={t('sources.passwordPlaceholder')} onChange={(event) => updateSource(source.id, { password: event.target.value })} />
+                    <input value={source.mirror} placeholder={t('sources.mirrorPlaceholder')} onChange={(event) => updateSource(source.id, { mirror: event.target.value })} />
                   </div>
                 </div>
                 <div className="row-actions">
                   <button
                     className="icon-button"
-                    aria-label="同步"
+                    aria-label={t('common.sync')}
+                    disabled={syncingID === source.id}
                     onClick={() =>
-                      void onSync(source).catch((error) =>
-                        setToast({ tone: 'error', message: error instanceof Error ? error.message : '软件源同步失败' }),
-                      )
+                      void (async () => {
+                        setSyncingID(source.id);
+                        try {
+                          await onSync(source);
+                        } catch (error) {
+                          setToast({ tone: 'error', message: error instanceof Error ? error.message : t('toast.sourceSyncFailed') });
+                        } finally {
+                          setSyncingID(null);
+                        }
+                      })()
                     }
                   >
                     <RefreshCw size={17} />
                   </button>
-                  <button className="icon-button danger" aria-label="删除" onClick={() => setSources((current) => current.filter((item) => item.id !== source.id))}>
+                  <button className="icon-button danger" aria-label={t('common.delete')} onClick={() => setSources((current) => current.filter((item) => item.id !== source.id))}>
                     <X size={17} />
                   </button>
                 </div>
@@ -881,19 +1105,12 @@ function SourcesView({
             ))
           )}
         </div>
-        {sourceApps.length > 0 && (
-          <div className="source-apps compact">
-            {sourceApps.map((app) => (
-              <button className="source-app-row" key={`${app.sourceName}-${app.id}`} onClick={() => onInstall(app)}>
-                <div>
-                  <strong>{app.name}</strong>
-                  <span>{app.sourceName} · {app.latestVersion?.version}</span>
-                </div>
-                <Download size={18} />
-              </button>
-            ))}
-          </div>
-        )}
+      </section>
+      </section>
+
+      <section className="panel">
+        <SectionTitle icon={Download} title={t('sources.syncedApps')} />
+        <SourceAppGrid apps={sourceApps} onInstall={onInstall} onGoSources={() => undefined} showEmptyAction={false} />
       </section>
     </section>
   );
@@ -918,6 +1135,7 @@ function ProfileView({
   setToast: (toast: Toast) => void;
   hasAPI: boolean;
 }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
   const [authForm, setAuthForm] = useState({ username: 'admin', password: 'changeme', email: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
@@ -938,6 +1156,8 @@ function ProfileView({
   const [newToken, setNewToken] = useState('');
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
   const [installedApps, setInstalledApps] = useState<Array<{ appid?: string; title?: string; version?: string; status?: number }>>([]);
+  const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
+  const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
 
   useEffect(() => {
     if (!user) return;
@@ -955,13 +1175,13 @@ function ProfileView({
 
   async function submitVerification(event: FormEvent) {
     event.preventDefault();
-    await runAction(setToast, '邮箱验证失败', async () => {
+    await runAction(setToast, t('auth.verifyFailed'), async () => {
       const data = await api<{ user: User }>('/api/v1/auth/verify-email', {
         method: 'POST',
         body: JSON.stringify({ token: verifyToken }),
       });
       setUser(data.user);
-      setToast({ tone: 'success', message: '邮箱已验证' });
+      setToast({ tone: 'success', message: t('auth.emailVerified') });
       await refreshAll();
     });
   }
@@ -972,7 +1192,7 @@ function ProfileView({
       await submitVerification(event);
       return;
     }
-    await runAction(setToast, mode === 'login' ? '登录失败' : '注册失败', async () => {
+    await runAction(setToast, mode === 'login' ? t('auth.loginFailed') : t('auth.registerFailed'), async () => {
       const data = await api<{ user: User }>(`/api/v1/auth/${mode}`, {
         method: 'POST',
         body: JSON.stringify(authForm),
@@ -980,9 +1200,9 @@ function ProfileView({
       setUser(data.user);
       if (data.user.emailVerified === false) {
         setMode('verify');
-        setToast({ tone: 'neutral', message: '请完成邮箱验证后继续' });
+        setToast({ tone: 'neutral', message: t('auth.completeEmailVerification') });
       } else {
-        setToast({ tone: 'success', message: mode === 'login' ? '已登录' : '已注册' });
+        setToast({ tone: 'success', message: mode === 'login' ? t('auth.loggedIn') : t('auth.registered') });
       }
       await refreshAll();
     });
@@ -991,14 +1211,14 @@ function ProfileView({
   async function submitUpload(event: FormEvent) {
     event.preventDefault();
     if (!file && !uploadForm.downloadUrl.trim()) {
-      setToast({ tone: 'error', message: '请选择 LPK 文件或填写外部下载链接' });
+      setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
       return;
     }
     if (!file && !uploadForm.sha256.trim()) {
-      setToast({ tone: 'error', message: '外部下载链接需要填写 SHA256' });
+      setToast({ tone: 'error', message: t('submitApp.sha256Required') });
       return;
     }
-    await runAction(setToast, '应用提交失败', async () => {
+    await runAction(setToast, t('submitApp.failed'), async () => {
       if (file) {
         const form = new FormData();
         Object.entries(uploadForm).forEach(([key, value]) => form.set(key, String(value)));
@@ -1021,7 +1241,7 @@ function ProfileView({
           }),
         });
       }
-      setToast({ tone: 'success', message: '应用已提交' });
+      setToast({ tone: 'success', message: t('submitApp.submitted') });
       setUploadForm({ name: '', version: '0.1.0', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, sourceType: 'GITHUB', downloadUrl: '', sha256: '' });
       setFile(null);
       await refreshAll();
@@ -1029,7 +1249,7 @@ function ProfileView({
   }
 
   async function createToken() {
-    await runAction(setToast, 'Token 生成失败', async () => {
+    await runAction(setToast, t('token.createFailed'), async () => {
       const data = await api<{ token: string; record: APITokenRecord }>('/api/v1/me/tokens', {
         method: 'POST',
         body: JSON.stringify({ name: 'CI publish token' }),
@@ -1040,7 +1260,7 @@ function ProfileView({
   }
 
   async function loadFavorites() {
-    await runAction(setToast, '收藏加载失败', async () => {
+    await runAction(setToast, t('favorites.loadFailed'), async () => {
       const data = await api<FavoriteData>('/api/v1/me/favorites');
       setFavorites({ apps: data.apps || [], submitters: data.submitters || [] });
     });
@@ -1050,19 +1270,42 @@ function ProfileView({
     try {
       const result = await queryInstalledApplications();
       setInstalledApps(result?.infoList || []);
-      setToast({ tone: 'success', message: '已刷新安装列表' });
+      setToast({ tone: 'success', message: t('profile.installedRefreshed') });
     } catch {
-      setToast({ tone: 'error', message: '当前环境无法访问 LazyCat SDK' });
+      setToast({ tone: 'error', message: t('profile.lazycatSdkUnavailable') });
     }
   }
 
   if (!hasAPI) {
     return (
       <section className="page-grid">
-        <div className="panel profile-card">
-          <div className="avatar"><Cloud size={28} /></div>
-          <h2>客户端模式</h2>
-          <p>当前未配置服务端 API，可在软件源页面添加任意 LazyCat App Store source。</p>
+        <div className="split">
+          <div className="panel profile-card">
+            <AvatarIcon seed="lazycat-standalone-client" title={t('profile.clientTitle')} size={74} className="avatar-large" />
+            <h2>{t('profile.clientTitle')}</h2>
+            <p>{t('profile.clientBody')}</p>
+            <button className="primary-button" onClick={() => void loadInstalledApps()}>
+              <RefreshCw size={18} />
+              <span>{t('profile.readInstalled')}</span>
+            </button>
+          </div>
+          <section className="panel">
+            <SectionTitle icon={Download} title={t('profile.installed')} />
+            <div className="review-list">
+              {installedApps.length === 0 ? (
+                <EmptyState icon={Download} title={t('profile.installedEmpty')} />
+              ) : (
+                installedApps.map((item) => (
+                  <div className="review-row" key={item.appid || item.title}>
+                    <div>
+                      <strong>{item.title || item.appid}</strong>
+                      <span>{item.version || '-'} · {t('profile.status', { status: item.status ?? '-' })}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
         </div>
       </section>
     );
@@ -1071,38 +1314,38 @@ function ProfileView({
   if (!user) {
     return (
       <form className="panel form-panel profile-panel" onSubmit={submitAuth}>
-        <SectionTitle icon={KeyRound} title={mode === 'login' ? '登录' : '注册'} />
+        <SectionTitle icon={KeyRound} title={mode === 'verify' ? t('auth.verifyEmail') : authModeLabel} />
         <div className="segmented compact">
-          <button type="button" className={cx(mode === 'login' && 'active')} onClick={() => setMode('login')}>登录</button>
-          <button type="button" className={cx(mode === 'register' && 'active')} onClick={() => setMode('register')}>注册</button>
-          <button type="button" className={cx(mode === 'verify' && 'active')} onClick={() => setMode('verify')}>验证</button>
+          <button type="button" className={cx(mode === 'login' && 'active')} onClick={() => setMode('login')}>{t('auth.login')}</button>
+          <button type="button" className={cx(mode === 'register' && 'active')} onClick={() => setMode('register')}>{t('auth.register')}</button>
+          <button type="button" className={cx(mode === 'verify' && 'active')} onClick={() => setMode('verify')}>{t('auth.verify')}</button>
         </div>
         {mode === 'verify' ? (
           <label>
-            <span>验证 Token</span>
+            <span>{t('auth.verifyToken')}</span>
             <input value={verifyToken} onChange={(event) => setVerifyToken(event.target.value)} />
           </label>
         ) : (
           <>
             <label>
-              <span>用户名</span>
+              <span>{t('common.username')}</span>
               <input value={authForm.username} onChange={(event) => setAuthForm({ ...authForm, username: event.target.value })} />
             </label>
             {mode === 'register' && (
               <label>
-                <span>邮箱</span>
+                <span>{t('common.email')}</span>
                 <input type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} />
               </label>
             )}
             <label>
-              <span>密码</span>
+              <span>{t('common.password')}</span>
               <input type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} />
             </label>
           </>
         )}
         <button className="primary-button">
           <LogIn size={18} />
-          <span>{mode === 'login' ? '登录' : mode === 'register' ? '注册' : '验证邮箱'}</span>
+          <span>{authSubmitLabel}</span>
         </button>
       </form>
     );
@@ -1113,32 +1356,32 @@ function ProfileView({
       <section className="page-grid">
         <div className="split">
           <div className="panel profile-card">
-            <div className="avatar"><UserRound size={28} /></div>
+            <AvatarIcon seed={user.email || user.username} title={user.username} size={74} className="avatar-large" />
             <h2>{user.username}</h2>
-            <p>邮箱待验证</p>
+            <p>{t('auth.emailPending')}</p>
             <button
               className="secondary-button"
               onClick={() =>
-                void runAction(setToast, '退出失败', async () => {
+                void runAction(setToast, t('toast.logoutFailed'), async () => {
                   await api('/api/v1/auth/logout', { method: 'POST' });
                   setUser(null);
                 })
               }
             >
               <LogOut size={18} />
-              <span>退出</span>
+              <span>{t('auth.logout')}</span>
             </button>
           </div>
           <form className="panel form-panel" onSubmit={submitVerification}>
-            <SectionTitle icon={AlertCircle} title="验证邮箱" />
-            <p className="inline-note">管理员开启邮箱验证后，需要完成验证才能提交应用、生成 Token 或管理群组。</p>
+            <SectionTitle icon={AlertCircle} title={t('auth.verifyEmail')} />
+            <p className="inline-note">{t('auth.verificationHelp')}</p>
             <label>
-              <span>验证 Token</span>
+              <span>{t('auth.verifyToken')}</span>
               <input value={verifyToken} onChange={(event) => setVerifyToken(event.target.value)} />
             </label>
             <button className="primary-button">
               <Check size={18} />
-              <span>完成验证</span>
+              <span>{t('auth.completeVerification')}</span>
             </button>
           </form>
         </div>
@@ -1150,56 +1393,56 @@ function ProfileView({
     <section className="page-grid">
       <div className="split">
         <div className="panel profile-card">
-        <div className="avatar"><UserRound size={28} /></div>
+        <AvatarIcon seed={user.email || user.username} title={user.username} size={74} className="avatar-large" />
         <h2>{user.username}</h2>
         <p>{user.role}</p>
         <button
           className="secondary-button"
           onClick={() =>
-            void runAction(setToast, '退出失败', async () => {
+            void runAction(setToast, t('toast.logoutFailed'), async () => {
               await api('/api/v1/auth/logout', { method: 'POST' });
               setUser(null);
             })
           }
         >
           <LogOut size={18} />
-          <span>退出</span>
+          <span>{t('auth.logout')}</span>
         </button>
         </div>
 
         <form className="panel form-panel" onSubmit={submitUpload}>
-        <SectionTitle icon={Upload} title="提交应用" />
+        <SectionTitle icon={Upload} title={t('submitApp.title')} />
         <label>
-          <span>应用名称</span>
+          <span>{t('submitApp.appName')}</span>
           <input value={uploadForm.name} onChange={(event) => setUploadForm({ ...uploadForm, name: event.target.value })} />
         </label>
         <label>
-          <span>版本</span>
+          <span>{t('common.version')}</span>
           <input value={uploadForm.version} onChange={(event) => setUploadForm({ ...uploadForm, version: event.target.value })} />
         </label>
         <label>
-          <span>摘要</span>
+          <span>{t('common.summary')}</span>
           <input value={uploadForm.summary} onChange={(event) => setUploadForm({ ...uploadForm, summary: event.target.value })} />
         </label>
         <label>
-          <span>描述</span>
+          <span>{t('common.description')}</span>
           <textarea value={uploadForm.description} onChange={(event) => setUploadForm({ ...uploadForm, description: event.target.value })} />
         </label>
         <label>
-          <span>分类</span>
+          <span>{t('common.category')}</span>
           <select value={uploadForm.categoryId} onChange={(event) => setUploadForm({ ...uploadForm, categoryId: event.target.value })}>
-            <option value="">未分类</option>
+            <option value="">{t('common.uncategorized')}</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
           </select>
         </label>
         <label>
-          <span>标签</span>
+          <span>{t('common.tags')}</span>
           <input value={uploadForm.tags} onChange={(event) => setUploadForm({ ...uploadForm, tags: event.target.value })} />
         </label>
         <label>
-          <span>外部来源</span>
+          <span>{t('submitApp.externalSource')}</span>
           <select value={uploadForm.sourceType} onChange={(event) => setUploadForm({ ...uploadForm, sourceType: event.target.value })}>
             <option value="GITHUB">GitHub Release</option>
             <option value="WEBDAV">WebDAV URL</option>
@@ -1207,11 +1450,11 @@ function ProfileView({
           </select>
         </label>
         <label>
-          <span>外部下载链接</span>
+          <span>{t('submitApp.externalDownloadUrl')}</span>
           <input value={uploadForm.downloadUrl} onChange={(event) => setUploadForm({ ...uploadForm, downloadUrl: event.target.value })} />
         </label>
         <label>
-          <span>外部文件 SHA256</span>
+          <span>{t('common.sha256')}</span>
           <input value={uploadForm.sha256} onChange={(event) => setUploadForm({ ...uploadForm, sha256: event.target.value })} />
         </label>
         <label className="toggle-line">
@@ -1220,15 +1463,15 @@ function ProfileView({
             checked={uploadForm.allowUnreviewedUpdates}
             onChange={(event) => setUploadForm({ ...uploadForm, allowUnreviewedUpdates: event.target.checked })}
           />
-          <span>免审批更新</span>
+          <span>{t('submitApp.allowUnreviewedUpdates')}</span>
         </label>
         <label>
-          <span>LPK 文件</span>
+          <span>{t('common.lpkFile')}</span>
           <input type="file" accept=".lpk" onChange={(event) => setFile(event.target.files?.[0] || null)} />
         </label>
         <button className="primary-button">
           <Upload size={18} />
-          <span>提交</span>
+          <span>{t('common.submit')}</span>
         </button>
         </form>
       </div>
@@ -1236,7 +1479,7 @@ function ProfileView({
       <section className="split">
         <GroupPanel groups={groups} setGroups={setGroups} setToast={setToast} />
         <section className="panel">
-          <SectionTitle icon={KeyRound} title="API Token" />
+          <SectionTitle icon={KeyRound} title={t('token.title')} />
           <div className="review-list">
             {tokens.map((token) => (
               <div className="review-row" key={token.id}>
@@ -1250,17 +1493,17 @@ function ProfileView({
           {newToken && <code className="token-output">{newToken}</code>}
           <button className="secondary-button" onClick={() => void createToken()}>
             <KeyRound size={18} />
-            <span>生成 Token</span>
+            <span>{t('token.generate')}</span>
           </button>
         </section>
       </section>
 
       <section className="split">
         <section className="panel">
-          <SectionTitle icon={Heart} title="收藏" />
+          <SectionTitle icon={Heart} title={t('favorites.title')} />
           <div className="review-list">
             {favorites.apps.length === 0 && favorites.submitters.length === 0 ? (
-              <EmptyState icon={Heart} title="还没有收藏" />
+              <EmptyState icon={Heart} title={t('favorites.empty')} />
             ) : (
               <>
                 {favorites.apps.map((item) => (
@@ -1275,7 +1518,7 @@ function ProfileView({
                   <div className="review-row" key={`submitter-${item.id}`}>
                     <div>
                       <strong>{item.username}</strong>
-                      <span>{item.email || '提交者'}</span>
+                      <span>{item.email || t('favorites.submitter')}</span>
                     </div>
                   </div>
                 ))}
@@ -1284,20 +1527,20 @@ function ProfileView({
           </div>
           <button className="secondary-button" onClick={() => void loadFavorites()}>
             <RefreshCw size={18} />
-            <span>刷新收藏</span>
+            <span>{t('favorites.refresh')}</span>
           </button>
         </section>
         <section className="panel">
-          <SectionTitle icon={Download} title="已安装" />
+          <SectionTitle icon={Download} title={t('profile.installed')} />
           <div className="review-list">
             {installedApps.length === 0 ? (
-              <EmptyState icon={Download} title="未读取安装列表" />
+              <EmptyState icon={Download} title={t('profile.installedEmpty')} />
             ) : (
               installedApps.map((item) => (
                 <div className="review-row" key={item.appid || item.title}>
                   <div>
                     <strong>{item.title || item.appid}</strong>
-                    <span>{item.version || '-'} · status {item.status ?? '-'}</span>
+                    <span>{item.version || '-'} · {t('profile.status', { status: item.status ?? '-' })}</span>
                   </div>
                 </div>
               ))
@@ -1305,7 +1548,7 @@ function ProfileView({
           </div>
           <button className="secondary-button" onClick={() => void loadInstalledApps()}>
             <RefreshCw size={18} />
-            <span>读取已安装</span>
+            <span>{t('profile.readInstalled')}</span>
           </button>
         </section>
       </section>
@@ -1324,11 +1567,12 @@ function GroupPanel({
   setGroups: (groups: Group[]) => void;
   setToast: (toast: Toast) => void;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState({ name: '', description: '' });
   const [memberDrafts, setMemberDrafts] = useState<Record<number, string>>({});
 
   async function reload() {
-    await runAction(setToast, '群组加载失败', async () => {
+    await runAction(setToast, t('groups.loadFailed'), async () => {
       const data = await api<{ groups: Group[] }>('/api/v1/groups');
       setGroups(data.groups);
     });
@@ -1336,10 +1580,10 @@ function GroupPanel({
 
   async function createGroup(event: FormEvent) {
     event.preventDefault();
-    await runAction(setToast, '群组创建失败', async () => {
+    await runAction(setToast, t('groups.createFailed'), async () => {
       await api('/api/v1/groups', { method: 'POST', body: JSON.stringify(draft) });
       setDraft({ name: '', description: '' });
-      setToast({ tone: 'success', message: '用户群组已创建' });
+      setToast({ tone: 'success', message: t('groups.created') });
       await reload();
     });
   }
@@ -1347,9 +1591,9 @@ function GroupPanel({
   async function addMember(groupID: number) {
     const userID = memberDrafts[groupID];
     if (!userID) return;
-    await runAction(setToast, '添加成员失败', async () => {
+    await runAction(setToast, t('groups.addMemberFailed'), async () => {
       await api(`/api/v1/groups/${groupID}/members/${userID}`, { method: 'POST' });
-      setToast({ tone: 'success', message: '成员已添加' });
+      setToast({ tone: 'success', message: t('groups.memberAdded') });
       setMemberDrafts((current) => ({ ...current, [groupID]: '' }));
     });
   }
@@ -1357,22 +1601,22 @@ function GroupPanel({
   async function removeMember(groupID: number) {
     const userID = memberDrafts[groupID];
     if (!userID) return;
-    await runAction(setToast, '移除成员失败', async () => {
+    await runAction(setToast, t('groups.removeMemberFailed'), async () => {
       await api(`/api/v1/groups/${groupID}/members/${userID}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: '成员已移除' });
+      setToast({ tone: 'neutral', message: t('groups.memberRemoved') });
       setMemberDrafts((current) => ({ ...current, [groupID]: '' }));
     });
   }
 
   return (
     <section className="panel form-panel">
-      <SectionTitle icon={Users} title="用户群组" />
+      <SectionTitle icon={Users} title={t('groups.title')} />
       <form className="inline-form" onSubmit={createGroup}>
-        <input placeholder="群组名称" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
-        <button className="icon-button" aria-label="创建"><Plus size={17} /></button>
+        <input placeholder={t('groups.name')} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+        <button className="icon-button" aria-label={t('groups.create')}><Plus size={17} /></button>
       </form>
       <div className="review-list">
-        {groups.length === 0 ? <EmptyState icon={Users} title="没有群组" /> : groups.map((group) => (
+        {groups.length === 0 ? <EmptyState icon={Users} title={t('groups.empty')} /> : groups.map((group) => (
           <div className="review-row" key={group.id}>
             <div>
               <strong>{group.name}</strong>
@@ -1380,12 +1624,12 @@ function GroupPanel({
             </div>
             <div className="inline-form compact-line group-member-actions">
               <input
-                placeholder="用户 ID"
+                placeholder={t('groups.userId')}
                 value={memberDrafts[group.id] || ''}
                 onChange={(event) => setMemberDrafts((current) => ({ ...current, [group.id]: event.target.value }))}
               />
-              <button className="icon-button" aria-label="添加成员" onClick={() => void addMember(group.id)}><Plus size={17} /></button>
-              <button className="icon-button danger" aria-label="移除成员" onClick={() => void removeMember(group.id)}><Trash2 size={17} /></button>
+              <button className="icon-button" aria-label={t('groups.addMember')} onClick={() => void addMember(group.id)}><Plus size={17} /></button>
+              <button className="icon-button danger" aria-label={t('groups.removeMember')} onClick={() => void removeMember(group.id)}><Trash2 size={17} /></button>
             </div>
           </div>
         ))}
@@ -1395,6 +1639,7 @@ function GroupPanel({
 }
 
 function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) => void }) {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
@@ -1408,13 +1653,18 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
   const [tagDrafts, setTagDrafts] = useState<Record<number, { name: string; slug: string }>>({});
   const [collectionDrafts, setCollectionDrafts] = useState<Record<number, { name: string; slug: string; kind: string; appIds: string }>>({});
   const isSiteAdmin = user.role === 'SITE_ADMIN';
+  const collectionKindOptions = [
+    { value: 'MANUAL', label: t('admin.collectionKinds.manual') },
+    { value: 'RECENT_UPDATED', label: t('admin.collectionKinds.recentUpdated') },
+    { value: 'MOST_DOWNLOADED', label: t('admin.collectionKinds.mostDownloaded') },
+  ];
 
   useEffect(() => {
     void reload();
   }, []);
 
   async function reload() {
-    await runAction(setToast, '管理员数据加载失败', async () => {
+    await runAction(setToast, t('admin.loadFailed'), async () => {
       const [categoryData, tagData, collectionData, appData] = await Promise.all([
         api<{ categories: Category[] }>('/api/v1/admin/categories'),
         api<{ tags: TagRecord[] }>('/api/v1/admin/tags'),
@@ -1440,79 +1690,79 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
   }
 
   async function updateUserRole(userID: number, role: User['role']) {
-    await runAction(setToast, '用户角色更新失败', async () => {
+    await runAction(setToast, t('admin.userRoleUpdateFailed'), async () => {
       await api(`/api/v1/admin/users/${userID}`, { method: 'PATCH', body: JSON.stringify({ role }) });
-      setToast({ tone: 'success', message: '用户角色已更新' });
+      setToast({ tone: 'success', message: t('admin.userRoleUpdated') });
       await reload();
     });
   }
 
   async function saveSettings(event: FormEvent) {
     event.preventDefault();
-    await runAction(setToast, '站点配置保存失败', async () => {
+    await runAction(setToast, t('admin.settingsSaveFailed'), async () => {
       await api('/api/v1/admin/settings', { method: 'PATCH', body: JSON.stringify(settings) });
-      setToast({ tone: 'success', message: '站点配置已保存' });
+      setToast({ tone: 'success', message: t('admin.settingsSaved') });
       await reload();
     });
   }
 
   async function createCategory(event: FormEvent) {
     event.preventDefault();
-    await runAction(setToast, '分类创建失败', async () => {
+    await runAction(setToast, t('admin.categoryCreateFailed'), async () => {
       await api('/api/v1/admin/categories', { method: 'POST', body: JSON.stringify(categoryForm) });
       setCategoryForm({ name: '', slug: '' });
-      setToast({ tone: 'success', message: '分类已创建' });
+      setToast({ tone: 'success', message: t('admin.categoryCreated') });
       await reload();
     });
   }
 
   async function updateCategory(item: Category) {
     const draft = categoryDrafts[item.id] || { name: item.name, slug: item.slug };
-    await runAction(setToast, '分类更新失败', async () => {
+    await runAction(setToast, t('admin.categoryUpdateFailed'), async () => {
       await api(`/api/v1/admin/categories/${item.id}`, { method: 'PATCH', body: JSON.stringify(draft) });
-      setToast({ tone: 'success', message: '分类已更新' });
+      setToast({ tone: 'success', message: t('admin.categoryUpdated') });
       await reload();
     });
   }
 
   async function deleteCategory(item: Category) {
-    await runAction(setToast, '分类删除失败', async () => {
+    await runAction(setToast, t('admin.categoryDeleteFailed'), async () => {
       await api(`/api/v1/admin/categories/${item.id}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: '分类已删除' });
+      setToast({ tone: 'neutral', message: t('admin.categoryDeleted') });
       await reload();
     });
   }
 
   async function createTag(event: FormEvent) {
     event.preventDefault();
-    await runAction(setToast, '标签创建失败', async () => {
+    await runAction(setToast, t('admin.tagCreateFailed'), async () => {
       await api('/api/v1/admin/tags', { method: 'POST', body: JSON.stringify(tagForm) });
       setTagForm({ name: '', slug: '' });
-      setToast({ tone: 'success', message: '标签已创建' });
+      setToast({ tone: 'success', message: t('admin.tagCreated') });
       await reload();
     });
   }
 
   async function updateTag(item: TagRecord) {
     const draft = tagDrafts[item.id] || { name: item.name, slug: item.slug };
-    await runAction(setToast, '标签更新失败', async () => {
+    await runAction(setToast, t('admin.tagUpdateFailed'), async () => {
       await api(`/api/v1/admin/tags/${item.id}`, { method: 'PATCH', body: JSON.stringify(draft) });
-      setToast({ tone: 'success', message: '标签已更新' });
+      setToast({ tone: 'success', message: t('admin.tagUpdated') });
       await reload();
     });
   }
 
   async function deleteTag(item: TagRecord) {
-    await runAction(setToast, '标签删除失败', async () => {
+    await runAction(setToast, t('admin.tagDeleteFailed'), async () => {
       await api(`/api/v1/admin/tags/${item.id}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: '标签已删除' });
+      setToast({ tone: 'neutral', message: t('admin.tagDeleted') });
       await reload();
     });
   }
 
   async function createCollection(event: FormEvent) {
     event.preventDefault();
-    await runAction(setToast, '聚合分类创建失败', async () => {
+    await runAction(setToast, t('admin.collectionCreateFailed'), async () => {
       await api('/api/v1/admin/collections', {
         method: 'POST',
         body: JSON.stringify({
@@ -1522,7 +1772,7 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
         }),
       });
       setCollectionForm({ name: '', kind: 'MANUAL', appIds: '' });
-      setToast({ tone: 'success', message: '聚合分类已创建' });
+      setToast({ tone: 'success', message: t('admin.collectionCreated') });
       await reload();
     });
   }
@@ -1535,7 +1785,7 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
         kind: item.kind,
         appIds: (item.apps || []).map((app) => app.id).join(','),
       };
-    await runAction(setToast, '聚合分类更新失败', async () => {
+    await runAction(setToast, t('admin.collectionUpdateFailed'), async () => {
       await api(`/api/v1/admin/collections/${item.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -1545,15 +1795,15 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
           appIds: draft.appIds.split(',').map((id) => Number(id.trim())).filter(Boolean),
         }),
       });
-      setToast({ tone: 'success', message: '聚合分类已更新' });
+      setToast({ tone: 'success', message: t('admin.collectionUpdated') });
       await reload();
     });
   }
 
   async function deleteCollection(item: Collection) {
-    await runAction(setToast, '聚合分类删除失败', async () => {
+    await runAction(setToast, t('admin.collectionDeleteFailed'), async () => {
       await api(`/api/v1/admin/collections/${item.id}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: '聚合分类已删除' });
+      setToast({ tone: 'neutral', message: t('admin.collectionDeleted') });
       await reload();
     });
   }
@@ -1563,7 +1813,7 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
       {isSiteAdmin && (
         <section className="split">
           <form className="panel form-panel" onSubmit={saveSettings}>
-            <SectionTitle icon={Settings} title="站点配置" />
+            <SectionTitle icon={Settings} title={t('admin.siteSettings')} />
             {['max_lpk_size', 'max_versions', 'source_password', 'source_password_rotation', 'github_mirror', 'require_email_verify'].map((key) => (
               <label key={key}>
                 <span>{key}</span>
@@ -1572,17 +1822,17 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
             ))}
             <button className="primary-button">
               <Settings size={18} />
-              <span>保存配置</span>
+              <span>{t('admin.saveSettings')}</span>
             </button>
           </form>
           <section className="panel">
-            <SectionTitle icon={Users} title="用户管理" />
+            <SectionTitle icon={Users} title={t('admin.userManagement')} />
             <div className="review-list">
               {users.map((item) => (
                 <div className="review-row" key={item.id}>
                   <div>
                     <strong>#{item.id} {item.username}</strong>
-                    <span>{item.email || 'no email'}</span>
+                    <span>{item.email || t('admin.noEmail')}</span>
                   </div>
                   <select value={item.role} onChange={(event) => void updateUserRole(item.id, event.target.value as User['role'])}>
                     <option value="USER">USER</option>
@@ -1597,20 +1847,20 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
       )}
       <section className="split">
         <div className="panel form-panel">
-          <SectionTitle icon={Layers3} title="分类与标签" />
+          <SectionTitle icon={Layers3} title={t('admin.categoriesAndTags')} />
           <form className="inline-stack" onSubmit={createCategory}>
-            <input placeholder="分类名称" value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} />
+            <input placeholder={t('admin.categoryName')} value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} />
             <input placeholder="slug" value={categoryForm.slug} onChange={(event) => setCategoryForm({ ...categoryForm, slug: event.target.value })} />
-            <button className="secondary-button"><Plus size={17} /><span>分类</span></button>
+            <button className="secondary-button"><Plus size={17} /><span>{t('admin.category')}</span></button>
           </form>
           <form className="inline-stack" onSubmit={createTag}>
-            <input placeholder="标签名称" value={tagForm.name} onChange={(event) => setTagForm({ ...tagForm, name: event.target.value })} />
+            <input placeholder={t('admin.tagName')} value={tagForm.name} onChange={(event) => setTagForm({ ...tagForm, name: event.target.value })} />
             <input placeholder="slug" value={tagForm.slug} onChange={(event) => setTagForm({ ...tagForm, slug: event.target.value })} />
-            <button className="secondary-button"><Plus size={17} /><span>标签</span></button>
+            <button className="secondary-button"><Plus size={17} /><span>{t('admin.tag')}</span></button>
           </form>
         </div>
         <section className="panel">
-          <SectionTitle icon={Tag} title="分类列表" />
+          <SectionTitle icon={Tag} title={t('admin.categoryList')} />
           <div className="review-list">
             {adminCategories.map((item) => {
               const draft = categoryDrafts[item.id] || { name: item.name, slug: item.slug };
@@ -1619,14 +1869,14 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
                   <input value={draft.name} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, name: event.target.value } }))} />
                   <input value={draft.slug} onChange={(event) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: event.target.value } }))} />
                   <div className="row-actions">
-                    <button className="icon-button" aria-label="保存分类" onClick={() => void updateCategory(item)}><Save size={16} /></button>
-                    <button className="icon-button danger" aria-label="删除分类" onClick={() => void deleteCategory(item)}><Trash2 size={16} /></button>
+                    <button className="icon-button" aria-label={t('admin.saveCategory')} onClick={() => void updateCategory(item)}><Save size={16} /></button>
+                    <button className="icon-button danger" aria-label={t('admin.deleteCategory')} onClick={() => void deleteCategory(item)}><Trash2 size={16} /></button>
                   </div>
                 </div>
               );
             })}
           </div>
-          <SectionTitle icon={Tag} title="标签列表" />
+          <SectionTitle icon={Tag} title={t('admin.tagList')} />
           <div className="review-list">
             {adminTags.map((item) => {
               const draft = tagDrafts[item.id] || { name: item.name, slug: item.slug };
@@ -1635,8 +1885,8 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
                   <input value={draft.name} onChange={(event) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, name: event.target.value } }))} />
                   <input value={draft.slug} onChange={(event) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: event.target.value } }))} />
                   <div className="row-actions">
-                    <button className="icon-button" aria-label="保存标签" onClick={() => void updateTag(item)}><Save size={16} /></button>
-                    <button className="icon-button danger" aria-label="删除标签" onClick={() => void deleteTag(item)}><Trash2 size={16} /></button>
+                    <button className="icon-button" aria-label={t('admin.saveTag')} onClick={() => void updateTag(item)}><Save size={16} /></button>
+                    <button className="icon-button danger" aria-label={t('admin.deleteTag')} onClick={() => void deleteTag(item)}><Trash2 size={16} /></button>
                   </div>
                 </div>
               );
@@ -1646,30 +1896,30 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
       </section>
       <section className="split">
         <form className="panel form-panel" onSubmit={createCollection}>
-          <SectionTitle icon={Layers3} title="聚合分类" />
+          <SectionTitle icon={Layers3} title={t('admin.collection')} />
           <label>
-            <span>名称</span>
+            <span>{t('common.name')}</span>
             <input value={collectionForm.name} onChange={(event) => setCollectionForm({ ...collectionForm, name: event.target.value })} />
           </label>
           <label>
-            <span>类型</span>
+            <span>{t('admin.type')}</span>
             <select value={collectionForm.kind} onChange={(event) => setCollectionForm({ ...collectionForm, kind: event.target.value })}>
-              <option value="MANUAL">手动</option>
-              <option value="RECENT_UPDATED">最近更新</option>
-              <option value="MOST_DOWNLOADED">下载最多</option>
+              {collectionKindOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
           </label>
           <label>
-            <span>应用 ID</span>
+            <span>{t('admin.appIds')}</span>
             <input value={collectionForm.appIds} onChange={(event) => setCollectionForm({ ...collectionForm, appIds: event.target.value })} />
           </label>
           <button className="primary-button">
             <Layers3 size={18} />
-            <span>创建聚合</span>
+            <span>{t('admin.createCollection')}</span>
           </button>
         </form>
         <section className="panel">
-          <SectionTitle icon={Layers3} title="聚合列表" />
+          <SectionTitle icon={Layers3} title={t('admin.collectionList')} />
           <div className="review-list">
             {adminCollections.map((item) => {
               const draft =
@@ -1684,14 +1934,14 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
                   <input value={draft.name} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, name: event.target.value } }))} />
                   <input value={draft.slug} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: event.target.value } }))} />
                   <select value={draft.kind} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, kind: event.target.value } }))}>
-                    <option value="MANUAL">手动</option>
-                    <option value="RECENT_UPDATED">最近更新</option>
-                    <option value="MOST_DOWNLOADED">下载最多</option>
+                    {collectionKindOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
                   </select>
                   <input value={draft.appIds} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, appIds: event.target.value } }))} />
                   <div className="row-actions">
-                    <button className="icon-button" aria-label="保存聚合" onClick={() => void updateCollection(item)}><Save size={16} /></button>
-                    <button className="icon-button danger" aria-label="删除聚合" onClick={() => void deleteCollection(item)}><Trash2 size={16} /></button>
+                    <button className="icon-button" aria-label={t('admin.saveCollection')} onClick={() => void updateCollection(item)}><Save size={16} /></button>
+                    <button className="icon-button danger" aria-label={t('admin.deleteCollection')} onClick={() => void deleteCollection(item)}><Trash2 size={16} /></button>
                   </div>
                 </div>
               );
@@ -1700,7 +1950,7 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
         </section>
       </section>
       <section className="panel">
-        <SectionTitle icon={PackagePlus} title="可选应用" />
+        <SectionTitle icon={PackagePlus} title={t('admin.optionalApps')} />
           <div className="review-list">
             {apps.map((item) => (
               <div className="review-row" key={item.id}>
@@ -1737,6 +1987,7 @@ function AppDrawer({
   onListRefresh: () => Promise<void>;
   setToast: (toast: Toast) => void;
 }) {
+  const { t } = useTranslation();
   const [commentText, setCommentText] = useState('');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotCaption, setScreenshotCaption] = useState('');
@@ -1775,7 +2026,7 @@ function AppDrawer({
   }, [app.id, canMaintain]);
 
   async function loadCollaboratorRequests() {
-    await runAction(setToast, '协作者申请加载失败', async () => {
+    await runAction(setToast, t('drawer.loadCollaboratorsFailed'), async () => {
       const data = await api<{ requests: CollaboratorRequest[] }>(`/api/v1/apps/${app.id}/collaborator-requests`);
       setCollaboratorRequests(data.requests);
     });
@@ -1784,33 +2035,33 @@ function AppDrawer({
   async function submitComment(event: FormEvent) {
     event.preventDefault();
     if (!commentText.trim()) return;
-    await runAction(setToast, '评论发布失败', async () => {
+    await runAction(setToast, t('drawer.commentPostFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/comments`, { method: 'POST', body: JSON.stringify({ body: commentText }) });
       setCommentText('');
-      setToast({ tone: 'success', message: '评论已发布' });
+      setToast({ tone: 'success', message: t('drawer.commentPosted') });
       await onRefresh();
     });
   }
 
   async function markOutdated() {
-    await runAction(setToast, '过期标记失败', async () => {
-      await api(`/api/v1/apps/${app.id}/outdated-marks`, { method: 'POST', body: JSON.stringify({ note: '客户端标记' }) });
-      setToast({ tone: 'neutral', message: '已标记过期' });
+    await runAction(setToast, t('drawer.markOutdatedFailed'), async () => {
+      await api(`/api/v1/apps/${app.id}/outdated-marks`, { method: 'POST', body: JSON.stringify({ note: t('drawer.defaultOutdatedNote') }) });
+      setToast({ tone: 'neutral', message: t('drawer.outdatedMarked') });
       await onRefresh();
     });
   }
 
   async function clearOutdated() {
-    await runAction(setToast, '取消过期标记失败', async () => {
+    await runAction(setToast, t('drawer.clearOutdatedFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/outdated-marks`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: '已取消过期标记' });
+      setToast({ tone: 'neutral', message: t('drawer.outdatedCleared') });
       await onRefresh();
     });
   }
 
   async function submitAppInfo(event: FormEvent) {
     event.preventDefault();
-    await runAction(setToast, '应用信息保存失败', async () => {
+    await runAction(setToast, t('drawer.appInfoSaveFailed'), async () => {
       const data = await api<{ app?: StoreApp; review?: Review }>(`/api/v1/apps/${app.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -1823,7 +2074,7 @@ function AppDrawer({
           commentsEnabled: appForm.commentsEnabled,
         }),
       });
-      setToast({ tone: 'success', message: data.review ? '应用信息已提交审核' : '应用信息已保存' });
+      setToast({ tone: 'success', message: data.review ? t('drawer.appInfoSubmittedReview') : t('drawer.appInfoSaved') });
       await onRefresh();
     });
   }
@@ -1831,14 +2082,14 @@ function AppDrawer({
   async function submitExternalVersion(event: FormEvent) {
     event.preventDefault();
     if (!versionFile && !versionForm.downloadUrl.trim()) {
-      setToast({ tone: 'error', message: '请选择 LPK 文件或填写外部下载链接' });
+      setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
       return;
     }
     if (!versionFile && !versionForm.sha256.trim()) {
-      setToast({ tone: 'error', message: '外部下载链接需要填写 SHA256' });
+      setToast({ tone: 'error', message: t('submitApp.sha256Required') });
       return;
     }
-    await runAction(setToast, '版本提交失败', async () => {
+    await runAction(setToast, t('drawer.versionSubmitFailed'), async () => {
       if (versionFile) {
         const form = new FormData();
         form.set('file', versionFile);
@@ -1853,23 +2104,23 @@ function AppDrawer({
       }
       setVersionForm({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
       setVersionFile(null);
-      setToast({ tone: 'success', message: '版本已提交' });
+      setToast({ tone: 'success', message: t('drawer.versionSubmitted') });
       await onRefresh();
     });
   }
 
   async function unlistApp() {
-    await runAction(setToast, '应用下架失败', async () => {
+    await runAction(setToast, t('drawer.unlistFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/unlist`, { method: 'POST' });
-      setToast({ tone: 'neutral', message: '应用已下架' });
+      setToast({ tone: 'neutral', message: t('drawer.unlisted') });
       await onRefresh();
     });
   }
 
   async function deleteApp() {
-    await runAction(setToast, '应用删除失败', async () => {
+    await runAction(setToast, t('drawer.deleteFailed'), async () => {
       await api(`/api/v1/apps/${app.id}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: '应用已删除' });
+      setToast({ tone: 'neutral', message: t('drawer.deleted') });
       onClose();
       await onListRefresh();
     });
@@ -1881,11 +2132,11 @@ function AppDrawer({
     const form = new FormData();
     form.set('file', screenshotFile);
     form.set('caption', screenshotCaption);
-    await runAction(setToast, '截图上传失败', async () => {
+    await runAction(setToast, t('drawer.screenshotUploadFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/screenshots`, { method: 'POST', body: form });
       setScreenshotFile(null);
       setScreenshotCaption('');
-      setToast({ tone: 'success', message: '截图已上传' });
+      setToast({ tone: 'success', message: t('drawer.screenshotUploaded') });
       await onRefresh();
     });
   }
@@ -1896,87 +2147,87 @@ function AppDrawer({
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= shots.length) return;
     [shots[index], shots[nextIndex]] = [shots[nextIndex], shots[index]];
-    await runAction(setToast, '截图排序失败', async () => {
+    await runAction(setToast, t('drawer.screenshotReorderFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/screenshots/reorder`, {
         method: 'PATCH',
         body: JSON.stringify({ items: shots.map((shot, sortOrder) => ({ id: shot.id, sortOrder })) }),
       });
-      setToast({ tone: 'success', message: '截图顺序已更新' });
+      setToast({ tone: 'success', message: t('drawer.screenshotReordered') });
       await onRefresh();
     });
   }
 
   async function deleteScreenshot(screenshotID: number) {
-    await runAction(setToast, '截图删除失败', async () => {
+    await runAction(setToast, t('drawer.screenshotDeleteFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/screenshots/${screenshotID}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: '截图已删除' });
+      setToast({ tone: 'neutral', message: t('drawer.screenshotDeleted') });
       await onRefresh();
     });
   }
 
   async function deleteComment(commentID: number) {
-    await runAction(setToast, '评论删除失败', async () => {
+    await runAction(setToast, t('drawer.commentDeleteFailed'), async () => {
       await api(`/api/v1/comments/${commentID}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: '评论已删除' });
+      setToast({ tone: 'neutral', message: t('drawer.commentDeleted') });
       await onRefresh();
     });
   }
 
   async function saveVisibility() {
-    await runAction(setToast, '可见性保存失败', async () => {
+    await runAction(setToast, t('drawer.visibilitySaveFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/visibility`, {
         method: 'PATCH',
         body: JSON.stringify({ groupIds: visibility }),
       });
-      setToast({ tone: 'success', message: visibility.length === 0 ? '应用已设为公开' : '可见群组已更新' });
+      setToast({ tone: 'success', message: visibility.length === 0 ? t('drawer.visibilityPublic') : t('drawer.visibilityUpdated') });
       await onRefresh();
     });
   }
 
   async function requestCollaborator() {
-    await runAction(setToast, '协作者申请失败', async () => {
+    await runAction(setToast, t('drawer.requestCollaboratorFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/collaborator-requests`, {
         method: 'POST',
-        body: JSON.stringify({ message: '我想协助维护这个应用' }),
+        body: JSON.stringify({ message: t('drawer.collaboratorMessage') }),
       });
-      setToast({ tone: 'success', message: '协作者申请已提交' });
+      setToast({ tone: 'success', message: t('drawer.collaboratorRequestSubmitted') });
     });
   }
 
   async function decideCollaboratorRequest(requestID: number, approve: boolean) {
-    await runAction(setToast, '协作者申请处理失败', async () => {
+    await runAction(setToast, t('drawer.collaboratorDecisionFailed'), async () => {
       await api(`/api/v1/collaborator-requests/${requestID}/${approve ? 'approve' : 'reject'}`, { method: 'POST' });
-      setToast({ tone: approve ? 'success' : 'neutral', message: approve ? '协作者已通过' : '协作者申请已拒绝' });
+      setToast({ tone: approve ? 'success' : 'neutral', message: approve ? t('drawer.collaboratorApproved') : t('drawer.collaboratorRejected') });
       await loadCollaboratorRequests();
     });
   }
 
   async function toggleAppFavorite() {
-    await runAction(setToast, '收藏更新失败', async () => {
+    await runAction(setToast, t('drawer.favoriteUpdateFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/favorites`, { method: 'POST' });
-      setToast({ tone: 'success', message: '收藏已更新' });
+      setToast({ tone: 'success', message: t('drawer.favoriteUpdated') });
     });
   }
 
   async function toggleSubmitterFavorite() {
-    await runAction(setToast, '提交者收藏更新失败', async () => {
+    await runAction(setToast, t('drawer.submitterFavoriteUpdateFailed'), async () => {
       await api(`/api/v1/submitters/${app.ownerId}/favorites`, { method: 'POST' });
-      setToast({ tone: 'success', message: '提交者收藏已更新' });
+      setToast({ tone: 'success', message: t('drawer.submitterFavoriteUpdated') });
     });
   }
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <article className="drawer" onClick={(event) => event.stopPropagation()}>
-        <button className="icon-button close" aria-label="关闭" onClick={onClose}><X size={18} /></button>
+        <button className="icon-button close" aria-label={t('common.close')} onClick={onClose}><X size={18} /></button>
         <div className="detail-head">
-          <div className="app-icon">{app.name.slice(0, 1)}</div>
+          <AvatarIcon seed={app.slug || app.name} title={app.name} size={58} className="detail-avatar" />
           <div>
             <h2>{app.name}</h2>
             <p>{app.summary || app.description}</p>
             <div className="meta-line">
               <span>{app.owner}</span>
-              <span>{app.category || '未分类'}</span>
+              <span>{app.category || t('common.uncategorized')}</span>
               <span>{app.latestVersion?.version || '-'}</span>
             </div>
           </div>
@@ -1984,43 +2235,43 @@ function AppDrawer({
         <div className="detail-actions">
           <button className="primary-button" onClick={() => onInstall(app)}>
             <Download size={18} />
-            <span>安装</span>
+            <span>{t('common.install')}</span>
           </button>
           {user && (
             <>
               <button className="secondary-button" onClick={() => void toggleAppFavorite()}>
                 <Heart size={18} />
-                <span>收藏</span>
+                <span>{t('drawer.favorite')}</span>
               </button>
               <button className="secondary-button" onClick={() => void toggleSubmitterFavorite()}>
                 <Star size={18} />
-                <span>提交者</span>
+                <span>{t('drawer.submitter')}</span>
               </button>
               <button className="secondary-button" onClick={() => void markOutdated()}>
                 <AlertCircle size={18} />
-                <span>过期</span>
+                <span>{t('drawer.outdated')}</span>
               </button>
               <button className="secondary-button" onClick={() => void clearOutdated()}>
                 <Check size={18} />
-                <span>取消过期</span>
+                <span>{t('drawer.clearOutdated')}</span>
               </button>
             </>
           )}
           {user && user.id !== app.ownerId && (
             <button className="secondary-button" onClick={() => void requestCollaborator()}>
               <Users size={18} />
-              <span>协作</span>
+              <span>{t('drawer.collaborate')}</span>
             </button>
           )}
           {canMaintain && (
             <>
               <button className="secondary-button" onClick={() => void unlistApp()}>
                 <Archive size={18} />
-                <span>下架</span>
+                <span>{t('drawer.unlist')}</span>
               </button>
               <button className="secondary-button danger-button" onClick={() => void deleteApp()}>
                 <Trash2 size={18} />
-                <span>删除</span>
+                <span>{t('common.delete')}</span>
               </button>
             </>
           )}
@@ -2029,30 +2280,30 @@ function AppDrawer({
           <section className="maintenance-grid">
             {canMaintain && (
               <form className="panel form-panel nested-panel" onSubmit={submitAppInfo}>
-                <SectionTitle icon={Settings} title="应用信息" />
+                <SectionTitle icon={Settings} title={t('drawer.appInfo')} />
                 <label>
-                  <span>名称</span>
+                  <span>{t('common.name')}</span>
                   <input value={appForm.name} onChange={(event) => setAppForm({ ...appForm, name: event.target.value })} />
                 </label>
                 <label>
-                  <span>摘要</span>
+                  <span>{t('common.summary')}</span>
                   <input value={appForm.summary} onChange={(event) => setAppForm({ ...appForm, summary: event.target.value })} />
                 </label>
                 <label>
-                  <span>描述</span>
+                  <span>{t('common.description')}</span>
                   <textarea value={appForm.description} onChange={(event) => setAppForm({ ...appForm, description: event.target.value })} />
                 </label>
                 <label>
-                  <span>分类</span>
+                  <span>{t('common.category')}</span>
                   <select value={appForm.categoryId} onChange={(event) => setAppForm({ ...appForm, categoryId: event.target.value })}>
-                    <option value="">未分类</option>
+                    <option value="">{t('common.uncategorized')}</option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>{category.name}</option>
                     ))}
                   </select>
                 </label>
                 <label>
-                  <span>标签</span>
+                  <span>{t('common.tags')}</span>
                   <input value={appForm.tags} onChange={(event) => setAppForm({ ...appForm, tags: event.target.value })} />
                 </label>
                 <label className="toggle-line">
@@ -2061,7 +2312,7 @@ function AppDrawer({
                     checked={appForm.commentsEnabled}
                     onChange={(event) => setAppForm({ ...appForm, commentsEnabled: event.target.checked })}
                   />
-                  <span>允许评论反馈</span>
+                  <span>{t('drawer.commentsEnabled')}</span>
                 </label>
                 <label className="toggle-line">
                   <input
@@ -2069,23 +2320,23 @@ function AppDrawer({
                     checked={appForm.allowUnreviewedUpdates}
                     onChange={(event) => setAppForm({ ...appForm, allowUnreviewedUpdates: event.target.checked })}
                   />
-                  <span>免审批更新</span>
+                  <span>{t('submitApp.allowUnreviewedUpdates')}</span>
                 </label>
                 <button className="secondary-button">
                   <Save size={18} />
-                  <span>保存信息</span>
+                  <span>{t('drawer.saveInfo')}</span>
                 </button>
               </form>
             )}
             {canUploadVersion && (
               <form className="panel form-panel nested-panel" onSubmit={submitExternalVersion}>
-                <SectionTitle icon={Link} title="发布版本" />
+                <SectionTitle icon={Link} title={t('drawer.publishVersion')} />
                 <label>
-                  <span>版本</span>
+                  <span>{t('common.version')}</span>
                   <input value={versionForm.version} onChange={(event) => setVersionForm({ ...versionForm, version: event.target.value })} />
                 </label>
                 <label>
-                  <span>来源</span>
+                  <span>{t('common.source')}</span>
                   <select value={versionForm.sourceType} onChange={(event) => setVersionForm({ ...versionForm, sourceType: event.target.value })}>
                     <option value="GITHUB">GitHub Release</option>
                     <option value="WEBDAV">WebDAV URL</option>
@@ -2093,33 +2344,33 @@ function AppDrawer({
                   </select>
                 </label>
                 <label>
-                  <span>下载链接</span>
+                  <span>{t('common.downloadUrl')}</span>
                   <input value={versionForm.downloadUrl} disabled={!!versionFile} onChange={(event) => setVersionForm({ ...versionForm, downloadUrl: event.target.value })} />
                 </label>
                 <label>
-                  <span>外部文件 SHA256</span>
+                  <span>{t('common.sha256')}</span>
                   <input value={versionForm.sha256} disabled={!!versionFile} onChange={(event) => setVersionForm({ ...versionForm, sha256: event.target.value })} />
                 </label>
                 <label>
-                  <span>更新日志</span>
+                  <span>{t('common.changelog')}</span>
                   <input value={versionForm.changelog} onChange={(event) => setVersionForm({ ...versionForm, changelog: event.target.value })} />
                 </label>
                 <label>
-                  <span>LPK 文件</span>
+                  <span>{t('common.lpkFile')}</span>
                   <input type="file" accept=".lpk" onChange={(event) => setVersionFile(event.target.files?.[0] || null)} />
                 </label>
                 <button className="secondary-button">
                   <Upload size={18} />
-                  <span>提交版本</span>
+                  <span>{t('drawer.publishVersion')}</span>
                 </button>
               </form>
             )}
             {canMaintain && (
               <section className="panel form-panel nested-panel">
-                <SectionTitle icon={Users} title="可见群组" />
+                <SectionTitle icon={Users} title={t('drawer.visibilityGroups')} />
                 <div className="checkbox-list">
                   {groups.length === 0 ? (
-                    <span className="muted-text">没有可用群组，当前为公开应用</span>
+                    <span className="muted-text">{t('drawer.noGroupsPublic')}</span>
                   ) : (
                     groups.map((group) => (
                       <label className="toggle-line" key={group.id}>
@@ -2139,29 +2390,29 @@ function AppDrawer({
                 </div>
                 <button className="secondary-button" onClick={() => void saveVisibility()}>
                   <Users size={18} />
-                  <span>保存可见性</span>
+                  <span>{t('drawer.saveVisibility')}</span>
                 </button>
               </section>
             )}
             {canMaintain && (
               <section className="panel nested-panel">
-                <SectionTitle icon={Users} title="协作者申请" />
+                <SectionTitle icon={Users} title={t('drawer.collaboratorRequests')} />
                 <div className="review-list">
                   {collaboratorRequests.length === 0 ? (
-                    <EmptyState icon={Users} title="没有协作者申请" />
+                    <EmptyState icon={Users} title={t('drawer.noCollaboratorRequests')} />
                   ) : (
                     collaboratorRequests.map((request) => (
                       <div className="review-row" key={request.id}>
                         <div>
-                          <strong>{request.username || `用户 #${request.user_id || request.userId}`}</strong>
-                          <span>{request.status} · {request.message || request.email || '无留言'}</span>
+                          <strong>{request.username || t('drawer.userLabel', { id: request.user_id || request.userId || '-' })}</strong>
+                          <span>{request.status} · {request.message || request.email || t('drawer.noMessage')}</span>
                         </div>
                         {request.status === 'PENDING' && (
                           <div className="row-actions">
-                            <button className="icon-button ok" aria-label="通过协作者" onClick={() => void decideCollaboratorRequest(request.id, true)}>
+                            <button className="icon-button ok" aria-label={t('drawer.approveCollaborator')} onClick={() => void decideCollaboratorRequest(request.id, true)}>
                               <Check size={17} />
                             </button>
-                            <button className="icon-button danger" aria-label="拒绝协作者" onClick={() => void decideCollaboratorRequest(request.id, false)}>
+                            <button className="icon-button danger" aria-label={t('drawer.rejectCollaborator')} onClick={() => void decideCollaboratorRequest(request.id, false)}>
                               <X size={17} />
                             </button>
                           </div>
@@ -2175,7 +2426,7 @@ function AppDrawer({
           </section>
         )}
         <section>
-          <h3>截图</h3>
+          <h3>{t('drawer.screenshots')}</h3>
           {(app.screenshots || []).length > 0 ? (
             <div className="screenshot-grid">
               {(app.screenshots || []).map((shot, index, shots) => (
@@ -2184,13 +2435,13 @@ function AppDrawer({
                   {shot.caption && <figcaption>{shot.caption}</figcaption>}
                   {canMaintain && (
                     <div className="screenshot-actions">
-                      <button className="icon-button" aria-label="上移截图" disabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)}>
+                      <button className="icon-button" aria-label={t('drawer.moveScreenshotUp')} disabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)}>
                         <ArrowUp size={15} />
                       </button>
-                      <button className="icon-button" aria-label="下移截图" disabled={index === shots.length - 1} onClick={() => void moveScreenshot(shot.id, 1)}>
+                      <button className="icon-button" aria-label={t('drawer.moveScreenshotDown')} disabled={index === shots.length - 1} onClick={() => void moveScreenshot(shot.id, 1)}>
                         <ArrowDown size={15} />
                       </button>
-                      <button className="icon-button danger" aria-label="删除截图" onClick={() => void deleteScreenshot(shot.id)}>
+                      <button className="icon-button danger" aria-label={t('drawer.deleteScreenshot')} onClick={() => void deleteScreenshot(shot.id)}>
                         <Trash2 size={15} />
                       </button>
                     </div>
@@ -2199,18 +2450,18 @@ function AppDrawer({
               ))}
             </div>
           ) : (
-            <EmptyState icon={Archive} title="没有截图" />
+            <EmptyState icon={Archive} title={t('drawer.noScreenshots')} />
           )}
           {canMaintain && (
             <form className="comment-form screenshot-form" onSubmit={uploadScreenshot}>
-              <input value={screenshotCaption} onChange={(event) => setScreenshotCaption(event.target.value)} placeholder="截图说明" />
+              <input value={screenshotCaption} onChange={(event) => setScreenshotCaption(event.target.value)} placeholder={t('drawer.screenshotCaption')} />
               <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={(event) => setScreenshotFile(event.target.files?.[0] || null)} />
-              <button className="icon-button" aria-label="上传截图"><Upload size={17} /></button>
+              <button className="icon-button" aria-label={t('drawer.uploadScreenshot')}><Upload size={17} /></button>
             </form>
           )}
         </section>
         <section>
-          <h3>版本历史</h3>
+          <h3>{t('drawer.versionHistory')}</h3>
           <div className="version-list">
             {(app.versions || []).map((version) => (
               <div className="version-row" key={version.id}>
@@ -2224,11 +2475,11 @@ function AppDrawer({
           </div>
         </section>
         <section>
-          <h3>评论</h3>
+          <h3>{t('drawer.comments')}</h3>
           {user && (
             <form className="comment-form" onSubmit={submitComment}>
-              <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="发布反馈" />
-              <button className="icon-button" aria-label="发布"><MessageSquare size={17} /></button>
+              <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder={t('drawer.commentPlaceholder')} />
+              <button className="icon-button" aria-label={t('drawer.postComment')}><MessageSquare size={17} /></button>
             </form>
           )}
           <div className="comments">
@@ -2237,7 +2488,7 @@ function AppDrawer({
                 <div className="comment-head">
                   <strong>{comment.username}</strong>
                   {(canMaintain || user?.id === comment.userId) && (
-                    <button className="icon-button danger" aria-label="删除评论" onClick={() => void deleteComment(comment.id)}>
+                    <button className="icon-button danger" aria-label={t('drawer.deleteComment')} onClick={() => void deleteComment(comment.id)}>
                       <Trash2 size={15} />
                     </button>
                   )}
@@ -2253,26 +2504,27 @@ function AppDrawer({
 }
 
 function AppGrid({ apps, onOpen, onInstall }: { apps: StoreApp[]; onOpen: (app: StoreApp) => void; onInstall: (app: StoreApp) => void }) {
-  if (apps.length === 0) return <EmptyState icon={PackagePlus} title="没有应用" />;
+  const { t } = useTranslation();
+  if (apps.length === 0) return <EmptyState icon={PackagePlus} title={t('common.noApps')} />;
   return (
     <div className="app-grid">
       {apps.map((app) => (
         <article className="app-card" key={app.id}>
-          <button className="app-open" onClick={() => void onOpen(app)}>
-            <div className="app-icon">{app.name.slice(0, 1)}</div>
+          <button className="app-open" onClick={() => void onOpen(app)} aria-label={t('app.open', { name: app.name })}>
+            <AvatarIcon seed={app.slug || app.name} title={app.name} />
             <div>
               <h3>{app.name}</h3>
-              <p>{app.summary || app.description || 'LPK 应用'}</p>
+              <p>{app.summary || app.description || t('common.lpkApp')}</p>
             </div>
             <ChevronRight size={18} />
           </button>
           <div className="app-meta">
-            <span><Tag size={14} /> {app.category || '未分类'}</span>
+            <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
             <span><Star size={14} /> {app.latestVersion?.version || app.status}</span>
           </div>
-          <button className="install-button" onClick={() => void onInstall(app)}>
+          <button className="install-button" onClick={() => void onInstall(app)} aria-label={t('app.install', { name: app.name })}>
             <Download size={17} />
-            <span>安装</span>
+            <span>{t('common.install')}</span>
           </button>
         </article>
       ))}
@@ -2298,15 +2550,16 @@ function EmptyState({ icon: Icon, title }: { icon: typeof Home; title: string })
   );
 }
 
-function MobileTabs({ tab, setTab }: { tab: TabKey; setTab: (tab: TabKey) => void }) {
+function MobileTabs({ tab, setTab, items }: { tab: TabKey; setTab: (tab: TabKey) => void; items: readonly NavItem[] }) {
+  const { t } = useTranslation();
   return (
     <nav className="mobile-tabs">
-      {tabs.map((item) => {
+      {items.map((item) => {
         const Icon = item.icon;
         return (
-          <button key={item.key} className={cx(tab === item.key && 'active')} onClick={() => setTab(item.key)} aria-label={item.label}>
+          <button key={item.key} className={cx(tab === item.key && 'active')} onClick={() => setTab(item.key)} aria-label={t(item.labelKey)}>
             <Icon size={20} />
-            <span>{item.label}</span>
+            <span>{t(item.labelKey)}</span>
           </button>
         );
       })}
