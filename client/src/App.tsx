@@ -2980,6 +2980,7 @@ function AppDrawer({
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotCaption, setScreenshotCaption] = useState('');
   const [versionForm, setVersionForm] = useState({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
+  const [versionArtifactMode, setVersionArtifactMode] = useState<'local' | 'external'>('local');
   const [versionFile, setVersionFile] = useState<File | null>(null);
   const [collaboratorRequests, setCollaboratorRequests] = useState<CollaboratorRequest[]>([]);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
@@ -2996,6 +2997,7 @@ function AppDrawer({
   const canMaintain = !!user && (app.canManageApp ?? (user.role === 'SITE_ADMIN' || user.role === 'SOFTWARE_ADMIN' || user.id === app.ownerId));
   const canUploadVersion = !!user && (app.canUploadVersion || canMaintain);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const versionFileInputRef = useRef<HTMLInputElement>(null);
   const drawerTitleId = `app-drawer-title-${app.id}`;
   const latestVersion = app.latestVersion;
   const installable = hasInstallableVersion(app);
@@ -3018,6 +3020,13 @@ function AppDrawer({
     outdated: app.outdatedMarks ?? 0,
     screenshots: (app.screenshots || []).length,
   });
+  const versionNumberReady = Boolean(versionForm.version.trim());
+  const versionExternalDownloadReady = Boolean(versionForm.downloadUrl.trim());
+  const versionExternalChecksumReady = Boolean(versionForm.sha256.trim());
+  const versionExternalArtifactReady = versionExternalDownloadReady && versionExternalChecksumReady;
+  const versionArtifactReady = versionArtifactMode === 'local' ? Boolean(versionFile) : versionExternalArtifactReady;
+  const canSubmitVersion = versionNumberReady && versionArtifactReady;
+  const versionPublishesDirectly = user?.role === 'SITE_ADMIN' || user?.role === 'SOFTWARE_ADMIN' || app.allowUnreviewedUpdates;
 
   useEffect(() => {
     setAppForm({
@@ -3031,6 +3040,9 @@ function AppDrawer({
     });
     setVisibility(app.visibleGroupIds || []);
     setConfirmAction(null);
+    setVersionArtifactMode('local');
+    setVersionFile(null);
+    if (versionFileInputRef.current) versionFileInputRef.current.value = '';
   }, [app]);
 
   useEffect(() => {
@@ -3105,31 +3117,56 @@ function AppDrawer({
     });
   }
 
+  function selectVersionArtifactMode(nextMode: 'local' | 'external') {
+    setVersionArtifactMode(nextMode);
+    if (nextMode === 'local') {
+      setVersionForm((current) => ({ ...current, downloadUrl: '', sha256: '' }));
+      return;
+    }
+    setVersionFile(null);
+    if (versionFileInputRef.current) versionFileInputRef.current.value = '';
+  }
+
   async function submitExternalVersion(event: FormEvent) {
     event.preventDefault();
-    if (!versionFile && !versionForm.downloadUrl.trim()) {
+    if (!versionForm.version.trim()) {
+      setToast({ tone: 'error', message: t('drawer.versionRequired') });
+      return;
+    }
+    if (versionArtifactMode === 'local' && !versionFile) {
       setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
       return;
     }
-    if (!versionFile && !versionForm.sha256.trim()) {
+    if (versionArtifactMode === 'external' && !versionForm.downloadUrl.trim()) {
+      setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
+      return;
+    }
+    if (versionArtifactMode === 'external' && !versionForm.sha256.trim()) {
       setToast({ tone: 'error', message: t('submitApp.sha256Required') });
       return;
     }
     await runAction(setToast, t('drawer.versionSubmitFailed'), async () => {
-      if (versionFile) {
+      if (versionArtifactMode === 'local' && versionFile) {
         const form = new FormData();
         form.set('file', versionFile);
-        form.set('version', versionForm.version);
+        form.set('version', versionForm.version.trim());
         form.set('changelog', versionForm.changelog);
         await api(`/api/v1/apps/${app.id}/versions`, { method: 'POST', body: form });
       } else {
         await api(`/api/v1/apps/${app.id}/versions`, {
           method: 'POST',
-          body: JSON.stringify(versionForm),
+          body: JSON.stringify({
+            ...versionForm,
+            version: versionForm.version.trim(),
+            downloadUrl: versionForm.downloadUrl.trim(),
+            sha256: versionForm.sha256.trim(),
+          }),
         });
       }
       setVersionForm({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
+      setVersionArtifactMode('local');
       setVersionFile(null);
+      if (versionFileInputRef.current) versionFileInputRef.current.value = '';
       setToast({ tone: 'success', message: t('drawer.versionSubmitted') });
       await onRefresh();
     });
@@ -3424,35 +3461,131 @@ function AppDrawer({
             {canUploadVersion && (
               <form className="panel form-panel nested-panel" onSubmit={submitExternalVersion}>
                 <SectionTitle icon={Link} title={t('drawer.publishVersion')} />
+                <div className="workflow-strip">
+                  <div>
+                    <strong>{t('drawer.versionPublishPath')}</strong>
+                    <span>{versionPublishesDirectly ? t('drawer.versionDirectHint') : t('drawer.versionReviewHint')}</span>
+                  </div>
+                  <div className="workflow-steps" aria-label={t('drawer.versionPublishPath')}>
+                    <span>{t('common.version')}</span>
+                    <ChevronRight size={14} />
+                    <span>{t('submitApp.stepArtifact')}</span>
+                    <ChevronRight size={14} />
+                    <span>{versionPublishesDirectly ? t('submitApp.readinessDirect') : t('submitApp.stepReview')}</span>
+                  </div>
+                </div>
+                <div className="submission-readiness" aria-label={t('drawer.versionReadiness')}>
+                  <div className={cx('readiness-step', versionNumberReady && 'ready')}>
+                    <span className={cx('status-badge', versionNumberReady ? 'approved' : 'unlisted')}>
+                      {versionNumberReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                      {versionNumberReady ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
+                    </span>
+                    <strong>{t('drawer.readinessVersion')}</strong>
+                    <small>{versionNumberReady ? t('drawer.readinessVersionReady') : t('drawer.readinessVersionMissing')}</small>
+                  </div>
+                  <div className={cx('readiness-step', versionArtifactReady && 'ready')}>
+                    <span className={cx('status-badge', versionArtifactReady ? 'approved' : 'unlisted')}>
+                      {versionArtifactReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                      {versionArtifactReady ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
+                    </span>
+                    <strong>{t('submitApp.readinessArtifact')}</strong>
+                    <small>
+                      {versionArtifactMode === 'local'
+                        ? versionFile
+                          ? t('submitApp.readinessArtifactLocalReady', { name: versionFile.name, size: formatBytes(versionFile.size) })
+                          : t('submitApp.readinessArtifactLocalMissing')
+                        : versionExternalArtifactReady
+                          ? t('submitApp.readinessArtifactExternalReady')
+                          : versionExternalDownloadReady || versionExternalChecksumReady
+                            ? t('submitApp.readinessArtifactExternalPartial')
+                            : t('submitApp.readinessArtifactExternalMissing')}
+                    </small>
+                  </div>
+                  <div className="readiness-step ready">
+                    <span className="status-badge synced">
+                      <ShieldCheck size={14} />
+                      {versionPublishesDirectly ? t('submitApp.readinessDirect') : t('submitApp.readinessQueued')}
+                    </span>
+                    <strong>{t('submitApp.readinessReview')}</strong>
+                    <small>{versionPublishesDirectly ? t('drawer.readinessVersionDirect') : t('drawer.readinessVersionQueued')}</small>
+                  </div>
+                </div>
                 <label>
                   <span>{t('common.version')}</span>
                   <input value={versionForm.version} onChange={(event) => setVersionForm({ ...versionForm, version: event.target.value })} />
                 </label>
                 <label>
-                  <span>{t('common.source')}</span>
-                  <select value={versionForm.sourceType} onChange={(event) => setVersionForm({ ...versionForm, sourceType: event.target.value })}>
-                    <option value="GITHUB">GitHub Release</option>
-                    <option value="WEBDAV">WebDAV URL</option>
-                    <option value="S3">S3 URL</option>
-                  </select>
-                </label>
-                <label>
-                  <span>{t('common.downloadUrl')}</span>
-                  <input value={versionForm.downloadUrl} disabled={!!versionFile} onChange={(event) => setVersionForm({ ...versionForm, downloadUrl: event.target.value })} />
-                </label>
-                <label>
-                  <span>{t('common.sha256')}</span>
-                  <input value={versionForm.sha256} disabled={!!versionFile} onChange={(event) => setVersionForm({ ...versionForm, sha256: event.target.value })} />
-                </label>
-                <label>
                   <span>{t('common.changelog')}</span>
                   <input value={versionForm.changelog} onChange={(event) => setVersionForm({ ...versionForm, changelog: event.target.value })} />
                 </label>
-                <label>
-                  <span>{t('common.lpkFile')}</span>
-                  <input type="file" accept=".lpk" onChange={(event) => setVersionFile(event.target.files?.[0] || null)} />
-                </label>
-                <button type="submit" className="secondary-button">
+                <div className="artifact-section">
+                  <div className="artifact-section-head">
+                    <strong>{t('submitApp.artifactMode')}</strong>
+                    <span>{versionArtifactMode === 'local' ? t('drawer.versionLocalArtifactHint') : t('drawer.versionExternalArtifactHint')}</span>
+                  </div>
+                  <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
+                    <button type="button" className={cx(versionArtifactMode === 'local' && 'active')} onClick={() => selectVersionArtifactMode('local')}>
+                      <Upload size={17} />
+                      <span>
+                        <strong>{t('submitApp.localArtifact')}</strong>
+                        <small>{t('drawer.versionLocalArtifactHint')}</small>
+                      </span>
+                    </button>
+                    <button type="button" className={cx(versionArtifactMode === 'external' && 'active')} onClick={() => selectVersionArtifactMode('external')}>
+                      <Link size={17} />
+                      <span>
+                        <strong>{t('submitApp.externalArtifact')}</strong>
+                        <small>{t('drawer.versionExternalArtifactHint')}</small>
+                      </span>
+                    </button>
+                  </div>
+                  {versionArtifactMode === 'local' ? (
+                    <label>
+                      <span>{t('common.lpkFile')}</span>
+                      <input ref={versionFileInputRef} type="file" accept=".lpk" required onChange={(event) => setVersionFile(event.target.files?.[0] || null)} />
+                      <small className="field-help">{t('drawer.versionLocalFileHelp')}</small>
+                    </label>
+                  ) : (
+                    <div className="artifact-fields">
+                      <p className="field-help">{t('submitApp.externalFieldsHelp')}</p>
+                      <label>
+                        <span>{t('submitApp.externalSource')}</span>
+                        <select value={versionForm.sourceType} onChange={(event) => setVersionForm({ ...versionForm, sourceType: event.target.value })}>
+                          <option value="GITHUB">GitHub Release</option>
+                          <option value="WEBDAV">WebDAV URL</option>
+                          <option value="S3">S3 URL</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span>{t('submitApp.externalDownloadUrl')}</span>
+                        <input
+                          type="url"
+                          required
+                          value={versionForm.downloadUrl}
+                          onChange={(event) => setVersionForm({ ...versionForm, downloadUrl: event.target.value })}
+                        />
+                        <small className="field-help">{t('submitApp.externalDownloadHelp')}</small>
+                      </label>
+                      <label>
+                        <span>{t('common.sha256')}</span>
+                        <input
+                          required
+                          maxLength={64}
+                          pattern="[a-fA-F0-9]{64}"
+                          title={t('submitApp.sha256Pattern')}
+                          autoCapitalize="off"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          value={versionForm.sha256}
+                          onChange={(event) => setVersionForm({ ...versionForm, sha256: event.target.value })}
+                        />
+                        <small className="field-help">{t('submitApp.sha256Help')}</small>
+                      </label>
+                    </div>
+                  )}
+                </div>
+                {!canSubmitVersion && <p className="field-help">{t('drawer.versionSubmitBlocked')}</p>}
+                <button type="submit" className="secondary-button" disabled={!canSubmitVersion}>
                   <Upload size={18} />
                   <span>{t('drawer.publishVersion')}</span>
                 </button>
