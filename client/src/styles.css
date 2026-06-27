@@ -877,6 +877,25 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.review-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.review-facts span {
+  min-height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 3px 7px;
+  display: inline-flex;
+  align-items: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .review-workflow-row {
   align-items: flex-start;
 }
@@ -1093,6 +1112,116 @@ textarea {
   color: var(--ink);
   display: inline-flex;
   align-items: center;
+}
+
+.submission-readiness {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.readiness-step {
+  min-width: 0;
+  border: 1px solid #ead3ad;
+  border-radius: 8px;
+  background: #fffaf0;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.readiness-step.ready {
+  border-color: #c8e7d7;
+  background: #f7faf5;
+}
+
+.readiness-step strong {
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.readiness-step small {
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.artifact-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.artifact-section-head {
+  display: grid;
+  gap: 4px;
+}
+
+.artifact-section-head strong,
+.artifact-section-head span {
+  overflow-wrap: anywhere;
+}
+
+.artifact-section-head span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.artifact-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.artifact-mode button {
+  min-width: 0;
+  min-height: 78px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  text-align: left;
+}
+
+.artifact-mode button > svg {
+  margin-top: 2px;
+  color: var(--green);
+}
+
+.artifact-mode button.active {
+  border-color: var(--green);
+  background: #f1faf5;
+}
+
+.artifact-mode button span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.artifact-mode button strong,
+.artifact-mode button small {
+  overflow-wrap: anywhere;
+}
+
+.artifact-mode button small {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.artifact-fields {
+  display: grid;
+  gap: 13px;
 }
 
 .inline-note {
@@ -1841,6 +1970,10 @@ code {
   }
 
   .source-app-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .artifact-mode {
     grid-template-columns: 1fr;
   }
 

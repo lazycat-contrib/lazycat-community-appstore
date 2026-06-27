@@ -1579,7 +1579,9 @@ function ProfileView({
     sha256: '',
   });
   const [recentSubmission, setRecentSubmission] = useState<{ name: string; status: string } | null>(null);
+  const [artifactMode, setArtifactMode] = useState<'local' | 'external'>('local');
   const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [tokens, setTokens] = useState<APITokenRecord[]>([]);
   const [newToken, setNewToken] = useState('');
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
@@ -1610,6 +1612,15 @@ function ProfileView({
       needsVersion: ownedApps.filter((app) => app.status === 'APPROVED' && !hasInstallableVersion(app)).length,
     };
   }, [ownedApps]);
+  const appInfoReady = Boolean(uploadForm.name.trim());
+  const appInfoDetailed = Boolean(uploadForm.summary.trim() && uploadForm.description.trim());
+  const appInfoComplete = appInfoReady && appInfoDetailed;
+  const externalDownloadReady = Boolean(uploadForm.downloadUrl.trim());
+  const externalChecksumReady = Boolean(uploadForm.sha256.trim());
+  const externalArtifactReady = externalDownloadReady && externalChecksumReady;
+  const artifactReady = artifactMode === 'local' ? Boolean(file) : externalArtifactReady;
+  const canSubmitUpload = appInfoReady && artifactReady;
+  const isDirectPublishUser = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
 
   useEffect(() => {
     if (!user) return;
@@ -1664,19 +1675,31 @@ function ProfileView({
     });
   }
 
+  function selectArtifactMode(nextMode: 'local' | 'external') {
+    setArtifactMode(nextMode);
+    if (nextMode === 'external') {
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
   async function submitUpload(event: FormEvent) {
     event.preventDefault();
-    if (!file && !uploadForm.downloadUrl.trim()) {
+    if (artifactMode === 'local' && !file) {
       setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
       return;
     }
-    if (!file && !uploadForm.sha256.trim()) {
+    if (artifactMode === 'external' && !uploadForm.downloadUrl.trim()) {
+      setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
+      return;
+    }
+    if (artifactMode === 'external' && !uploadForm.sha256.trim()) {
       setToast({ tone: 'error', message: t('submitApp.sha256Required') });
       return;
     }
     await runAction(setToast, t('submitApp.failed'), async () => {
       let created: { app?: StoreApp };
-      if (file) {
+      if (artifactMode === 'local' && file) {
         const form = new FormData();
         Object.entries(uploadForm).forEach(([key, value]) => form.set(key, String(value)));
         form.set('file', file);
@@ -1693,15 +1716,17 @@ function ProfileView({
             tags: uploadForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
             allowUnreviewedUpdates: uploadForm.allowUnreviewedUpdates,
             sourceType: uploadForm.sourceType,
-            downloadUrl: uploadForm.downloadUrl,
-            sha256: uploadForm.sha256,
+            downloadUrl: uploadForm.downloadUrl.trim(),
+            sha256: uploadForm.sha256.trim(),
           }),
         });
       }
       setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
       setToast({ tone: 'success', message: t('submitApp.submitted') });
       setUploadForm({ name: '', version: '0.1.0', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, sourceType: 'GITHUB', downloadUrl: '', sha256: '' });
+      setArtifactMode('local');
       setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       await refreshAll({ silent: true });
     });
   }
@@ -2031,6 +2056,48 @@ function ProfileView({
               <span>{t('submitApp.stepReview')}</span>
             </div>
           </div>
+          <div className="submission-readiness" aria-label={t('submitApp.readiness')}>
+            <div className={cx('readiness-step', appInfoComplete && 'ready')}>
+              <span className={cx('status-badge', appInfoComplete ? 'approved' : appInfoReady ? 'pending' : 'unlisted')}>
+                {appInfoComplete ? <Check size={14} /> : <AlertCircle size={14} />}
+                {appInfoComplete ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
+              </span>
+              <strong>{t('submitApp.readinessAppInfo')}</strong>
+              <small>
+                {appInfoReady
+                  ? appInfoDetailed
+                    ? t('submitApp.readinessAppInfoReady')
+                    : t('submitApp.readinessAppInfoNeedsDetails')
+                  : t('submitApp.readinessAppInfoMissing')}
+              </small>
+            </div>
+            <div className={cx('readiness-step', artifactReady && 'ready')}>
+              <span className={cx('status-badge', artifactReady ? 'approved' : 'unlisted')}>
+                {artifactReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                {artifactReady ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
+              </span>
+              <strong>{t('submitApp.readinessArtifact')}</strong>
+              <small>
+                {artifactMode === 'local'
+                  ? file
+                    ? t('submitApp.readinessArtifactLocalReady', { name: file.name, size: formatBytes(file.size) })
+                    : t('submitApp.readinessArtifactLocalMissing')
+                  : externalArtifactReady
+                    ? t('submitApp.readinessArtifactExternalReady')
+                    : externalDownloadReady || externalChecksumReady
+                      ? t('submitApp.readinessArtifactExternalPartial')
+                      : t('submitApp.readinessArtifactExternalMissing')}
+              </small>
+            </div>
+            <div className="readiness-step ready">
+              <span className="status-badge synced">
+                <ShieldCheck size={14} />
+                {isDirectPublishUser ? t('submitApp.readinessDirect') : t('submitApp.readinessQueued')}
+              </span>
+              <strong>{t('submitApp.readinessReview')}</strong>
+              <small>{isDirectPublishUser ? t('submitApp.readinessReviewDirect') : t('submitApp.readinessReviewQueued')}</small>
+            </div>
+          </div>
           {recentSubmission && (
             <p className="inline-success">
               <Check size={15} />
@@ -2070,22 +2137,72 @@ function ProfileView({
             <span>{t('common.tags')}</span>
             <input value={uploadForm.tags} onChange={(event) => setUploadForm({ ...uploadForm, tags: event.target.value })} />
           </label>
-          <label>
-            <span>{t('submitApp.externalSource')}</span>
-            <select value={uploadForm.sourceType} onChange={(event) => setUploadForm({ ...uploadForm, sourceType: event.target.value })}>
-              <option value="GITHUB">GitHub Release</option>
-              <option value="WEBDAV">WebDAV URL</option>
-              <option value="S3">S3 URL</option>
-            </select>
-          </label>
-          <label>
-            <span>{t('submitApp.externalDownloadUrl')}</span>
-            <input value={uploadForm.downloadUrl} onChange={(event) => setUploadForm({ ...uploadForm, downloadUrl: event.target.value })} />
-          </label>
-          <label>
-            <span>{t('common.sha256')}</span>
-            <input value={uploadForm.sha256} onChange={(event) => setUploadForm({ ...uploadForm, sha256: event.target.value })} />
-          </label>
+          <div className="artifact-section">
+            <div className="artifact-section-head">
+              <strong>{t('submitApp.artifactMode')}</strong>
+              <span>{artifactMode === 'local' ? t('submitApp.localArtifactHint') : t('submitApp.externalArtifactHint')}</span>
+            </div>
+            <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
+              <button type="button" className={cx(artifactMode === 'local' && 'active')} onClick={() => selectArtifactMode('local')}>
+                <Upload size={17} />
+                <span>
+                  <strong>{t('submitApp.localArtifact')}</strong>
+                  <small>{t('submitApp.localArtifactHint')}</small>
+                </span>
+              </button>
+              <button type="button" className={cx(artifactMode === 'external' && 'active')} onClick={() => selectArtifactMode('external')}>
+                <Link size={17} />
+                <span>
+                  <strong>{t('submitApp.externalArtifact')}</strong>
+                  <small>{t('submitApp.externalArtifactHint')}</small>
+                </span>
+              </button>
+            </div>
+            {artifactMode === 'local' ? (
+              <label>
+                <span>{t('common.lpkFile')}</span>
+                <input ref={fileInputRef} type="file" accept=".lpk" required onChange={(event) => setFile(event.target.files?.[0] || null)} />
+                <small className="field-help">{t('submitApp.localFileHelp')}</small>
+              </label>
+            ) : (
+              <div className="artifact-fields">
+                <p className="field-help">{t('submitApp.externalFieldsHelp')}</p>
+                <label>
+                  <span>{t('submitApp.externalSource')}</span>
+                  <select value={uploadForm.sourceType} onChange={(event) => setUploadForm({ ...uploadForm, sourceType: event.target.value })}>
+                    <option value="GITHUB">GitHub Release</option>
+                    <option value="WEBDAV">WebDAV URL</option>
+                    <option value="S3">S3 URL</option>
+                  </select>
+                </label>
+                <label>
+                  <span>{t('submitApp.externalDownloadUrl')}</span>
+                  <input
+                    type="url"
+                    required
+                    value={uploadForm.downloadUrl}
+                    onChange={(event) => setUploadForm({ ...uploadForm, downloadUrl: event.target.value })}
+                  />
+                  <small className="field-help">{t('submitApp.externalDownloadHelp')}</small>
+                </label>
+                <label>
+                  <span>{t('common.sha256')}</span>
+                  <input
+                    required
+                    maxLength={64}
+                    pattern="[a-fA-F0-9]{64}"
+                    title={t('submitApp.sha256Pattern')}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    value={uploadForm.sha256}
+                    onChange={(event) => setUploadForm({ ...uploadForm, sha256: event.target.value })}
+                  />
+                  <small className="field-help">{t('submitApp.sha256Help')}</small>
+                </label>
+              </div>
+            )}
+          </div>
           <label className="toggle-line">
             <input
               type="checkbox"
@@ -2094,11 +2211,8 @@ function ProfileView({
             />
             <span>{t('submitApp.allowUnreviewedUpdates')}</span>
           </label>
-          <label>
-            <span>{t('common.lpkFile')}</span>
-            <input type="file" accept=".lpk" onChange={(event) => setFile(event.target.files?.[0] || null)} />
-          </label>
-          <button type="submit" className="primary-button">
+          {!canSubmitUpload && <p className="field-help">{t('submitApp.submitBlocked')}</p>}
+          <button type="submit" className="primary-button" disabled={!canSubmitUpload}>
             <Upload size={18} />
             <span>{t('common.submit')}</span>
           </button>
@@ -2542,6 +2656,7 @@ function AdminPanel({
           ) : (
             reviews.map((review) => {
               const reviewApp = review.appId ? reviewAppByID.get(review.appId) : undefined;
+              const reviewVersion = reviewApp?.latestVersion;
               const noteSummary = summarizeReviewNote(review.note);
               return (
                 <div className="review-row review-workflow-row" key={review.id}>
@@ -2554,6 +2669,18 @@ function AdminPanel({
                       <small className="workflow-hint">
                         {reviewApp.summary || reviewApp.latestVersion?.version || t('common.lpkApp')}
                       </small>
+                    )}
+                    {reviewApp && (
+                      <div className="review-facts">
+                        {reviewVersion ? (
+                          <>
+                            <span>{t('admin.reviewArtifact', { source: reviewVersion.sourceType || '-', size: formatBytes(reviewVersion.fileSize) })}</span>
+                            <span>{t('admin.reviewChecksum', { hash: shortSHA(reviewVersion.sha256) })}</span>
+                          </>
+                        ) : (
+                          <span>{t('admin.reviewArtifactPending')}</span>
+                        )}
+                      </div>
                     )}
                     {noteSummary && (
                       <p className="review-note">{noteSummary}</p>
