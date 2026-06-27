@@ -817,7 +817,7 @@ export function App() {
                 setToast={setToast}
               />
             )}
-            {tab === 'profile' && <ProfileView user={user} setUser={setUser} apps={apps} groups={groups} setGroups={setGroups} categories={categories} onOpen={openApp} refreshAll={refreshAll} setToast={setToast} hasAPI={HAS_API} onNavigate={setTab} />}
+            {tab === 'profile' && <ProfileView user={user} setUser={setUser} apps={apps} groups={groups} setGroups={setGroups} categories={categories} sourceStats={sourceStats} onOpen={openApp} refreshAll={refreshAll} setToast={setToast} hasAPI={HAS_API} onNavigate={setTab} />}
             {tab === 'admin' && (
               user && canReview ? (
                 <AdminPanel user={user} reviews={reviews} onApprove={approveReview} setToast={setToast} />
@@ -1612,6 +1612,7 @@ function ProfileView({
   groups,
   setGroups,
   categories,
+  sourceStats,
   onOpen,
   refreshAll,
   setToast,
@@ -1624,6 +1625,7 @@ function ProfileView({
   groups: Group[];
   setGroups: (groups: Group[]) => void;
   categories: Category[];
+  sourceStats: ClientSourceStats;
   onOpen: (app: StoreApp) => void;
   refreshAll: (options?: { silent?: boolean }) => Promise<void>;
   setToast: (toast: Toast) => void;
@@ -1689,6 +1691,29 @@ function ProfileView({
   const artifactReady = artifactMode === 'local' ? Boolean(file) : externalArtifactReady;
   const canSubmitUpload = appInfoReady && artifactReady;
   const isDirectPublishUser = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
+  const sourceCacheReady = sourceStats.syncedSourceCount > 0;
+  const installCatalogReady = sourceStats.installableSourceAppCount > 0;
+  const deviceQueryReady = installedState === 'loaded';
+  const sourceCacheBody =
+    sourceStats.sourceCount === 0
+      ? t('profile.clientSourceMissing')
+      : sourceStats.syncedSourceCount === 0
+        ? t('profile.clientSourceNeedsSync', { count: sourceStats.sourceCount })
+        : t('profile.clientSourceReady', { synced: sourceStats.syncedSourceCount, total: sourceStats.sourceCount });
+  const installCatalogBody =
+    sourceStats.installableSourceAppCount > 0
+      ? t('profile.clientInstallReady', { count: sourceStats.installableSourceAppCount })
+      : sourceStats.sourceAppCount > 0
+        ? t('profile.clientInstallMissingInstallable', { count: sourceStats.sourceAppCount })
+        : t('profile.clientInstallMissing');
+  const deviceReadinessBody =
+    installedState === 'loaded'
+      ? t('profile.clientDeviceLoaded', { count: installedApps.length })
+      : installedState === 'loading'
+        ? t('profile.clientDeviceLoading')
+        : installedState === 'error'
+          ? installedError || t('profile.clientDeviceError')
+          : t('profile.clientDeviceIdle');
 
   useEffect(() => {
     if (!user) return;
@@ -1846,11 +1871,57 @@ function ProfileView({
     const installedEmptyBody = installedState === 'idle' ? t('profile.installedIdleBody') : undefined;
     return (
       <section className="page-grid">
+        <div className="page-heading with-action">
+          <div>
+            <span className="eyebrow subtle">{t('mode.standaloneClient')}</span>
+            <h1>{t('profile.clientTitle')}</h1>
+            <p>{t('profile.clientBody')}</p>
+          </div>
+          <div className="row-actions">
+            <button type="button" className="primary-button" onClick={() => onNavigate('sources')}>
+              <Cloud size={18} />
+              <span>{t('profile.openSources')}</span>
+            </button>
+            <button type="button" className="secondary-button" onClick={() => onNavigate('search')}>
+              <Search size={18} />
+              <span>{t('profile.browseInstallable')}</span>
+            </button>
+          </div>
+        </div>
+        <section className="panel">
+          <SectionTitle icon={Gauge} title={t('profile.clientReadiness')} />
+          <div className="source-readiness" aria-label={t('profile.clientReadiness')}>
+            <div className={cx('readiness-step', sourceCacheReady && 'ready')}>
+              <span className={cx('status-badge', sourceCacheReady ? 'approved' : 'unlisted')}>
+                {sourceCacheReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                {sourceCacheReady ? t('sources.ready') : t('sources.needsValue')}
+              </span>
+              <strong>{t('profile.clientSourceTitle')}</strong>
+              <small>{sourceCacheBody}</small>
+            </div>
+            <div className={cx('readiness-step', installCatalogReady && 'ready')}>
+              <span className={cx('status-badge', installCatalogReady ? 'approved' : 'unlisted')}>
+                {installCatalogReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                {installCatalogReady ? t('sources.ready') : t('sources.needsValue')}
+              </span>
+              <strong>{t('profile.clientInstallTitle')}</strong>
+              <small>{installCatalogBody}</small>
+            </div>
+            <div className={cx('readiness-step', deviceQueryReady && 'ready')}>
+              <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loading' ? 'pending' : deviceQueryReady ? 'synced' : 'unsynced')}>
+                {installedState === 'error' ? <AlertCircle size={14} /> : deviceQueryReady ? <Check size={14} /> : <Gauge size={14} />}
+                {t(`profile.deviceState.${installedState}`)}
+              </span>
+              <strong>{t('profile.clientDeviceTitle')}</strong>
+              <small>{deviceReadinessBody}</small>
+            </div>
+          </div>
+        </section>
         <div className="split">
           <div className="panel profile-card">
             <AvatarIcon seed="lazycat-standalone-client" title={t('profile.clientTitle')} size={74} className="avatar-large" />
-            <h2>{t('profile.clientTitle')}</h2>
-            <p>{t('profile.clientBody')}</p>
+            <h2>{t('profile.clientDeviceTitle')}</h2>
+            <p>{t('profile.clientDeviceHelp')}</p>
             <div className={cx('device-state', installedState)}>
               <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loaded' ? 'synced' : 'unsynced')}>
                 {t(`profile.deviceState.${installedState}`)}
