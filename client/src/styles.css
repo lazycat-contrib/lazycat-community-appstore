@@ -228,6 +228,15 @@ textarea {
   gap: 8px;
 }
 
+.top-actions,
+.detail-actions {
+  flex-wrap: wrap;
+}
+
+.row-actions {
+  flex-shrink: 0;
+}
+
 .mode-pill,
 .language-select {
   min-height: 38px;
@@ -265,6 +274,16 @@ textarea {
   background: var(--surface);
   color: var(--ink);
   padding: 0 12px;
+  max-width: 100%;
+}
+
+.user-pill span,
+.primary-button span,
+.secondary-button span,
+.install-button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .icon-button {
@@ -664,6 +683,15 @@ textarea {
 .source-app-row strong,
 .version-row strong {
   display: block;
+  overflow-wrap: anywhere;
+}
+
+.review-row > div,
+.source-row > div,
+.source-app-row > div,
+.version-row > div,
+.detail-head > div {
+  min-width: 0;
 }
 
 .source-row span,
@@ -737,6 +765,13 @@ textarea {
 .form-panel label > span {
   font-size: 13px;
   color: var(--muted);
+}
+
+.field-help {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .form-panel input,
@@ -1221,7 +1256,7 @@ code {
     z-index: 15;
     height: 64px;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     background: #fbfcf8;
     border-top: 1px solid var(--line);
   }
@@ -1269,7 +1304,11 @@ code {
 
   .topbar {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
+  }
+
+  .top-actions {
+    justify-content: space-between;
   }
 
   .language-select {

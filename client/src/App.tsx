@@ -29,7 +29,6 @@ import {
   Tag,
   Trash2,
   Upload,
-  UserRound,
   Users,
   X,
 } from 'lucide-react';
@@ -273,15 +272,16 @@ function shortSHA(value?: string) {
   return value ? value.slice(0, 16) : '-';
 }
 
-type TabKey = 'home' | 'categories' | 'search' | 'sources' | 'profile';
+type TabKey = 'home' | 'categories' | 'search' | 'sources' | 'profile' | 'admin';
 type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
 
-const serverTabs: NavItem[] = [
+const serverBaseTabs: NavItem[] = [
   { key: 'home', labelKey: 'nav.store', icon: Home },
-  { key: 'categories', labelKey: 'nav.categories', icon: Layers3 },
   { key: 'search', labelKey: 'nav.discover', icon: Search },
-  { key: 'profile', labelKey: 'nav.submitAdmin', icon: UserRound },
+  { key: 'profile', labelKey: 'nav.myApps', icon: PackagePlus },
 ];
+
+const serverAdminTab: NavItem = { key: 'admin', labelKey: 'nav.admin', icon: ShieldCheck };
 
 const clientTabs: NavItem[] = [
   { key: 'sources', labelKey: 'nav.sources', icon: Cloud },
@@ -315,7 +315,8 @@ export function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
   const [setupRequired, setSetupRequired] = useState(false);
-  const navItems = HAS_API ? serverTabs : clientTabs;
+  const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
+  const navItems = HAS_API ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : clientTabs;
   const modeLabel = HAS_API ? t('mode.serverStore') : t('mode.standaloneClient');
   const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
 
@@ -332,8 +333,6 @@ export function App() {
       return [];
     }
   });
-
-  const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
 
   useEffect(() => {
     if (!navItems.some((item) => item.key === tab)) {
@@ -704,6 +703,18 @@ export function App() {
               />
             )}
             {tab === 'profile' && <ProfileView user={user} setUser={setUser} groups={groups} setGroups={setGroups} categories={categories} refreshAll={refreshAll} setToast={setToast} hasAPI={HAS_API} />}
+            {tab === 'admin' && (
+              user && canReview ? (
+                <AdminPanel user={user} setToast={setToast} />
+              ) : (
+                <EmptyState
+                  icon={ShieldCheck}
+                  title={user ? t('admin.noPermission') : t('auth.loginRequired')}
+                  body={user ? t('admin.noPermissionBody') : t('auth.loginRequiredBody')}
+                  action={!user ? { label: t('auth.login'), icon: LogIn, onClick: () => setTab('profile') } : undefined}
+                />
+              )
+            )}
           </>
         )}
       </main>
@@ -1211,6 +1222,7 @@ function SourcesView({
   const emptyDraft = { name: '', url: DEFAULT_SOURCE_URL, password: '', mirror: '' };
   const [draft, setDraft] = useState(emptyDraft);
   const [syncingID, setSyncingID] = useState<string | null>(null);
+  const [confirmDeleteSource, setConfirmDeleteSource] = useState<string | null>(null);
 
   function normalizedSourceURL(rawURL: string) {
     try {
@@ -1245,6 +1257,16 @@ function SourcesView({
 
   function updateSource(id: string, patch: Partial<SourceSubscription>) {
     setSources((current) => current.map((source) => (source.id === id ? { ...source, ...patch } : source)));
+  }
+
+  function deleteSource(source: SourceSubscription) {
+    if (confirmDeleteSource !== source.id) {
+      setConfirmDeleteSource(source.id);
+      setToast({ tone: 'neutral', message: t('sources.confirmDelete', { name: source.name }) });
+      return;
+    }
+    setSources((current) => current.filter((item) => item.id !== source.id));
+    setConfirmDeleteSource(null);
   }
 
   return (
@@ -1335,7 +1357,7 @@ function SourcesView({
                   >
                     <RefreshCw size={17} />
                   </button>
-                  <button type="button" className="icon-button danger" aria-label={t('sources.deleteSource', { name: source.name })} onClick={() => setSources((current) => current.filter((item) => item.id !== source.id))}>
+                  <button type="button" className="icon-button danger" aria-label={t('sources.deleteSource', { name: source.name })} onClick={() => deleteSource(source)}>
                     <X size={17} />
                   </button>
                 </div>
@@ -1634,89 +1656,94 @@ function ProfileView({
 
   return (
     <section className="page-grid">
+      <div className="page-heading">
+        <span className="eyebrow subtle">{t('profile.serverEyebrow')}</span>
+        <h1>{t('profile.serverTitle')}</h1>
+        <p>{t('profile.serverBody')}</p>
+      </div>
       <div className="split">
         <div className="panel profile-card">
-        <AvatarIcon seed={user.email || user.username} title={user.username} size={74} className="avatar-large" />
-        <h2>{user.username}</h2>
-        <p>{user.role}</p>
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={() =>
-            void runAction(setToast, t('toast.logoutFailed'), async () => {
-              await api('/api/v1/auth/logout', { method: 'POST' });
-              setUser(null);
-            })
-          }
-        >
-          <LogOut size={18} />
-          <span>{t('auth.logout')}</span>
-        </button>
+          <AvatarIcon seed={user.email || user.username} title={user.username} size={74} className="avatar-large" />
+          <h2>{user.username}</h2>
+          <p>{user.role}</p>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() =>
+              void runAction(setToast, t('toast.logoutFailed'), async () => {
+                await api('/api/v1/auth/logout', { method: 'POST' });
+                setUser(null);
+              })
+            }
+          >
+            <LogOut size={18} />
+            <span>{t('auth.logout')}</span>
+          </button>
         </div>
 
         <form className="panel form-panel" onSubmit={submitUpload}>
-        <SectionTitle icon={Upload} title={t('submitApp.title')} />
-        <label>
-          <span>{t('submitApp.appName')}</span>
-          <input value={uploadForm.name} onChange={(event) => setUploadForm({ ...uploadForm, name: event.target.value })} />
-        </label>
-        <label>
-          <span>{t('common.version')}</span>
-          <input value={uploadForm.version} onChange={(event) => setUploadForm({ ...uploadForm, version: event.target.value })} />
-        </label>
-        <label>
-          <span>{t('common.summary')}</span>
-          <input value={uploadForm.summary} onChange={(event) => setUploadForm({ ...uploadForm, summary: event.target.value })} />
-        </label>
-        <label>
-          <span>{t('common.description')}</span>
-          <textarea value={uploadForm.description} onChange={(event) => setUploadForm({ ...uploadForm, description: event.target.value })} />
-        </label>
-        <label>
-          <span>{t('common.category')}</span>
-          <select value={uploadForm.categoryId} onChange={(event) => setUploadForm({ ...uploadForm, categoryId: event.target.value })}>
-            <option value="">{t('common.uncategorized')}</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>{category.name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>{t('common.tags')}</span>
-          <input value={uploadForm.tags} onChange={(event) => setUploadForm({ ...uploadForm, tags: event.target.value })} />
-        </label>
-        <label>
-          <span>{t('submitApp.externalSource')}</span>
-          <select value={uploadForm.sourceType} onChange={(event) => setUploadForm({ ...uploadForm, sourceType: event.target.value })}>
-            <option value="GITHUB">GitHub Release</option>
-            <option value="WEBDAV">WebDAV URL</option>
-            <option value="S3">S3 URL</option>
-          </select>
-        </label>
-        <label>
-          <span>{t('submitApp.externalDownloadUrl')}</span>
-          <input value={uploadForm.downloadUrl} onChange={(event) => setUploadForm({ ...uploadForm, downloadUrl: event.target.value })} />
-        </label>
-        <label>
-          <span>{t('common.sha256')}</span>
-          <input value={uploadForm.sha256} onChange={(event) => setUploadForm({ ...uploadForm, sha256: event.target.value })} />
-        </label>
-        <label className="toggle-line">
-          <input
-            type="checkbox"
-            checked={uploadForm.allowUnreviewedUpdates}
-            onChange={(event) => setUploadForm({ ...uploadForm, allowUnreviewedUpdates: event.target.checked })}
-          />
-          <span>{t('submitApp.allowUnreviewedUpdates')}</span>
-        </label>
-        <label>
-          <span>{t('common.lpkFile')}</span>
-          <input type="file" accept=".lpk" onChange={(event) => setFile(event.target.files?.[0] || null)} />
-        </label>
-        <button type="submit" className="primary-button">
-          <Upload size={18} />
-          <span>{t('common.submit')}</span>
-        </button>
+          <SectionTitle icon={Upload} title={t('submitApp.title')} />
+          <label>
+            <span>{t('submitApp.appName')}</span>
+            <input value={uploadForm.name} onChange={(event) => setUploadForm({ ...uploadForm, name: event.target.value })} />
+          </label>
+          <label>
+            <span>{t('common.version')}</span>
+            <input value={uploadForm.version} onChange={(event) => setUploadForm({ ...uploadForm, version: event.target.value })} />
+          </label>
+          <label>
+            <span>{t('common.summary')}</span>
+            <input value={uploadForm.summary} onChange={(event) => setUploadForm({ ...uploadForm, summary: event.target.value })} />
+          </label>
+          <label>
+            <span>{t('common.description')}</span>
+            <textarea value={uploadForm.description} onChange={(event) => setUploadForm({ ...uploadForm, description: event.target.value })} />
+          </label>
+          <label>
+            <span>{t('common.category')}</span>
+            <select value={uploadForm.categoryId} onChange={(event) => setUploadForm({ ...uploadForm, categoryId: event.target.value })}>
+              <option value="">{t('common.uncategorized')}</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t('common.tags')}</span>
+            <input value={uploadForm.tags} onChange={(event) => setUploadForm({ ...uploadForm, tags: event.target.value })} />
+          </label>
+          <label>
+            <span>{t('submitApp.externalSource')}</span>
+            <select value={uploadForm.sourceType} onChange={(event) => setUploadForm({ ...uploadForm, sourceType: event.target.value })}>
+              <option value="GITHUB">GitHub Release</option>
+              <option value="WEBDAV">WebDAV URL</option>
+              <option value="S3">S3 URL</option>
+            </select>
+          </label>
+          <label>
+            <span>{t('submitApp.externalDownloadUrl')}</span>
+            <input value={uploadForm.downloadUrl} onChange={(event) => setUploadForm({ ...uploadForm, downloadUrl: event.target.value })} />
+          </label>
+          <label>
+            <span>{t('common.sha256')}</span>
+            <input value={uploadForm.sha256} onChange={(event) => setUploadForm({ ...uploadForm, sha256: event.target.value })} />
+          </label>
+          <label className="toggle-line">
+            <input
+              type="checkbox"
+              checked={uploadForm.allowUnreviewedUpdates}
+              onChange={(event) => setUploadForm({ ...uploadForm, allowUnreviewedUpdates: event.target.checked })}
+            />
+            <span>{t('submitApp.allowUnreviewedUpdates')}</span>
+          </label>
+          <label>
+            <span>{t('common.lpkFile')}</span>
+            <input type="file" accept=".lpk" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+          </label>
+          <button type="submit" className="primary-button">
+            <Upload size={18} />
+            <span>{t('common.submit')}</span>
+          </button>
         </form>
       </div>
 
@@ -1796,8 +1823,6 @@ function ProfileView({
           </button>
         </section>
       </section>
-
-      {(user.role === 'SITE_ADMIN' || user.role === 'SOFTWARE_ADMIN') && <AdminPanel user={user} setToast={setToast} />}
     </section>
   );
 }
@@ -1897,11 +1922,20 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
   const [categoryDrafts, setCategoryDrafts] = useState<Record<number, { name: string; slug: string }>>({});
   const [tagDrafts, setTagDrafts] = useState<Record<number, { name: string; slug: string }>>({});
   const [collectionDrafts, setCollectionDrafts] = useState<Record<number, { name: string; slug: string; kind: string; appIds: string }>>({});
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const isSiteAdmin = user.role === 'SITE_ADMIN';
   const collectionKindOptions = [
     { value: 'MANUAL', label: t('admin.collectionKinds.manual') },
     { value: 'RECENT_UPDATED', label: t('admin.collectionKinds.recentUpdated') },
     { value: 'MOST_DOWNLOADED', label: t('admin.collectionKinds.mostDownloaded') },
+  ];
+  const settingFields = [
+    { key: 'max_lpk_size', label: t('admin.settings.maxLPKSize'), help: t('admin.settingsHelp.maxLPKSize'), inputMode: 'numeric' },
+    { key: 'max_versions', label: t('admin.settings.maxVersions'), help: t('admin.settingsHelp.maxVersions'), inputMode: 'numeric' },
+    { key: 'source_password', label: t('admin.settings.sourcePassword'), help: t('admin.settingsHelp.sourcePassword'), type: 'password' },
+    { key: 'source_password_rotation', label: t('admin.settings.sourcePasswordRotation'), help: t('admin.settingsHelp.sourcePasswordRotation'), inputMode: 'numeric' },
+    { key: 'github_mirror', label: t('admin.settings.githubMirror'), help: t('admin.settingsHelp.githubMirror'), type: 'url' },
+    { key: 'require_email_verify', label: t('admin.settings.requireEmailVerify'), help: t('admin.settingsHelp.requireEmailVerify'), type: 'boolean' },
   ];
 
   useEffect(() => {
@@ -1971,9 +2005,16 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
   }
 
   async function deleteCategory(item: Category) {
+    const confirmKey = `category:${item.id}`;
+    if (confirmDelete !== confirmKey) {
+      setConfirmDelete(confirmKey);
+      setToast({ tone: 'neutral', message: t('admin.confirmDeleteCategory', { name: item.name }) });
+      return;
+    }
     await runAction(setToast, t('admin.categoryDeleteFailed'), async () => {
       await api(`/api/v1/admin/categories/${item.id}`, { method: 'DELETE' });
       setToast({ tone: 'neutral', message: t('admin.categoryDeleted') });
+      setConfirmDelete(null);
       await reload();
     });
   }
@@ -1998,9 +2039,16 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
   }
 
   async function deleteTag(item: TagRecord) {
+    const confirmKey = `tag:${item.id}`;
+    if (confirmDelete !== confirmKey) {
+      setConfirmDelete(confirmKey);
+      setToast({ tone: 'neutral', message: t('admin.confirmDeleteTag', { name: item.name }) });
+      return;
+    }
     await runAction(setToast, t('admin.tagDeleteFailed'), async () => {
       await api(`/api/v1/admin/tags/${item.id}`, { method: 'DELETE' });
       setToast({ tone: 'neutral', message: t('admin.tagDeleted') });
+      setConfirmDelete(null);
       await reload();
     });
   }
@@ -2046,23 +2094,48 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
   }
 
   async function deleteCollection(item: Collection) {
+    const confirmKey = `collection:${item.id}`;
+    if (confirmDelete !== confirmKey) {
+      setConfirmDelete(confirmKey);
+      setToast({ tone: 'neutral', message: t('admin.confirmDeleteCollection', { name: item.name }) });
+      return;
+    }
     await runAction(setToast, t('admin.collectionDeleteFailed'), async () => {
       await api(`/api/v1/admin/collections/${item.id}`, { method: 'DELETE' });
       setToast({ tone: 'neutral', message: t('admin.collectionDeleted') });
+      setConfirmDelete(null);
       await reload();
     });
   }
 
   return (
     <section className="page-grid">
+      <div className="page-heading">
+        <span className="eyebrow subtle">{t('admin.eyebrow')}</span>
+        <h1>{t('admin.title')}</h1>
+        <p>{t('admin.body')}</p>
+      </div>
       {isSiteAdmin && (
         <section className="split">
           <form className="panel form-panel" onSubmit={saveSettings}>
             <SectionTitle icon={Settings} title={t('admin.siteSettings')} />
-            {['max_lpk_size', 'max_versions', 'source_password', 'source_password_rotation', 'github_mirror', 'require_email_verify'].map((key) => (
-              <label key={key}>
-                <span>{key}</span>
-                <input value={settings[key] || ''} onChange={(event) => setSettings({ ...settings, [key]: event.target.value })} />
+            {settingFields.map((field) => (
+              <label key={field.key}>
+                <span>{field.label}</span>
+                {field.type === 'boolean' ? (
+                  <select value={settings[field.key] || 'false'} onChange={(event) => setSettings({ ...settings, [field.key]: event.target.value })}>
+                    <option value="false">{t('common.off')}</option>
+                    <option value="true">{t('common.on')}</option>
+                  </select>
+                ) : (
+                  <input
+                    type={field.type || 'text'}
+                    inputMode={field.inputMode as 'numeric' | undefined}
+                    value={settings[field.key] || ''}
+                    onChange={(event) => setSettings({ ...settings, [field.key]: event.target.value })}
+                  />
+                )}
+                <small className="field-help">{field.help}</small>
               </label>
             ))}
             <button type="submit" className="primary-button">
@@ -2201,7 +2274,9 @@ function AdminPanel({ user, setToast }: { user: User; setToast: (toast: Toast) =
       <section className="panel">
         <SectionTitle icon={PackagePlus} title={t('admin.optionalApps')} />
           <div className="review-list">
-            {apps.map((item) => (
+            {apps.length === 0 ? (
+              <EmptyState icon={PackagePlus} title={t('admin.noApprovedApps')} body={t('admin.noApprovedAppsBody')} />
+            ) : apps.map((item) => (
               <div className="review-row" key={item.id}>
                 <div>
                   <strong>#{item.id} {item.name}</strong>
@@ -2243,6 +2318,7 @@ function AppDrawer({
   const [versionForm, setVersionForm] = useState({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
   const [versionFile, setVersionFile] = useState<File | null>(null);
   const [collaboratorRequests, setCollaboratorRequests] = useState<CollaboratorRequest[]>([]);
+  const [confirmAction, setConfirmAction] = useState<string | null>(null);
   const [appForm, setAppForm] = useState({
     name: app.name,
     summary: app.summary,
@@ -2271,6 +2347,7 @@ function AppDrawer({
       commentsEnabled: app.commentsEnabled,
     });
     setVisibility(app.visibleGroupIds || []);
+    setConfirmAction(null);
   }, [app]);
 
   useEffect(() => {
@@ -2375,7 +2452,18 @@ function AppDrawer({
     });
   }
 
+  function confirmDanger(key: string, message: string) {
+    if (confirmAction !== key) {
+      setConfirmAction(key);
+      setToast({ tone: 'neutral', message });
+      return false;
+    }
+    setConfirmAction(null);
+    return true;
+  }
+
   async function unlistApp() {
+    if (!confirmDanger('unlist-app', t('drawer.confirmUnlist', { name: app.name }))) return;
     await runAction(setToast, t('drawer.unlistFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/unlist`, { method: 'POST' });
       setToast({ tone: 'neutral', message: t('drawer.unlisted') });
@@ -2384,6 +2472,7 @@ function AppDrawer({
   }
 
   async function deleteApp() {
+    if (!confirmDanger('delete-app', t('drawer.confirmDeleteApp', { name: app.name }))) return;
     await runAction(setToast, t('drawer.deleteFailed'), async () => {
       await api(`/api/v1/apps/${app.id}`, { method: 'DELETE' });
       setToast({ tone: 'neutral', message: t('drawer.deleted') });
@@ -2424,6 +2513,7 @@ function AppDrawer({
   }
 
   async function deleteScreenshot(screenshotID: number) {
+    if (!confirmDanger(`delete-screenshot:${screenshotID}`, t('drawer.confirmDeleteScreenshot'))) return;
     await runAction(setToast, t('drawer.screenshotDeleteFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/screenshots/${screenshotID}`, { method: 'DELETE' });
       setToast({ tone: 'neutral', message: t('drawer.screenshotDeleted') });
@@ -2432,6 +2522,7 @@ function AppDrawer({
   }
 
   async function deleteComment(commentID: number) {
+    if (!confirmDanger(`delete-comment:${commentID}`, t('drawer.confirmDeleteComment'))) return;
     await runAction(setToast, t('drawer.commentDeleteFailed'), async () => {
       await api(`/api/v1/comments/${commentID}`, { method: 'DELETE' });
       setToast({ tone: 'neutral', message: t('drawer.commentDeleted') });
@@ -2911,7 +3002,7 @@ function EmptyState({
 function MobileTabs({ tab, setTab, items, inert }: { tab: TabKey; setTab: (tab: TabKey) => void; items: readonly NavItem[]; inert?: boolean }) {
   const { t } = useTranslation();
   return (
-    <nav className="mobile-tabs" inert={inert} aria-hidden={inert ? true : undefined}>
+    <nav className="mobile-tabs" inert={inert} aria-hidden={inert ? true : undefined} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((item) => {
         const Icon = item.icon;
         return (
