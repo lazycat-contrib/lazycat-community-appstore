@@ -15,15 +15,17 @@ go run ./cmd/store-server
 
 Default server URL: `http://localhost:8080`
 
-Default admin:
+First-run initialization supports two paths:
 
-- username: `admin`
-- password: `changeme`
+- Web setup wizard: when no site administrator exists and no admin environment variables are set, open the server URL and create the first administrator from the browser.
+- Environment bootstrap: set `ADMIN_USERNAME` and/or `ADMIN_PASSWORD` before the first start to create the initial site administrator automatically.
+
+If only one admin environment variable is set, the other keeps its development fallback (`admin` / `changeme`). For production, set both values explicitly.
 
 To build the server with the web console embedded, build the client first and copy it into `web/dist` before compiling Go:
 
 ```bash
-(cd client && npm ci && VITE_API_BASE_URL= npm run build)
+(cd client && npm ci && VITE_API_BASE_URL=. npm run build)
 rm -rf web/dist
 mkdir -p web/dist
 cp -R client/dist/. web/dist/

@@ -7,6 +7,8 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("DB_DSN", "")
 	t.Setenv("SITE_MAX_LPK_SIZE", "")
 	t.Setenv("SITE_MAX_VERSIONS", "")
+	t.Setenv("ADMIN_USERNAME", "")
+	t.Setenv("ADMIN_PASSWORD", "")
 
 	cfg := Load()
 
@@ -21,6 +23,23 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.MaxVersions != 10 {
 		t.Fatalf("MaxVersions = %d, want 10", cfg.MaxVersions)
+	}
+	if cfg.AdminBootstrap {
+		t.Fatal("AdminBootstrap = true, want false when ADMIN_USERNAME and ADMIN_PASSWORD are unset")
+	}
+}
+
+func TestLoadEnablesAdminBootstrapWhenAdminEnvProvided(t *testing.T) {
+	t.Setenv("ADMIN_USERNAME", "root")
+	t.Setenv("ADMIN_PASSWORD", "secret-password")
+
+	cfg := Load()
+
+	if !cfg.AdminBootstrap {
+		t.Fatal("AdminBootstrap = false, want true")
+	}
+	if cfg.AdminUsername != "root" || cfg.AdminPassword != "secret-password" {
+		t.Fatalf("admin credentials = %q/%q", cfg.AdminUsername, cfg.AdminPassword)
 	}
 }
 

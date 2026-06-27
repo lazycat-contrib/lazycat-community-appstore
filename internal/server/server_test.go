@@ -39,6 +39,65 @@ type testApp struct {
 	cookies []*http.Cookie
 }
 
+func TestSetupWizardCreatesFirstSiteAdmin(t *testing.T) {
+	app := newTestAppWithAdminBootstrap(t, false)
+
+	rec := app.do(http.MethodGet, "/api/v1/setup/status", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"needsSetup":true`) {
+		t.Fatalf("setup status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	rec = app.do(http.MethodPost, "/api/v1/setup", map[string]any{
+		"username":              "owner",
+		"email":                 "owner@example.com",
+		"password":              "owner-password",
+		"sourcePasswordEnabled": true,
+		"sourcePassword":        "feed-secret",
+		"githubMirror":          "https://mirror.example.com",
+		"requireEmailVerify":    true,
+	})
+	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), `"role":"SITE_ADMIN"`) {
+		t.Fatalf("setup create status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if len(rec.Result().Cookies()) == 0 {
+		t.Fatal("setup did not set a session cookie")
+	}
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("owner")).OnlyX(t.Context())
+	if admin.Role != user.RoleSITE_ADMIN || !admin.EmailVerified {
+		t.Fatalf("admin role=%s emailVerified=%v", admin.Role, admin.EmailVerified)
+	}
+	if got := app.server.setting(t.Context(), "source_password", ""); got != "feed-secret" {
+		t.Fatalf("source_password = %q, want feed-secret", got)
+	}
+	if got := app.server.setting(t.Context(), "github_mirror", ""); got != "https://mirror.example.com" {
+		t.Fatalf("github_mirror = %q, want https://mirror.example.com", got)
+	}
+	if got := app.server.setting(t.Context(), "require_email_verify", "false"); got != "true" {
+		t.Fatalf("require_email_verify = %q, want true", got)
+	}
+
+	rec = app.do(http.MethodGet, "/api/v1/setup/status", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"needsSetup":false`) {
+		t.Fatalf("setup status after create = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	rec = app.do(http.MethodPost, "/api/v1/setup", map[string]string{
+		"username": "second",
+		"password": "second-password",
+	})
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("second setup status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestEnvBootstrapStillCreatesDefaultAdmin(t *testing.T) {
+	app := newTestApp(t)
+
+	rec := app.do(http.MethodGet, "/api/v1/setup/status", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"needsSetup":false`) {
+		t.Fatalf("setup status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	app.login("admin", "changeme")
+}
+
 func TestAdminCanCreateCollectionAndPublicCanListIt(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()
@@ -731,6 +790,7 @@ func TestServerStartsWithGitHubStorageBackendForExternalVersions(t *testing.T) {
 		MaxVersions:      10,
 		AdminUsername:    "admin",
 		AdminPassword:    "changeme",
+		AdminBootstrap:   true,
 		SessionSecret:    "test-secret",
 		ReadTimeout:      time.Second,
 		WriteTimeout:     time.Second,
@@ -838,6 +898,10 @@ func TestApprovedExternalVersionsRespectRetention(t *testing.T) {
 }
 
 func newTestApp(t *testing.T) *testApp {
+	return newTestAppWithAdminBootstrap(t, true)
+}
+
+func newTestAppWithAdminBootstrap(t *testing.T, adminBootstrap bool) *testApp {
 	t.Helper()
 	root := t.TempDir()
 	cfg := config.Config{
@@ -852,6 +916,7 @@ func newTestApp(t *testing.T) *testApp {
 		MaxVersions:      10,
 		AdminUsername:    "admin",
 		AdminPassword:    "changeme",
+		AdminBootstrap:   adminBootstrap,
 		SessionSecret:    "test-secret",
 		ReadTimeout:      time.Second,
 		WriteTimeout:     time.Second,

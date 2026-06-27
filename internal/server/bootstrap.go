@@ -19,7 +19,7 @@ func (s *Server) bootstrap(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("count users: %w", err)
 	}
-	if count == 0 {
+	if count == 0 && s.cfg.AdminBootstrap {
 		hash, err := auth.HashPassword(s.cfg.AdminPassword)
 		if err != nil {
 			return err

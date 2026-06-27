@@ -201,6 +201,10 @@ type FavoriteData = {
   submitters: User[];
 };
 
+type SetupStatus = {
+  needsSetup: boolean;
+};
+
 type Toast = {
   tone: 'success' | 'error' | 'neutral';
   message: string;
@@ -261,6 +265,14 @@ function formatDate(value?: string) {
   return new Intl.DateTimeFormat(locale, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
+function hasInstallableVersion(app: StoreApp | SourceApp) {
+  return Boolean(app.latestVersion?.downloadUrl);
+}
+
+function shortSHA(value?: string) {
+  return value ? value.slice(0, 16) : '-';
+}
+
 type TabKey = 'home' | 'categories' | 'search' | 'sources' | 'profile';
 type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
 
@@ -302,6 +314,7 @@ export function App() {
   const [installProgress, setInstallProgress] = useState(0);
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
+  const [setupRequired, setSetupRequired] = useState(false);
   const navItems = HAS_API ? serverTabs : clientTabs;
   const modeLabel = HAS_API ? t('mode.serverStore') : t('mode.standaloneClient');
   const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
@@ -364,6 +377,17 @@ export function App() {
     }
     setLoading(true);
     try {
+      const setup = await api<SetupStatus>('/api/v1/setup/status');
+      setSetupRequired(setup.needsSetup);
+      if (setup.needsSetup) {
+        setApps([]);
+        setCategories([]);
+        setCollections([]);
+        setGroups([]);
+        setReviews([]);
+        setUser(null);
+        return;
+      }
       const [me, appData, categoryData, collectionData] = await Promise.allSettled([
         api<{ user: User }>('/api/v1/auth/me'),
         api<{ apps: StoreApp[] }>('/api/v1/apps'),
@@ -523,6 +547,23 @@ export function App() {
       setToast({ tone: 'success', message: t('toast.allSourcesSynced', { count: sources.length }) });
       setTab('search');
     });
+  }
+
+  if (HAS_API && setupRequired) {
+    return (
+      <>
+        <SetupWizard
+          onComplete={async (nextUser) => {
+            setUser(nextUser);
+            setSetupRequired(false);
+            setTab('profile');
+            await refreshAll();
+          }}
+          setToast={setToast}
+        />
+        {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
+      </>
+    );
   }
 
   return (
@@ -704,6 +745,127 @@ export function App() {
   );
 }
 
+function SetupWizard({ onComplete, setToast }: { onComplete: (user: User) => Promise<void>; setToast: (toast: Toast) => void }) {
+  const { t } = useTranslation();
+  const [form, setForm] = useState({
+    username: 'admin',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    sourcePasswordEnabled: true,
+    sourcePassword: '',
+    githubMirror: '',
+    requireEmailVerify: false,
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
+
+  async function submitSetup(event: FormEvent) {
+    event.preventDefault();
+    if (form.password !== form.confirmPassword) {
+      setToast({ tone: 'error', message: t('setup.passwordMismatch') });
+      return;
+    }
+    if (form.sourcePasswordEnabled && !form.sourcePassword.trim()) {
+      setToast({ tone: 'error', message: t('setup.sourcePasswordRequired') });
+      return;
+    }
+    setSubmitting(true);
+    await runAction(setToast, t('setup.failed'), async () => {
+      const data = await api<{ user: User }>('/api/v1/setup', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: form.username,
+          email: form.email,
+          password: form.password,
+          sourcePasswordEnabled: form.sourcePasswordEnabled,
+          sourcePassword: form.sourcePassword,
+          githubMirror: form.githubMirror,
+          requireEmailVerify: form.requireEmailVerify,
+        }),
+      });
+      setToast({ tone: 'success', message: t('setup.completed') });
+      await onComplete(data.user);
+    });
+    setSubmitting(false);
+  }
+
+  return (
+    <main className="setup-shell">
+      <div className="setup-panel">
+        <section className="setup-copy">
+          <span className="eyebrow subtle">{t('setup.eyebrow')}</span>
+          <h1>{t('setup.title')}</h1>
+          <p>{t('setup.body')}</p>
+          <div className="setup-steps" aria-label={t('setup.stepsLabel')}>
+            <div><ShieldCheck size={18} /> {t('setup.stepAdmin')}</div>
+            <div><Settings size={18} /> {t('setup.stepPolicy')}</div>
+            <div><Cloud size={18} /> {t('setup.stepSource')}</div>
+          </div>
+        </section>
+        <form className="panel form-panel setup-form" onSubmit={submitSetup}>
+          <div className="form-topline">
+            <SectionTitle icon={KeyRound} title={t('setup.formTitle')} />
+            <label className="language-select">
+              <span>{t('language.label')}</span>
+              <select aria-label={t('language.label')} value={currentLanguage} onChange={(event) => void i18n.changeLanguage(event.target.value)}>
+                <option value="zh">{t('language.zh')}</option>
+                <option value="en">{t('language.en')}</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            <span>{t('common.username')}</span>
+            <input autoComplete="username" value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} />
+          </label>
+          <label>
+            <span>{t('common.email')}</span>
+            <input type="email" autoComplete="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+          </label>
+          <label>
+            <span>{t('common.password')}</span>
+            <input type="password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
+          </label>
+          <label>
+            <span>{t('setup.confirmPassword')}</span>
+            <input type="password" autoComplete="new-password" value={form.confirmPassword} onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })} />
+          </label>
+          <label className="toggle-line">
+            <input
+              type="checkbox"
+              checked={form.sourcePasswordEnabled}
+              onChange={(event) => setForm({ ...form, sourcePasswordEnabled: event.target.checked })}
+            />
+            <span>{t('setup.protectSource')}</span>
+          </label>
+          {form.sourcePasswordEnabled && (
+            <label>
+              <span>{t('sources.password')}</span>
+              <input type="password" value={form.sourcePassword} onChange={(event) => setForm({ ...form, sourcePassword: event.target.value })} />
+            </label>
+          )}
+          <label>
+            <span>{t('sources.mirror')}</span>
+            <input type="url" value={form.githubMirror} onChange={(event) => setForm({ ...form, githubMirror: event.target.value })} />
+          </label>
+          <label className="toggle-line">
+            <input
+              type="checkbox"
+              checked={form.requireEmailVerify}
+              onChange={(event) => setForm({ ...form, requireEmailVerify: event.target.checked })}
+            />
+            <span>{t('setup.requireEmailVerify')}</span>
+          </label>
+          <button type="submit" className="primary-button" disabled={submitting}>
+            <ShieldCheck size={18} />
+            <span>{submitting ? t('setup.submitting') : t('setup.finish')}</span>
+          </button>
+        </form>
+      </div>
+    </main>
+  );
+}
+
 function HomeView({
   apps,
   collections,
@@ -805,7 +967,16 @@ function HomeView({
 
       <section className="panel">
         <SectionTitle icon={History} title={t('home.latest')} />
-        <AppGrid apps={latest} onOpen={onOpen} onInstall={onInstall} />
+        <AppGrid
+          apps={latest}
+          onOpen={onOpen}
+          onInstall={onInstall}
+          empty={{
+            title: t('home.emptyTitle'),
+            body: t('home.emptyBody'),
+            action: { label: t('home.emptyAction'), icon: PackagePlus, onClick: () => onNavigate('profile') },
+          }}
+        />
       </section>
       {collections.map((collection) => (
         <section className="panel" key={collection.id}>
@@ -847,7 +1018,12 @@ function CategoryView({
           </button>
         ))}
       </div>
-      <AppGrid apps={apps} onOpen={onOpen} onInstall={onInstall} />
+      <AppGrid
+        apps={apps}
+        onOpen={onOpen}
+        onInstall={onInstall}
+        empty={{ title: t('search.noResultsTitle'), body: t('search.noResultsBody') }}
+      />
     </section>
   );
 }
@@ -937,7 +1113,12 @@ function SearchView({
             </select>
           </label>
         </div>
-        <AppGrid apps={apps} onOpen={onOpen} onInstall={onInstall} />
+        <AppGrid
+          apps={apps}
+          onOpen={onOpen}
+          onInstall={onInstall}
+          empty={{ title: t('search.noResultsTitle'), body: t('search.noResultsBody') }}
+        />
       </section>
       <section className="panel">
         <SectionTitle icon={Cloud} title={t('search.subscribedApps')} />
@@ -975,26 +1156,36 @@ function SourceAppGrid({
   }
   return (
     <div className="source-app-grid">
-      {apps.map((app) => (
-        <article className="source-app-card" key={`${app.sourceName}-${app.id}`}>
-          <div className="app-open static">
-            <AvatarIcon seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} />
-            <div>
-              <h3>{app.name}</h3>
-              <p>{app.summary || t('common.lpkApp')}</p>
+      {apps.map((app) => {
+        const installable = hasInstallableVersion(app);
+        return (
+          <article className="source-app-card" key={`${app.sourceName}-${app.id}`}>
+            <div className="app-open static">
+              <AvatarIcon seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} />
+              <div>
+                <h3>{app.name}</h3>
+                <p>{app.summary || t('common.lpkApp')}</p>
+              </div>
             </div>
-          </div>
-          <div className="app-meta">
-            <span><Cloud size={14} /> {app.sourceName}</span>
-            <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
-            <span><Star size={14} /> {app.latestVersion?.version || '-'}</span>
-          </div>
-          <button type="button" className="install-button" onClick={() => void onInstall(app)} aria-label={t('app.install', { name: app.name })}>
-            <Download size={17} />
-            <span>{t('common.install')}</span>
-          </button>
-        </article>
-      ))}
+            <div className="app-meta">
+              <span><Cloud size={14} /> {app.sourceName}</span>
+              <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
+              <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
+              {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
+            </div>
+            <button
+              type="button"
+              className="install-button"
+              disabled={!installable}
+              onClick={() => void onInstall(app)}
+              aria-label={installable ? t('app.install', { name: app.name }) : t('app.installUnavailable', { name: app.name })}
+            >
+              <Download size={17} />
+              <span>{installable ? t('common.install') : t('common.unavailable')}</span>
+            </button>
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -1021,11 +1212,35 @@ function SourcesView({
   const [draft, setDraft] = useState(emptyDraft);
   const [syncingID, setSyncingID] = useState<string | null>(null);
 
+  function normalizedSourceURL(rawURL: string) {
+    try {
+      const parsed = new URL(rawURL.trim());
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+      return parsed.toString();
+    } catch {
+      return '';
+    }
+  }
+
   function addSource(event: FormEvent) {
     event.preventDefault();
-    if (!draft.name.trim() || !draft.url.trim()) return;
-    setSources((current) => [...current, { id: crypto.randomUUID(), ...draft }]);
+    const name = draft.name.trim();
+    const url = normalizedSourceURL(draft.url);
+    if (!name) {
+      setToast({ tone: 'error', message: t('sources.nameRequired') });
+      return;
+    }
+    if (!url) {
+      setToast({ tone: 'error', message: t('sources.invalid') });
+      return;
+    }
+    if (sources.some((source) => normalizedSourceURL(source.url) === url)) {
+      setToast({ tone: 'neutral', message: t('sources.duplicate') });
+      return;
+    }
+    setSources((current) => [...current, { id: crypto.randomUUID(), ...draft, name, url }]);
     setDraft(emptyDraft);
+    setToast({ tone: 'success', message: t('sources.added') });
   }
 
   function updateSource(id: string, patch: Partial<SourceSubscription>) {
@@ -1047,7 +1262,7 @@ function SourcesView({
       </div>
 
       <section className="split">
-      <form className="panel form-panel" onSubmit={addSource}>
+      <form className="panel form-panel" onSubmit={addSource} noValidate>
         <SectionTitle icon={Cloud} title={t('sources.addTitle')} />
         <label>
           <span>{t('common.name')}</span>
@@ -2042,6 +2257,8 @@ function AppDrawer({
   const canUploadVersion = !!user && (app.canUploadVersion || canMaintain);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const drawerTitleId = `app-drawer-title-${app.id}`;
+  const latestVersion = app.latestVersion;
+  const installable = hasInstallableVersion(app);
 
   useEffect(() => {
     setAppForm({
@@ -2288,9 +2505,15 @@ function AppDrawer({
           </div>
         </div>
         <div className="detail-actions">
-          <button type="button" className="primary-button" onClick={() => onInstall(app)}>
+          <button
+            type="button"
+            className="primary-button"
+            disabled={!installable}
+            onClick={() => onInstall(app)}
+            aria-label={installable ? t('app.install', { name: app.name }) : t('app.installUnavailable', { name: app.name })}
+          >
             <Download size={18} />
-            <span>{t('common.install')}</span>
+            <span>{installable ? t('common.install') : t('common.unavailable')}</span>
           </button>
           {user && (
             <>
@@ -2331,6 +2554,30 @@ function AppDrawer({
             </>
           )}
         </div>
+        <section className="detail-summary" aria-label={t('drawer.metadata')}>
+          <div>
+            <span>{t('drawer.latestVersion')}</span>
+            <strong>{latestVersion?.version || t('app.noPublishedVersion')}</strong>
+          </div>
+          <div>
+            <span>{t('common.download')}</span>
+            <strong>{t('app.downloads', { count: app.downloadCount })}</strong>
+          </div>
+          <div>
+            <span>{t('common.source')}</span>
+            <strong>{latestVersion?.sourceType || '-'}</strong>
+          </div>
+          <div>
+            <span>{t('app.fileSize', { size: latestVersion ? formatBytes(latestVersion.fileSize) : '-' })}</span>
+            <strong>{t('drawer.sha256', { hash: shortSHA(latestVersion?.sha256) })}</strong>
+          </div>
+        </section>
+        {!installable && (
+          <p className="inline-note detail-note">
+            <AlertCircle size={16} />
+            <span>{t('drawer.installBlocked')}</span>
+          </p>
+        )}
         {(canMaintain || canUploadVersion) && (
           <section className="maintenance-grid">
             {canMaintain && (
@@ -2527,26 +2774,31 @@ function AppDrawer({
         </section>
         <section>
           <h3>{t('drawer.versionHistory')}</h3>
-          <div className="version-list">
-            {(app.versions || []).map((version) => (
-              <div className="version-row" key={version.id}>
-                <div>
-                  <strong>{version.version}</strong>
-                  <span>{version.sourceType} · {formatBytes(version.fileSize)} · {formatDate(version.createdAt)}</span>
+          {(app.versions || []).length === 0 ? (
+            <EmptyState icon={History} title={t('drawer.noVersions')} body={t('drawer.installBlocked')} />
+          ) : (
+            <div className="version-list">
+              {(app.versions || []).map((version) => (
+                <div className="version-row" key={version.id}>
+                  <div>
+                    <strong>{version.version}</strong>
+                    <span>{version.sourceType} · {formatBytes(version.fileSize)} · {formatDate(version.publishedAt || version.createdAt)}</span>
+                  </div>
+                  <code>{shortSHA(version.sha256)}</code>
                 </div>
-                <code>{version.sha256 ? version.sha256.slice(0, 16) : '-'}</code>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
         <section>
           <h3>{t('drawer.comments')}</h3>
-          {user && (
+          {user && app.commentsEnabled && (
             <form className="comment-form" onSubmit={submitComment}>
               <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder={t('drawer.commentPlaceholder')} />
               <button type="submit" className="icon-button" aria-label={t('drawer.postComment')}><MessageSquare size={17} /></button>
             </form>
           )}
+          {!app.commentsEnabled && <p className="inline-note">{t('drawer.commentsDisabled')}</p>}
           <div className="comments">
             {(app.comments || []).map((comment) => (
               <div className="comment" key={comment.id}>
@@ -2568,31 +2820,54 @@ function AppDrawer({
   );
 }
 
-function AppGrid({ apps, onOpen, onInstall }: { apps: StoreApp[]; onOpen: (app: StoreApp) => void; onInstall: (app: StoreApp) => void }) {
+function AppGrid({
+  apps,
+  onOpen,
+  onInstall,
+  empty,
+}: {
+  apps: StoreApp[];
+  onOpen: (app: StoreApp) => void;
+  onInstall: (app: StoreApp) => void;
+  empty?: { title?: string; body?: string; action?: { label: string; icon?: typeof Home; onClick: () => void } };
+}) {
   const { t } = useTranslation();
-  if (apps.length === 0) return <EmptyState icon={PackagePlus} title={t('common.noApps')} />;
+  if (apps.length === 0) {
+    return <EmptyState icon={PackagePlus} title={empty?.title || t('common.noApps')} body={empty?.body} action={empty?.action} />;
+  }
   return (
     <div className="app-grid">
-      {apps.map((app) => (
-        <article className="app-card" key={app.id}>
-          <button type="button" className="app-open" onClick={() => void onOpen(app)} aria-label={t('app.open', { name: app.name })}>
-            <AvatarIcon seed={app.slug || app.name} title={app.name} />
-            <div>
-              <h3>{app.name}</h3>
-              <p>{app.summary || app.description || t('common.lpkApp')}</p>
+      {apps.map((app) => {
+        const installable = hasInstallableVersion(app);
+        return (
+          <article className="app-card" key={app.id}>
+            <button type="button" className="app-open" onClick={() => void onOpen(app)} aria-label={t('app.open', { name: app.name })}>
+              <AvatarIcon seed={app.slug || app.name} title={app.name} />
+              <div>
+                <h3>{app.name}</h3>
+                <p>{app.summary || app.description || t('common.lpkApp')}</p>
+              </div>
+              <ChevronRight size={18} />
+            </button>
+            <div className="app-meta">
+              <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
+              <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
+              <span><Download size={14} /> {t('app.downloads', { count: app.downloadCount })}</span>
+              {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
             </div>
-            <ChevronRight size={18} />
-          </button>
-          <div className="app-meta">
-            <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
-            <span><Star size={14} /> {app.latestVersion?.version || app.status}</span>
-          </div>
-          <button type="button" className="install-button" onClick={() => void onInstall(app)} aria-label={t('app.install', { name: app.name })}>
-            <Download size={17} />
-            <span>{t('common.install')}</span>
-          </button>
-        </article>
-      ))}
+            <button
+              type="button"
+              className="install-button"
+              disabled={!installable}
+              onClick={() => void onInstall(app)}
+              aria-label={installable ? t('app.install', { name: app.name }) : t('app.installUnavailable', { name: app.name })}
+            >
+              <Download size={17} />
+              <span>{installable ? t('common.install') : t('common.unavailable')}</span>
+            </button>
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -2606,11 +2881,29 @@ function SectionTitle({ icon: Icon, title }: { icon: typeof Home; title: string 
   );
 }
 
-function EmptyState({ icon: Icon, title }: { icon: typeof Home; title: string }) {
+function EmptyState({
+  icon: Icon,
+  title,
+  body,
+  action,
+}: {
+  icon: typeof Home;
+  title: string;
+  body?: string;
+  action?: { label: string; icon?: typeof Home; onClick: () => void };
+}) {
+  const ActionIcon = action?.icon;
   return (
     <div className="empty-state">
       <Icon size={28} />
       <strong>{title}</strong>
+      {body && <p>{body}</p>}
+      {action && (
+        <button type="button" className="secondary-button" onClick={action.onClick}>
+          {ActionIcon && <ActionIcon size={18} />}
+          <span>{action.label}</span>
+        </button>
+      )}
     </div>
   );
 }

@@ -16,7 +16,7 @@ fi
 
 cd "$ROOT_DIR/client"
 npm ci
-VITE_API_BASE_URL="" npm run build
+VITE_API_BASE_URL="." npm run build
 cp -R dist/. "$WEB_DIST_DIR/"
 cat > "$WEB_DIST_DIR/README.md" <<'EOF'
 This directory is populated by `lazycat/server/build.sh` before compiling the

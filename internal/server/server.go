@@ -152,6 +152,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/auth/verify-email", s.handleVerifyEmail)
 	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
 	s.mux.HandleFunc("POST /api/v1/auth/logout", s.handleLogout)
+	s.mux.HandleFunc("GET /api/v1/setup/status", s.handleSetupStatus)
+	s.mux.HandleFunc("POST /api/v1/setup", s.handleSetup)
 	s.mux.HandleFunc("GET /api/v1/auth/me", s.withAuth(s.handleMe))
 	s.mux.HandleFunc("GET /api/v1/me/tokens", s.withAuth(s.handleListTokens))
 	s.mux.HandleFunc("POST /api/v1/me/tokens", s.withAuth(s.handleCreateToken))

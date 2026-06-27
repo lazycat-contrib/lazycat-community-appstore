@@ -104,6 +104,48 @@ paths:
         "200":
           description: Logged out.
 
+  /api/v1/setup/status:
+    get:
+      tags: [Setup]
+      summary: Return whether the server needs first-run setup
+      security: []
+      responses:
+        "200":
+          description: Setup status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatus"
+
+  /api/v1/setup:
+    post:
+      tags: [Setup]
+      summary: Create the first site administrator and initial site settings
+      description: This endpoint is public only while no SITE_ADMIN user exists. After setup it returns 409.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupRequest"
+      responses:
+        "201":
+          description: First site administrator created and logged in.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+                  setup:
+                    $ref: "#/components/schemas/SetupStatus"
+        "409":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+
   /api/v1/auth/me:
     get:
       tags: [Auth]
@@ -1013,6 +1055,37 @@ components:
           type: string
         password:
           type: string
+
+    SetupStatus:
+      type: object
+      required: [needsSetup]
+      properties:
+        needsSetup:
+          type: boolean
+
+    SetupRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        sourcePasswordEnabled:
+          type: boolean
+        sourcePassword:
+          type: string
+          description: Source feed access password when sourcePasswordEnabled is true.
+        githubMirror:
+          type: string
+          format: uri
+          description: Optional HTTP(S) mirror prefix for GitHub downloads.
+        requireEmailVerify:
+          type: boolean
 
     APIToken:
       type: object

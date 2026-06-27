@@ -39,6 +39,7 @@ type Config struct {
 	SitePublicURL          string
 	AdminUsername          string
 	AdminPassword          string
+	AdminBootstrap         bool
 	SessionSecret          string
 	ReadTimeout            time.Duration
 	WriteTimeout           time.Duration
@@ -77,6 +78,7 @@ func Load() Config {
 		SitePublicURL:          strings.TrimRight(env("SITE_PUBLIC_URL", env("BASE_URL", "http://localhost:8080")), "/"),
 		AdminUsername:          env("ADMIN_USERNAME", "admin"),
 		AdminPassword:          env("ADMIN_PASSWORD", "changeme"),
+		AdminBootstrap:         envProvided("ADMIN_USERNAME") || envProvided("ADMIN_PASSWORD"),
 		SessionSecret:          env("SESSION_SECRET", "dev-session-secret-change-me"),
 		ReadTimeout:            10 * time.Second,
 		WriteTimeout:           60 * time.Second,
@@ -115,6 +117,10 @@ func env(key, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func envProvided(key string) bool {
+	return strings.TrimSpace(os.Getenv(key)) != ""
 }
 
 func envInt(key string, fallback int) int {
