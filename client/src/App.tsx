@@ -113,6 +113,7 @@ type Review = {
   versionId?: number;
   requesterId: number;
   note: string;
+  reviewNote?: string;
   createdAt: string;
 };
 
@@ -288,6 +289,19 @@ function belongsToSource(app: SourceApp, source: SourceSubscription) {
   return app.sourceId ? app.sourceId === source.id : app.sourceName === source.name;
 }
 
+function reviewFieldLabel(key: string, t: (key: string, options?: any) => string) {
+  const labels: Record<string, string> = {
+    name: t('common.name'),
+    summary: t('common.summary'),
+    description: t('common.description'),
+    categoryId: t('common.category'),
+    tags: t('common.tags'),
+    allowUnreviewedUpdates: t('submitApp.allowUnreviewedUpdates'),
+    commentsEnabled: t('drawer.commentsEnabled'),
+  };
+  return labels[key] || key;
+}
+
 type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'admin';
 type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
 
@@ -410,7 +424,7 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  async function refreshAll() {
+  async function refreshAll(options: { silent?: boolean } = {}) {
     if (!HAS_API) {
       setApps([]);
       setCategories([]);
@@ -421,7 +435,7 @@ export function App() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!options.silent) setLoading(true);
     try {
       const setup = await api<SetupStatus>('/api/v1/setup/status');
       setSetupRequired(setup.needsSetup);
@@ -1490,7 +1504,7 @@ function ProfileView({
   setGroups: (groups: Group[]) => void;
   categories: Category[];
   onOpen: (app: StoreApp) => void;
-  refreshAll: () => Promise<void>;
+  refreshAll: (options?: { silent?: boolean }) => Promise<void>;
   setToast: (toast: Toast) => void;
   hasAPI: boolean;
 }) {
@@ -1510,6 +1524,7 @@ function ProfileView({
     downloadUrl: '',
     sha256: '',
   });
+  const [recentSubmission, setRecentSubmission] = useState<{ name: string; status: string } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [tokens, setTokens] = useState<APITokenRecord[]>([]);
   const [newToken, setNewToken] = useState('');
@@ -1530,6 +1545,14 @@ function ProfileView({
     return order
       .map((status) => ({ status, count: ownedApps.filter((app) => app.status === status).length }))
       .filter((item) => item.count > 0);
+  }, [ownedApps]);
+  const publishSummary = useMemo(() => {
+    return {
+      total: ownedApps.length,
+      approved: ownedApps.filter((app) => app.status === 'APPROVED').length,
+      pending: ownedApps.filter((app) => app.status === 'PENDING').length,
+      needsVersion: ownedApps.filter((app) => app.status === 'APPROVED' && !hasInstallableVersion(app)).length,
+    };
   }, [ownedApps]);
 
   useEffect(() => {
@@ -1596,13 +1619,14 @@ function ProfileView({
       return;
     }
     await runAction(setToast, t('submitApp.failed'), async () => {
+      let created: { app?: StoreApp };
       if (file) {
         const form = new FormData();
         Object.entries(uploadForm).forEach(([key, value]) => form.set(key, String(value)));
         form.set('file', file);
-        await api('/api/v1/apps', { method: 'POST', body: form });
+        created = await api<{ app: StoreApp }>('/api/v1/apps', { method: 'POST', body: form });
       } else {
-        await api('/api/v1/apps', {
+        created = await api<{ app: StoreApp }>('/api/v1/apps', {
           method: 'POST',
           body: JSON.stringify({
             name: uploadForm.name,
@@ -1618,10 +1642,11 @@ function ProfileView({
           }),
         });
       }
+      setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
       setToast({ tone: 'success', message: t('submitApp.submitted') });
       setUploadForm({ name: '', version: '0.1.0', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, sourceType: 'GITHUB', downloadUrl: '', sha256: '' });
       setFile(null);
-      await refreshAll();
+      await refreshAll({ silent: true });
     });
   }
 
@@ -1657,6 +1682,14 @@ function ProfileView({
       setInstalledError(message);
       setToast({ tone: 'error', message });
     }
+  }
+
+  function submissionStep(app: StoreApp) {
+    if (app.status === 'PENDING') return { key: 'pending', tone: 'pending' };
+    if (app.status === 'REJECTED') return { key: 'rejected', tone: 'rejected' };
+    if (app.status === 'APPROVED' && !hasInstallableVersion(app)) return { key: 'needsVersion', tone: 'unlisted' };
+    if (app.status === 'APPROVED') return { key: 'listed', tone: 'approved' };
+    return { key: 'draft', tone: 'draft' };
   }
 
   if (!hasAPI) {
@@ -1816,6 +1849,24 @@ function ProfileView({
 
         <section className="panel">
           <SectionTitle icon={PackagePlus} title={t('profile.mySubmissions')} />
+          <div className="workflow-summary-grid" aria-label={t('profile.publishOverview')}>
+            <div>
+              <span>{t('profile.totalSubmissions')}</span>
+              <strong>{publishSummary.total}</strong>
+            </div>
+            <div>
+              <span>{t('profile.listedSubmissions')}</span>
+              <strong>{publishSummary.approved}</strong>
+            </div>
+            <div className={cx(publishSummary.pending > 0 && 'attention')}>
+              <span>{t('profile.pendingSubmissions')}</span>
+              <strong>{publishSummary.pending}</strong>
+            </div>
+            <div className={cx(publishSummary.needsVersion > 0 && 'attention')}>
+              <span>{t('profile.needsVersion')}</span>
+              <strong>{publishSummary.needsVersion}</strong>
+            </div>
+          </div>
           {ownedStatusSummary.length > 0 && (
             <div className="status-summary">
               {ownedStatusSummary.map((item) => (
@@ -1835,9 +1886,10 @@ function ProfileView({
                   <div>
                     <strong>{item.name}</strong>
                     <span>{item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
+                    <small className="workflow-hint">{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
                   </div>
                   <div className="row-actions">
-                    <span className={cx('status-badge', statusKey(item.status))}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
+                    <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
                     <button type="button" className="secondary-button compact-button" onClick={() => void onOpen(item)}>
                       <ChevronRight size={17} />
                       <span>{t('profile.openSubmission')}</span>
@@ -1853,6 +1905,29 @@ function ProfileView({
       <section className="split">
         <form className="panel form-panel" onSubmit={submitUpload}>
           <SectionTitle icon={Upload} title={t('submitApp.title')} />
+          <div className="workflow-strip">
+            <div>
+              <strong>{t('submitApp.publishPath')}</strong>
+              <span>{t('submitApp.reviewHint')}</span>
+            </div>
+            <div className="workflow-steps" aria-label={t('submitApp.publishPath')}>
+              <span>{t('submitApp.stepIdentity')}</span>
+              <ChevronRight size={14} />
+              <span>{t('submitApp.stepArtifact')}</span>
+              <ChevronRight size={14} />
+              <span>{t('submitApp.stepReview')}</span>
+            </div>
+          </div>
+          {recentSubmission && (
+            <p className="inline-success">
+              <Check size={15} />
+              <span>
+                {recentSubmission.status === 'APPROVED'
+                  ? t('submitApp.submittedListed', { name: recentSubmission.name })
+                  : t('submitApp.submittedQueued', { name: recentSubmission.name })}
+              </span>
+            </p>
+          )}
           <label>
             <span>{t('submitApp.appName')}</span>
             <input value={uploadForm.name} onChange={(event) => setUploadForm({ ...uploadForm, name: event.target.value })} />
@@ -2095,6 +2170,7 @@ function AdminPanel({
   const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [apps, setApps] = useState<StoreApp[]>([]);
+  const [reviewApps, setReviewApps] = useState<StoreApp[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [adminCategories, setAdminCategories] = useState<Category[]>([]);
   const [adminTags, setAdminTags] = useState<TagRecord[]>([]);
@@ -2120,6 +2196,15 @@ function AdminPanel({
     { key: 'github_mirror', label: t('admin.settings.githubMirror'), help: t('admin.settingsHelp.githubMirror'), type: 'url' },
     { key: 'require_email_verify', label: t('admin.settings.requireEmailVerify'), help: t('admin.settingsHelp.requireEmailVerify'), type: 'boolean' },
   ];
+  const reviewSummary = useMemo(() => {
+    return {
+      total: reviews.length,
+      appSubmissions: reviews.filter((review) => review.kind === 'APP_SUBMISSION').length,
+      versionUploads: reviews.filter((review) => review.kind === 'VERSION_UPLOAD').length,
+      infoUpdates: reviews.filter((review) => review.kind === 'APP_INFO_UPDATE').length,
+    };
+  }, [reviews]);
+  const reviewAppByID = useMemo(() => new Map(reviewApps.map((item) => [item.id, item])), [reviewApps]);
 
   useEffect(() => {
     void reload();
@@ -2131,12 +2216,13 @@ function AdminPanel({
         api<{ categories: Category[] }>('/api/v1/admin/categories'),
         api<{ tags: TagRecord[] }>('/api/v1/admin/tags'),
         api<{ collections: Collection[] }>('/api/v1/admin/collections'),
-        api<{ apps: StoreApp[] }>('/api/v1/apps?status=APPROVED'),
+        api<{ apps: StoreApp[] }>('/api/v1/apps'),
       ]);
       setAdminCategories(categoryData.categories);
       setAdminTags(tagData.tags);
       setAdminCollections(collectionData.collections);
-      setApps(appData.apps);
+      setReviewApps(appData.apps);
+      setApps(appData.apps.filter((item) => item.status === 'APPROVED'));
       setCategoryDrafts({});
       setTagDrafts({});
       setCollectionDrafts({});
@@ -2149,6 +2235,25 @@ function AdminPanel({
         setSettings(settingData.settings);
       }
     });
+  }
+
+  function summarizeReviewNote(note?: string) {
+    if (!note?.trim()) return '';
+    try {
+      const parsed = JSON.parse(note);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const fields = Object.entries(parsed)
+          .filter(([, value]) => value !== undefined && value !== null && value !== '')
+          .map(([key]) => reviewFieldLabel(key, t))
+          .slice(0, 4);
+        if (fields.length > 0) {
+          return t('admin.changedFields', { fields: fields.join(', ') });
+        }
+      }
+    } catch {
+      return note;
+    }
+    return note;
   }
 
   async function updateUserRole(userID: number, role: User['role']) {
@@ -2300,37 +2405,69 @@ function AdminPanel({
       </div>
       <section className="panel">
         <SectionTitle icon={ShieldCheck} title={t('admin.reviewQueue')} />
+        <div className="workflow-summary-grid" aria-label={t('admin.reviewSummary')}>
+          <div className={cx(reviewSummary.total > 0 && 'attention')}>
+            <span>{t('admin.pendingTotal')}</span>
+            <strong>{reviewSummary.total}</strong>
+          </div>
+          <div>
+            <span>{t('admin.appSubmissions')}</span>
+            <strong>{reviewSummary.appSubmissions}</strong>
+          </div>
+          <div>
+            <span>{t('admin.versionUploads')}</span>
+            <strong>{reviewSummary.versionUploads}</strong>
+          </div>
+          <div>
+            <span>{t('admin.infoUpdates')}</span>
+            <strong>{reviewSummary.infoUpdates}</strong>
+          </div>
+        </div>
         <div className="review-list">
           {reviews.length === 0 ? (
             <EmptyState icon={ShieldCheck} title={t('admin.noPendingReviews')} body={t('admin.noPendingReviewsBody')} />
           ) : (
-            reviews.map((review) => (
-              <div className="review-row" key={review.id}>
-                <div>
-                  <strong>{t(`reviewKinds.${reviewKindKey(review.kind)}`)}</strong>
-                  <span>{t('admin.reviewTarget', { target: review.appId ? `#${review.appId}` : review.versionId ? `v#${review.versionId}` : '-' })} · {t('admin.requester', { id: review.requesterId })} · {formatDate(review.createdAt)}</span>
+            reviews.map((review) => {
+              const reviewApp = review.appId ? reviewAppByID.get(review.appId) : undefined;
+              const noteSummary = summarizeReviewNote(review.note);
+              return (
+                <div className="review-row review-workflow-row" key={review.id}>
+                  <div>
+                    <strong>{reviewApp ? reviewApp.name : t('admin.unknownApp')}</strong>
+                    <span>
+                      {t(`reviewKinds.${reviewKindKey(review.kind)}`)} · {t('admin.reviewTarget', { target: review.appId ? `#${review.appId}` : review.versionId ? `v#${review.versionId}` : '-' })} · {t('admin.requester', { id: review.requesterId })} · {formatDate(review.createdAt)}
+                    </span>
+                    {reviewApp && (
+                      <small className="workflow-hint">
+                        {reviewApp.summary || reviewApp.latestVersion?.version || t('common.lpkApp')}
+                      </small>
+                    )}
+                    {noteSummary && (
+                      <p className="review-note">{noteSummary}</p>
+                    )}
+                  </div>
+                  <div className="row-actions">
+                    <span className={cx('status-badge', statusKey(review.status))}>{t(`statusLabels.${statusKey(review.status)}`)}</span>
+                    <button
+                      type="button"
+                      className="icon-button ok"
+                      aria-label={t('admin.approveReview', { id: review.id })}
+                      onClick={() => void onApprove(review, true)}
+                    >
+                      <Check size={17} />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button danger"
+                      aria-label={t('admin.rejectReview', { id: review.id })}
+                      onClick={() => void onApprove(review, false)}
+                    >
+                      <X size={17} />
+                    </button>
+                  </div>
                 </div>
-                <div className="row-actions">
-                  <span className={cx('status-badge', statusKey(review.status))}>{t(`statusLabels.${statusKey(review.status)}`)}</span>
-                  <button
-                    type="button"
-                    className="icon-button ok"
-                    aria-label={t('admin.approveReview', { id: review.id })}
-                    onClick={() => void onApprove(review, true)}
-                  >
-                    <Check size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button danger"
-                    aria-label={t('admin.rejectReview', { id: review.id })}
-                    onClick={() => void onApprove(review, false)}
-                  >
-                    <X size={17} />
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </section>
