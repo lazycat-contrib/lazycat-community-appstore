@@ -182,6 +182,7 @@ type SourceSubscription = {
   mirror: string;
   lastSync?: string;
   lastError?: string;
+  lastErrorCode?: SourceErrorCode;
   lastAppCount?: number;
   lastInstallableCount?: number;
 };
@@ -234,6 +235,7 @@ type ClientSourceStats = {
   sourceCount: number;
   syncedSourceCount: number;
   staleSourceCount: number;
+  authSourceCount: number;
   failedSourceCount: number;
   sourceAppCount: number;
   installableSourceAppCount: number;
@@ -241,8 +243,25 @@ type ClientSourceStats = {
 
 const SOURCE_STALE_MS = 24 * 60 * 60 * 1000;
 
+type SourceErrorCode = 'auth' | 'format' | 'http' | 'network';
+type SourceSyncError = Error & { sourceCode?: SourceErrorCode };
+
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function sourceSyncError(message: string, code: SourceErrorCode): SourceSyncError {
+  const error = new Error(message) as SourceSyncError;
+  error.sourceCode = code;
+  return error;
+}
+
+function sourceErrorCode(error: unknown): SourceErrorCode {
+  if (error && typeof error === 'object' && 'sourceCode' in error) {
+    const code = (error as SourceSyncError).sourceCode;
+    if (code === 'auth' || code === 'format' || code === 'http' || code === 'network') return code;
+  }
+  return 'network';
 }
 
 async function runAction<T>(setToast: (toast: Toast) => void, fallback: string, action: () => Promise<T>): Promise<T | undefined> {
@@ -395,7 +414,7 @@ function ThemeToggle({ mode, onChange }: { mode: ThemeMode; onChange: (mode: The
 
 type SortMode = 'recent' | 'downloads' | 'name';
 type SourceAppFilter = 'all' | 'installable' | 'installed' | 'incomplete';
-type SourceHealth = 'syncing' | 'failed' | 'stale' | 'synced' | 'unsynced';
+type SourceHealth = 'syncing' | 'auth' | 'failed' | 'stale' | 'synced' | 'unsynced';
 type SourceHealthFilter = 'all' | Exclude<SourceHealth, 'syncing'>;
 
 function verificationTokenFromURL() {
@@ -470,7 +489,8 @@ export function App() {
       sourceCount: sources.length,
       syncedSourceCount: sources.filter((source) => source.lastSync && !source.lastError && !isSourceStale(source)).length,
       staleSourceCount: sources.filter(isSourceStale).length,
-      failedSourceCount: sources.filter((source) => source.lastError).length,
+      authSourceCount: sources.filter((source) => source.lastErrorCode === 'auth').length,
+      failedSourceCount: sources.filter((source) => source.lastError && source.lastErrorCode !== 'auth').length,
       sourceAppCount: sourceApps.length,
       installableSourceAppCount: sourceApps.filter(hasInstallableVersion).length,
     };
@@ -708,9 +728,12 @@ export function App() {
       const url = new URL(source.url);
       if (source.password) url.searchParams.set('password', source.password);
       const response = await fetch(url.toString(), { headers: source.password ? { 'X-Source-Password': source.password } : undefined });
-      if (response.status === 401) throw new Error(t('toast.sourcePasswordInvalid'));
-      if (!response.ok) throw new Error(t('toast.sourceSyncFailed'));
-      const data = await response.json();
+      if (response.status === 401) throw sourceSyncError(t('toast.sourcePasswordInvalid'), 'auth');
+      if (!response.ok) throw sourceSyncError(t('toast.sourceSyncHttpFailed', { status: response.status }), 'http');
+      const data = await response.json().catch(() => {
+        throw sourceSyncError(t('toast.sourceFormatInvalid'), 'format');
+      });
+      if (!Array.isArray(data.apps)) throw sourceSyncError(t('toast.sourceFormatInvalid'), 'format');
       const mirroredDownloadURL = (version: any) => {
         const upstream = String(version.upstreamDownloadUrl || '');
         const direct = String(version.downloadUrl || '');
@@ -744,6 +767,7 @@ export function App() {
                 ...item,
                 lastSync: new Date().toISOString(),
                 lastError: undefined,
+                lastErrorCode: undefined,
                 lastAppCount: imported.length,
                 lastInstallableCount: installableCount,
               }
@@ -753,7 +777,8 @@ export function App() {
       if (!options.quiet) setToast({ tone: 'success', message: t('toast.sourceSynced') });
     } catch (error) {
       const message = errorMessage(error, t('toast.sourceSyncFailed'));
-      setSources((current) => current.map((item) => (item.id === source.id ? { ...item, lastError: message } : item)));
+      const code = sourceErrorCode(error);
+      setSources((current) => current.map((item) => (item.id === source.id ? { ...item, lastError: message, lastErrorCode: code } : item)));
       throw new Error(message);
     }
   }
@@ -1380,6 +1405,10 @@ function SearchView({
             <span>{t('search.staleSources')}</span>
             <strong>{sourceStats.staleSourceCount}</strong>
           </div>
+          <div className={cx(sourceStats.authSourceCount > 0 && 'warning')}>
+            <span>{t('search.authSources')}</span>
+            <strong>{sourceStats.authSourceCount}</strong>
+          </div>
           <div className={cx(sourceStats.failedSourceCount > 0 && 'warning')}>
             <span>{t('search.failedSources')}</span>
             <strong>{sourceStats.failedSourceCount}</strong>
@@ -1636,6 +1665,7 @@ function SourcesView({
 
   function healthFor(source: SourceSubscription): SourceHealth {
     if (syncingID === source.id) return 'syncing';
+    if (source.lastErrorCode === 'auth') return 'auth';
     if (source.lastError) return 'failed';
     if (isSourceStale(source)) return 'stale';
     if (source.lastSync) return 'synced';
@@ -1646,6 +1676,7 @@ function SourcesView({
     { key: 'all', label: t('sources.filters.all'), count: sources.length },
     { key: 'synced', label: t('sources.filters.synced'), count: sources.filter((source) => healthFor(source) === 'synced').length },
     { key: 'stale', label: t('sources.filters.stale'), count: sources.filter((source) => healthFor(source) === 'stale').length },
+    { key: 'auth', label: t('sources.filters.auth'), count: sources.filter((source) => healthFor(source) === 'auth').length },
     { key: 'unsynced', label: t('sources.filters.unsynced'), count: sources.filter((source) => healthFor(source) === 'unsynced').length },
     { key: 'failed', label: t('sources.filters.failed'), count: sources.filter((source) => healthFor(source) === 'failed').length },
   ];
@@ -1688,6 +1719,10 @@ function SourcesView({
         <div className={cx(sourceStats.staleSourceCount > 0 && 'warning')}>
           <span>{t('search.staleSources')}</span>
           <strong>{sourceStats.staleSourceCount}</strong>
+        </div>
+        <div className={cx(sourceStats.authSourceCount > 0 && 'warning')}>
+          <span>{t('search.authSources')}</span>
+          <strong>{sourceStats.authSourceCount}</strong>
         </div>
         <div>
           <span>{t('search.installableApps')}</span>
@@ -1785,7 +1820,9 @@ function SourcesView({
               const installableAppCount = source.lastInstallableCount ?? sourceScopedApps.filter(hasInstallableVersion).length;
               const health = healthFor(source);
               const healthHint =
-                health === 'failed'
+                health === 'auth'
+                  ? t('sources.healthHints.auth')
+                  : health === 'failed'
                   ? t('sources.healthHints.failed')
                   : health === 'stale'
                     ? t('sources.healthHints.stale')
@@ -1808,14 +1845,14 @@ function SourcesView({
                       <small>{t('sources.installableAppCount', { count: installableAppCount })}</small>
                     </div>
                     {source.lastError && (
-                      <p className="inline-alert">
-                        <AlertCircle size={15} />
+                      <p className={cx(health === 'auth' ? 'inline-warning' : 'inline-alert')}>
+                        {health === 'auth' ? <KeyRound size={15} /> : <AlertCircle size={15} />}
                         <span>{source.lastError}</span>
                       </p>
                     )}
-                    {!source.lastError && (
+                    {(health === 'auth' || !source.lastError) && (
                       <p className={cx(health === 'synced' ? 'inline-success' : 'inline-warning')}>
-                        {health === 'synced' ? <Check size={15} /> : <AlertCircle size={15} />}
+                        {health === 'synced' ? <Check size={15} /> : health === 'auth' ? <KeyRound size={15} /> : <AlertCircle size={15} />}
                         <span>{healthHint}</span>
                       </p>
                     )}
@@ -1825,7 +1862,12 @@ function SourcesView({
                         value={source.password}
                         type="password"
                         placeholder={t('sources.passwordPlaceholder')}
-                        onChange={(event) => updateSource(source.id, { password: event.target.value })}
+                        onChange={(event) =>
+                          updateSource(source.id, {
+                            password: event.target.value,
+                            ...(source.lastErrorCode === 'auth' ? { lastError: undefined, lastErrorCode: undefined } : {}),
+                          })
+                        }
                       />
                       <input
                         aria-label={t('sources.mirrorFor', { name: source.name })}
@@ -2137,10 +2179,18 @@ function ProfileView({
   const sourceCacheBody =
     sourceStats.sourceCount === 0
       ? t('profile.clientSourceMissing')
+      : sourceStats.syncedSourceCount === 0 && sourceStats.authSourceCount > 0
+        ? t('profile.clientSourceNeedsPassword', { count: sourceStats.authSourceCount })
       : sourceStats.syncedSourceCount === 0 && sourceStats.staleSourceCount > 0
         ? t('profile.clientSourceStale', { count: sourceStats.staleSourceCount })
       : sourceStats.syncedSourceCount === 0
         ? t('profile.clientSourceNeedsSync', { count: sourceStats.sourceCount })
+        : sourceStats.authSourceCount > 0
+          ? t('profile.clientSourcePartlyNeedsPassword', {
+              synced: sourceStats.syncedSourceCount,
+              auth: sourceStats.authSourceCount,
+              total: sourceStats.sourceCount,
+            })
         : sourceStats.staleSourceCount > 0
           ? t('profile.clientSourcePartlyStale', {
               synced: sourceStats.syncedSourceCount,

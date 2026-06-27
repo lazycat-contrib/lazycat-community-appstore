@@ -854,6 +854,7 @@ textarea {
 
 .status-badge.unlisted,
 .status-badge.draft,
+.status-badge.auth,
 .status-badge.stale,
 .status-badge.unsynced {
   color: var(--amber);
