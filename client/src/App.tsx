@@ -2500,6 +2500,22 @@ function AdminPanel({
     };
   }, [reviews]);
   const reviewAppByID = useMemo(() => new Map(reviewApps.map((item) => [item.id, item])), [reviewApps]);
+  const catalogReady = apps.length > 0 && adminCategories.length > 0;
+  const sourceProtected = isSiteAdmin ? Boolean(settings.source_password?.trim()) : true;
+  const reviewOpsBody = reviewSummary.total === 0
+    ? t('admin.opsReviewClear')
+    : t('admin.opsReviewPending', { count: reviewSummary.total });
+  const catalogOpsBody =
+    apps.length === 0
+      ? t('admin.opsCatalogNeedsApps')
+      : adminCategories.length === 0
+        ? t('admin.opsCatalogNeedsCategories', { apps: apps.length })
+        : t('admin.opsCatalogReady', { apps: apps.length, categories: adminCategories.length, collections: adminCollections.length });
+  const sourceOpsBody = !isSiteAdmin
+    ? t('admin.opsSourceDelegated')
+    : sourceProtected
+      ? t('admin.opsSourceProtected')
+      : t('admin.opsSourceOpen');
 
   useEffect(() => {
     void reload();
@@ -2698,6 +2714,35 @@ function AdminPanel({
         <h1>{t('admin.title')}</h1>
         <p>{t('admin.body')}</p>
       </div>
+      <section className="panel">
+        <SectionTitle icon={Gauge} title={t('admin.operationsOverview')} />
+        <div className="source-readiness" aria-label={t('admin.operationsOverview')}>
+          <div className={cx('readiness-step', reviewSummary.total === 0 && 'ready')}>
+            <span className={cx('status-badge', reviewSummary.total === 0 ? 'approved' : 'pending')}>
+              {reviewSummary.total === 0 ? <Check size={14} /> : <AlertCircle size={14} />}
+              {reviewSummary.total === 0 ? t('admin.opsReady') : t('admin.opsNeedsAction')}
+            </span>
+            <strong>{t('admin.opsReviewTitle')}</strong>
+            <small>{reviewOpsBody}</small>
+          </div>
+          <div className={cx('readiness-step', catalogReady && 'ready')}>
+            <span className={cx('status-badge', catalogReady ? 'approved' : 'unlisted')}>
+              {catalogReady ? <Check size={14} /> : <AlertCircle size={14} />}
+              {catalogReady ? t('admin.opsReady') : t('admin.opsNeedsAction')}
+            </span>
+            <strong>{t('admin.opsCatalogTitle')}</strong>
+            <small>{catalogOpsBody}</small>
+          </div>
+          <div className={cx('readiness-step', sourceProtected && 'ready')}>
+            <span className={cx('status-badge', sourceProtected ? 'synced' : 'unlisted')}>
+              {sourceProtected ? <ShieldCheck size={14} /> : <AlertCircle size={14} />}
+              {sourceProtected ? t('admin.opsReady') : t('admin.opsNeedsAction')}
+            </span>
+            <strong>{t('admin.opsSourceTitle')}</strong>
+            <small>{sourceOpsBody}</small>
+          </div>
+        </div>
+      </section>
       <section className="panel">
         <SectionTitle icon={ShieldCheck} title={t('admin.reviewQueue')} />
         <div className="workflow-summary-grid" aria-label={t('admin.reviewSummary')}>
