@@ -176,10 +176,14 @@ type SourceSubscription = {
   password: string;
   mirror: string;
   lastSync?: string;
+  lastError?: string;
+  lastAppCount?: number;
+  lastInstallableCount?: number;
 };
 
 type SourceApp = {
   id: number;
+  sourceId?: string;
   sourceName: string;
   name: string;
   slug: string;
@@ -207,6 +211,14 @@ type SetupStatus = {
 type Toast = {
   tone: 'success' | 'error' | 'neutral';
   message: string;
+};
+
+type ClientSourceStats = {
+  sourceCount: number;
+  syncedSourceCount: number;
+  failedSourceCount: number;
+  sourceAppCount: number;
+  installableSourceAppCount: number;
 };
 
 function errorMessage(error: unknown, fallback: string) {
@@ -272,6 +284,10 @@ function shortSHA(value?: string) {
   return value ? value.slice(0, 16) : '-';
 }
 
+function belongsToSource(app: SourceApp, source: SourceSubscription) {
+  return app.sourceId ? app.sourceId === source.id : app.sourceName === source.name;
+}
+
 type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'admin';
 type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
 
@@ -307,7 +323,16 @@ export function App() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'sources'));
   const [apps, setApps] = useState<StoreApp[]>([]);
-  const [sourceApps, setSourceApps] = useState<SourceApp[]>([]);
+  const [sourceApps, setSourceApps] = useState<SourceApp[]>(() => {
+    const saved = localStorage.getItem('lazycat.sourceApps');
+    if (!saved) return [];
+    try {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const [categories, setCategories] = useState<Category[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -342,6 +367,16 @@ export function App() {
     }
   });
 
+  const sourceStats = useMemo<ClientSourceStats>(() => {
+    return {
+      sourceCount: sources.length,
+      syncedSourceCount: sources.filter((source) => source.lastSync && !source.lastError).length,
+      failedSourceCount: sources.filter((source) => source.lastError).length,
+      sourceAppCount: sourceApps.length,
+      installableSourceAppCount: sourceApps.filter(hasInstallableVersion).length,
+    };
+  }, [sources, sourceApps]);
+
   useEffect(() => {
     if (!navItems.some((item) => item.key === tab)) {
       setTab(navItems[0].key);
@@ -360,6 +395,10 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('lazycat.sources', JSON.stringify(sources));
   }, [sources]);
+
+  useEffect(() => {
+    localStorage.setItem('lazycat.sourceApps', JSON.stringify(sourceApps));
+  }, [sourceApps]);
 
   useEffect(() => {
     void refreshAll();
@@ -509,38 +548,58 @@ export function App() {
   }
 
   async function syncSource(source: SourceSubscription, options: { quiet?: boolean } = {}) {
-    const url = new URL(source.url);
-    if (source.password) url.searchParams.set('password', source.password);
-    const response = await fetch(url.toString(), { headers: source.password ? { 'X-Source-Password': source.password } : undefined });
-    if (response.status === 401) throw new Error(t('toast.sourcePasswordInvalid'));
-    if (!response.ok) throw new Error(t('toast.sourceSyncFailed'));
-    const data = await response.json();
-    const mirroredDownloadURL = (version: any) => {
-      const upstream = String(version.upstreamDownloadUrl || '');
-      const direct = String(version.downloadUrl || '');
-      const githubURL = upstream || direct;
-      if (source.mirror && (githubURL.includes('github.com/') || githubURL.includes('githubusercontent.com/'))) {
-        return `${source.mirror.replace(/\/$/, '')}/${githubURL}`;
-      }
-      return direct;
-    };
-    const imported = (data.apps || []).map((app: any) => ({
-      id: app.id,
-      sourceName: source.name,
-      name: app.name,
-      slug: app.slug,
-      summary: app.summary,
-      category: app.category,
-      latestVersion: app.latestVersion
-        ? {
-            ...app.latestVersion,
-            downloadUrl: mirroredDownloadURL(app.latestVersion),
-          }
-        : undefined,
-    }));
-    setSourceApps((current) => [...current.filter((app) => app.sourceName !== source.name), ...imported]);
-    setSources((current) => current.map((item) => (item.id === source.id ? { ...item, lastSync: new Date().toISOString() } : item)));
-    if (!options.quiet) setToast({ tone: 'success', message: t('toast.sourceSynced') });
+    try {
+      const url = new URL(source.url);
+      if (source.password) url.searchParams.set('password', source.password);
+      const response = await fetch(url.toString(), { headers: source.password ? { 'X-Source-Password': source.password } : undefined });
+      if (response.status === 401) throw new Error(t('toast.sourcePasswordInvalid'));
+      if (!response.ok) throw new Error(t('toast.sourceSyncFailed'));
+      const data = await response.json();
+      const mirroredDownloadURL = (version: any) => {
+        const upstream = String(version.upstreamDownloadUrl || '');
+        const direct = String(version.downloadUrl || '');
+        const githubURL = upstream || direct;
+        if (source.mirror && (githubURL.includes('github.com/') || githubURL.includes('githubusercontent.com/'))) {
+          return `${source.mirror.replace(/\/$/, '')}/${githubURL}`;
+        }
+        return direct;
+      };
+      const imported = (Array.isArray(data.apps) ? data.apps : []).map((app: any) => ({
+        id: app.id,
+        sourceId: source.id,
+        sourceName: source.name,
+        name: app.name,
+        slug: app.slug,
+        summary: app.summary,
+        category: app.category,
+        latestVersion: app.latestVersion
+          ? {
+              ...app.latestVersion,
+              downloadUrl: mirroredDownloadURL(app.latestVersion),
+            }
+          : undefined,
+      }));
+      const installableCount = imported.filter(hasInstallableVersion).length;
+      setSourceApps((current) => [...current.filter((app) => !belongsToSource(app, source)), ...imported]);
+      setSources((current) =>
+        current.map((item) =>
+          item.id === source.id
+            ? {
+                ...item,
+                lastSync: new Date().toISOString(),
+                lastError: undefined,
+                lastAppCount: imported.length,
+                lastInstallableCount: installableCount,
+              }
+            : item,
+        ),
+      );
+      if (!options.quiet) setToast({ tone: 'success', message: t('toast.sourceSynced') });
+    } catch (error) {
+      const message = errorMessage(error, t('toast.sourceSyncFailed'));
+      setSources((current) => current.map((item) => (item.id === source.id ? { ...item, lastError: message } : item)));
+      throw new Error(message);
+    }
   }
 
   async function syncAllSources() {
@@ -549,13 +608,24 @@ export function App() {
       setToast({ tone: 'neutral', message: t('toast.addSourceFirst') });
       return;
     }
-    await runAction(setToast, t('toast.sourceSyncFailed'), async () => {
-      for (const source of sources) {
+    let success = 0;
+    let failed = 0;
+    for (const source of sources) {
+      try {
         await syncSource(source, { quiet: true });
+        success += 1;
+      } catch {
+        failed += 1;
       }
+    }
+    if (failed > 0) {
+      setToast({ tone: success > 0 ? 'neutral' : 'error', message: t('toast.sourcesSyncPartial', { success, failed }) });
+    } else {
       setToast({ tone: 'success', message: t('toast.allSourcesSynced', { count: sources.length }) });
+    }
+    if (success > 0) {
       setTab('search');
-    });
+    }
   }
 
   if (HAS_API && setupRequired) {
@@ -683,7 +753,7 @@ export function App() {
                 sortMode={sortMode}
                 query={query}
                 mode={HAS_API ? 'server' : 'client'}
-                sourceCount={sources.length}
+                sourceStats={sourceStats}
                 onCategory={setActiveCategory}
                 onSubmitter={setActiveSubmitter}
                 onSortMode={setSortMode}
@@ -700,6 +770,8 @@ export function App() {
                 onSync={syncSource}
                 onSyncAll={syncAllSources}
                 onInstall={installApp}
+                sourceStats={sourceStats}
+                onSourceDeleted={(source) => setSourceApps((current) => current.filter((app) => !belongsToSource(app, source)))}
                 setToast={setToast}
               />
             )}
@@ -972,7 +1044,7 @@ function SearchView({
   sortMode,
   query,
   mode,
-  sourceCount,
+  sourceStats,
   onCategory,
   onSubmitter,
   onSortMode,
@@ -989,7 +1061,7 @@ function SearchView({
   sortMode: SortMode;
   query: string;
   mode: 'server' | 'client';
-  sourceCount: number;
+  sourceStats: ClientSourceStats;
   onCategory: (category: string) => void;
   onSubmitter: (submitter: string) => void;
   onSortMode: (mode: SortMode) => void;
@@ -1003,13 +1075,15 @@ function SearchView({
     if (!sourceNeedle) return true;
     return [app.name, app.summary, app.category, app.sourceName].filter(Boolean).join(' ').toLowerCase().includes(sourceNeedle);
   });
+  const sourceEmptyTitle = sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle');
+  const sourceEmptyBody = sourceApps.length === 0 ? t('search.noSyncedAppsBody') : t('search.noResultsBody');
 
   if (mode === 'client') {
     return (
       <section className="page-grid">
         <div className="page-heading with-action">
           <div>
-            <span className="eyebrow subtle">{t('search.sourceCount', { count: sourceCount })}</span>
+            <span className="eyebrow subtle">{t('search.sourceCount', { count: sourceStats.sourceCount })}</span>
             <h1>{t('search.clientTitle')}</h1>
             <p>{t('search.clientDescription')}</p>
           </div>
@@ -1018,9 +1092,33 @@ function SearchView({
             <span>{t('search.noSyncedAppsAction')}</span>
           </button>
         </div>
+        <div className="client-summary-grid" aria-label={t('search.installReadiness')}>
+          <div>
+            <span>{t('search.sourcesTotal')}</span>
+            <strong>{sourceStats.sourceCount}</strong>
+          </div>
+          <div>
+            <span>{t('search.syncedAppsTotal')}</span>
+            <strong>{sourceStats.sourceAppCount}</strong>
+          </div>
+          <div>
+            <span>{t('search.installableApps')}</span>
+            <strong>{sourceStats.installableSourceAppCount}</strong>
+          </div>
+          <div className={cx(sourceStats.failedSourceCount > 0 && 'warning')}>
+            <span>{t('search.failedSources')}</span>
+            <strong>{sourceStats.failedSourceCount}</strong>
+          </div>
+        </div>
         <section className="panel">
           <SectionTitle icon={Download} title={t('search.subscribedApps')} />
-          <SourceAppGrid apps={filteredSourceApps} onInstall={onInstall} onGoSources={onGoSources} />
+          <SourceAppGrid
+            apps={filteredSourceApps}
+            onInstall={onInstall}
+            onGoSources={onGoSources}
+            emptyTitle={sourceEmptyTitle}
+            emptyBody={sourceEmptyBody}
+          />
         </section>
       </section>
     );
@@ -1083,18 +1181,23 @@ function SourceAppGrid({
   onInstall,
   onGoSources,
   showEmptyAction = true,
+  emptyTitle,
+  emptyBody,
 }: {
   apps: SourceApp[];
   onInstall: (app: SourceApp) => void;
   onGoSources: () => void;
   showEmptyAction?: boolean;
+  emptyTitle?: string;
+  emptyBody?: string;
 }) {
   const { t } = useTranslation();
   if (apps.length === 0) {
     return (
       <div className="empty-state action-empty">
         <Cloud size={28} />
-        <strong>{t('search.noSyncedApps')}</strong>
+        <strong>{emptyTitle || t('search.noSyncedApps')}</strong>
+        {emptyBody && <p>{emptyBody}</p>}
         {showEmptyAction && (
           <button type="button" className="secondary-button" onClick={onGoSources}>
             <Plus size={18} />
@@ -1109,7 +1212,7 @@ function SourceAppGrid({
       {apps.map((app) => {
         const installable = hasInstallableVersion(app);
         return (
-          <article className="source-app-card" key={`${app.sourceName}-${app.id}`}>
+          <article className="source-app-card" key={`${app.sourceId || app.sourceName}-${app.id}`}>
             <div className="app-open static">
               <AvatarIcon seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} />
               <div>
@@ -1150,6 +1253,8 @@ function SourcesView({
   onSync,
   onSyncAll,
   onInstall,
+  sourceStats,
+  onSourceDeleted,
   setToast,
 }: {
   sources: SourceSubscription[];
@@ -1158,6 +1263,8 @@ function SourcesView({
   onSync: (source: SourceSubscription) => Promise<void>;
   onSyncAll: () => Promise<void>;
   onInstall: (app: SourceApp) => void;
+  sourceStats: ClientSourceStats;
+  onSourceDeleted: (source: SourceSubscription) => void;
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
@@ -1201,6 +1308,13 @@ function SourcesView({
     setSources((current) => current.map((source) => (source.id === id ? { ...source, ...patch } : source)));
   }
 
+  function healthFor(source: SourceSubscription) {
+    if (syncingID === source.id) return 'syncing';
+    if (source.lastError) return 'failed';
+    if (source.lastSync) return 'synced';
+    return 'unsynced';
+  }
+
   function deleteSource(source: SourceSubscription) {
     if (confirmDeleteSource !== source.id) {
       setConfirmDeleteSource(source.id);
@@ -1208,6 +1322,7 @@ function SourcesView({
       return;
     }
     setSources((current) => current.filter((item) => item.id !== source.id));
+    onSourceDeleted(source);
     setConfirmDeleteSource(null);
   }
 
@@ -1223,6 +1338,25 @@ function SourcesView({
           <RefreshCw size={18} />
           <span>{t('sources.syncAll')}</span>
         </button>
+      </div>
+
+      <div className="client-summary-grid source-summary" aria-label={t('sources.summary')}>
+        <div>
+          <span>{t('search.sourcesTotal')}</span>
+          <strong>{sourceStats.sourceCount}</strong>
+        </div>
+        <div>
+          <span>{t('search.syncedSources')}</span>
+          <strong>{sourceStats.syncedSourceCount}</strong>
+        </div>
+        <div>
+          <span>{t('search.installableApps')}</span>
+          <strong>{sourceStats.installableSourceAppCount}</strong>
+        </div>
+        <div className={cx(sourceStats.failedSourceCount > 0 && 'warning')}>
+          <span>{t('search.failedSources')}</span>
+          <strong>{sourceStats.failedSourceCount}</strong>
+        </div>
       </div>
 
       <section className="split">
@@ -1256,55 +1390,74 @@ function SourcesView({
           {sources.length === 0 ? (
             <EmptyState icon={Cloud} title={t('sources.empty')} />
           ) : (
-            sources.map((source) => (
-              <div className="source-row" key={source.id}>
-                <div>
-                  <strong>{source.name}</strong>
-                  <span>{source.url}</span>
-                  {source.lastSync && <small>{t('sources.lastSync', { time: formatDate(source.lastSync) })}</small>}
-                  <div className="source-edit-grid">
-                    <input
-                      aria-label={t('sources.passwordFor', { name: source.name })}
-                      value={source.password}
-                      type="password"
-                      placeholder={t('sources.passwordPlaceholder')}
-                      onChange={(event) => updateSource(source.id, { password: event.target.value })}
-                    />
-                    <input
-                      aria-label={t('sources.mirrorFor', { name: source.name })}
-                      value={source.mirror}
-                      placeholder={t('sources.mirrorPlaceholder')}
-                      onChange={(event) => updateSource(source.id, { mirror: event.target.value })}
-                    />
+            sources.map((source) => {
+              const sourceScopedApps = sourceApps.filter((app) => belongsToSource(app, source));
+              const syncedAppCount = source.lastAppCount ?? sourceScopedApps.length;
+              const installableAppCount = source.lastInstallableCount ?? sourceScopedApps.filter(hasInstallableVersion).length;
+              const health = healthFor(source);
+              return (
+                <div className="source-row" key={source.id}>
+                  <div>
+                    <div className="source-row-header">
+                      <strong>{source.name}</strong>
+                      <span className={cx('status-badge', health)} aria-live="polite">{t(`sources.health.${health}`)}</span>
+                    </div>
+                    <span className="source-url" title={source.url}>{source.url}</span>
+                    <div className="source-facts">
+                      <small>{source.lastSync ? t('sources.lastSync', { time: formatDate(source.lastSync) }) : t('sources.neverSynced')}</small>
+                      <small>{t('sources.syncedAppCount', { count: syncedAppCount })}</small>
+                      <small>{t('sources.installableAppCount', { count: installableAppCount })}</small>
+                    </div>
+                    {source.lastError && (
+                      <p className="inline-alert">
+                        <AlertCircle size={15} />
+                        <span>{source.lastError}</span>
+                      </p>
+                    )}
+                    <div className="source-edit-grid">
+                      <input
+                        aria-label={t('sources.passwordFor', { name: source.name })}
+                        value={source.password}
+                        type="password"
+                        placeholder={t('sources.passwordPlaceholder')}
+                        onChange={(event) => updateSource(source.id, { password: event.target.value })}
+                      />
+                      <input
+                        aria-label={t('sources.mirrorFor', { name: source.name })}
+                        value={source.mirror}
+                        placeholder={t('sources.mirrorPlaceholder')}
+                        onChange={(event) => updateSource(source.id, { mirror: event.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="row-actions">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={t('sources.syncSource', { name: source.name })}
+                      disabled={syncingID === source.id}
+                      onClick={() =>
+                        void (async () => {
+                          setSyncingID(source.id);
+                          try {
+                            await onSync(source);
+                          } catch (error) {
+                            setToast({ tone: 'error', message: error instanceof Error ? error.message : t('toast.sourceSyncFailed') });
+                          } finally {
+                            setSyncingID(null);
+                          }
+                        })()
+                      }
+                    >
+                      <RefreshCw size={17} />
+                    </button>
+                    <button type="button" className="icon-button danger" aria-label={t('sources.deleteSource', { name: source.name })} onClick={() => deleteSource(source)}>
+                      <X size={17} />
+                    </button>
                   </div>
                 </div>
-                <div className="row-actions">
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label={t('sources.syncSource', { name: source.name })}
-                    disabled={syncingID === source.id}
-                    onClick={() =>
-                      void (async () => {
-                        setSyncingID(source.id);
-                        try {
-                          await onSync(source);
-                        } catch (error) {
-                          setToast({ tone: 'error', message: error instanceof Error ? error.message : t('toast.sourceSyncFailed') });
-                        } finally {
-                          setSyncingID(null);
-                        }
-                      })()
-                    }
-                  >
-                    <RefreshCw size={17} />
-                  </button>
-                  <button type="button" className="icon-button danger" aria-label={t('sources.deleteSource', { name: source.name })} onClick={() => deleteSource(source)}>
-                    <X size={17} />
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </section>
@@ -1362,6 +1515,8 @@ function ProfileView({
   const [newToken, setNewToken] = useState('');
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
   const [installedApps, setInstalledApps] = useState<Array<{ appid?: string; title?: string; version?: string; status?: number }>>([]);
+  const [installedState, setInstalledState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+  const [installedError, setInstalledError] = useState('');
   const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
   const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
   const ownedApps = useMemo(() => {
@@ -1489,16 +1644,24 @@ function ProfileView({
   }
 
   async function loadInstalledApps() {
+    setInstalledState('loading');
+    setInstalledError('');
     try {
       const result = await queryInstalledApplications();
       setInstalledApps(result?.infoList || []);
+      setInstalledState('loaded');
       setToast({ tone: 'success', message: t('profile.installedRefreshed') });
-    } catch {
-      setToast({ tone: 'error', message: t('profile.lazycatSdkUnavailable') });
+    } catch (error) {
+      const message = errorMessage(error, t('profile.lazycatSdkUnavailable'));
+      setInstalledState('error');
+      setInstalledError(message);
+      setToast({ tone: 'error', message });
     }
   }
 
   if (!hasAPI) {
+    const installedEmptyTitle = installedState === 'loaded' ? t('profile.installedEmptyLoaded') : t('profile.installedEmpty');
+    const installedEmptyBody = installedState === 'idle' ? t('profile.installedIdleBody') : undefined;
     return (
       <section className="page-grid">
         <div className="split">
@@ -1506,16 +1669,28 @@ function ProfileView({
             <AvatarIcon seed="lazycat-standalone-client" title={t('profile.clientTitle')} size={74} className="avatar-large" />
             <h2>{t('profile.clientTitle')}</h2>
             <p>{t('profile.clientBody')}</p>
-            <button type="button" className="primary-button" onClick={() => void loadInstalledApps()}>
+            <div className={cx('device-state', installedState)}>
+              <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loaded' ? 'synced' : 'unsynced')}>
+                {t(`profile.deviceState.${installedState}`)}
+              </span>
+              {installedState === 'error' && <small>{installedError}</small>}
+            </div>
+            <button type="button" className="primary-button" disabled={installedState === 'loading'} onClick={() => void loadInstalledApps()}>
               <RefreshCw size={18} />
-              <span>{t('profile.readInstalled')}</span>
+              <span>{installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}</span>
             </button>
           </div>
           <section className="panel">
             <SectionTitle icon={Download} title={t('profile.installed')} />
+            {installedState === 'error' && (
+              <p className="inline-alert">
+                <AlertCircle size={15} />
+                <span>{installedError}</span>
+              </p>
+            )}
             <div className="review-list">
               {installedApps.length === 0 ? (
-                <EmptyState icon={Download} title={t('profile.installedEmpty')} />
+                <EmptyState icon={Download} title={installedEmptyTitle} body={installedEmptyBody} />
               ) : (
                 installedApps.map((item) => (
                   <div className="review-row" key={item.appid || item.title}>
@@ -1795,9 +1970,15 @@ function ProfileView({
         </section>
         <section className="panel">
           <SectionTitle icon={Download} title={t('profile.installed')} />
+          {installedState === 'error' && (
+            <p className="inline-alert">
+              <AlertCircle size={15} />
+              <span>{installedError}</span>
+            </p>
+          )}
           <div className="review-list">
             {installedApps.length === 0 ? (
-              <EmptyState icon={Download} title={t('profile.installedEmpty')} />
+              <EmptyState icon={Download} title={installedState === 'loaded' ? t('profile.installedEmptyLoaded') : t('profile.installedEmpty')} body={installedState === 'idle' ? t('profile.installedIdleBody') : undefined} />
             ) : (
               installedApps.map((item) => (
                 <div className="review-row" key={item.appid || item.title}>
@@ -1809,9 +1990,9 @@ function ProfileView({
               ))
             )}
           </div>
-          <button type="button" className="secondary-button" onClick={() => void loadInstalledApps()}>
+          <button type="button" className="secondary-button" disabled={installedState === 'loading'} onClick={() => void loadInstalledApps()}>
             <RefreshCw size={18} />
-            <span>{t('profile.readInstalled')}</span>
+            <span>{installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}</span>
           </button>
         </section>
       </section>
