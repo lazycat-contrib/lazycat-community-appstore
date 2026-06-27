@@ -150,7 +150,7 @@ textarea {
 }
 
 .nav-item {
-  height: 42px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -220,6 +220,10 @@ textarea {
   color: var(--ink);
 }
 
+.searchbox input {
+  min-height: 44px;
+}
+
 .top-actions,
 .row-actions,
 .detail-actions {
@@ -239,7 +243,7 @@ textarea {
 
 .mode-pill,
 .language-select {
-  min-height: 38px;
+  min-height: 44px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--muted);
@@ -256,7 +260,7 @@ textarea {
   border: 0;
   background: transparent;
   color: var(--ink);
-  min-height: 34px;
+  min-height: 44px;
 }
 
 .icon-button,
@@ -264,7 +268,8 @@ textarea {
 .primary-button,
 .secondary-button,
 .install-button {
-  min-height: 38px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
@@ -287,7 +292,8 @@ textarea {
 }
 
 .icon-button {
-  width: 38px;
+  width: 44px;
+  height: 44px;
   padding: 0;
 }
 
@@ -377,7 +383,7 @@ textarea {
 }
 
 .setup-steps div {
-  min-height: 42px;
+  min-height: 44px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.11);
   display: flex;
@@ -477,7 +483,7 @@ textarea {
 }
 
 .hero-stack div {
-  height: 42px;
+  min-height: 44px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.11);
   display: flex;
@@ -571,7 +577,7 @@ textarea {
 }
 
 .filter-bar select {
-  min-height: 38px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfcf8;
@@ -964,7 +970,7 @@ textarea {
 }
 
 .source-edit-grid input {
-  min-height: 34px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0 10px;
@@ -980,7 +986,7 @@ textarea {
 }
 
 .segmented button {
-  height: 38px;
+  min-height: 44px;
   border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1026,7 +1032,7 @@ textarea {
 }
 
 .compact-button {
-  min-height: 34px;
+  min-height: 44px;
   padding: 0 10px;
 }
 
@@ -1063,7 +1069,7 @@ textarea {
 .form-panel textarea,
 .form-panel select,
 .review-row select {
-  min-height: 40px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 9px 10px;
@@ -1553,17 +1559,17 @@ textarea {
 
 .comment-form {
   display: grid;
-  grid-template-columns: 1fr 38px;
+  grid-template-columns: 1fr 44px;
   gap: 8px;
   margin: 10px 0;
 }
 
 .screenshot-form {
-  grid-template-columns: 1fr minmax(160px, 240px) 38px;
+  grid-template-columns: 1fr minmax(160px, 240px) 44px;
 }
 
 .comment-form input {
-  height: 38px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: white;
@@ -1578,7 +1584,7 @@ textarea {
 
 .inline-form {
   display: grid;
-  grid-template-columns: 1fr 38px;
+  grid-template-columns: 1fr 44px;
   gap: 8px;
   align-items: center;
 }
@@ -1588,7 +1594,7 @@ textarea {
 .edit-row input,
 .collection-edit-row input,
 .collection-edit-row select {
-  min-height: 38px;
+  min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0 10px;
@@ -1628,8 +1634,8 @@ textarea {
 }
 
 .group-member-actions {
-  grid-template-columns: 1fr 38px 38px;
-  width: 210px;
+  grid-template-columns: 1fr 44px 44px;
+  width: 230px;
 }
 
 .token-output {
@@ -1760,7 +1766,7 @@ textarea {
 .install-panel {
   position: fixed;
   right: 20px;
-  bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
   z-index: 35;
   width: min(460px, calc(100vw - 40px));
   background: #16231d;
@@ -1768,7 +1774,7 @@ textarea {
   border-radius: 8px;
   padding: 14px;
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 38px;
+  grid-template-columns: 22px minmax(0, 1fr) 44px;
   gap: 12px;
   align-items: start;
   border: 1px solid #2f4a3e;
@@ -1844,10 +1850,10 @@ textarea {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 40;
-  min-height: 40px;
+  min-height: 44px;
   border-radius: 8px;
   padding: 10px 14px;
   background: #1d2421;
@@ -1879,7 +1885,7 @@ code {
 @media (max-width: 900px) {
   .shell {
     display: block;
-    padding-bottom: 72px;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
 
   .sidebar {
@@ -1953,12 +1959,13 @@ code {
 
   .install-panel {
     right: 14px;
-    bottom: 78px;
+    bottom: calc(84px + env(safe-area-inset-bottom));
     width: calc(100vw - 28px);
   }
 
   .drawer {
     width: 100vw;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
   }
 
   .maintenance-grid {
@@ -1990,7 +1997,8 @@ code {
     right: 0;
     bottom: 0;
     z-index: 15;
-    height: 64px;
+    min-height: calc(68px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     background: #fbfcf8;
@@ -2003,10 +2011,22 @@ code {
     gap: 2px;
     color: var(--muted);
     font-size: 11px;
+    min-height: 44px;
   }
 
   .mobile-tabs button.active {
     color: var(--green);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
   }
 }
 
