@@ -1118,6 +1118,59 @@ textarea {
   max-width: 460px;
 }
 
+.auth-gateway .page-heading {
+  max-width: 760px;
+}
+
+.auth-panel {
+  align-content: start;
+}
+
+.auth-path-panel {
+  display: grid;
+  align-content: start;
+}
+
+.auth-path-list {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-path-row {
+  min-width: 0;
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcf8;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-path-row > svg {
+  color: var(--green);
+}
+
+.auth-path-row strong,
+.auth-path-row span {
+  overflow-wrap: anywhere;
+}
+
+.auth-path-row strong {
+  display: block;
+  line-height: 1.25;
+}
+
+.auth-path-row span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .profile-card {
   text-align: center;
   display: grid;
@@ -1647,6 +1700,17 @@ code {
 
   .form-topline {
     display: grid;
+  }
+
+  .auth-path-row {
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .auth-path-row .secondary-button {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 2px;
   }
 
   .hero-band {

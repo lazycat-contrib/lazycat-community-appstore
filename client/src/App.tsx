@@ -789,7 +789,7 @@ export function App() {
                 setToast={setToast}
               />
             )}
-            {tab === 'profile' && <ProfileView user={user} setUser={setUser} apps={apps} groups={groups} setGroups={setGroups} categories={categories} onOpen={openApp} refreshAll={refreshAll} setToast={setToast} hasAPI={HAS_API} />}
+            {tab === 'profile' && <ProfileView user={user} setUser={setUser} apps={apps} groups={groups} setGroups={setGroups} categories={categories} onOpen={openApp} refreshAll={refreshAll} setToast={setToast} hasAPI={HAS_API} onNavigate={setTab} />}
             {tab === 'admin' && (
               user && canReview ? (
                 <AdminPanel user={user} reviews={reviews} onApprove={approveReview} setToast={setToast} />
@@ -1496,6 +1496,7 @@ function ProfileView({
   refreshAll,
   setToast,
   hasAPI,
+  onNavigate,
 }: {
   user: User | null;
   setUser: (user: User | null) => void;
@@ -1507,10 +1508,11 @@ function ProfileView({
   refreshAll: (options?: { silent?: boolean }) => Promise<void>;
   setToast: (toast: Toast) => void;
   hasAPI: boolean;
+  onNavigate: (tab: TabKey) => void;
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
-  const [authForm, setAuthForm] = useState({ username: 'admin', password: 'changeme', email: '' });
+  const [authForm, setAuthForm] = useState({ username: '', password: '', email: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
   const [uploadForm, setUploadForm] = useState({
     name: '',
@@ -1534,6 +1536,8 @@ function ProfileView({
   const [installedError, setInstalledError] = useState('');
   const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
   const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
+  const authHint = mode === 'login' ? t('auth.loginHint') : mode === 'register' ? t('auth.registerHint') : t('auth.verifyHint');
+  const AuthSubmitIcon = mode === 'verify' ? Check : mode === 'register' ? Plus : LogIn;
   const ownedApps = useMemo(() => {
     if (!user) return [];
     return apps
@@ -1743,41 +1747,98 @@ function ProfileView({
 
   if (!user) {
     return (
-      <form className="panel form-panel profile-panel" onSubmit={submitAuth}>
-        <SectionTitle icon={KeyRound} title={mode === 'verify' ? t('auth.verifyEmail') : authModeLabel} />
-        <div className="segmented compact">
-          <button type="button" className={cx(mode === 'login' && 'active')} onClick={() => setMode('login')}>{t('auth.login')}</button>
-          <button type="button" className={cx(mode === 'register' && 'active')} onClick={() => setMode('register')}>{t('auth.register')}</button>
-          <button type="button" className={cx(mode === 'verify' && 'active')} onClick={() => setMode('verify')}>{t('auth.verify')}</button>
+      <section className="page-grid auth-gateway">
+        <div className="page-heading">
+          <span className="eyebrow subtle">{t('auth.entryEyebrow')}</span>
+          <h1>{t('auth.entryTitle')}</h1>
+          <p>{t('auth.entryBody')}</p>
         </div>
-        {mode === 'verify' ? (
-          <label>
-            <span>{t('auth.verifyToken')}</span>
-            <input value={verifyToken} onChange={(event) => setVerifyToken(event.target.value)} />
-          </label>
-        ) : (
-          <>
-            <label>
-              <span>{t('common.username')}</span>
-              <input value={authForm.username} onChange={(event) => setAuthForm({ ...authForm, username: event.target.value })} />
-            </label>
-            {mode === 'register' && (
+        <div className="split auth-split">
+          <form className="panel form-panel profile-panel auth-panel" onSubmit={submitAuth}>
+            <SectionTitle icon={KeyRound} title={mode === 'verify' ? t('auth.verifyEmail') : authModeLabel} />
+            <p className="inline-note">{authHint}</p>
+            <div className="segmented compact" aria-label={t('auth.modeSwitch')}>
+              <button type="button" className={cx(mode === 'login' && 'active')} onClick={() => setMode('login')}>{t('auth.login')}</button>
+              <button type="button" className={cx(mode === 'register' && 'active')} onClick={() => setMode('register')}>{t('auth.register')}</button>
+              <button type="button" className={cx(mode === 'verify' && 'active')} onClick={() => setMode('verify')}>{t('auth.verify')}</button>
+            </div>
+            {mode === 'verify' ? (
               <label>
-                <span>{t('common.email')}</span>
-                <input type="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} />
+                <span>{t('auth.verifyToken')}</span>
+                <input autoComplete="one-time-code" required value={verifyToken} onChange={(event) => setVerifyToken(event.target.value)} />
               </label>
+            ) : (
+              <>
+                <label>
+                  <span>{t('common.username')}</span>
+                  <input autoComplete="username" required value={authForm.username} onChange={(event) => setAuthForm({ ...authForm, username: event.target.value })} />
+                </label>
+                {mode === 'register' && (
+                  <label>
+                    <span>{t('common.email')}</span>
+                    <input type="email" autoComplete="email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} />
+                  </label>
+                )}
+                <label>
+                  <span>{t('common.password')}</span>
+                  <input
+                    type="password"
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    required
+                    minLength={mode === 'register' ? 8 : undefined}
+                    value={authForm.password}
+                    onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
+                  />
+                  {mode === 'register' && <small className="field-help">{t('auth.passwordHelp')}</small>}
+                </label>
+              </>
             )}
-            <label>
-              <span>{t('common.password')}</span>
-              <input type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} />
-            </label>
-          </>
-        )}
-        <button type="submit" className="primary-button" aria-label={authSubmitLabel}>
-          <LogIn size={18} />
-          <span>{authSubmitLabel}</span>
-        </button>
-      </form>
+            <button type="submit" className="primary-button" aria-label={authSubmitLabel}>
+              <AuthSubmitIcon size={18} />
+              <span>{authSubmitLabel}</span>
+            </button>
+          </form>
+
+          <section className="panel auth-path-panel">
+            <SectionTitle icon={Users} title={t('auth.entryPaths')} />
+            <div className="auth-path-list">
+              <div className="auth-path-row">
+                <Search size={19} />
+                <div>
+                  <strong>{t('auth.pathBrowseTitle')}</strong>
+                  <span>{t('auth.pathBrowseBody')}</span>
+                </div>
+                <button type="button" className="secondary-button compact-button" onClick={() => onNavigate('home')}>
+                  <Home size={17} />
+                  <span>{t('auth.pathBrowseAction')}</span>
+                </button>
+              </div>
+              <div className="auth-path-row">
+                <PackagePlus size={19} />
+                <div>
+                  <strong>{t('auth.pathSubmitTitle')}</strong>
+                  <span>{t('auth.pathSubmitBody')}</span>
+                </div>
+                <button type="button" className="secondary-button compact-button" onClick={() => setMode('register')}>
+                  <Plus size={17} />
+                  <span>{t('auth.pathSubmitAction')}</span>
+                </button>
+              </div>
+              <div className="auth-path-row">
+                <ShieldCheck size={19} />
+                <div>
+                  <strong>{t('auth.pathAdminTitle')}</strong>
+                  <span>{t('auth.pathAdminBody')}</span>
+                </div>
+                <button type="button" className="secondary-button compact-button" onClick={() => setMode('login')}>
+                  <LogIn size={17} />
+                  <span>{t('auth.pathAdminAction')}</span>
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
     );
   }
 
