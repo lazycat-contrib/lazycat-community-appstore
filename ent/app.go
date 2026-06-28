@@ -37,6 +37,8 @@ type App struct {
 	AllowUnreviewedUpdates bool `json:"allow_unreviewed_updates,omitempty"`
 	// CommentsEnabled holds the value of the "comments_enabled" field.
 	CommentsEnabled bool `json:"comments_enabled,omitempty"`
+	// InstallPasswordHash holds the value of the "install_password_hash" field.
+	InstallPasswordHash string `json:"install_password_hash,omitempty"`
 	// DownloadCount holds the value of the "download_count" field.
 	DownloadCount int `json:"download_count,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -55,7 +57,7 @@ func (*App) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldDownloadCount:
 			values[i] = new(sql.NullInt64)
-		case app.FieldName, app.FieldSlug, app.FieldSummary, app.FieldDescription, app.FieldIconURL, app.FieldStatus:
+		case app.FieldName, app.FieldSlug, app.FieldSummary, app.FieldDescription, app.FieldIconURL, app.FieldStatus, app.FieldInstallPasswordHash:
 			values[i] = new(sql.NullString)
 		case app.FieldCreatedAt, app.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -141,6 +143,12 @@ func (_m *App) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field comments_enabled", values[i])
 			} else if value.Valid {
 				_m.CommentsEnabled = value.Bool
+			}
+		case app.FieldInstallPasswordHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field install_password_hash", values[i])
+			} else if value.Valid {
+				_m.InstallPasswordHash = value.String
 			}
 		case app.FieldDownloadCount:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -229,6 +237,9 @@ func (_m *App) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("comments_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CommentsEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("install_password_hash=")
+	builder.WriteString(_m.InstallPasswordHash)
 	builder.WriteString(", ")
 	builder.WriteString("download_count=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DownloadCount))

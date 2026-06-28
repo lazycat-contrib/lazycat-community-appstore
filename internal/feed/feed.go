@@ -13,17 +13,18 @@ type Input struct {
 }
 
 type AppInput struct {
-	ID          int            `json:"id"`
-	Name        string         `json:"name"`
-	Slug        string         `json:"slug"`
-	Summary     string         `json:"summary"`
-	Description string         `json:"description"`
-	IconURL     string         `json:"iconUrl,omitempty"`
-	Category    string         `json:"category,omitempty"`
-	Tags        []string       `json:"tags,omitempty"`
-	Submitter   string         `json:"submitter,omitempty"`
-	UpdatedAt   time.Time      `json:"updatedAt"`
-	Versions    []VersionInput `json:"versions"`
+	ID               int            `json:"id"`
+	Name             string         `json:"name"`
+	Slug             string         `json:"slug"`
+	Summary          string         `json:"summary"`
+	Description      string         `json:"description"`
+	IconURL          string         `json:"iconUrl,omitempty"`
+	Category         string         `json:"category,omitempty"`
+	Tags             []string       `json:"tags,omitempty"`
+	Submitter        string         `json:"submitter,omitempty"`
+	InstallProtected bool           `json:"installProtected"`
+	UpdatedAt        time.Time      `json:"updatedAt"`
+	Versions         []VersionInput `json:"versions"`
 }
 
 type VersionInput struct {
@@ -45,18 +46,19 @@ type Index struct {
 }
 
 type App struct {
-	ID            int       `json:"id"`
-	Name          string    `json:"name"`
-	Slug          string    `json:"slug"`
-	Summary       string    `json:"summary"`
-	Description   string    `json:"description"`
-	IconURL       string    `json:"iconUrl,omitempty"`
-	Category      string    `json:"category,omitempty"`
-	Tags          []string  `json:"tags,omitempty"`
-	Submitter     string    `json:"submitter,omitempty"`
-	UpdatedAt     time.Time `json:"updatedAt"`
-	LatestVersion Version   `json:"latestVersion"`
-	Versions      []Version `json:"versions"`
+	ID               int       `json:"id"`
+	Name             string    `json:"name"`
+	Slug             string    `json:"slug"`
+	Summary          string    `json:"summary"`
+	Description      string    `json:"description"`
+	IconURL          string    `json:"iconUrl,omitempty"`
+	Category         string    `json:"category,omitempty"`
+	Tags             []string  `json:"tags,omitempty"`
+	Submitter        string    `json:"submitter,omitempty"`
+	InstallProtected bool      `json:"installProtected"`
+	UpdatedAt        time.Time `json:"updatedAt"`
+	LatestVersion    Version   `json:"latestVersion"`
+	Versions         []Version `json:"versions"`
 }
 
 type Version struct {
@@ -83,29 +85,30 @@ func BuildIndex(input Input) Index {
 	}
 
 	for _, inApp := range input.Apps {
-		versions := approvedVersions(inApp.Versions, input.GitHubMirror)
+		versions := approvedVersions(inApp.Versions, input.GitHubMirror, inApp.InstallProtected)
 		if len(versions) == 0 {
 			continue
 		}
 		index.Apps = append(index.Apps, App{
-			ID:            inApp.ID,
-			Name:          inApp.Name,
-			Slug:          inApp.Slug,
-			Summary:       inApp.Summary,
-			Description:   inApp.Description,
-			IconURL:       inApp.IconURL,
-			Category:      inApp.Category,
-			Tags:          inApp.Tags,
-			Submitter:     inApp.Submitter,
-			UpdatedAt:     inApp.UpdatedAt,
-			LatestVersion: versions[0],
-			Versions:      versions,
+			ID:               inApp.ID,
+			Name:             inApp.Name,
+			Slug:             inApp.Slug,
+			Summary:          inApp.Summary,
+			Description:      inApp.Description,
+			IconURL:          inApp.IconURL,
+			Category:         inApp.Category,
+			Tags:             inApp.Tags,
+			Submitter:        inApp.Submitter,
+			InstallProtected: inApp.InstallProtected,
+			UpdatedAt:        inApp.UpdatedAt,
+			LatestVersion:    versions[0],
+			Versions:         versions,
 		})
 	}
 	return index
 }
 
-func approvedVersions(inputs []VersionInput, mirror string) []Version {
+func approvedVersions(inputs []VersionInput, mirror string, installProtected bool) []Version {
 	versions := make([]Version, 0, len(inputs))
 	for _, input := range inputs {
 		if input.Status != "APPROVED" {
@@ -116,15 +119,18 @@ func approvedVersions(inputs []VersionInput, mirror string) []Version {
 		if upstreamDownloadURL == "" {
 			upstreamDownloadURL = input.DownloadURL
 		}
-		if isGitHubSource(input.SourceType, upstreamDownloadURL) && mirror != "" {
+		if !installProtected && isGitHubSource(input.SourceType, upstreamDownloadURL) && mirror != "" {
 			downloadURL = mirrorDownload(upstreamDownloadURL, mirror)
+		}
+		if installProtected {
+			upstreamDownloadURL = ""
 		}
 		versions = append(versions, Version{
 			Version:             input.Version,
 			Changelog:           input.Changelog,
 			SourceType:          input.SourceType,
 			DownloadURL:         downloadURL,
-			UpstreamDownloadURL: input.UpstreamDownloadURL,
+			UpstreamDownloadURL: upstreamDownloadURL,
 			SHA256:              input.SHA256,
 			Size:                input.Size,
 			PublishedAt:         input.PublishedAt,

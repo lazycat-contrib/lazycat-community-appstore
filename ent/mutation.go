@@ -737,6 +737,7 @@ type AppMutation struct {
 	status                   *app.Status
 	allow_unreviewed_updates *bool
 	comments_enabled         *bool
+	install_password_hash    *string
 	download_count           *int
 	adddownload_count        *int
 	created_at               *time.Time
@@ -1272,6 +1273,42 @@ func (m *AppMutation) ResetCommentsEnabled() {
 	m.comments_enabled = nil
 }
 
+// SetInstallPasswordHash sets the "install_password_hash" field.
+func (m *AppMutation) SetInstallPasswordHash(s string) {
+	m.install_password_hash = &s
+}
+
+// InstallPasswordHash returns the value of the "install_password_hash" field in the mutation.
+func (m *AppMutation) InstallPasswordHash() (r string, exists bool) {
+	v := m.install_password_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInstallPasswordHash returns the old "install_password_hash" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldInstallPasswordHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInstallPasswordHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInstallPasswordHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInstallPasswordHash: %w", err)
+	}
+	return oldValue.InstallPasswordHash, nil
+}
+
+// ResetInstallPasswordHash resets all changes to the "install_password_hash" field.
+func (m *AppMutation) ResetInstallPasswordHash() {
+	m.install_password_hash = nil
+}
+
 // SetDownloadCount sets the "download_count" field.
 func (m *AppMutation) SetDownloadCount(i int) {
 	m.download_count = &i
@@ -1434,7 +1471,7 @@ func (m *AppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AppMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.owner_id != nil {
 		fields = append(fields, app.FieldOwnerID)
 	}
@@ -1464,6 +1501,9 @@ func (m *AppMutation) Fields() []string {
 	}
 	if m.comments_enabled != nil {
 		fields = append(fields, app.FieldCommentsEnabled)
+	}
+	if m.install_password_hash != nil {
+		fields = append(fields, app.FieldInstallPasswordHash)
 	}
 	if m.download_count != nil {
 		fields = append(fields, app.FieldDownloadCount)
@@ -1502,6 +1542,8 @@ func (m *AppMutation) Field(name string) (ent.Value, bool) {
 		return m.AllowUnreviewedUpdates()
 	case app.FieldCommentsEnabled:
 		return m.CommentsEnabled()
+	case app.FieldInstallPasswordHash:
+		return m.InstallPasswordHash()
 	case app.FieldDownloadCount:
 		return m.DownloadCount()
 	case app.FieldCreatedAt:
@@ -1537,6 +1579,8 @@ func (m *AppMutation) OldField(ctx context.Context, name string) (ent.Value, err
 		return m.OldAllowUnreviewedUpdates(ctx)
 	case app.FieldCommentsEnabled:
 		return m.OldCommentsEnabled(ctx)
+	case app.FieldInstallPasswordHash:
+		return m.OldInstallPasswordHash(ctx)
 	case app.FieldDownloadCount:
 		return m.OldDownloadCount(ctx)
 	case app.FieldCreatedAt:
@@ -1621,6 +1665,13 @@ func (m *AppMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCommentsEnabled(v)
+		return nil
+	case app.FieldInstallPasswordHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInstallPasswordHash(v)
 		return nil
 	case app.FieldDownloadCount:
 		v, ok := value.(int)
@@ -1775,6 +1826,9 @@ func (m *AppMutation) ResetField(name string) error {
 		return nil
 	case app.FieldCommentsEnabled:
 		m.ResetCommentsEnabled()
+		return nil
+	case app.FieldInstallPasswordHash:
+		m.ResetInstallPasswordHash()
 		return nil
 	case app.FieldDownloadCount:
 		m.ResetDownloadCount()

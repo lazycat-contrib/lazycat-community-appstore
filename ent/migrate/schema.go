@@ -49,6 +49,7 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"DRAFT", "PENDING", "APPROVED", "REJECTED", "UNLISTED"}, Default: "PENDING"},
 		{Name: "allow_unreviewed_updates", Type: field.TypeBool, Default: false},
 		{Name: "comments_enabled", Type: field.TypeBool, Default: true},
+		{Name: "install_password_hash", Type: field.TypeString, Default: ""},
 		{Name: "download_count", Type: field.TypeInt, Default: 0},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},

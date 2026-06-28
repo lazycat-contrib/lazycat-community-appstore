@@ -81,6 +81,7 @@ type StoreApp = {
   visibleGroupIds: number[];
   allowUnreviewedUpdates: boolean;
   commentsEnabled: boolean;
+  installProtected: boolean;
   downloadCount: number;
   latestVersion?: Version;
   versions?: Version[];
@@ -195,6 +196,7 @@ type SourceApp = {
   slug: string;
   summary: string;
   category?: string;
+  installProtected?: boolean;
   latestVersion?: {
     version: string;
     downloadUrl: string;
@@ -229,6 +231,10 @@ type InstallActivity = {
   resultMode?: string;
   messageKey?: string;
   messageParams?: Record<string, string | number>;
+};
+
+type InstallPasswordRequest = {
+  app: StoreApp | SourceApp;
 };
 
 type ClientSourceStats = {
@@ -319,6 +325,18 @@ function hasInstallableVersion(app: StoreApp | SourceApp) {
   return Boolean(app.latestVersion?.downloadUrl);
 }
 
+function withInstallPassword(rawUrl: string, password?: string) {
+  if (!password) return rawUrl;
+  try {
+    const url = new URL(rawUrl, window.location.href);
+    url.searchParams.set('installPassword', password);
+    return url.toString();
+  } catch {
+    const separator = rawUrl.includes('?') ? '&' : '?';
+    return `${rawUrl}${separator}installPassword=${encodeURIComponent(password)}`;
+  }
+}
+
 function shortSHA(value?: string) {
   return value ? value.slice(0, 16) : '-';
 }
@@ -356,6 +374,7 @@ function reviewFieldLabel(key: string, t: (key: string, options?: any) => string
     tags: t('common.tags'),
     allowUnreviewedUpdates: t('submitApp.allowUnreviewedUpdates'),
     commentsEnabled: t('drawer.commentsEnabled'),
+    installPassword: t('drawer.installPassword'),
   };
   return labels[key] || key;
 }
@@ -460,6 +479,7 @@ export function App() {
   const [installedState, setInstalledState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [installedError, setInstalledError] = useState('');
   const [installActivity, setInstallActivity] = useState<InstallActivity | null>(null);
+  const [installPasswordRequest, setInstallPasswordRequest] = useState<InstallPasswordRequest | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
   const [setupRequired, setSetupRequired] = useState(false);
@@ -660,7 +680,11 @@ export function App() {
     }
   }
 
-  async function installApp(app: StoreApp | SourceApp) {
+  async function installApp(app: StoreApp | SourceApp, options: { installPassword?: string } = {}) {
+    if (app.installProtected && !options.installPassword) {
+      setInstallPasswordRequest({ app });
+      return;
+    }
     await runAction(setToast, t('toast.installFailed'), async () => {
       const version = app.latestVersion;
       if (!version) {
@@ -685,11 +709,12 @@ export function App() {
       );
       const downloadUrl =
         'sourceName' in app ? version.downloadUrl : `${API_BASE}/api/v1/apps/${app.id}/versions/${(version as Version).id}/download`;
+      const protectedDownloadUrl = withInstallPassword(downloadUrl, options.installPassword);
       const result = await installWithLazyCat({
         name: app.name,
         appId: app.slug,
         pkgId: app.slug,
-        downloadUrl,
+        downloadUrl: protectedDownloadUrl,
         sha256: version.sha256,
       });
       const success = result.mode === 'lazycat-sdk' || result.mode === 'download';
@@ -734,11 +759,11 @@ export function App() {
         throw sourceSyncError(t('toast.sourceFormatInvalid'), 'format');
       });
       if (!Array.isArray(data.apps)) throw sourceSyncError(t('toast.sourceFormatInvalid'), 'format');
-      const mirroredDownloadURL = (version: any) => {
+      const mirroredDownloadURL = (version: any, installProtected?: boolean) => {
         const upstream = String(version.upstreamDownloadUrl || '');
         const direct = String(version.downloadUrl || '');
         const githubURL = upstream || direct;
-        if (source.mirror && (githubURL.includes('github.com/') || githubURL.includes('githubusercontent.com/'))) {
+        if (!installProtected && source.mirror && (githubURL.includes('github.com/') || githubURL.includes('githubusercontent.com/'))) {
           return `${source.mirror.replace(/\/$/, '')}/${githubURL}`;
         }
         return direct;
@@ -751,10 +776,11 @@ export function App() {
         slug: app.slug,
         summary: app.summary,
         category: app.category,
+        installProtected: Boolean(app.installProtected),
         latestVersion: app.latestVersion
           ? {
               ...app.latestVersion,
-              downloadUrl: mirroredDownloadURL(app.latestVersion),
+              downloadUrl: mirroredDownloadURL(app.latestVersion, Boolean(app.installProtected)),
             }
           : undefined,
       }));
@@ -1030,6 +1056,18 @@ export function App() {
         />
       )}
 
+      {installPasswordRequest && (
+        <InstallPasswordDialog
+          app={installPasswordRequest.app}
+          onCancel={() => setInstallPasswordRequest(null)}
+          onSubmit={(password) => {
+            const target = installPasswordRequest.app;
+            setInstallPasswordRequest(null);
+            void installApp(target, { installPassword: password });
+          }}
+        />
+      )}
+
       {installActivity && (
         <aside className={cx('install-panel', installActivity.status)} aria-live="polite" aria-label={t('installActivity.title')}>
           <Download size={20} />
@@ -1060,6 +1098,97 @@ export function App() {
       )}
 
       {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
+    </div>
+  );
+}
+
+function InstallPasswordDialog({
+  app,
+  onCancel,
+  onSubmit,
+}: {
+  app: StoreApp | SourceApp;
+  onCancel: () => void;
+  onSubmit: (password: string) => void;
+}) {
+  const { t } = useTranslation();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const dialogTitleId = `install-password-title-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
+  const dialogBodyId = `install-password-body-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onCancel();
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    const value = password.trim();
+    if (!value) {
+      setError(t('installPassword.required'));
+      return;
+    }
+    onSubmit(value);
+  }
+
+  return (
+    <div className="drawer-backdrop modal-backdrop" onClick={onCancel}>
+      <form
+        className="install-password-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={dialogTitleId}
+        aria-describedby={dialogBodyId}
+        onSubmit={submit}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button type="button" className="icon-button close" aria-label={t('common.close')} onClick={onCancel}>
+          <X size={17} />
+        </button>
+        <div className="install-password-head">
+          <span className="install-password-icon">
+            <KeyRound size={21} />
+          </span>
+          <div>
+            <h2 id={dialogTitleId}>{t('installPassword.title')}</h2>
+            <p id={dialogBodyId}>{t('installPassword.body', { name: app.name })}</p>
+          </div>
+        </div>
+        <label>
+          <span>{t('installPassword.label')}</span>
+          <input
+            ref={inputRef}
+            type="password"
+            autoComplete="off"
+            value={password}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              if (error) setError('');
+            }}
+          />
+        </label>
+        {error && <p className="form-error">{error}</p>}
+        <div className="dialog-actions">
+          <button type="button" className="secondary-button" onClick={onCancel}>
+            <X size={17} />
+            <span>{t('common.cancel')}</span>
+          </button>
+          <button type="submit" className="primary-button">
+            <Download size={17} />
+            <span>{t('installPassword.confirm')}</span>
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -1561,6 +1690,12 @@ function SourceAppGrid({
                 <ShieldCheck size={13} />
                 {hasChecksum ? t('app.checksumReady') : t('app.checksumMissing')}
               </span>
+              {app.installProtected && (
+                <span className="status-badge pending">
+                  <KeyRound size={13} />
+                  {t('app.installPasswordRequired')}
+                </span>
+              )}
               <span className={cx('status-badge', hasSize ? 'synced' : 'unsynced')}>
                 <Archive size={13} />
                 {hasSize ? t('app.sizeReady') : t('app.sizeMissing')}
@@ -1951,6 +2086,7 @@ function SourceAppDrawer({
       : t('sourceDetail.notInstalledIdle');
   const trustFacts = [
     { label: t('drawer.installStatus'), value: installable ? t('app.installReady') : t('app.installMissingVersion') },
+    { label: t('drawer.installAccess'), value: app.installProtected ? t('app.installPasswordRequired') : t('app.installOpen') },
     { label: t('sourceDetail.source'), value: app.sourceName },
     { label: t('drawer.artifactChecksum'), value: hasChecksum ? t('drawer.checksumShort', { hash: shortSHA(latestVersion?.sha256) }) : t('drawer.checksumMissing') },
     { label: t('drawer.artifactSize'), value: hasSize ? formatBytes(latestVersion?.size) : t('drawer.sizeMissing') },
@@ -2132,6 +2268,7 @@ function ProfileView({
     sourceType: 'GITHUB',
     downloadUrl: '',
     sha256: '',
+    installPassword: '',
   });
   const [recentSubmission, setRecentSubmission] = useState<{ name: string; status: string } | null>(null);
   const [artifactMode, setArtifactMode] = useState<'local' | 'external'>('local');
@@ -2309,12 +2446,13 @@ function ProfileView({
             sourceType: uploadForm.sourceType,
             downloadUrl: uploadForm.downloadUrl.trim(),
             sha256: uploadForm.sha256.trim(),
+            ...(uploadForm.installPassword.trim() ? { installPassword: uploadForm.installPassword.trim() } : {}),
           }),
         });
       }
       setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
       setToast({ tone: 'success', message: t('submitApp.submitted') });
-      setUploadForm({ name: '', version: '0.1.0', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, sourceType: 'GITHUB', downloadUrl: '', sha256: '' });
+      setUploadForm({ name: '', version: '0.1.0', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, sourceType: 'GITHUB', downloadUrl: '', sha256: '', installPassword: '' });
       setArtifactMode('local');
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -2824,6 +2962,18 @@ function ProfileView({
               </div>
             )}
           </div>
+          <label>
+            <span>{t('submitApp.installPassword')}</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              minLength={4}
+              maxLength={256}
+              value={uploadForm.installPassword}
+              onChange={(event) => setUploadForm({ ...uploadForm, installPassword: event.target.value })}
+            />
+            <small className="field-help">{t('submitApp.installPasswordHelp')}</small>
+          </label>
           <label className="toggle-line">
             <input
               type="checkbox"
@@ -3590,6 +3740,8 @@ function AppDrawer({
     tags: (app.tags || []).join(', '),
     allowUnreviewedUpdates: app.allowUnreviewedUpdates,
     commentsEnabled: app.commentsEnabled,
+    installPassword: '',
+    clearInstallPassword: false,
   });
   const [visibility, setVisibility] = useState<number[]>(app.visibleGroupIds || []);
   const canMaintain = !!user && (app.canManageApp ?? (user.role === 'SITE_ADMIN' || user.role === 'SOFTWARE_ADMIN' || user.id === app.ownerId));
@@ -3608,6 +3760,7 @@ function AppDrawer({
   const installNextStep = canUploadVersion ? t('drawer.installBlockedMaintainer') : t('drawer.installBlockedUser');
   const trustFacts = [
     { label: t('drawer.installStatus'), value: installable ? t('app.installReady') : t('app.installMissingVersion') },
+    { label: t('drawer.installAccess'), value: app.installProtected ? t('app.installPasswordRequired') : t('app.installOpen') },
     { label: t('drawer.artifactSource'), value: latestVersion?.sourceType || t('drawer.sourceMissing') },
     { label: t('drawer.artifactChecksum'), value: hasChecksum ? t('drawer.checksumShort', { hash: shortSHA(latestVersion?.sha256) }) : t('drawer.checksumMissing') },
     { label: t('drawer.artifactSize'), value: hasFileSize ? formatBytes(latestVersion?.fileSize) : t('drawer.sizeMissing') },
@@ -3635,6 +3788,8 @@ function AppDrawer({
       tags: (app.tags || []).join(', '),
       allowUnreviewedUpdates: app.allowUnreviewedUpdates,
       commentsEnabled: app.commentsEnabled,
+      installPassword: '',
+      clearInstallPassword: false,
     });
     setVisibility(app.visibleGroupIds || []);
     setConfirmAction(null);
@@ -3698,6 +3853,7 @@ function AppDrawer({
   async function submitAppInfo(event: FormEvent) {
     event.preventDefault();
     await runAction(setToast, t('drawer.appInfoSaveFailed'), async () => {
+      const installPassword = appForm.installPassword.trim();
       const data = await api<{ app?: StoreApp; review?: Review }>(`/api/v1/apps/${app.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
@@ -3708,6 +3864,7 @@ function AppDrawer({
           tags: appForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
           allowUnreviewedUpdates: appForm.allowUnreviewedUpdates,
           commentsEnabled: appForm.commentsEnabled,
+          ...(installPassword || appForm.clearInstallPassword ? { installPassword } : {}),
         }),
       });
       setToast({ tone: 'success', message: data.review ? t('drawer.appInfoSubmittedReview') : t('drawer.appInfoSaved') });
@@ -4034,6 +4191,28 @@ function AppDrawer({
                   <span>{t('common.tags')}</span>
                   <input value={appForm.tags} onChange={(event) => setAppForm({ ...appForm, tags: event.target.value })} />
                 </label>
+                <label>
+                  <span>{t('drawer.installPassword')}</span>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={4}
+                    maxLength={256}
+                    value={appForm.installPassword}
+                    onChange={(event) => setAppForm({ ...appForm, installPassword: event.target.value, clearInstallPassword: false })}
+                  />
+                  <small className="field-help">{app.installProtected ? t('drawer.installPasswordUpdateHelp') : t('drawer.installPasswordHelp')}</small>
+                </label>
+                {app.installProtected && (
+                  <label className="toggle-line">
+                    <input
+                      type="checkbox"
+                      checked={appForm.clearInstallPassword}
+                      onChange={(event) => setAppForm({ ...appForm, clearInstallPassword: event.target.checked, installPassword: event.target.checked ? '' : appForm.installPassword })}
+                    />
+                    <span>{t('drawer.clearInstallPassword')}</span>
+                  </label>
+                )}
                 <label className="toggle-line">
                   <input
                     type="checkbox"
@@ -4387,6 +4566,12 @@ function AppGrid({
                 <ShieldCheck size={13} />
                 {hasChecksum ? t('app.checksumReady') : t('app.checksumMissing')}
               </span>
+              {app.installProtected && (
+                <span className="status-badge pending">
+                  <KeyRound size={13} />
+                  {t('app.installPasswordRequired')}
+                </span>
+              )}
               {app.status === 'APPROVED' && (
                 <span className="status-badge approved">
                   <Check size={13} />

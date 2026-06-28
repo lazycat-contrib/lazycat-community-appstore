@@ -99,6 +99,11 @@ func CommentsEnabled(v bool) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldCommentsEnabled, v))
 }
 
+// InstallPasswordHash applies equality check predicate on the "install_password_hash" field. It's identical to InstallPasswordHashEQ.
+func InstallPasswordHash(v string) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldInstallPasswordHash, v))
+}
+
 // DownloadCount applies equality check predicate on the "download_count" field. It's identical to DownloadCountEQ.
 func DownloadCount(v int) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldDownloadCount, v))
@@ -577,6 +582,71 @@ func CommentsEnabledEQ(v bool) predicate.App {
 // CommentsEnabledNEQ applies the NEQ predicate on the "comments_enabled" field.
 func CommentsEnabledNEQ(v bool) predicate.App {
 	return predicate.App(sql.FieldNEQ(FieldCommentsEnabled, v))
+}
+
+// InstallPasswordHashEQ applies the EQ predicate on the "install_password_hash" field.
+func InstallPasswordHashEQ(v string) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldInstallPasswordHash, v))
+}
+
+// InstallPasswordHashNEQ applies the NEQ predicate on the "install_password_hash" field.
+func InstallPasswordHashNEQ(v string) predicate.App {
+	return predicate.App(sql.FieldNEQ(FieldInstallPasswordHash, v))
+}
+
+// InstallPasswordHashIn applies the In predicate on the "install_password_hash" field.
+func InstallPasswordHashIn(vs ...string) predicate.App {
+	return predicate.App(sql.FieldIn(FieldInstallPasswordHash, vs...))
+}
+
+// InstallPasswordHashNotIn applies the NotIn predicate on the "install_password_hash" field.
+func InstallPasswordHashNotIn(vs ...string) predicate.App {
+	return predicate.App(sql.FieldNotIn(FieldInstallPasswordHash, vs...))
+}
+
+// InstallPasswordHashGT applies the GT predicate on the "install_password_hash" field.
+func InstallPasswordHashGT(v string) predicate.App {
+	return predicate.App(sql.FieldGT(FieldInstallPasswordHash, v))
+}
+
+// InstallPasswordHashGTE applies the GTE predicate on the "install_password_hash" field.
+func InstallPasswordHashGTE(v string) predicate.App {
+	return predicate.App(sql.FieldGTE(FieldInstallPasswordHash, v))
+}
+
+// InstallPasswordHashLT applies the LT predicate on the "install_password_hash" field.
+func InstallPasswordHashLT(v string) predicate.App {
+	return predicate.App(sql.FieldLT(FieldInstallPasswordHash, v))
+}
+
+// InstallPasswordHashLTE applies the LTE predicate on the "install_password_hash" field.
+func InstallPasswordHashLTE(v string) predicate.App {
+	return predicate.App(sql.FieldLTE(FieldInstallPasswordHash, v))
+}
+
+// InstallPasswordHashContains applies the Contains predicate on the "install_password_hash" field.
+func InstallPasswordHashContains(v string) predicate.App {
+	return predicate.App(sql.FieldContains(FieldInstallPasswordHash, v))
+}
+
+// InstallPasswordHashHasPrefix applies the HasPrefix predicate on the "install_password_hash" field.
+func InstallPasswordHashHasPrefix(v string) predicate.App {
+	return predicate.App(sql.FieldHasPrefix(FieldInstallPasswordHash, v))
+}
+
+// InstallPasswordHashHasSuffix applies the HasSuffix predicate on the "install_password_hash" field.
+func InstallPasswordHashHasSuffix(v string) predicate.App {
+	return predicate.App(sql.FieldHasSuffix(FieldInstallPasswordHash, v))
+}
+
+// InstallPasswordHashEqualFold applies the EqualFold predicate on the "install_password_hash" field.
+func InstallPasswordHashEqualFold(v string) predicate.App {
+	return predicate.App(sql.FieldEqualFold(FieldInstallPasswordHash, v))
+}
+
+// InstallPasswordHashContainsFold applies the ContainsFold predicate on the "install_password_hash" field.
+func InstallPasswordHashContainsFold(v string) predicate.App {
+	return predicate.App(sql.FieldContainsFold(FieldInstallPasswordHash, v))
 }
 
 // DownloadCountEQ applies the EQ predicate on the "download_count" field.

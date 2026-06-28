@@ -34,6 +34,8 @@ const (
 	FieldAllowUnreviewedUpdates = "allow_unreviewed_updates"
 	// FieldCommentsEnabled holds the string denoting the comments_enabled field in the database.
 	FieldCommentsEnabled = "comments_enabled"
+	// FieldInstallPasswordHash holds the string denoting the install_password_hash field in the database.
+	FieldInstallPasswordHash = "install_password_hash"
 	// FieldDownloadCount holds the string denoting the download_count field in the database.
 	FieldDownloadCount = "download_count"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -57,6 +59,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldAllowUnreviewedUpdates,
 	FieldCommentsEnabled,
+	FieldInstallPasswordHash,
 	FieldDownloadCount,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -85,6 +88,8 @@ var (
 	DefaultAllowUnreviewedUpdates bool
 	// DefaultCommentsEnabled holds the default value on creation for the "comments_enabled" field.
 	DefaultCommentsEnabled bool
+	// DefaultInstallPasswordHash holds the default value on creation for the "install_password_hash" field.
+	DefaultInstallPasswordHash string
 	// DefaultDownloadCount holds the default value on creation for the "download_count" field.
 	DefaultDownloadCount int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -180,6 +185,11 @@ func ByAllowUnreviewedUpdates(opts ...sql.OrderTermOption) OrderOption {
 // ByCommentsEnabled orders the results by the comments_enabled field.
 func ByCommentsEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCommentsEnabled, opts...).ToFunc()
+}
+
+// ByInstallPasswordHash orders the results by the install_password_hash field.
+func ByInstallPasswordHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInstallPasswordHash, opts...).ToFunc()
 }
 
 // ByDownloadCount orders the results by the download_count field.

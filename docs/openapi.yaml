@@ -382,6 +382,7 @@ paths:
     get:
       tags: [Versions]
       summary: Redirect to the version LPK URL and increment download count
+      description: Apps with installProtected=true require the install password as either the installPassword query parameter or X-Install-Password header.
       security: []
       parameters:
         - $ref: "#/components/parameters/ID"
@@ -390,9 +391,21 @@ paths:
           required: true
           schema:
             type: integer
+        - name: installPassword
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: X-Install-Password
+          in: header
+          required: false
+          schema:
+            type: string
       responses:
         "302":
           description: Redirect to the LPK file.
+        "401":
+          $ref: "#/components/responses/Error"
         "404":
           $ref: "#/components/responses/Error"
 
@@ -1121,7 +1134,7 @@ components:
 
     AppSummary:
       type: object
-      required: [id, ownerId, owner, name, slug, status, allowUnreviewedUpdates, commentsEnabled, downloadCount, tags, visibleGroupIds, createdAt, updatedAt]
+      required: [id, ownerId, owner, name, slug, status, allowUnreviewedUpdates, commentsEnabled, installProtected, downloadCount, tags, visibleGroupIds, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -1151,6 +1164,9 @@ components:
           type: boolean
         commentsEnabled:
           type: boolean
+        installProtected:
+          type: boolean
+          description: True when this app requires a per-app install password. The password hash is never returned.
         downloadCount:
           type: integer
         tags:
@@ -1355,6 +1371,11 @@ components:
           type: boolean
         commentsEnabled:
           type: boolean
+        installPassword:
+          type: string
+          minLength: 4
+          maxLength: 256
+          description: Optional per-app install password. Stored as a hash; never returned.
         version:
           type: string
         changelog:
@@ -1386,6 +1407,11 @@ components:
           description: Comma-separated tags.
         allowUnreviewedUpdates:
           type: boolean
+        installPassword:
+          type: string
+          minLength: 4
+          maxLength: 256
+          description: Optional per-app install password. Stored as a hash; never returned.
         version:
           type: string
         changelog:
@@ -1414,6 +1440,11 @@ components:
           type: boolean
         commentsEnabled:
           type: boolean
+        installPassword:
+          type: string
+          minLength: 4
+          maxLength: 256
+          description: When present, a non-empty value replaces the install password and an empty value clears it.
 
     CreateVersionRequest:
       type: object

@@ -76,16 +76,20 @@ func init() {
 	appDescCommentsEnabled := appFields[9].Descriptor()
 	// app.DefaultCommentsEnabled holds the default value on creation for the comments_enabled field.
 	app.DefaultCommentsEnabled = appDescCommentsEnabled.Default.(bool)
+	// appDescInstallPasswordHash is the schema descriptor for install_password_hash field.
+	appDescInstallPasswordHash := appFields[10].Descriptor()
+	// app.DefaultInstallPasswordHash holds the default value on creation for the install_password_hash field.
+	app.DefaultInstallPasswordHash = appDescInstallPasswordHash.Default.(string)
 	// appDescDownloadCount is the schema descriptor for download_count field.
-	appDescDownloadCount := appFields[10].Descriptor()
+	appDescDownloadCount := appFields[11].Descriptor()
 	// app.DefaultDownloadCount holds the default value on creation for the download_count field.
 	app.DefaultDownloadCount = appDescDownloadCount.Default.(int)
 	// appDescCreatedAt is the schema descriptor for created_at field.
-	appDescCreatedAt := appFields[11].Descriptor()
+	appDescCreatedAt := appFields[12].Descriptor()
 	// app.DefaultCreatedAt holds the default value on creation for the created_at field.
 	app.DefaultCreatedAt = appDescCreatedAt.Default.(func() time.Time)
 	// appDescUpdatedAt is the schema descriptor for updated_at field.
-	appDescUpdatedAt := appFields[12].Descriptor()
+	appDescUpdatedAt := appFields[13].Descriptor()
 	// app.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	app.DefaultUpdatedAt = appDescUpdatedAt.Default.(func() time.Time)
 	// app.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

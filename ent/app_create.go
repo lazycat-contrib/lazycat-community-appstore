@@ -136,6 +136,20 @@ func (_c *AppCreate) SetNillableCommentsEnabled(v *bool) *AppCreate {
 	return _c
 }
 
+// SetInstallPasswordHash sets the "install_password_hash" field.
+func (_c *AppCreate) SetInstallPasswordHash(v string) *AppCreate {
+	_c.mutation.SetInstallPasswordHash(v)
+	return _c
+}
+
+// SetNillableInstallPasswordHash sets the "install_password_hash" field if the given value is not nil.
+func (_c *AppCreate) SetNillableInstallPasswordHash(v *string) *AppCreate {
+	if v != nil {
+		_c.SetInstallPasswordHash(*v)
+	}
+	return _c
+}
+
 // SetDownloadCount sets the "download_count" field.
 func (_c *AppCreate) SetDownloadCount(v int) *AppCreate {
 	_c.mutation.SetDownloadCount(v)
@@ -233,6 +247,10 @@ func (_c *AppCreate) defaults() {
 		v := app.DefaultCommentsEnabled
 		_c.mutation.SetCommentsEnabled(v)
 	}
+	if _, ok := _c.mutation.InstallPasswordHash(); !ok {
+		v := app.DefaultInstallPasswordHash
+		_c.mutation.SetInstallPasswordHash(v)
+	}
 	if _, ok := _c.mutation.DownloadCount(); !ok {
 		v := app.DefaultDownloadCount
 		_c.mutation.SetDownloadCount(v)
@@ -287,6 +305,9 @@ func (_c *AppCreate) check() error {
 	}
 	if _, ok := _c.mutation.CommentsEnabled(); !ok {
 		return &ValidationError{Name: "comments_enabled", err: errors.New(`ent: missing required field "App.comments_enabled"`)}
+	}
+	if _, ok := _c.mutation.InstallPasswordHash(); !ok {
+		return &ValidationError{Name: "install_password_hash", err: errors.New(`ent: missing required field "App.install_password_hash"`)}
 	}
 	if _, ok := _c.mutation.DownloadCount(); !ok {
 		return &ValidationError{Name: "download_count", err: errors.New(`ent: missing required field "App.download_count"`)}
@@ -362,6 +383,10 @@ func (_c *AppCreate) createSpec() (*App, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CommentsEnabled(); ok {
 		_spec.SetField(app.FieldCommentsEnabled, field.TypeBool, value)
 		_node.CommentsEnabled = value
+	}
+	if value, ok := _c.mutation.InstallPasswordHash(); ok {
+		_spec.SetField(app.FieldInstallPasswordHash, field.TypeString, value)
+		_node.InstallPasswordHash = value
 	}
 	if value, ok := _c.mutation.DownloadCount(); ok {
 		_spec.SetField(app.FieldDownloadCount, field.TypeInt, value)

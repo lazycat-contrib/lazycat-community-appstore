@@ -40,6 +40,7 @@ type appSummary struct {
 	Status                 string    `json:"status"`
 	AllowUnreviewedUpdates bool      `json:"allowUnreviewedUpdates"`
 	CommentsEnabled        bool      `json:"commentsEnabled"`
+	InstallProtected       bool      `json:"installProtected"`
 	DownloadCount          int       `json:"downloadCount"`
 	Tags                   []string  `json:"tags"`
 	VisibleGroupIDs        []int     `json:"visibleGroupIds"`

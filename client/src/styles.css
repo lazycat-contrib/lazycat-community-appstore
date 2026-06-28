@@ -148,6 +148,7 @@ body,
 .secondary-button,
 .install-button,
 .drawer,
+.install-password-dialog,
 .mobile-tabs {
   transition:
     background-color 160ms ease,
@@ -1198,6 +1199,14 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.form-error {
+  margin: 0;
+  color: var(--red);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .form-panel input,
 .form-panel textarea,
 .form-panel select,
@@ -1500,6 +1509,95 @@ textarea {
   position: absolute;
   top: 14px;
   right: 14px;
+}
+
+.modal-backdrop {
+  justify-content: center;
+  align-items: center;
+  padding: 18px;
+  z-index: 30;
+}
+
+.install-password-dialog {
+  position: relative;
+  width: min(430px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+}
+
+.install-password-dialog .close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.install-password-head {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding-right: 48px;
+}
+
+.install-password-head h2,
+.install-password-head p {
+  margin: 0;
+}
+
+.install-password-head h2 {
+  font-size: 19px;
+  line-height: 1.25;
+}
+
+.install-password-head p {
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+
+.install-password-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--green);
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-line);
+}
+
+.install-password-dialog label {
+  display: grid;
+  gap: 6px;
+}
+
+.install-password-dialog label > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.install-password-dialog input {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: var(--field);
+  color: var(--ink);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .detail-head {

@@ -1086,6 +1086,81 @@ func TestSourceFeedExposesUpstreamDownloadURLForClientMirrors(t *testing.T) {
 	}
 }
 
+func TestInstallPasswordProtectsDownloadAndSourceFeedMarksApp(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodPost, "/api/v1/apps", map[string]any{
+		"name":            "Protected Install App",
+		"version":         "1.0.0",
+		"summary":         "Requires an install password",
+		"sourceType":      "GITHUB",
+		"downloadUrl":     "https://github.com/acme/protected/releases/download/v1/app.lpk",
+		"sha256":          strings.Repeat("c", 64),
+		"installPassword": "install-secret",
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create protected app status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var created struct {
+		App struct {
+			ID               int  `json:"id"`
+			InstallProtected bool `json:"installProtected"`
+			LatestVersion    struct {
+				ID int `json:"id"`
+			} `json:"latestVersion"`
+		} `json:"app"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created app: %v", err)
+	}
+	if !created.App.InstallProtected {
+		t.Fatalf("created app did not report installProtected: %s", rec.Body.String())
+	}
+
+	rec = app.do(http.MethodGet, "/source/v1/index.json", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("source status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"installProtected":true`) {
+		t.Fatalf("source feed did not mark protected app: %s", body)
+	}
+	if strings.Contains(body, "install-secret") || strings.Contains(body, "installPasswordHash") {
+		t.Fatalf("source feed leaked install password data: %s", body)
+	}
+	if strings.Contains(body, "github.com/acme/protected") {
+		t.Fatalf("source feed leaked protected upstream download URL: %s", body)
+	}
+
+	downloadPath := fmt.Sprintf("/api/v1/apps/%d/versions/%d/download", created.App.ID, created.App.LatestVersion.ID)
+	rec = app.do(http.MethodGet, downloadPath, nil)
+	if rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), "INSTALL_PASSWORD_REQUIRED") {
+		t.Fatalf("download without password status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	count := app.server.db.App.GetX(t.Context(), created.App.ID).DownloadCount
+	if count != 0 {
+		t.Fatalf("download count after rejected download = %d, want 0", count)
+	}
+
+	rec = app.do(http.MethodGet, downloadPath+"?installPassword=wrong", nil)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("download with wrong password status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = app.do(http.MethodGet, downloadPath+"?installPassword=install-secret", nil)
+	if rec.Code != http.StatusFound {
+		t.Fatalf("download with password status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != "https://github.com/acme/protected/releases/download/v1/app.lpk" {
+		t.Fatalf("download redirect = %q", got)
+	}
+	count = app.server.db.App.GetX(t.Context(), created.App.ID).DownloadCount
+	if count != 1 {
+		t.Fatalf("download count after accepted download = %d, want 1", count)
+	}
+}
+
 func TestPrivateAppVisibilityUsesGroupsAndSourceFeedStaysPublic(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()

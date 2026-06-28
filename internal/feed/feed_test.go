@@ -62,6 +62,38 @@ func TestBuildIndexKeepsStoreDownloadURLWithoutMirror(t *testing.T) {
 	}
 }
 
+func TestBuildIndexDoesNotMirrorProtectedAppDownloads(t *testing.T) {
+	index := BuildIndex(Input{
+		GitHubMirror: "https://mirror.example.com",
+		Apps: []AppInput{
+			{
+				ID:               1,
+				Name:             "Protected",
+				InstallProtected: true,
+				Versions: []VersionInput{
+					{
+						Version:             "1.0.0",
+						Status:              "APPROVED",
+						SourceType:          "GITHUB",
+						DownloadURL:         "https://store.example.com/api/v1/apps/1/versions/2/download",
+						UpstreamDownloadURL: "https://github.com/acme/protected/releases/download/v1/app.lpk",
+					},
+				},
+			},
+		},
+	})
+
+	if got := index.Apps[0].LatestVersion.DownloadURL; got != "https://store.example.com/api/v1/apps/1/versions/2/download" {
+		t.Fatalf("protected app download URL = %q", got)
+	}
+	if got := index.Apps[0].LatestVersion.UpstreamDownloadURL; got != "" {
+		t.Fatalf("protected app upstream download URL = %q", got)
+	}
+	if !index.Apps[0].InstallProtected {
+		t.Fatal("protected app did not expose installProtected=true")
+	}
+}
+
 func TestBuildIndexSkipsAppsWithoutApprovedVersion(t *testing.T) {
 	index := BuildIndex(Input{
 		Apps: []AppInput{

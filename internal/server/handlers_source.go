@@ -43,13 +43,14 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		appInput := feed.AppInput{
-			ID:          record.ID,
-			Name:        record.Name,
-			Slug:        record.Slug,
-			Summary:     record.Summary,
-			Description: record.Description,
-			UpdatedAt:   record.UpdatedAt,
-			Tags:        s.tagNames(r, record.ID),
+			ID:               record.ID,
+			Name:             record.Name,
+			Slug:             record.Slug,
+			Summary:          record.Summary,
+			Description:      record.Description,
+			UpdatedAt:        record.UpdatedAt,
+			Tags:             s.tagNames(r, record.ID),
+			InstallProtected: record.InstallPasswordHash != "",
 		}
 		if record.IconURL != nil {
 			appInput.IconURL = *record.IconURL

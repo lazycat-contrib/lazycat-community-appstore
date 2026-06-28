@@ -25,6 +25,7 @@ import (
 	outdatedpkg "lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/tag"
+	"lazycat.community/appstore/internal/auth"
 	"lazycat.community/appstore/internal/storage"
 )
 
@@ -116,6 +117,7 @@ type createAppJSON struct {
 	Tags                   []string `json:"tags"`
 	AllowUnreviewedUpdates bool     `json:"allowUnreviewedUpdates"`
 	CommentsEnabled        *bool    `json:"commentsEnabled"`
+	InstallPassword        string   `json:"installPassword"`
 	Version                string   `json:"version"`
 	Changelog              string   `json:"changelog"`
 	DownloadURL            string   `json:"downloadUrl"`
@@ -132,6 +134,7 @@ type updateAppJSON struct {
 	TagsSet                bool     `json:"tagsSet,omitempty"`
 	AllowUnreviewedUpdates *bool    `json:"allowUnreviewedUpdates,omitempty"`
 	CommentsEnabled        *bool    `json:"commentsEnabled,omitempty"`
+	InstallPassword        *string  `json:"installPassword,omitempty"`
 }
 
 func (u *updateAppJSON) UnmarshalJSON(data []byte) error {
@@ -190,6 +193,7 @@ func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *e
 		Description:            r.FormValue("description"),
 		Version:                r.FormValue("version"),
 		Changelog:              r.FormValue("changelog"),
+		InstallPassword:        r.FormValue("installPassword"),
 		AllowUnreviewedUpdates: formBool(r, "allowUnreviewedUpdates"),
 		CommentsEnabled:        &commentsEnabled,
 	}
@@ -244,6 +248,11 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 		SetStatus(status).
 		SetAllowUnreviewedUpdates(input.AllowUnreviewedUpdates).
 		SetCommentsEnabled(commentsEnabled)
+	if hash, err := hashInstallPassword(input.InstallPassword); err != nil {
+		return nil, err
+	} else if hash != "" {
+		create.SetInstallPasswordHash(hash)
+	}
 	if input.CategoryID != nil {
 		create.SetCategoryID(*input.CategoryID)
 	}
@@ -285,6 +294,10 @@ func (s *Server) handleUpdateApp(w http.ResponseWriter, r *http.Request, u *entg
 	}
 
 	if !isAdmin(u) && !record.AllowUnreviewedUpdates {
+		if input.InstallPassword != nil {
+			writeError(w, http.StatusForbidden, "FORBIDDEN", "Install password changes require direct app update permission", nil)
+			return
+		}
 		raw, err := json.Marshal(input)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "APP_UPDATE_REVIEW_FAILED", "Could not prepare app update review", nil)
@@ -328,6 +341,13 @@ func (s *Server) applyAppInfoUpdate(r *http.Request, id int, input updateAppJSON
 	}
 	if input.CommentsEnabled != nil {
 		update.SetCommentsEnabled(*input.CommentsEnabled)
+	}
+	if input.InstallPassword != nil {
+		hash, err := hashInstallPassword(*input.InstallPassword)
+		if err != nil {
+			return nil, err
+		}
+		update.SetInstallPasswordHash(hash)
 	}
 	if input.AllowUnreviewedUpdates != nil {
 		update.SetAllowUnreviewedUpdates(*input.AllowUnreviewedUpdates)
@@ -611,6 +631,7 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 		Status:                 string(record.Status),
 		AllowUnreviewedUpdates: record.AllowUnreviewedUpdates,
 		CommentsEnabled:        record.CommentsEnabled,
+		InstallProtected:       record.InstallPasswordHash != "",
 		DownloadCount:          record.DownloadCount,
 		CreatedAt:              record.CreatedAt,
 		UpdatedAt:              record.UpdatedAt,
@@ -679,8 +700,32 @@ func (s *Server) handleDownloadVersion(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "VERSION_NOT_FOUND", "Version not found", nil)
 		return
 	}
+	if record.InstallPasswordHash != "" {
+		password := r.Header.Get("X-Install-Password")
+		if password == "" {
+			password = r.URL.Query().Get("installPassword")
+		}
+		if !auth.CheckPassword(record.InstallPasswordHash, password) {
+			writeError(w, http.StatusUnauthorized, "INSTALL_PASSWORD_REQUIRED", "A valid install password is required", nil)
+			return
+		}
+	}
 	_, _ = s.db.App.UpdateOneID(appID).AddDownloadCount(1).Save(r.Context())
 	http.Redirect(w, r, mirrorDownloadURL(versionRecord.DownloadURL, s.effectiveGitHubMirror(r.Context())), http.StatusFound)
+}
+
+func hashInstallPassword(password string) (string, error) {
+	password = strings.TrimSpace(password)
+	if password == "" {
+		return "", nil
+	}
+	if len([]rune(password)) < 4 {
+		return "", errors.New("install password must be at least 4 characters")
+	}
+	if len(password) > 256 {
+		return "", errors.New("install password must be at most 256 bytes")
+	}
+	return auth.HashPassword(password)
 }
 
 func mirrorDownloadURL(rawURL, mirror string) string {
