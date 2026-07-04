@@ -1,6 +1,9 @@
 package clientserver
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type SourceDTO struct {
 	ID                   int        `json:"id"`
@@ -53,4 +56,34 @@ type SourceAppDTO struct {
 type SyncAllResult struct {
 	Success int `json:"success"`
 	Failed  int `json:"failed"`
+}
+
+type InstalledApplicationDTO struct {
+	AppID          string `json:"appid"`
+	Title          string `json:"title,omitempty"`
+	Version        string `json:"version,omitempty"`
+	Status         string `json:"status,omitempty"`
+	InstanceStatus string `json:"instanceStatus,omitempty"`
+	Icon           string `json:"icon,omitempty"`
+}
+
+type InstallRequestDTO struct {
+	AppID           int    `json:"appId"`
+	InstallPassword string `json:"installPassword,omitempty"`
+	Name            string `json:"name,omitempty"`
+	PackageID       string `json:"pkgId,omitempty"`
+	DownloadURL     string `json:"downloadUrl,omitempty"`
+	SHA256          string `json:"sha256,omitempty"`
+}
+
+type InstallResultDTO struct {
+	Mode   string `json:"mode"`
+	TaskID string `json:"taskId,omitempty"`
+	Status string `json:"status,omitempty"`
+	Detail string `json:"detail,omitempty"`
+}
+
+type PackageManager interface {
+	QueryInstalled(ctx context.Context, userID string) ([]InstalledApplicationDTO, error)
+	InstallLPK(ctx context.Context, userID string, req InstallRequestDTO) (InstallResultDTO, error)
 }

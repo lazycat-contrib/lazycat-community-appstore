@@ -9,6 +9,7 @@ import (
 type Server struct {
 	cfg Config
 	db  *ent.Client
+	pkg PackageManager
 	mux *http.ServeMux
 }
 
@@ -17,13 +18,13 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: cfg, db: db, mux: http.NewServeMux()}
+	s := &Server{cfg: cfg, db: db, pkg: newLazyCatPackageManager(), mux: http.NewServeMux()}
 	s.routes()
 	return s, nil
 }
 
 func newTestServer(db *ent.Client) *Server {
-	s := &Server{cfg: Config{DefaultSourceName: "Community Store"}, db: db, mux: http.NewServeMux()}
+	s := &Server{cfg: Config{DefaultSourceName: "Community Store"}, db: db, pkg: unavailablePackageManager{}, mux: http.NewServeMux()}
 	s.routes()
 	return s
 }
@@ -45,4 +46,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/client/v1/sources/sync", s.handleSyncAllSources)
 	s.mux.HandleFunc("GET /api/client/v1/apps", s.handleListApps)
 	s.mux.HandleFunc("GET /api/client/v1/apps/{id}", s.handleGetApp)
+	s.mux.HandleFunc("GET /api/client/v1/installed", s.handleInstalled)
+	s.mux.HandleFunc("POST /api/client/v1/install", s.handleInstall)
 }

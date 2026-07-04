@@ -2,6 +2,7 @@ package clientserver
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -135,6 +136,76 @@ func TestSyncSourceAuthFailureIsStored(t *testing.T) {
 	sources := app.request("GET", "/api/client/v1/sources", ``, "alice")
 	if !strings.Contains(sources.Body.String(), `"lastErrorCode":"auth"`) {
 		t.Fatalf("auth code not stored: %s", sources.Body.String())
+	}
+}
+
+type fakePackageManager struct {
+	installed []InstalledApplicationDTO
+	install   InstallResultDTO
+	req       InstallRequestDTO
+}
+
+func (f *fakePackageManager) QueryInstalled(ctx context.Context, userID string) ([]InstalledApplicationDTO, error) {
+	return f.installed, nil
+}
+
+func (f *fakePackageManager) InstallLPK(ctx context.Context, userID string, req InstallRequestDTO) (InstallResultDTO, error) {
+	f.req = req
+	return f.install, nil
+}
+
+func TestInstalledAppsUsesPackageManager(t *testing.T) {
+	app := testServer(t)
+	app.server.pkg = &fakePackageManager{installed: []InstalledApplicationDTO{{AppID: "notes", Title: "Notes", Version: "1.2.3", Status: "Installed"}}}
+	rec := app.request("GET", "/api/client/v1/installed", ``, "alice")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"appid":"notes"`) {
+		t.Fatalf("installed = %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestInstallUsesCachedAppVersion(t *testing.T) {
+	app := testServer(t)
+	pm := &fakePackageManager{install: InstallResultDTO{Mode: "lazycat-go-sdk", TaskID: "task-1"}}
+	app.server.pkg = pm
+	seedCachedApp(t, app.server.db, "alice")
+	rec := app.request("POST", "/api/client/v1/install", `{"appId":1}`, "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("install = %d %s", rec.Code, rec.Body.String())
+	}
+	if pm.req.DownloadURL == "" || pm.req.SHA256 == "" || pm.req.PackageID != "notes" {
+		t.Fatalf("bad install request: %#v", pm.req)
+	}
+}
+
+func seedCachedApp(t *testing.T, client *ent.Client, userID string) {
+	t.Helper()
+	ctx := context.Background()
+	source, err := client.ClientSource.Create().
+		SetUserID(userID).
+		SetName("Feed").
+		SetURL("https://feed.example/source/v1/index.json").
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	version, err := json.Marshal(VersionDTO{
+		Version:     "1.2.3",
+		DownloadURL: "https://download.example/notes.lpk",
+		SHA256:      strings.Repeat("a", 64),
+		Size:        123,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.ClientSourceApp.Create().
+		SetSourceID(source.ID).
+		SetExternalID("7").
+		SetName("Notes").
+		SetSlug("notes").
+		SetSummary("Write notes").
+		SetLatestVersionJSON(string(version)).
+		Save(ctx); err != nil {
+		t.Fatal(err)
 	}
 }
 
