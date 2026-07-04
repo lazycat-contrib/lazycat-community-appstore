@@ -18,6 +18,8 @@ import (
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
+	"lazycat.community/appstore/ent/clientsource"
+	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/collaborator"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collection"
@@ -50,6 +52,8 @@ const (
 	TypeAppVersion          = "AppVersion"
 	TypeAppVisibility       = "AppVisibility"
 	TypeCategory            = "Category"
+	TypeClientSource        = "ClientSource"
+	TypeClientSourceApp     = "ClientSourceApp"
 	TypeCollaborator        = "Collaborator"
 	TypeCollaboratorRequest = "CollaboratorRequest"
 	TypeCollection          = "Collection"
@@ -5433,6 +5437,2017 @@ func (m *CategoryMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *CategoryMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Category edge %s", name)
+}
+
+// ClientSourceMutation represents an operation that mutates the ClientSource nodes in the graph.
+type ClientSourceMutation struct {
+	config
+	op                        Op
+	typ                       string
+	id                        *int
+	user_id                   *string
+	name                      *string
+	url                       *string
+	password                  *string
+	mirror                    *string
+	last_sync                 *time.Time
+	last_error                *string
+	last_error_code           *clientsource.LastErrorCode
+	last_app_count            *int
+	addlast_app_count         *int
+	last_installable_count    *int
+	addlast_installable_count *int
+	created_at                *time.Time
+	updated_at                *time.Time
+	clearedFields             map[string]struct{}
+	apps                      map[int]struct{}
+	removedapps               map[int]struct{}
+	clearedapps               bool
+	done                      bool
+	oldValue                  func(context.Context) (*ClientSource, error)
+	predicates                []predicate.ClientSource
+}
+
+var _ ent.Mutation = (*ClientSourceMutation)(nil)
+
+// clientsourceOption allows management of the mutation configuration using functional options.
+type clientsourceOption func(*ClientSourceMutation)
+
+// newClientSourceMutation creates new mutation for the ClientSource entity.
+func newClientSourceMutation(c config, op Op, opts ...clientsourceOption) *ClientSourceMutation {
+	m := &ClientSourceMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeClientSource,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withClientSourceID sets the ID field of the mutation.
+func withClientSourceID(id int) clientsourceOption {
+	return func(m *ClientSourceMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ClientSource
+		)
+		m.oldValue = func(ctx context.Context) (*ClientSource, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ClientSource.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withClientSource sets the old ClientSource of the mutation.
+func withClientSource(node *ClientSource) clientsourceOption {
+	return func(m *ClientSourceMutation) {
+		m.oldValue = func(context.Context) (*ClientSource, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ClientSourceMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ClientSourceMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ClientSourceMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ClientSourceMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ClientSource.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *ClientSourceMutation) SetUserID(s string) {
+	m.user_id = &s
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *ClientSourceMutation) UserID() (r string, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *ClientSourceMutation) ResetUserID() {
+	m.user_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *ClientSourceMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *ClientSourceMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *ClientSourceMutation) ResetName() {
+	m.name = nil
+}
+
+// SetURL sets the "url" field.
+func (m *ClientSourceMutation) SetURL(s string) {
+	m.url = &s
+}
+
+// URL returns the value of the "url" field in the mutation.
+func (m *ClientSourceMutation) URL() (r string, exists bool) {
+	v := m.url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldURL returns the old "url" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldURL: %w", err)
+	}
+	return oldValue.URL, nil
+}
+
+// ResetURL resets all changes to the "url" field.
+func (m *ClientSourceMutation) ResetURL() {
+	m.url = nil
+}
+
+// SetPassword sets the "password" field.
+func (m *ClientSourceMutation) SetPassword(s string) {
+	m.password = &s
+}
+
+// Password returns the value of the "password" field in the mutation.
+func (m *ClientSourceMutation) Password() (r string, exists bool) {
+	v := m.password
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPassword returns the old "password" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldPassword(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPassword is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPassword requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPassword: %w", err)
+	}
+	return oldValue.Password, nil
+}
+
+// ResetPassword resets all changes to the "password" field.
+func (m *ClientSourceMutation) ResetPassword() {
+	m.password = nil
+}
+
+// SetMirror sets the "mirror" field.
+func (m *ClientSourceMutation) SetMirror(s string) {
+	m.mirror = &s
+}
+
+// Mirror returns the value of the "mirror" field in the mutation.
+func (m *ClientSourceMutation) Mirror() (r string, exists bool) {
+	v := m.mirror
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMirror returns the old "mirror" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldMirror(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMirror is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMirror requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMirror: %w", err)
+	}
+	return oldValue.Mirror, nil
+}
+
+// ResetMirror resets all changes to the "mirror" field.
+func (m *ClientSourceMutation) ResetMirror() {
+	m.mirror = nil
+}
+
+// SetLastSync sets the "last_sync" field.
+func (m *ClientSourceMutation) SetLastSync(t time.Time) {
+	m.last_sync = &t
+}
+
+// LastSync returns the value of the "last_sync" field in the mutation.
+func (m *ClientSourceMutation) LastSync() (r time.Time, exists bool) {
+	v := m.last_sync
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSync returns the old "last_sync" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldLastSync(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSync is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSync requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSync: %w", err)
+	}
+	return oldValue.LastSync, nil
+}
+
+// ClearLastSync clears the value of the "last_sync" field.
+func (m *ClientSourceMutation) ClearLastSync() {
+	m.last_sync = nil
+	m.clearedFields[clientsource.FieldLastSync] = struct{}{}
+}
+
+// LastSyncCleared returns if the "last_sync" field was cleared in this mutation.
+func (m *ClientSourceMutation) LastSyncCleared() bool {
+	_, ok := m.clearedFields[clientsource.FieldLastSync]
+	return ok
+}
+
+// ResetLastSync resets all changes to the "last_sync" field.
+func (m *ClientSourceMutation) ResetLastSync() {
+	m.last_sync = nil
+	delete(m.clearedFields, clientsource.FieldLastSync)
+}
+
+// SetLastError sets the "last_error" field.
+func (m *ClientSourceMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *ClientSourceMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldLastError(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ClearLastError clears the value of the "last_error" field.
+func (m *ClientSourceMutation) ClearLastError() {
+	m.last_error = nil
+	m.clearedFields[clientsource.FieldLastError] = struct{}{}
+}
+
+// LastErrorCleared returns if the "last_error" field was cleared in this mutation.
+func (m *ClientSourceMutation) LastErrorCleared() bool {
+	_, ok := m.clearedFields[clientsource.FieldLastError]
+	return ok
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *ClientSourceMutation) ResetLastError() {
+	m.last_error = nil
+	delete(m.clearedFields, clientsource.FieldLastError)
+}
+
+// SetLastErrorCode sets the "last_error_code" field.
+func (m *ClientSourceMutation) SetLastErrorCode(cec clientsource.LastErrorCode) {
+	m.last_error_code = &cec
+}
+
+// LastErrorCode returns the value of the "last_error_code" field in the mutation.
+func (m *ClientSourceMutation) LastErrorCode() (r clientsource.LastErrorCode, exists bool) {
+	v := m.last_error_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastErrorCode returns the old "last_error_code" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldLastErrorCode(ctx context.Context) (v *clientsource.LastErrorCode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastErrorCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastErrorCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastErrorCode: %w", err)
+	}
+	return oldValue.LastErrorCode, nil
+}
+
+// ClearLastErrorCode clears the value of the "last_error_code" field.
+func (m *ClientSourceMutation) ClearLastErrorCode() {
+	m.last_error_code = nil
+	m.clearedFields[clientsource.FieldLastErrorCode] = struct{}{}
+}
+
+// LastErrorCodeCleared returns if the "last_error_code" field was cleared in this mutation.
+func (m *ClientSourceMutation) LastErrorCodeCleared() bool {
+	_, ok := m.clearedFields[clientsource.FieldLastErrorCode]
+	return ok
+}
+
+// ResetLastErrorCode resets all changes to the "last_error_code" field.
+func (m *ClientSourceMutation) ResetLastErrorCode() {
+	m.last_error_code = nil
+	delete(m.clearedFields, clientsource.FieldLastErrorCode)
+}
+
+// SetLastAppCount sets the "last_app_count" field.
+func (m *ClientSourceMutation) SetLastAppCount(i int) {
+	m.last_app_count = &i
+	m.addlast_app_count = nil
+}
+
+// LastAppCount returns the value of the "last_app_count" field in the mutation.
+func (m *ClientSourceMutation) LastAppCount() (r int, exists bool) {
+	v := m.last_app_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastAppCount returns the old "last_app_count" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldLastAppCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastAppCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastAppCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastAppCount: %w", err)
+	}
+	return oldValue.LastAppCount, nil
+}
+
+// AddLastAppCount adds i to the "last_app_count" field.
+func (m *ClientSourceMutation) AddLastAppCount(i int) {
+	if m.addlast_app_count != nil {
+		*m.addlast_app_count += i
+	} else {
+		m.addlast_app_count = &i
+	}
+}
+
+// AddedLastAppCount returns the value that was added to the "last_app_count" field in this mutation.
+func (m *ClientSourceMutation) AddedLastAppCount() (r int, exists bool) {
+	v := m.addlast_app_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLastAppCount resets all changes to the "last_app_count" field.
+func (m *ClientSourceMutation) ResetLastAppCount() {
+	m.last_app_count = nil
+	m.addlast_app_count = nil
+}
+
+// SetLastInstallableCount sets the "last_installable_count" field.
+func (m *ClientSourceMutation) SetLastInstallableCount(i int) {
+	m.last_installable_count = &i
+	m.addlast_installable_count = nil
+}
+
+// LastInstallableCount returns the value of the "last_installable_count" field in the mutation.
+func (m *ClientSourceMutation) LastInstallableCount() (r int, exists bool) {
+	v := m.last_installable_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastInstallableCount returns the old "last_installable_count" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldLastInstallableCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastInstallableCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastInstallableCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastInstallableCount: %w", err)
+	}
+	return oldValue.LastInstallableCount, nil
+}
+
+// AddLastInstallableCount adds i to the "last_installable_count" field.
+func (m *ClientSourceMutation) AddLastInstallableCount(i int) {
+	if m.addlast_installable_count != nil {
+		*m.addlast_installable_count += i
+	} else {
+		m.addlast_installable_count = &i
+	}
+}
+
+// AddedLastInstallableCount returns the value that was added to the "last_installable_count" field in this mutation.
+func (m *ClientSourceMutation) AddedLastInstallableCount() (r int, exists bool) {
+	v := m.addlast_installable_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLastInstallableCount resets all changes to the "last_installable_count" field.
+func (m *ClientSourceMutation) ResetLastInstallableCount() {
+	m.last_installable_count = nil
+	m.addlast_installable_count = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ClientSourceMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ClientSourceMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ClientSourceMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ClientSourceMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ClientSourceMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ClientSourceMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// AddAppIDs adds the "apps" edge to the ClientSourceApp entity by ids.
+func (m *ClientSourceMutation) AddAppIDs(ids ...int) {
+	if m.apps == nil {
+		m.apps = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.apps[ids[i]] = struct{}{}
+	}
+}
+
+// ClearApps clears the "apps" edge to the ClientSourceApp entity.
+func (m *ClientSourceMutation) ClearApps() {
+	m.clearedapps = true
+}
+
+// AppsCleared reports if the "apps" edge to the ClientSourceApp entity was cleared.
+func (m *ClientSourceMutation) AppsCleared() bool {
+	return m.clearedapps
+}
+
+// RemoveAppIDs removes the "apps" edge to the ClientSourceApp entity by IDs.
+func (m *ClientSourceMutation) RemoveAppIDs(ids ...int) {
+	if m.removedapps == nil {
+		m.removedapps = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.apps, ids[i])
+		m.removedapps[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedApps returns the removed IDs of the "apps" edge to the ClientSourceApp entity.
+func (m *ClientSourceMutation) RemovedAppsIDs() (ids []int) {
+	for id := range m.removedapps {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// AppsIDs returns the "apps" edge IDs in the mutation.
+func (m *ClientSourceMutation) AppsIDs() (ids []int) {
+	for id := range m.apps {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetApps resets all changes to the "apps" edge.
+func (m *ClientSourceMutation) ResetApps() {
+	m.apps = nil
+	m.clearedapps = false
+	m.removedapps = nil
+}
+
+// Where appends a list predicates to the ClientSourceMutation builder.
+func (m *ClientSourceMutation) Where(ps ...predicate.ClientSource) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ClientSourceMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ClientSourceMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ClientSource, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ClientSourceMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ClientSourceMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ClientSource).
+func (m *ClientSourceMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ClientSourceMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.user_id != nil {
+		fields = append(fields, clientsource.FieldUserID)
+	}
+	if m.name != nil {
+		fields = append(fields, clientsource.FieldName)
+	}
+	if m.url != nil {
+		fields = append(fields, clientsource.FieldURL)
+	}
+	if m.password != nil {
+		fields = append(fields, clientsource.FieldPassword)
+	}
+	if m.mirror != nil {
+		fields = append(fields, clientsource.FieldMirror)
+	}
+	if m.last_sync != nil {
+		fields = append(fields, clientsource.FieldLastSync)
+	}
+	if m.last_error != nil {
+		fields = append(fields, clientsource.FieldLastError)
+	}
+	if m.last_error_code != nil {
+		fields = append(fields, clientsource.FieldLastErrorCode)
+	}
+	if m.last_app_count != nil {
+		fields = append(fields, clientsource.FieldLastAppCount)
+	}
+	if m.last_installable_count != nil {
+		fields = append(fields, clientsource.FieldLastInstallableCount)
+	}
+	if m.created_at != nil {
+		fields = append(fields, clientsource.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, clientsource.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ClientSourceMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case clientsource.FieldUserID:
+		return m.UserID()
+	case clientsource.FieldName:
+		return m.Name()
+	case clientsource.FieldURL:
+		return m.URL()
+	case clientsource.FieldPassword:
+		return m.Password()
+	case clientsource.FieldMirror:
+		return m.Mirror()
+	case clientsource.FieldLastSync:
+		return m.LastSync()
+	case clientsource.FieldLastError:
+		return m.LastError()
+	case clientsource.FieldLastErrorCode:
+		return m.LastErrorCode()
+	case clientsource.FieldLastAppCount:
+		return m.LastAppCount()
+	case clientsource.FieldLastInstallableCount:
+		return m.LastInstallableCount()
+	case clientsource.FieldCreatedAt:
+		return m.CreatedAt()
+	case clientsource.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ClientSourceMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case clientsource.FieldUserID:
+		return m.OldUserID(ctx)
+	case clientsource.FieldName:
+		return m.OldName(ctx)
+	case clientsource.FieldURL:
+		return m.OldURL(ctx)
+	case clientsource.FieldPassword:
+		return m.OldPassword(ctx)
+	case clientsource.FieldMirror:
+		return m.OldMirror(ctx)
+	case clientsource.FieldLastSync:
+		return m.OldLastSync(ctx)
+	case clientsource.FieldLastError:
+		return m.OldLastError(ctx)
+	case clientsource.FieldLastErrorCode:
+		return m.OldLastErrorCode(ctx)
+	case clientsource.FieldLastAppCount:
+		return m.OldLastAppCount(ctx)
+	case clientsource.FieldLastInstallableCount:
+		return m.OldLastInstallableCount(ctx)
+	case clientsource.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case clientsource.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ClientSource field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ClientSourceMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case clientsource.FieldUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case clientsource.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case clientsource.FieldURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetURL(v)
+		return nil
+	case clientsource.FieldPassword:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPassword(v)
+		return nil
+	case clientsource.FieldMirror:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMirror(v)
+		return nil
+	case clientsource.FieldLastSync:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSync(v)
+		return nil
+	case clientsource.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	case clientsource.FieldLastErrorCode:
+		v, ok := value.(clientsource.LastErrorCode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastErrorCode(v)
+		return nil
+	case clientsource.FieldLastAppCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastAppCount(v)
+		return nil
+	case clientsource.FieldLastInstallableCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastInstallableCount(v)
+		return nil
+	case clientsource.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case clientsource.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSource field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ClientSourceMutation) AddedFields() []string {
+	var fields []string
+	if m.addlast_app_count != nil {
+		fields = append(fields, clientsource.FieldLastAppCount)
+	}
+	if m.addlast_installable_count != nil {
+		fields = append(fields, clientsource.FieldLastInstallableCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ClientSourceMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case clientsource.FieldLastAppCount:
+		return m.AddedLastAppCount()
+	case clientsource.FieldLastInstallableCount:
+		return m.AddedLastInstallableCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ClientSourceMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case clientsource.FieldLastAppCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLastAppCount(v)
+		return nil
+	case clientsource.FieldLastInstallableCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLastInstallableCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSource numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ClientSourceMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(clientsource.FieldLastSync) {
+		fields = append(fields, clientsource.FieldLastSync)
+	}
+	if m.FieldCleared(clientsource.FieldLastError) {
+		fields = append(fields, clientsource.FieldLastError)
+	}
+	if m.FieldCleared(clientsource.FieldLastErrorCode) {
+		fields = append(fields, clientsource.FieldLastErrorCode)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ClientSourceMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ClientSourceMutation) ClearField(name string) error {
+	switch name {
+	case clientsource.FieldLastSync:
+		m.ClearLastSync()
+		return nil
+	case clientsource.FieldLastError:
+		m.ClearLastError()
+		return nil
+	case clientsource.FieldLastErrorCode:
+		m.ClearLastErrorCode()
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSource nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ClientSourceMutation) ResetField(name string) error {
+	switch name {
+	case clientsource.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case clientsource.FieldName:
+		m.ResetName()
+		return nil
+	case clientsource.FieldURL:
+		m.ResetURL()
+		return nil
+	case clientsource.FieldPassword:
+		m.ResetPassword()
+		return nil
+	case clientsource.FieldMirror:
+		m.ResetMirror()
+		return nil
+	case clientsource.FieldLastSync:
+		m.ResetLastSync()
+		return nil
+	case clientsource.FieldLastError:
+		m.ResetLastError()
+		return nil
+	case clientsource.FieldLastErrorCode:
+		m.ResetLastErrorCode()
+		return nil
+	case clientsource.FieldLastAppCount:
+		m.ResetLastAppCount()
+		return nil
+	case clientsource.FieldLastInstallableCount:
+		m.ResetLastInstallableCount()
+		return nil
+	case clientsource.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case clientsource.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSource field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ClientSourceMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.apps != nil {
+		edges = append(edges, clientsource.EdgeApps)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ClientSourceMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case clientsource.EdgeApps:
+		ids := make([]ent.Value, 0, len(m.apps))
+		for id := range m.apps {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ClientSourceMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedapps != nil {
+		edges = append(edges, clientsource.EdgeApps)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ClientSourceMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case clientsource.EdgeApps:
+		ids := make([]ent.Value, 0, len(m.removedapps))
+		for id := range m.removedapps {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ClientSourceMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedapps {
+		edges = append(edges, clientsource.EdgeApps)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ClientSourceMutation) EdgeCleared(name string) bool {
+	switch name {
+	case clientsource.EdgeApps:
+		return m.clearedapps
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ClientSourceMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown ClientSource unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ClientSourceMutation) ResetEdge(name string) error {
+	switch name {
+	case clientsource.EdgeApps:
+		m.ResetApps()
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSource edge %s", name)
+}
+
+// ClientSourceAppMutation represents an operation that mutates the ClientSourceApp nodes in the graph.
+type ClientSourceAppMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *int
+	external_id         *string
+	name                *string
+	slug                *string
+	summary             *string
+	category            *string
+	install_protected   *bool
+	latest_version_json *string
+	created_at          *time.Time
+	updated_at          *time.Time
+	clearedFields       map[string]struct{}
+	source              *int
+	clearedsource       bool
+	done                bool
+	oldValue            func(context.Context) (*ClientSourceApp, error)
+	predicates          []predicate.ClientSourceApp
+}
+
+var _ ent.Mutation = (*ClientSourceAppMutation)(nil)
+
+// clientsourceappOption allows management of the mutation configuration using functional options.
+type clientsourceappOption func(*ClientSourceAppMutation)
+
+// newClientSourceAppMutation creates new mutation for the ClientSourceApp entity.
+func newClientSourceAppMutation(c config, op Op, opts ...clientsourceappOption) *ClientSourceAppMutation {
+	m := &ClientSourceAppMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeClientSourceApp,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withClientSourceAppID sets the ID field of the mutation.
+func withClientSourceAppID(id int) clientsourceappOption {
+	return func(m *ClientSourceAppMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ClientSourceApp
+		)
+		m.oldValue = func(ctx context.Context) (*ClientSourceApp, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ClientSourceApp.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withClientSourceApp sets the old ClientSourceApp of the mutation.
+func withClientSourceApp(node *ClientSourceApp) clientsourceappOption {
+	return func(m *ClientSourceAppMutation) {
+		m.oldValue = func(context.Context) (*ClientSourceApp, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ClientSourceAppMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ClientSourceAppMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ClientSourceAppMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ClientSourceAppMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ClientSourceApp.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSourceID sets the "source_id" field.
+func (m *ClientSourceAppMutation) SetSourceID(i int) {
+	m.source = &i
+}
+
+// SourceID returns the value of the "source_id" field in the mutation.
+func (m *ClientSourceAppMutation) SourceID() (r int, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceID returns the old "source_id" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldSourceID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceID: %w", err)
+	}
+	return oldValue.SourceID, nil
+}
+
+// ResetSourceID resets all changes to the "source_id" field.
+func (m *ClientSourceAppMutation) ResetSourceID() {
+	m.source = nil
+}
+
+// SetExternalID sets the "external_id" field.
+func (m *ClientSourceAppMutation) SetExternalID(s string) {
+	m.external_id = &s
+}
+
+// ExternalID returns the value of the "external_id" field in the mutation.
+func (m *ClientSourceAppMutation) ExternalID() (r string, exists bool) {
+	v := m.external_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalID returns the old "external_id" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldExternalID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalID: %w", err)
+	}
+	return oldValue.ExternalID, nil
+}
+
+// ResetExternalID resets all changes to the "external_id" field.
+func (m *ClientSourceAppMutation) ResetExternalID() {
+	m.external_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *ClientSourceAppMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *ClientSourceAppMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *ClientSourceAppMutation) ResetName() {
+	m.name = nil
+}
+
+// SetSlug sets the "slug" field.
+func (m *ClientSourceAppMutation) SetSlug(s string) {
+	m.slug = &s
+}
+
+// Slug returns the value of the "slug" field in the mutation.
+func (m *ClientSourceAppMutation) Slug() (r string, exists bool) {
+	v := m.slug
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSlug returns the old "slug" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldSlug(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSlug is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSlug requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSlug: %w", err)
+	}
+	return oldValue.Slug, nil
+}
+
+// ResetSlug resets all changes to the "slug" field.
+func (m *ClientSourceAppMutation) ResetSlug() {
+	m.slug = nil
+}
+
+// SetSummary sets the "summary" field.
+func (m *ClientSourceAppMutation) SetSummary(s string) {
+	m.summary = &s
+}
+
+// Summary returns the value of the "summary" field in the mutation.
+func (m *ClientSourceAppMutation) Summary() (r string, exists bool) {
+	v := m.summary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSummary returns the old "summary" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldSummary(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSummary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSummary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSummary: %w", err)
+	}
+	return oldValue.Summary, nil
+}
+
+// ResetSummary resets all changes to the "summary" field.
+func (m *ClientSourceAppMutation) ResetSummary() {
+	m.summary = nil
+}
+
+// SetCategory sets the "category" field.
+func (m *ClientSourceAppMutation) SetCategory(s string) {
+	m.category = &s
+}
+
+// Category returns the value of the "category" field in the mutation.
+func (m *ClientSourceAppMutation) Category() (r string, exists bool) {
+	v := m.category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCategory returns the old "category" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldCategory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCategory: %w", err)
+	}
+	return oldValue.Category, nil
+}
+
+// ResetCategory resets all changes to the "category" field.
+func (m *ClientSourceAppMutation) ResetCategory() {
+	m.category = nil
+}
+
+// SetInstallProtected sets the "install_protected" field.
+func (m *ClientSourceAppMutation) SetInstallProtected(b bool) {
+	m.install_protected = &b
+}
+
+// InstallProtected returns the value of the "install_protected" field in the mutation.
+func (m *ClientSourceAppMutation) InstallProtected() (r bool, exists bool) {
+	v := m.install_protected
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInstallProtected returns the old "install_protected" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldInstallProtected(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInstallProtected is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInstallProtected requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInstallProtected: %w", err)
+	}
+	return oldValue.InstallProtected, nil
+}
+
+// ResetInstallProtected resets all changes to the "install_protected" field.
+func (m *ClientSourceAppMutation) ResetInstallProtected() {
+	m.install_protected = nil
+}
+
+// SetLatestVersionJSON sets the "latest_version_json" field.
+func (m *ClientSourceAppMutation) SetLatestVersionJSON(s string) {
+	m.latest_version_json = &s
+}
+
+// LatestVersionJSON returns the value of the "latest_version_json" field in the mutation.
+func (m *ClientSourceAppMutation) LatestVersionJSON() (r string, exists bool) {
+	v := m.latest_version_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatestVersionJSON returns the old "latest_version_json" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldLatestVersionJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatestVersionJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatestVersionJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatestVersionJSON: %w", err)
+	}
+	return oldValue.LatestVersionJSON, nil
+}
+
+// ResetLatestVersionJSON resets all changes to the "latest_version_json" field.
+func (m *ClientSourceAppMutation) ResetLatestVersionJSON() {
+	m.latest_version_json = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ClientSourceAppMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ClientSourceAppMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ClientSourceAppMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ClientSourceAppMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ClientSourceAppMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ClientSourceAppMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearSource clears the "source" edge to the ClientSource entity.
+func (m *ClientSourceAppMutation) ClearSource() {
+	m.clearedsource = true
+	m.clearedFields[clientsourceapp.FieldSourceID] = struct{}{}
+}
+
+// SourceCleared reports if the "source" edge to the ClientSource entity was cleared.
+func (m *ClientSourceAppMutation) SourceCleared() bool {
+	return m.clearedsource
+}
+
+// SourceIDs returns the "source" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SourceID instead. It exists only for internal usage by the builders.
+func (m *ClientSourceAppMutation) SourceIDs() (ids []int) {
+	if id := m.source; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSource resets all changes to the "source" edge.
+func (m *ClientSourceAppMutation) ResetSource() {
+	m.source = nil
+	m.clearedsource = false
+}
+
+// Where appends a list predicates to the ClientSourceAppMutation builder.
+func (m *ClientSourceAppMutation) Where(ps ...predicate.ClientSourceApp) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ClientSourceAppMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ClientSourceAppMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ClientSourceApp, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ClientSourceAppMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ClientSourceAppMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ClientSourceApp).
+func (m *ClientSourceAppMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ClientSourceAppMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.source != nil {
+		fields = append(fields, clientsourceapp.FieldSourceID)
+	}
+	if m.external_id != nil {
+		fields = append(fields, clientsourceapp.FieldExternalID)
+	}
+	if m.name != nil {
+		fields = append(fields, clientsourceapp.FieldName)
+	}
+	if m.slug != nil {
+		fields = append(fields, clientsourceapp.FieldSlug)
+	}
+	if m.summary != nil {
+		fields = append(fields, clientsourceapp.FieldSummary)
+	}
+	if m.category != nil {
+		fields = append(fields, clientsourceapp.FieldCategory)
+	}
+	if m.install_protected != nil {
+		fields = append(fields, clientsourceapp.FieldInstallProtected)
+	}
+	if m.latest_version_json != nil {
+		fields = append(fields, clientsourceapp.FieldLatestVersionJSON)
+	}
+	if m.created_at != nil {
+		fields = append(fields, clientsourceapp.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, clientsourceapp.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ClientSourceAppMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case clientsourceapp.FieldSourceID:
+		return m.SourceID()
+	case clientsourceapp.FieldExternalID:
+		return m.ExternalID()
+	case clientsourceapp.FieldName:
+		return m.Name()
+	case clientsourceapp.FieldSlug:
+		return m.Slug()
+	case clientsourceapp.FieldSummary:
+		return m.Summary()
+	case clientsourceapp.FieldCategory:
+		return m.Category()
+	case clientsourceapp.FieldInstallProtected:
+		return m.InstallProtected()
+	case clientsourceapp.FieldLatestVersionJSON:
+		return m.LatestVersionJSON()
+	case clientsourceapp.FieldCreatedAt:
+		return m.CreatedAt()
+	case clientsourceapp.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ClientSourceAppMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case clientsourceapp.FieldSourceID:
+		return m.OldSourceID(ctx)
+	case clientsourceapp.FieldExternalID:
+		return m.OldExternalID(ctx)
+	case clientsourceapp.FieldName:
+		return m.OldName(ctx)
+	case clientsourceapp.FieldSlug:
+		return m.OldSlug(ctx)
+	case clientsourceapp.FieldSummary:
+		return m.OldSummary(ctx)
+	case clientsourceapp.FieldCategory:
+		return m.OldCategory(ctx)
+	case clientsourceapp.FieldInstallProtected:
+		return m.OldInstallProtected(ctx)
+	case clientsourceapp.FieldLatestVersionJSON:
+		return m.OldLatestVersionJSON(ctx)
+	case clientsourceapp.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case clientsourceapp.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ClientSourceApp field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case clientsourceapp.FieldSourceID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceID(v)
+		return nil
+	case clientsourceapp.FieldExternalID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalID(v)
+		return nil
+	case clientsourceapp.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case clientsourceapp.FieldSlug:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSlug(v)
+		return nil
+	case clientsourceapp.FieldSummary:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSummary(v)
+		return nil
+	case clientsourceapp.FieldCategory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCategory(v)
+		return nil
+	case clientsourceapp.FieldInstallProtected:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInstallProtected(v)
+		return nil
+	case clientsourceapp.FieldLatestVersionJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatestVersionJSON(v)
+		return nil
+	case clientsourceapp.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case clientsourceapp.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSourceApp field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ClientSourceAppMutation) AddedFields() []string {
+	var fields []string
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ClientSourceAppMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ClientSourceAppMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown ClientSourceApp numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ClientSourceAppMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ClientSourceAppMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ClientSourceAppMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown ClientSourceApp nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ClientSourceAppMutation) ResetField(name string) error {
+	switch name {
+	case clientsourceapp.FieldSourceID:
+		m.ResetSourceID()
+		return nil
+	case clientsourceapp.FieldExternalID:
+		m.ResetExternalID()
+		return nil
+	case clientsourceapp.FieldName:
+		m.ResetName()
+		return nil
+	case clientsourceapp.FieldSlug:
+		m.ResetSlug()
+		return nil
+	case clientsourceapp.FieldSummary:
+		m.ResetSummary()
+		return nil
+	case clientsourceapp.FieldCategory:
+		m.ResetCategory()
+		return nil
+	case clientsourceapp.FieldInstallProtected:
+		m.ResetInstallProtected()
+		return nil
+	case clientsourceapp.FieldLatestVersionJSON:
+		m.ResetLatestVersionJSON()
+		return nil
+	case clientsourceapp.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case clientsourceapp.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSourceApp field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ClientSourceAppMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.source != nil {
+		edges = append(edges, clientsourceapp.EdgeSource)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ClientSourceAppMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case clientsourceapp.EdgeSource:
+		if id := m.source; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ClientSourceAppMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ClientSourceAppMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ClientSourceAppMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedsource {
+		edges = append(edges, clientsourceapp.EdgeSource)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ClientSourceAppMutation) EdgeCleared(name string) bool {
+	switch name {
+	case clientsourceapp.EdgeSource:
+		return m.clearedsource
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ClientSourceAppMutation) ClearEdge(name string) error {
+	switch name {
+	case clientsourceapp.EdgeSource:
+		m.ClearSource()
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSourceApp unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ClientSourceAppMutation) ResetEdge(name string) error {
+	switch name {
+	case clientsourceapp.EdgeSource:
+		m.ResetSource()
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSourceApp edge %s", name)
 }
 
 // CollaboratorMutation represents an operation that mutates the Collaborator nodes in the graph.

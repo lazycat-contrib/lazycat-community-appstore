@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/appscreenshot"
@@ -21,6 +22,8 @@ import (
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
+	"lazycat.community/appstore/ent/clientsource"
+	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/collaborator"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collection"
@@ -55,6 +58,10 @@ type Client struct {
 	AppVisibility *AppVisibilityClient
 	// Category is the client for interacting with the Category builders.
 	Category *CategoryClient
+	// ClientSource is the client for interacting with the ClientSource builders.
+	ClientSource *ClientSourceClient
+	// ClientSourceApp is the client for interacting with the ClientSourceApp builders.
+	ClientSourceApp *ClientSourceAppClient
 	// Collaborator is the client for interacting with the Collaborator builders.
 	Collaborator *CollaboratorClient
 	// CollaboratorRequest is the client for interacting with the CollaboratorRequest builders.
@@ -99,6 +106,8 @@ func (c *Client) init() {
 	c.AppVersion = NewAppVersionClient(c.config)
 	c.AppVisibility = NewAppVisibilityClient(c.config)
 	c.Category = NewCategoryClient(c.config)
+	c.ClientSource = NewClientSourceClient(c.config)
+	c.ClientSourceApp = NewClientSourceAppClient(c.config)
 	c.Collaborator = NewCollaboratorClient(c.config)
 	c.CollaboratorRequest = NewCollaboratorRequestClient(c.config)
 	c.Collection = NewCollectionClient(c.config)
@@ -211,6 +220,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AppVersion:          NewAppVersionClient(cfg),
 		AppVisibility:       NewAppVisibilityClient(cfg),
 		Category:            NewCategoryClient(cfg),
+		ClientSource:        NewClientSourceClient(cfg),
+		ClientSourceApp:     NewClientSourceAppClient(cfg),
 		Collaborator:        NewCollaboratorClient(cfg),
 		CollaboratorRequest: NewCollaboratorRequestClient(cfg),
 		Collection:          NewCollectionClient(cfg),
@@ -250,6 +261,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AppVersion:          NewAppVersionClient(cfg),
 		AppVisibility:       NewAppVisibilityClient(cfg),
 		Category:            NewCategoryClient(cfg),
+		ClientSource:        NewClientSourceClient(cfg),
+		ClientSourceApp:     NewClientSourceAppClient(cfg),
 		Collaborator:        NewCollaboratorClient(cfg),
 		CollaboratorRequest: NewCollaboratorRequestClient(cfg),
 		Collection:          NewCollectionClient(cfg),
@@ -293,9 +306,10 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
-		c.Category, c.Collaborator, c.CollaboratorRequest, c.Collection,
-		c.CollectionApp, c.Comment, c.Favorite, c.GroupMember, c.OutdatedMark,
-		c.ReviewRequest, c.SiteSetting, c.Tag, c.User, c.UserGroup,
+		c.Category, c.ClientSource, c.ClientSourceApp, c.Collaborator,
+		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment, c.Favorite,
+		c.GroupMember, c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User,
+		c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -306,9 +320,10 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
-		c.Category, c.Collaborator, c.CollaboratorRequest, c.Collection,
-		c.CollectionApp, c.Comment, c.Favorite, c.GroupMember, c.OutdatedMark,
-		c.ReviewRequest, c.SiteSetting, c.Tag, c.User, c.UserGroup,
+		c.Category, c.ClientSource, c.ClientSourceApp, c.Collaborator,
+		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment, c.Favorite,
+		c.GroupMember, c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User,
+		c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -331,6 +346,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AppVisibility.mutate(ctx, m)
 	case *CategoryMutation:
 		return c.Category.mutate(ctx, m)
+	case *ClientSourceMutation:
+		return c.ClientSource.mutate(ctx, m)
+	case *ClientSourceAppMutation:
+		return c.ClientSourceApp.mutate(ctx, m)
 	case *CollaboratorMutation:
 		return c.Collaborator.mutate(ctx, m)
 	case *CollaboratorRequestMutation:
@@ -1290,6 +1309,304 @@ func (c *CategoryClient) mutate(ctx context.Context, m *CategoryMutation) (Value
 		return (&CategoryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Category mutation op: %q", m.Op())
+	}
+}
+
+// ClientSourceClient is a client for the ClientSource schema.
+type ClientSourceClient struct {
+	config
+}
+
+// NewClientSourceClient returns a client for the ClientSource from the given config.
+func NewClientSourceClient(c config) *ClientSourceClient {
+	return &ClientSourceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `clientsource.Hooks(f(g(h())))`.
+func (c *ClientSourceClient) Use(hooks ...Hook) {
+	c.hooks.ClientSource = append(c.hooks.ClientSource, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `clientsource.Intercept(f(g(h())))`.
+func (c *ClientSourceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ClientSource = append(c.inters.ClientSource, interceptors...)
+}
+
+// Create returns a builder for creating a ClientSource entity.
+func (c *ClientSourceClient) Create() *ClientSourceCreate {
+	mutation := newClientSourceMutation(c.config, OpCreate)
+	return &ClientSourceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ClientSource entities.
+func (c *ClientSourceClient) CreateBulk(builders ...*ClientSourceCreate) *ClientSourceCreateBulk {
+	return &ClientSourceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ClientSourceClient) MapCreateBulk(slice any, setFunc func(*ClientSourceCreate, int)) *ClientSourceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ClientSourceCreateBulk{err: fmt.Errorf("calling to ClientSourceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ClientSourceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ClientSourceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ClientSource.
+func (c *ClientSourceClient) Update() *ClientSourceUpdate {
+	mutation := newClientSourceMutation(c.config, OpUpdate)
+	return &ClientSourceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ClientSourceClient) UpdateOne(_m *ClientSource) *ClientSourceUpdateOne {
+	mutation := newClientSourceMutation(c.config, OpUpdateOne, withClientSource(_m))
+	return &ClientSourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ClientSourceClient) UpdateOneID(id int) *ClientSourceUpdateOne {
+	mutation := newClientSourceMutation(c.config, OpUpdateOne, withClientSourceID(id))
+	return &ClientSourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ClientSource.
+func (c *ClientSourceClient) Delete() *ClientSourceDelete {
+	mutation := newClientSourceMutation(c.config, OpDelete)
+	return &ClientSourceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ClientSourceClient) DeleteOne(_m *ClientSource) *ClientSourceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ClientSourceClient) DeleteOneID(id int) *ClientSourceDeleteOne {
+	builder := c.Delete().Where(clientsource.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ClientSourceDeleteOne{builder}
+}
+
+// Query returns a query builder for ClientSource.
+func (c *ClientSourceClient) Query() *ClientSourceQuery {
+	return &ClientSourceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeClientSource},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ClientSource entity by its id.
+func (c *ClientSourceClient) Get(ctx context.Context, id int) (*ClientSource, error) {
+	return c.Query().Where(clientsource.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ClientSourceClient) GetX(ctx context.Context, id int) *ClientSource {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryApps queries the apps edge of a ClientSource.
+func (c *ClientSourceClient) QueryApps(_m *ClientSource) *ClientSourceAppQuery {
+	query := (&ClientSourceAppClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(clientsource.Table, clientsource.FieldID, id),
+			sqlgraph.To(clientsourceapp.Table, clientsourceapp.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, clientsource.AppsTable, clientsource.AppsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ClientSourceClient) Hooks() []Hook {
+	return c.hooks.ClientSource
+}
+
+// Interceptors returns the client interceptors.
+func (c *ClientSourceClient) Interceptors() []Interceptor {
+	return c.inters.ClientSource
+}
+
+func (c *ClientSourceClient) mutate(ctx context.Context, m *ClientSourceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ClientSourceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ClientSourceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ClientSourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ClientSourceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ClientSource mutation op: %q", m.Op())
+	}
+}
+
+// ClientSourceAppClient is a client for the ClientSourceApp schema.
+type ClientSourceAppClient struct {
+	config
+}
+
+// NewClientSourceAppClient returns a client for the ClientSourceApp from the given config.
+func NewClientSourceAppClient(c config) *ClientSourceAppClient {
+	return &ClientSourceAppClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `clientsourceapp.Hooks(f(g(h())))`.
+func (c *ClientSourceAppClient) Use(hooks ...Hook) {
+	c.hooks.ClientSourceApp = append(c.hooks.ClientSourceApp, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `clientsourceapp.Intercept(f(g(h())))`.
+func (c *ClientSourceAppClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ClientSourceApp = append(c.inters.ClientSourceApp, interceptors...)
+}
+
+// Create returns a builder for creating a ClientSourceApp entity.
+func (c *ClientSourceAppClient) Create() *ClientSourceAppCreate {
+	mutation := newClientSourceAppMutation(c.config, OpCreate)
+	return &ClientSourceAppCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ClientSourceApp entities.
+func (c *ClientSourceAppClient) CreateBulk(builders ...*ClientSourceAppCreate) *ClientSourceAppCreateBulk {
+	return &ClientSourceAppCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ClientSourceAppClient) MapCreateBulk(slice any, setFunc func(*ClientSourceAppCreate, int)) *ClientSourceAppCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ClientSourceAppCreateBulk{err: fmt.Errorf("calling to ClientSourceAppClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ClientSourceAppCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ClientSourceAppCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ClientSourceApp.
+func (c *ClientSourceAppClient) Update() *ClientSourceAppUpdate {
+	mutation := newClientSourceAppMutation(c.config, OpUpdate)
+	return &ClientSourceAppUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ClientSourceAppClient) UpdateOne(_m *ClientSourceApp) *ClientSourceAppUpdateOne {
+	mutation := newClientSourceAppMutation(c.config, OpUpdateOne, withClientSourceApp(_m))
+	return &ClientSourceAppUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ClientSourceAppClient) UpdateOneID(id int) *ClientSourceAppUpdateOne {
+	mutation := newClientSourceAppMutation(c.config, OpUpdateOne, withClientSourceAppID(id))
+	return &ClientSourceAppUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ClientSourceApp.
+func (c *ClientSourceAppClient) Delete() *ClientSourceAppDelete {
+	mutation := newClientSourceAppMutation(c.config, OpDelete)
+	return &ClientSourceAppDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ClientSourceAppClient) DeleteOne(_m *ClientSourceApp) *ClientSourceAppDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ClientSourceAppClient) DeleteOneID(id int) *ClientSourceAppDeleteOne {
+	builder := c.Delete().Where(clientsourceapp.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ClientSourceAppDeleteOne{builder}
+}
+
+// Query returns a query builder for ClientSourceApp.
+func (c *ClientSourceAppClient) Query() *ClientSourceAppQuery {
+	return &ClientSourceAppQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeClientSourceApp},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ClientSourceApp entity by its id.
+func (c *ClientSourceAppClient) Get(ctx context.Context, id int) (*ClientSourceApp, error) {
+	return c.Query().Where(clientsourceapp.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ClientSourceAppClient) GetX(ctx context.Context, id int) *ClientSourceApp {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySource queries the source edge of a ClientSourceApp.
+func (c *ClientSourceAppClient) QuerySource(_m *ClientSourceApp) *ClientSourceQuery {
+	query := (&ClientSourceClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(clientsourceapp.Table, clientsourceapp.FieldID, id),
+			sqlgraph.To(clientsource.Table, clientsource.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, clientsourceapp.SourceTable, clientsourceapp.SourceColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ClientSourceAppClient) Hooks() []Hook {
+	return c.hooks.ClientSourceApp
+}
+
+// Interceptors returns the client interceptors.
+func (c *ClientSourceAppClient) Interceptors() []Interceptor {
+	return c.inters.ClientSourceApp
+}
+
+func (c *ClientSourceAppClient) mutate(ctx context.Context, m *ClientSourceAppMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ClientSourceAppCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ClientSourceAppUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ClientSourceAppUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ClientSourceAppDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ClientSourceApp mutation op: %q", m.Op())
 	}
 }
 
@@ -3026,14 +3343,14 @@ func (c *UserGroupClient) mutate(ctx context.Context, m *UserGroupMutation) (Val
 type (
 	hooks struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
-		Collaborator, CollaboratorRequest, Collection, CollectionApp, Comment,
-		Favorite, GroupMember, OutdatedMark, ReviewRequest, SiteSetting, Tag, User,
-		UserGroup []ent.Hook
+		ClientSource, ClientSourceApp, Collaborator, CollaboratorRequest, Collection,
+		CollectionApp, Comment, Favorite, GroupMember, OutdatedMark, ReviewRequest,
+		SiteSetting, Tag, User, UserGroup []ent.Hook
 	}
 	inters struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
-		Collaborator, CollaboratorRequest, Collection, CollectionApp, Comment,
-		Favorite, GroupMember, OutdatedMark, ReviewRequest, SiteSetting, Tag, User,
-		UserGroup []ent.Interceptor
+		ClientSource, ClientSourceApp, Collaborator, CollaboratorRequest, Collection,
+		CollectionApp, Comment, Favorite, GroupMember, OutdatedMark, ReviewRequest,
+		SiteSetting, Tag, User, UserGroup []ent.Interceptor
 	}
 )

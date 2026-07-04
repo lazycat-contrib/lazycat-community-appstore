@@ -26,6 +26,10 @@ type Tx struct {
 	AppVisibility *AppVisibilityClient
 	// Category is the client for interacting with the Category builders.
 	Category *CategoryClient
+	// ClientSource is the client for interacting with the ClientSource builders.
+	ClientSource *ClientSourceClient
+	// ClientSourceApp is the client for interacting with the ClientSourceApp builders.
+	ClientSourceApp *ClientSourceAppClient
 	// Collaborator is the client for interacting with the Collaborator builders.
 	Collaborator *CollaboratorClient
 	// CollaboratorRequest is the client for interacting with the CollaboratorRequest builders.
@@ -190,6 +194,8 @@ func (tx *Tx) init() {
 	tx.AppVersion = NewAppVersionClient(tx.config)
 	tx.AppVisibility = NewAppVisibilityClient(tx.config)
 	tx.Category = NewCategoryClient(tx.config)
+	tx.ClientSource = NewClientSourceClient(tx.config)
+	tx.ClientSourceApp = NewClientSourceAppClient(tx.config)
 	tx.Collaborator = NewCollaboratorClient(tx.config)
 	tx.CollaboratorRequest = NewCollaboratorRequestClient(tx.config)
 	tx.Collection = NewCollectionClient(tx.config)

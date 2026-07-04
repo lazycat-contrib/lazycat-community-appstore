@@ -219,6 +219,80 @@ var (
 			},
 		},
 	}
+	// ClientSourcesColumns holds the columns for the "client_sources" table.
+	ClientSourcesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString},
+		{Name: "url", Type: field.TypeString},
+		{Name: "password", Type: field.TypeString, Default: ""},
+		{Name: "mirror", Type: field.TypeString, Default: ""},
+		{Name: "last_sync", Type: field.TypeTime, Nullable: true},
+		{Name: "last_error", Type: field.TypeString, Nullable: true},
+		{Name: "last_error_code", Type: field.TypeEnum, Nullable: true, Enums: []string{"auth", "format", "http", "network"}},
+		{Name: "last_app_count", Type: field.TypeInt, Default: 0},
+		{Name: "last_installable_count", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ClientSourcesTable holds the schema information for the "client_sources" table.
+	ClientSourcesTable = &schema.Table{
+		Name:       "client_sources",
+		Columns:    ClientSourcesColumns,
+		PrimaryKey: []*schema.Column{ClientSourcesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "clientsource_user_id_url",
+				Unique:  true,
+				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[3]},
+			},
+			{
+				Name:    "clientsource_user_id_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[12]},
+			},
+		},
+	}
+	// ClientSourceAppsColumns holds the columns for the "client_source_apps" table.
+	ClientSourceAppsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "external_id", Type: field.TypeString, Default: ""},
+		{Name: "name", Type: field.TypeString},
+		{Name: "slug", Type: field.TypeString},
+		{Name: "summary", Type: field.TypeString, Default: ""},
+		{Name: "category", Type: field.TypeString, Default: ""},
+		{Name: "install_protected", Type: field.TypeBool, Default: false},
+		{Name: "latest_version_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "source_id", Type: field.TypeInt},
+	}
+	// ClientSourceAppsTable holds the schema information for the "client_source_apps" table.
+	ClientSourceAppsTable = &schema.Table{
+		Name:       "client_source_apps",
+		Columns:    ClientSourceAppsColumns,
+		PrimaryKey: []*schema.Column{ClientSourceAppsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "client_source_apps_client_sources_apps",
+				Columns:    []*schema.Column{ClientSourceAppsColumns[10]},
+				RefColumns: []*schema.Column{ClientSourcesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "clientsourceapp_source_id_slug",
+				Unique:  true,
+				Columns: []*schema.Column{ClientSourceAppsColumns[10], ClientSourceAppsColumns[3]},
+			},
+			{
+				Name:    "clientsourceapp_source_id_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{ClientSourceAppsColumns[10], ClientSourceAppsColumns[9]},
+			},
+		},
+	}
 	// CollaboratorsColumns holds the columns for the "collaborators" table.
 	CollaboratorsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -562,6 +636,8 @@ var (
 		AppVersionsTable,
 		AppVisibilitiesTable,
 		CategoriesTable,
+		ClientSourcesTable,
+		ClientSourceAppsTable,
 		CollaboratorsTable,
 		CollaboratorRequestsTable,
 		CollectionsTable,
@@ -579,4 +655,5 @@ var (
 )
 
 func init() {
+	ClientSourceAppsTable.ForeignKeys[0].RefTable = ClientSourcesTable
 }

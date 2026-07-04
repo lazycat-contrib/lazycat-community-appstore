@@ -27,6 +27,12 @@ type AppVisibility func(*sql.Selector)
 // Category is the predicate function for category builders.
 type Category func(*sql.Selector)
 
+// ClientSource is the predicate function for clientsource builders.
+type ClientSource func(*sql.Selector)
+
+// ClientSourceApp is the predicate function for clientsourceapp builders.
+type ClientSourceApp func(*sql.Selector)
+
 // Collaborator is the predicate function for collaborator builders.
 type Collaborator func(*sql.Selector)
 

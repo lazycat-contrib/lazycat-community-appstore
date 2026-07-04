@@ -93,6 +93,30 @@ func (f CategoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CategoryMutation", m)
 }
 
+// The ClientSourceFunc type is an adapter to allow the use of ordinary
+// function as ClientSource mutator.
+type ClientSourceFunc func(context.Context, *ent.ClientSourceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ClientSourceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ClientSourceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ClientSourceMutation", m)
+}
+
+// The ClientSourceAppFunc type is an adapter to allow the use of ordinary
+// function as ClientSourceApp mutator.
+type ClientSourceAppFunc func(context.Context, *ent.ClientSourceAppMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ClientSourceAppFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ClientSourceAppMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ClientSourceAppMutation", m)
+}
+
 // The CollaboratorFunc type is an adapter to allow the use of ordinary
 // function as Collaborator mutator.
 type CollaboratorFunc func(context.Context, *ent.CollaboratorMutation) (ent.Value, error)

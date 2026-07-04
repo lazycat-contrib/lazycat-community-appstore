@@ -19,6 +19,8 @@ import (
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
+	"lazycat.community/appstore/ent/clientsource"
+	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/collaborator"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collection"
@@ -99,6 +101,8 @@ func checkColumn(t, c string) error {
 			appversion.Table:          appversion.ValidColumn,
 			appvisibility.Table:       appvisibility.ValidColumn,
 			category.Table:            category.ValidColumn,
+			clientsource.Table:        clientsource.ValidColumn,
+			clientsourceapp.Table:     clientsourceapp.ValidColumn,
 			collaborator.Table:        collaborator.ValidColumn,
 			collaboratorrequest.Table: collaboratorrequest.ValidColumn,
 			collection.Table:          collection.ValidColumn,
