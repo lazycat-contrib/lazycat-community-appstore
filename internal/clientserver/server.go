@@ -1,8 +1,12 @@
 package clientserver
 
 import (
+	"io/fs"
 	"net/http"
+	"path"
+	"strings"
 
+	"lazycat.community/appstore/clientembed"
 	"lazycat.community/appstore/ent"
 )
 
@@ -48,4 +52,38 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/client/v1/apps/{id}", s.handleGetApp)
 	s.mux.HandleFunc("GET /api/client/v1/installed", s.handleInstalled)
 	s.mux.HandleFunc("POST /api/client/v1/install", s.handleInstall)
+	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "lazycat-appstore-client"})
+	})
+	s.mux.Handle("/", embeddedClientHandler())
+}
+
+func embeddedClientHandler() http.Handler {
+	dist, err := fs.Sub(clientembed.Dist, "dist")
+	if err != nil {
+		return http.NotFoundHandler()
+	}
+	fileServer := http.FileServer(http.FS(dist))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.NotFound(w, r)
+			return
+		}
+		requestPath := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+		if requestPath == "." || requestPath == "" {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+		if info, err := fs.Stat(dist, requestPath); err == nil && !info.IsDir() {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+		if _, err := fs.Stat(dist, "index.html"); err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		clone := r.Clone(r.Context())
+		clone.URL.Path = "/"
+		fileServer.ServeHTTP(w, clone)
+	})
 }

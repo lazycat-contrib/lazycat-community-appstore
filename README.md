@@ -39,12 +39,24 @@ The LazyCat server package does this automatically from `lazycat/server/build.sh
 Local standalone client:
 
 ```bash
+go run ./cmd/store-client
+```
+
+Default client URL: `http://127.0.0.1:8090`
+
+The standalone client now runs as a Go app with the React UI embedded into the binary. Source subscriptions and synced source apps are stored in SQLite, so they persist on the LazyCat device instead of browser `localStorage`. Browser storage is only used for UI preferences such as theme and language.
+
+Default local database path: `./data/client.db`. In the LazyCat client LPK it uses `/lzcapp/var/data/client.db`.
+
+For frontend-only development, run Vite separately:
+
+```bash
 cd client
 npm install
 npm run dev
 ```
 
-By default the client runs in standalone mode with no API server configured. Users can open the Software Sources page, add a source URL, sync it, and install LPKs through the LazyCat SDK.
+Users can open the Software Sources page, add a source URL, sync it, and install LPKs through the LazyCat Go SDK-backed client API.
 
 Optional runtime config is loaded from `app-config.js`:
 

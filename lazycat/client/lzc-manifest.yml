@@ -4,11 +4,20 @@ usage: |
 
 application:
   subdomain: lazycat-appstore
+  background_task: true
   public_path:
     - /
   upstreams:
     - location: /
-      backend: file:///lzcapp/pkg/content/dist/
+      backend: http://127.0.0.1:8090/
+      backend_launch_command: /lzcapp/pkg/content/store-client
+  environment:
+    - CLIENT_ADDR=127.0.0.1:8090
+    - CLIENT_DB_DSN=/lzcapp/var/data/client.db
+  health_check:
+    test_url: http://127.0.0.1:8090/healthz
+    start_period: 10s
+    timeout: 5s
   injects:
     - id: open-save-chooser
       on: browser

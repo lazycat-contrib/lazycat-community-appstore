@@ -177,6 +177,14 @@ func TestInstallUsesCachedAppVersion(t *testing.T) {
 	}
 }
 
+func TestHealthz(t *testing.T) {
+	app := testServer(t)
+	rec := app.request("GET", "/healthz", ``, "alice")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatalf("healthz = %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 func seedCachedApp(t *testing.T, client *ent.Client, userID string) {
 	t.Helper()
 	ctx := context.Background()
