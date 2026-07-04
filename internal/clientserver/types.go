@@ -28,3 +28,29 @@ type ErrorResponse struct {
 		Message string `json:"message"`
 	} `json:"error"`
 }
+
+type VersionDTO struct {
+	Version             string `json:"version"`
+	DownloadURL         string `json:"downloadUrl"`
+	UpstreamDownloadURL string `json:"upstreamDownloadUrl,omitempty"`
+	SourceType          string `json:"sourceType,omitempty"`
+	SHA256              string `json:"sha256"`
+	Size                int64  `json:"size"`
+}
+
+type SourceAppDTO struct {
+	ID               int         `json:"id"`
+	SourceID         int         `json:"sourceId"`
+	SourceName       string      `json:"sourceName"`
+	Name             string      `json:"name"`
+	Slug             string      `json:"slug"`
+	Summary          string      `json:"summary"`
+	Category         string      `json:"category,omitempty"`
+	InstallProtected bool        `json:"installProtected"`
+	LatestVersion    *VersionDTO `json:"latestVersion,omitempty"`
+}
+
+type SyncAllResult struct {
+	Success int `json:"success"`
+	Failed  int `json:"failed"`
+}

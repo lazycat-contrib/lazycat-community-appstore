@@ -41,4 +41,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/client/v1/sources", s.handleCreateSource)
 	s.mux.HandleFunc("PATCH /api/client/v1/sources/{id}", s.handleUpdateSource)
 	s.mux.HandleFunc("DELETE /api/client/v1/sources/{id}", s.handleDeleteSource)
+	s.mux.HandleFunc("POST /api/client/v1/sources/{id}/sync", s.handleSyncSource)
+	s.mux.HandleFunc("POST /api/client/v1/sources/sync", s.handleSyncAllSources)
+	s.mux.HandleFunc("GET /api/client/v1/apps", s.handleListApps)
+	s.mux.HandleFunc("GET /api/client/v1/apps/{id}", s.handleGetApp)
 }

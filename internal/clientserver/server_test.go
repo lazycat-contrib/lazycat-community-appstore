@@ -83,6 +83,61 @@ func TestSourceDuplicateURLForUserFails(t *testing.T) {
 	}
 }
 
+func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("X-Source-Password"); got != "pw" {
+			t.Fatalf("password header = %q", got)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"apps": []map[string]any{{
+			"id":       7,
+			"name":     "Notes",
+			"slug":     "notes",
+			"summary":  "Write notes",
+			"category": "tools",
+			"latestVersion": map[string]any{
+				"version":             "1.2.3",
+				"downloadUrl":         "https://github.com/org/notes/releases/download/a/notes.lpk",
+				"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/a/notes.lpk",
+				"sha256":              strings.Repeat("a", 64),
+				"size":                123,
+			},
+		}}})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	create := app.request("POST", "/api/client/v1/sources", `{"name":"Feed","url":"`+feed.URL+`","password":"pw","mirror":"https://ghproxy.example"}`, "alice")
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create = %d %s", create.Code, create.Body.String())
+	}
+	rec := app.request("POST", "/api/client/v1/sources/1/sync", ``, "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("sync = %d %s", rec.Code, rec.Body.String())
+	}
+	apps := app.request("GET", "/api/client/v1/apps", ``, "alice")
+	body := apps.Body.String()
+	if !strings.Contains(body, `"slug":"notes"`) || !strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") {
+		t.Fatalf("cached app missing mirror rewrite: %s", body)
+	}
+}
+
+func TestSyncSourceAuthFailureIsStored(t *testing.T) {
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "no", http.StatusUnauthorized)
+	}))
+	defer feed.Close()
+	app := testServer(t)
+	_ = app.request("POST", "/api/client/v1/sources", `{"name":"Feed","url":"`+feed.URL+`"}`, "alice")
+	rec := app.request("POST", "/api/client/v1/sources/1/sync", ``, "alice")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("sync = %d %s", rec.Code, rec.Body.String())
+	}
+	sources := app.request("GET", "/api/client/v1/sources", ``, "alice")
+	if !strings.Contains(sources.Body.String(), `"lastErrorCode":"auth"`) {
+		t.Fatalf("auth code not stored: %s", sources.Body.String())
+	}
+}
+
 type clientTestServer struct {
 	t       *testing.T
 	server  *Server
