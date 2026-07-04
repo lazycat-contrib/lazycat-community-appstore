@@ -22,7 +22,7 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{cfg: cfg, db: db, pkg: newLazyCatPackageManager(), mux: http.NewServeMux()}
+	s := &Server{cfg: cfg, db: db, pkg: NewLazyCatPackageManager(), mux: http.NewServeMux()}
 	s.routes()
 	return s, nil
 }

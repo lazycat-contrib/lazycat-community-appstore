@@ -14,7 +14,7 @@ type lazyCatPackageManager struct{}
 
 type unavailablePackageManager struct{}
 
-func newLazyCatPackageManager() PackageManager {
+func NewLazyCatPackageManager() PackageManager {
 	return lazyCatPackageManager{}
 }
 
