@@ -42,7 +42,6 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
-import { installWithLazyCat, queryInstalledApplications, type InstalledApplication } from './lazycatSdk';
 
 type User = {
   id: number;
@@ -175,8 +174,10 @@ type APITokenRecord = {
   createdAt?: string;
 };
 
+type SourceID = number | string;
+
 type SourceSubscription = {
-  id: string;
+  id: SourceID;
   name: string;
   url: string;
   password: string;
@@ -188,9 +189,11 @@ type SourceSubscription = {
   lastInstallableCount?: number;
 };
 
+type SourceInput = Pick<SourceSubscription, 'name' | 'url' | 'password' | 'mirror'>;
+
 type SourceApp = {
   id: number;
-  sourceId?: string;
+  sourceId?: SourceID;
   sourceName: string;
   name: string;
   slug: string;
@@ -250,24 +253,25 @@ type ClientSourceStats = {
 const SOURCE_STALE_MS = 24 * 60 * 60 * 1000;
 
 type SourceErrorCode = 'auth' | 'format' | 'http' | 'network';
-type SourceSyncError = Error & { sourceCode?: SourceErrorCode };
+
+type InstalledApplication = {
+  appid?: string;
+  title?: string;
+  version?: string;
+  status?: string;
+  instanceStatus?: string;
+  icon?: string;
+};
+
+type ClientInstallResult = {
+  mode: string;
+  taskId?: string;
+  status?: string;
+  detail?: string;
+};
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
-}
-
-function sourceSyncError(message: string, code: SourceErrorCode): SourceSyncError {
-  const error = new Error(message) as SourceSyncError;
-  error.sourceCode = code;
-  return error;
-}
-
-function sourceErrorCode(error: unknown): SourceErrorCode {
-  if (error && typeof error === 'object' && 'sourceCode' in error) {
-    const code = (error as SourceSyncError).sourceCode;
-    if (code === 'auth' || code === 'format' || code === 'http' || code === 'network') return code;
-  }
-  return 'network';
 }
 
 async function runAction<T>(setToast: (toast: Toast) => void, fallback: string, action: () => Promise<T>): Promise<T | undefined> {
@@ -292,6 +296,21 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
     throw new Error(i18n.t('toast.apiMissing'));
   }
   const response = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
+    headers: options.body instanceof FormData ? options.headers : { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error?.message || `HTTP ${response.status}`);
+  }
+  return data as T;
+}
+
+const CLIENT_API_BASE = '/api/client/v1';
+
+async function clientApi<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${CLIENT_API_BASE}${path}`, {
     credentials: 'include',
     headers: options.body instanceof FormData ? options.headers : { 'Content-Type': 'application/json', ...options.headers },
     ...options,
@@ -356,7 +375,7 @@ function findInstalledApplication(app: StoreApp | SourceApp, installedApps: Inst
 }
 
 function belongsToSource(app: SourceApp, source: SourceSubscription) {
-  return app.sourceId ? app.sourceId === source.id : app.sourceName === source.name;
+  return app.sourceId !== undefined ? String(app.sourceId) === String(source.id) : app.sourceName === source.name;
 }
 
 function isSourceStale(source: SourceSubscription) {
@@ -454,16 +473,7 @@ export function App() {
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(readSystemTheme);
   const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'sources'));
   const [apps, setApps] = useState<StoreApp[]>([]);
-  const [sourceApps, setSourceApps] = useState<SourceApp[]>(() => {
-    const saved = localStorage.getItem('lazycat.sourceApps');
-    if (!saved) return [];
-    try {
-      const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  });
+  const [sourceApps, setSourceApps] = useState<SourceApp[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -483,6 +493,7 @@ export function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
   const [setupRequired, setSetupRequired] = useState(false);
+  const defaultSourceCheckedRef = useRef(false);
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const navItems = HAS_API ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : clientTabs;
   const modeLabel = HAS_API ? t('mode.serverStore') : t('mode.standaloneClient');
@@ -490,19 +501,7 @@ export function App() {
   const drawerOpen = Boolean(selectedApp || selectedSourceApp);
   const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
 
-  const [sources, setSources] = useState<SourceSubscription[]>(() => {
-    const saved = localStorage.getItem('lazycat.sources');
-    if (!saved) {
-      return DEFAULT_SOURCE_URL
-        ? [{ id: 'default-source', name: DEFAULT_SOURCE_NAME, url: DEFAULT_SOURCE_URL, password: '', mirror: '' }]
-        : [];
-    }
-    try {
-      return JSON.parse(saved) as SourceSubscription[];
-    } catch {
-      return [];
-    }
-  });
+  const [sources, setSources] = useState<SourceSubscription[]>([]);
 
   const sourceStats = useMemo<ClientSourceStats>(() => {
     return {
@@ -555,15 +554,7 @@ export function App() {
   }, [resolvedTheme, themeMode]);
 
   useEffect(() => {
-    localStorage.setItem('lazycat.sources', JSON.stringify(sources));
-  }, [sources]);
-
-  useEffect(() => {
-    localStorage.setItem('lazycat.sourceApps', JSON.stringify(sourceApps));
-  }, [sourceApps]);
-
-  useEffect(() => {
-    void refreshAll();
+    void (HAS_API ? refreshAll() : refreshClientData());
   }, []);
 
   useEffect(() => {
@@ -574,13 +565,7 @@ export function App() {
 
   async function refreshAll(options: { silent?: boolean } = {}) {
     if (!HAS_API) {
-      setApps([]);
-      setCategories([]);
-      setCollections([]);
-      setGroups([]);
-      setReviews([]);
-      setUser(null);
-      setLoading(false);
+      await refreshClientData(options);
       return;
     }
     if (!options.silent) setLoading(true);
@@ -612,6 +597,45 @@ export function App() {
           await loadReviews();
         }
       }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadClientSources() {
+    const data = await clientApi<{ sources: SourceSubscription[] }>('/sources');
+    if (!defaultSourceCheckedRef.current && data.sources.length === 0 && DEFAULT_SOURCE_URL) {
+      defaultSourceCheckedRef.current = true;
+      const created = await clientApi<{ source: SourceSubscription }>('/sources', {
+        method: 'POST',
+        body: JSON.stringify({ name: DEFAULT_SOURCE_NAME, url: DEFAULT_SOURCE_URL, password: '', mirror: '' }),
+      });
+      setSources([created.source]);
+      return [created.source];
+    }
+    defaultSourceCheckedRef.current = true;
+    setSources(data.sources);
+    return data.sources;
+  }
+
+  async function loadClientApps() {
+    const data = await clientApi<{ apps: SourceApp[] }>('/apps');
+    setSourceApps(data.apps);
+    return data.apps;
+  }
+
+  async function refreshClientData(options: { silent?: boolean } = {}) {
+    if (!options.silent) setLoading(true);
+    setApps([]);
+    setCategories([]);
+    setCollections([]);
+    setGroups([]);
+    setReviews([]);
+    setUser(null);
+    try {
+      await Promise.all([loadClientSources(), loadClientApps()]);
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('toast.clientDataLoadFailed')) });
     } finally {
       setLoading(false);
     }
@@ -668,12 +692,12 @@ export function App() {
     setInstalledState('loading');
     setInstalledError('');
     try {
-      const result = await queryInstalledApplications();
-      setInstalledApps(result?.infoList || []);
+      const result = await clientApi<{ apps: InstalledApplication[] }>('/installed');
+      setInstalledApps(result.apps || []);
       setInstalledState('loaded');
       if (!options.quiet) setToast({ tone: 'success', message: t('profile.installedRefreshed') });
     } catch (error) {
-      const message = errorMessage(error, t('profile.lazycatSdkUnavailable'));
+      const message = errorMessage(error, t('profile.clientInstallApiUnavailable'));
       setInstalledState('error');
       setInstalledError(message);
       if (!options.quiet) setToast({ tone: 'error', message });
@@ -707,17 +731,26 @@ export function App() {
           ? { ...current, progress: 42, stageKey: version.sha256 ? 'installActivity.stageVerify' : 'installActivity.stageHandoff' }
           : current,
       );
-      const downloadUrl =
-        'sourceName' in app ? version.downloadUrl : `${API_BASE}/api/v1/apps/${app.id}/versions/${(version as Version).id}/download`;
-      const protectedDownloadUrl = withInstallPassword(downloadUrl, options.installPassword);
-      const result = await installWithLazyCat({
-        name: app.name,
-        appId: app.slug,
-        pkgId: app.slug,
-        downloadUrl: protectedDownloadUrl,
-        sha256: version.sha256,
-      });
-      const success = result.mode === 'lazycat-sdk' || result.mode === 'download';
+      const result =
+        'sourceName' in app
+          ? await clientApi<ClientInstallResult>('/install', {
+              method: 'POST',
+              body: JSON.stringify({
+                appId: app.id,
+                installPassword: options.installPassword,
+              }),
+            }).then((value) => ({
+              mode: value.mode || 'lazycat-go-sdk',
+              messageKey: 'installResult.sdkInstalled',
+              messageParams: value.taskId ? { taskId: value.taskId } : undefined,
+            }))
+          : await Promise.resolve().then(() => {
+              const downloadUrl = `${API_BASE}/api/v1/apps/${app.id}/versions/${(version as Version).id}/download`;
+              const protectedDownloadUrl = withInstallPassword(downloadUrl, options.installPassword);
+              window.open(protectedDownloadUrl, '_blank', 'noopener,noreferrer');
+              return { mode: 'download', messageKey: 'installResult.downloadOpened', messageParams: undefined };
+            });
+      const success = result.mode === 'lazycat-go-sdk' || result.mode === 'download';
       setInstallActivity({
         title: `${app.name} ${version.version}`,
         source,
@@ -729,7 +762,7 @@ export function App() {
         messageKey: result.messageKey,
         messageParams: result.messageParams,
       });
-      if (result.mode === 'lazycat-sdk') void loadInstalledApps({ quiet: true });
+      if (result.mode === 'lazycat-go-sdk') void loadInstalledApps({ quiet: true });
       setToast({
         tone: success ? 'success' : 'error',
         message: t(result.messageKey, result.messageParams),
@@ -750,61 +783,12 @@ export function App() {
 
   async function syncSource(source: SourceSubscription, options: { quiet?: boolean } = {}) {
     try {
-      const url = new URL(source.url);
-      if (source.password) url.searchParams.set('password', source.password);
-      const response = await fetch(url.toString(), { headers: source.password ? { 'X-Source-Password': source.password } : undefined });
-      if (response.status === 401) throw sourceSyncError(t('toast.sourcePasswordInvalid'), 'auth');
-      if (!response.ok) throw sourceSyncError(t('toast.sourceSyncHttpFailed', { status: response.status }), 'http');
-      const data = await response.json().catch(() => {
-        throw sourceSyncError(t('toast.sourceFormatInvalid'), 'format');
-      });
-      if (!Array.isArray(data.apps)) throw sourceSyncError(t('toast.sourceFormatInvalid'), 'format');
-      const mirroredDownloadURL = (version: any, installProtected?: boolean) => {
-        const upstream = String(version.upstreamDownloadUrl || '');
-        const direct = String(version.downloadUrl || '');
-        const githubURL = upstream || direct;
-        if (!installProtected && source.mirror && (githubURL.includes('github.com/') || githubURL.includes('githubusercontent.com/'))) {
-          return `${source.mirror.replace(/\/$/, '')}/${githubURL}`;
-        }
-        return direct;
-      };
-      const imported = (Array.isArray(data.apps) ? data.apps : []).map((app: any) => ({
-        id: app.id,
-        sourceId: source.id,
-        sourceName: source.name,
-        name: app.name,
-        slug: app.slug,
-        summary: app.summary,
-        category: app.category,
-        installProtected: Boolean(app.installProtected),
-        latestVersion: app.latestVersion
-          ? {
-              ...app.latestVersion,
-              downloadUrl: mirroredDownloadURL(app.latestVersion, Boolean(app.installProtected)),
-            }
-          : undefined,
-      }));
-      const installableCount = imported.filter(hasInstallableVersion).length;
-      setSourceApps((current) => [...current.filter((app) => !belongsToSource(app, source)), ...imported]);
-      setSources((current) =>
-        current.map((item) =>
-          item.id === source.id
-            ? {
-                ...item,
-                lastSync: new Date().toISOString(),
-                lastError: undefined,
-                lastErrorCode: undefined,
-                lastAppCount: imported.length,
-                lastInstallableCount: installableCount,
-              }
-            : item,
-        ),
-      );
+      await clientApi<{ source: SourceSubscription }>(`/sources/${source.id}/sync`, { method: 'POST' });
+      await refreshClientData({ silent: true });
       if (!options.quiet) setToast({ tone: 'success', message: t('toast.sourceSynced') });
     } catch (error) {
       const message = errorMessage(error, t('toast.sourceSyncFailed'));
-      const code = sourceErrorCode(error);
-      setSources((current) => current.map((item) => (item.id === source.id ? { ...item, lastError: message, lastErrorCode: code } : item)));
+      await loadClientSources().catch(() => undefined);
       throw new Error(message);
     }
   }
@@ -817,13 +801,14 @@ export function App() {
     }
     let success = 0;
     let failed = 0;
-    for (const source of sources) {
-      try {
-        await syncSource(source, { quiet: true });
-        success += 1;
-      } catch {
-        failed += 1;
-      }
+    try {
+      const data = await clientApi<{ result: { success: number; failed: number } }>('/sources/sync', { method: 'POST' });
+      await refreshClientData({ silent: true });
+      success = data.result.success;
+      failed = data.result.failed;
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSyncFailed')) });
+      return;
     }
     if (failed > 0) {
       setToast({ tone: success > 0 ? 'neutral' : 'error', message: t('toast.sourcesSyncPartial', { success, failed }) });
@@ -833,6 +818,33 @@ export function App() {
     if (success > 0) {
       setTab('search');
     }
+  }
+
+  async function addClientSource(input: SourceInput) {
+    await clientApi<{ source: SourceSubscription }>('/sources', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    await refreshClientData({ silent: true });
+  }
+
+  async function updateClientSource(source: SourceSubscription) {
+    await clientApi<{ source: SourceSubscription }>(`/sources/${source.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: source.name,
+        url: source.url,
+        password: source.password,
+        mirror: source.mirror,
+      }),
+    });
+    await refreshClientData({ silent: true });
+  }
+
+  async function deleteClientSource(source: SourceSubscription) {
+    await clientApi(`/sources/${source.id}`, { method: 'DELETE' });
+    setSelectedSourceApp((current) => (current && belongsToSource(current, source) ? null : current));
+    await refreshClientData({ silent: true });
   }
 
   if (HAS_API && setupRequired) {
@@ -980,13 +992,15 @@ export function App() {
                 sources={sources}
                 setSources={setSources}
                 sourceApps={sourceApps}
+                onAddSource={addClientSource}
+                onUpdateSource={updateClientSource}
+                onDeleteSource={deleteClientSource}
                 onSync={syncSource}
                 onSyncAll={syncAllSources}
                 onOpenSource={setSelectedSourceApp}
                 onInstall={installApp}
                 installedApps={installedApps}
                 sourceStats={sourceStats}
-                onSourceDeleted={(source) => setSourceApps((current) => current.filter((app) => !belongsToSource(app, source)))}
                 setToast={setToast}
               />
             )}
@@ -1728,32 +1742,36 @@ function SourcesView({
   sources,
   setSources,
   sourceApps,
+  onAddSource,
+  onUpdateSource,
+  onDeleteSource,
   onSync,
   onSyncAll,
   onOpenSource,
   onInstall,
   installedApps,
   sourceStats,
-  onSourceDeleted,
   setToast,
 }: {
   sources: SourceSubscription[];
   setSources: (update: SourceSubscription[] | ((current: SourceSubscription[]) => SourceSubscription[])) => void;
   sourceApps: SourceApp[];
+  onAddSource: (input: SourceInput) => Promise<void>;
+  onUpdateSource: (source: SourceSubscription) => Promise<void>;
+  onDeleteSource: (source: SourceSubscription) => Promise<void>;
   onSync: (source: SourceSubscription) => Promise<void>;
   onSyncAll: () => Promise<void>;
   onOpenSource: (app: SourceApp) => void;
   onInstall: (app: SourceApp) => void;
   installedApps: InstalledApplication[];
   sourceStats: ClientSourceStats;
-  onSourceDeleted: (source: SourceSubscription) => void;
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
   const emptyDraft = { name: '', url: DEFAULT_SOURCE_URL, password: '', mirror: '' };
   const [draft, setDraft] = useState(emptyDraft);
-  const [syncingID, setSyncingID] = useState<string | null>(null);
-  const [confirmDeleteSource, setConfirmDeleteSource] = useState<string | null>(null);
+  const [syncingID, setSyncingID] = useState<SourceID | null>(null);
+  const [confirmDeleteSource, setConfirmDeleteSource] = useState<SourceID | null>(null);
   const [sourceHealthFilter, setSourceHealthFilter] = useState<SourceHealthFilter>('all');
 
   function normalizedSourceURL(rawURL: string) {
@@ -1773,7 +1791,7 @@ function SourcesView({
   const sourceMirrorReady = Boolean(draft.mirror.trim());
   const canAddSource = sourceNameReady && sourceURLReady;
 
-  function addSource(event: FormEvent) {
+  async function addSource(event: FormEvent) {
     event.preventDefault();
     const name = draft.name.trim();
     const url = normalizedDraftURL;
@@ -1789,13 +1807,25 @@ function SourcesView({
       setToast({ tone: 'neutral', message: t('sources.duplicate') });
       return;
     }
-    setSources((current) => [...current, { id: crypto.randomUUID(), ...draft, name, url }]);
-    setDraft(emptyDraft);
-    setToast({ tone: 'success', message: t('sources.addedNext') });
+    try {
+      await onAddSource({ name, url, password: draft.password, mirror: draft.mirror });
+      setDraft(emptyDraft);
+      setToast({ tone: 'success', message: t('sources.addedNext') });
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('sources.invalid')) });
+    }
   }
 
-  function updateSource(id: string, patch: Partial<SourceSubscription>) {
+  function updateSource(id: SourceID, patch: Partial<SourceSubscription>) {
     setSources((current) => current.map((source) => (source.id === id ? { ...source, ...patch } : source)));
+  }
+
+  async function saveSource(source: SourceSubscription) {
+    try {
+      await onUpdateSource(source);
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSaveFailed')) });
+    }
   }
 
   function healthFor(source: SourceSubscription): SourceHealth {
@@ -1817,15 +1847,19 @@ function SourcesView({
   ];
   const filteredSources = sources.filter((source) => sourceHealthFilter === 'all' || healthFor(source) === sourceHealthFilter);
 
-  function deleteSource(source: SourceSubscription) {
+  async function deleteSource(source: SourceSubscription) {
     if (confirmDeleteSource !== source.id) {
       setConfirmDeleteSource(source.id);
       setToast({ tone: 'neutral', message: t('sources.confirmDelete', { name: source.name }) });
       return;
     }
-    setSources((current) => current.filter((item) => item.id !== source.id));
-    onSourceDeleted(source);
-    setConfirmDeleteSource(null);
+    try {
+      await onDeleteSource(source);
+      setConfirmDeleteSource(null);
+      setToast({ tone: 'success', message: t('sources.deleted') });
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSaveFailed')) });
+    }
   }
 
   return (
@@ -1997,9 +2031,16 @@ function SourcesView({
                         value={source.password}
                         type="password"
                         placeholder={t('sources.passwordPlaceholder')}
-                        onChange={(event) =>
+                        onChange={(event) => {
                           updateSource(source.id, {
                             password: event.target.value,
+                            ...(source.lastErrorCode === 'auth' ? { lastError: undefined, lastErrorCode: undefined } : {}),
+                          });
+                        }}
+                        onBlur={(event) =>
+                          void saveSource({
+                            ...source,
+                            password: event.currentTarget.value,
                             ...(source.lastErrorCode === 'auth' ? { lastError: undefined, lastErrorCode: undefined } : {}),
                           })
                         }
@@ -2009,6 +2050,7 @@ function SourcesView({
                         value={source.mirror}
                         placeholder={t('sources.mirrorPlaceholder')}
                         onChange={(event) => updateSource(source.id, { mirror: event.target.value })}
+                        onBlur={(event) => void saveSource({ ...source, mirror: event.currentTarget.value })}
                       />
                     </div>
                   </div>
