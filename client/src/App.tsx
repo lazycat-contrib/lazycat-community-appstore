@@ -948,9 +948,12 @@ export function App() {
         </header>
 
         {loading ? (
-          <div className="loading-state">
-            <Gauge size={28} />
-            <span>{t('common.loading')}</span>
+          <div className="loading-state skeleton-state" aria-label={t('common.loading')} aria-live="polite">
+            <div className="skeleton-list" aria-hidden="true">
+              <span className="skeleton-line" />
+              <span className="skeleton-line" />
+              <span className="skeleton-line" />
+            </div>
           </div>
         ) : (
           <>
