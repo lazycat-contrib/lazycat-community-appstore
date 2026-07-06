@@ -41,6 +41,12 @@ func (_c *ClientSourceAppCreate) SetNillableExternalID(v *string) *ClientSourceA
 	return _c
 }
 
+// SetPackageID sets the "package_id" field.
+func (_c *ClientSourceAppCreate) SetPackageID(v string) *ClientSourceAppCreate {
+	_c.mutation.SetPackageID(v)
+	return _c
+}
+
 // SetName sets the "name" field.
 func (_c *ClientSourceAppCreate) SetName(v string) *ClientSourceAppCreate {
 	_c.mutation.SetName(v)
@@ -105,6 +111,20 @@ func (_c *ClientSourceAppCreate) SetLatestVersionJSON(v string) *ClientSourceApp
 func (_c *ClientSourceAppCreate) SetNillableLatestVersionJSON(v *string) *ClientSourceAppCreate {
 	if v != nil {
 		_c.SetLatestVersionJSON(*v)
+	}
+	return _c
+}
+
+// SetVersionsJSON sets the "versions_json" field.
+func (_c *ClientSourceAppCreate) SetVersionsJSON(v string) *ClientSourceAppCreate {
+	_c.mutation.SetVersionsJSON(v)
+	return _c
+}
+
+// SetNillableVersionsJSON sets the "versions_json" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableVersionsJSON(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetVersionsJSON(*v)
 	}
 	return _c
 }
@@ -197,6 +217,10 @@ func (_c *ClientSourceAppCreate) defaults() {
 		v := clientsourceapp.DefaultLatestVersionJSON
 		_c.mutation.SetLatestVersionJSON(v)
 	}
+	if _, ok := _c.mutation.VersionsJSON(); !ok {
+		v := clientsourceapp.DefaultVersionsJSON
+		_c.mutation.SetVersionsJSON(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := clientsourceapp.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -214,6 +238,14 @@ func (_c *ClientSourceAppCreate) check() error {
 	}
 	if _, ok := _c.mutation.ExternalID(); !ok {
 		return &ValidationError{Name: "external_id", err: errors.New(`ent: missing required field "ClientSourceApp.external_id"`)}
+	}
+	if _, ok := _c.mutation.PackageID(); !ok {
+		return &ValidationError{Name: "package_id", err: errors.New(`ent: missing required field "ClientSourceApp.package_id"`)}
+	}
+	if v, ok := _c.mutation.PackageID(); ok {
+		if err := clientsourceapp.PackageIDValidator(v); err != nil {
+			return &ValidationError{Name: "package_id", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.package_id": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "ClientSourceApp.name"`)}
@@ -242,6 +274,9 @@ func (_c *ClientSourceAppCreate) check() error {
 	}
 	if _, ok := _c.mutation.LatestVersionJSON(); !ok {
 		return &ValidationError{Name: "latest_version_json", err: errors.New(`ent: missing required field "ClientSourceApp.latest_version_json"`)}
+	}
+	if _, ok := _c.mutation.VersionsJSON(); !ok {
+		return &ValidationError{Name: "versions_json", err: errors.New(`ent: missing required field "ClientSourceApp.versions_json"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "ClientSourceApp.created_at"`)}
@@ -282,6 +317,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 		_spec.SetField(clientsourceapp.FieldExternalID, field.TypeString, value)
 		_node.ExternalID = value
 	}
+	if value, ok := _c.mutation.PackageID(); ok {
+		_spec.SetField(clientsourceapp.FieldPackageID, field.TypeString, value)
+		_node.PackageID = value
+	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(clientsourceapp.FieldName, field.TypeString, value)
 		_node.Name = value
@@ -305,6 +344,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 	if value, ok := _c.mutation.LatestVersionJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldLatestVersionJSON, field.TypeString, value)
 		_node.LatestVersionJSON = value
+	}
+	if value, ok := _c.mutation.VersionsJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldVersionsJSON, field.TypeString, value)
+		_node.VersionsJSON = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(clientsourceapp.FieldCreatedAt, field.TypeTime, value)

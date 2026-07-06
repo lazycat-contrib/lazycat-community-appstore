@@ -76,6 +76,20 @@ func (_u *AppUpdate) ClearCategoryID() *AppUpdate {
 	return _u
 }
 
+// SetPackageID sets the "package_id" field.
+func (_u *AppUpdate) SetPackageID(v string) *AppUpdate {
+	_u.mutation.SetPackageID(v)
+	return _u
+}
+
+// SetNillablePackageID sets the "package_id" field if the given value is not nil.
+func (_u *AppUpdate) SetNillablePackageID(v *string) *AppUpdate {
+	if v != nil {
+		_u.SetPackageID(*v)
+	}
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *AppUpdate) SetName(v string) *AppUpdate {
 	_u.mutation.SetName(v)
@@ -292,6 +306,11 @@ func (_u *AppUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *AppUpdate) check() error {
+	if v, ok := _u.mutation.PackageID(); ok {
+		if err := app.PackageIDValidator(v); err != nil {
+			return &ValidationError{Name: "package_id", err: fmt.Errorf(`ent: validator failed for field "App.package_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Name(); ok {
 		if err := app.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "App.name": %w`, err)}
@@ -336,6 +355,9 @@ func (_u *AppUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.CategoryIDCleared() {
 		_spec.ClearField(app.FieldCategoryID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.PackageID(); ok {
+		_spec.SetField(app.FieldPackageID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(app.FieldName, field.TypeString, value)
@@ -444,6 +466,20 @@ func (_u *AppUpdateOne) AddCategoryID(v int) *AppUpdateOne {
 // ClearCategoryID clears the value of the "category_id" field.
 func (_u *AppUpdateOne) ClearCategoryID() *AppUpdateOne {
 	_u.mutation.ClearCategoryID()
+	return _u
+}
+
+// SetPackageID sets the "package_id" field.
+func (_u *AppUpdateOne) SetPackageID(v string) *AppUpdateOne {
+	_u.mutation.SetPackageID(v)
+	return _u
+}
+
+// SetNillablePackageID sets the "package_id" field if the given value is not nil.
+func (_u *AppUpdateOne) SetNillablePackageID(v *string) *AppUpdateOne {
+	if v != nil {
+		_u.SetPackageID(*v)
+	}
 	return _u
 }
 
@@ -676,6 +712,11 @@ func (_u *AppUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *AppUpdateOne) check() error {
+	if v, ok := _u.mutation.PackageID(); ok {
+		if err := app.PackageIDValidator(v); err != nil {
+			return &ValidationError{Name: "package_id", err: fmt.Errorf(`ent: validator failed for field "App.package_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Name(); ok {
 		if err := app.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "App.name": %w`, err)}
@@ -737,6 +778,9 @@ func (_u *AppUpdateOne) sqlSave(ctx context.Context) (_node *App, err error) {
 	}
 	if _u.mutation.CategoryIDCleared() {
 		_spec.ClearField(app.FieldCategoryID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.PackageID(); ok {
+		_spec.SetField(app.FieldPackageID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(app.FieldName, field.TypeString, value)

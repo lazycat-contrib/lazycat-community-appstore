@@ -27,13 +27,15 @@ func (e sourceSyncError) Error() string {
 }
 
 type feedApp struct {
-	ID               int         `json:"id"`
-	Name             string      `json:"name"`
-	Slug             string      `json:"slug"`
-	Summary          string      `json:"summary"`
-	Category         string      `json:"category"`
-	InstallProtected bool        `json:"installProtected"`
-	LatestVersion    *VersionDTO `json:"latestVersion"`
+	ID               int          `json:"id"`
+	PackageID        string       `json:"packageId"`
+	Name             string       `json:"name"`
+	Slug             string       `json:"slug"`
+	Summary          string       `json:"summary"`
+	Category         string       `json:"category"`
+	InstallProtected bool         `json:"installProtected"`
+	LatestVersion    *VersionDTO  `json:"latestVersion"`
+	Versions         []VersionDTO `json:"versions"`
 }
 
 func (s *Server) handleSyncSource(w http.ResponseWriter, r *http.Request) {
@@ -110,6 +112,11 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 	}
 	for _, app := range apps {
 		versionJSON := ""
+		versions := app.Versions
+		if len(versions) == 0 && app.LatestVersion != nil {
+			versions = []VersionDTO{*app.LatestVersion}
+		}
+		versionsJSON := ""
 		if app.LatestVersion != nil {
 			encoded, err := json.Marshal(app.LatestVersion)
 			if err != nil {
@@ -118,15 +125,25 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 			}
 			versionJSON = string(encoded)
 		}
+		if len(versions) > 0 {
+			encoded, err := json.Marshal(versions)
+			if err != nil {
+				_ = tx.Rollback()
+				return SourceDTO{}, err
+			}
+			versionsJSON = string(encoded)
+		}
 		if _, err := tx.ClientSourceApp.Create().
 			SetSourceID(source.ID).
 			SetExternalID(strconv.Itoa(app.ID)).
+			SetPackageID(app.PackageID).
 			SetName(app.Name).
 			SetSlug(app.Slug).
 			SetSummary(app.Summary).
 			SetCategory(app.Category).
 			SetInstallProtected(app.InstallProtected).
 			SetLatestVersionJSON(versionJSON).
+			SetVersionsJSON(versionsJSON).
 			Save(ctx); err != nil {
 			_ = tx.Rollback()
 			return SourceDTO{}, err
@@ -199,13 +216,17 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	}
 	out := make([]feedApp, 0, len(apps))
 	for _, app := range apps {
+		app.PackageID = strings.TrimSpace(app.PackageID)
 		app.Name = strings.TrimSpace(app.Name)
 		app.Slug = strings.TrimSpace(app.Slug)
-		if app.Name == "" || app.Slug == "" {
+		if app.PackageID == "" || app.Name == "" || app.Slug == "" {
 			continue
 		}
 		if app.LatestVersion != nil {
 			app.LatestVersion.DownloadURL = mirroredDownloadURL(source, app.LatestVersion, app.InstallProtected)
+		}
+		for i := range app.Versions {
+			app.Versions[i].DownloadURL = mirroredDownloadURL(source, &app.Versions[i], app.InstallProtected)
 		}
 		out = append(out, app)
 	}

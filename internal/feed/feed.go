@@ -33,6 +33,7 @@ type AnnouncementMeta struct {
 
 type AppInput struct {
 	ID               int            `json:"id"`
+	PackageID        string         `json:"packageId"`
 	Name             string         `json:"name"`
 	Slug             string         `json:"slug"`
 	Summary          string         `json:"summary"`
@@ -69,6 +70,7 @@ type Index struct {
 
 type App struct {
 	ID               int       `json:"id"`
+	PackageID        string    `json:"packageId"`
 	Name             string    `json:"name"`
 	Slug             string    `json:"slug"`
 	Summary          string    `json:"summary"`
@@ -122,6 +124,7 @@ func BuildIndex(input Input) Index {
 		}
 		index.Apps = append(index.Apps, App{
 			ID:               inApp.ID,
+			PackageID:        inApp.PackageID,
 			Name:             inApp.Name,
 			Slug:             inApp.Slug,
 			Summary:          inApp.Summary,

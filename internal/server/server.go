@@ -26,12 +26,13 @@ import (
 )
 
 type Server struct {
-	cfg     config.Config
-	db      *ent.Client
-	storage storage.Backend
-	mailer  Mailer
-	mux     *http.ServeMux
-	web     http.Handler
+	cfg                     config.Config
+	db                      *ent.Client
+	storage                 storage.Backend
+	mailer                  Mailer
+	mux                     *http.ServeMux
+	web                     http.Handler
+	allowPrivateLPKURLHosts bool
 }
 
 func New(cfg config.Config) (*Server, error) {

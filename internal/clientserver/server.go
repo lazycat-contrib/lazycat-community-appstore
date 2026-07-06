@@ -50,8 +50,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/client/v1/sources/sync", s.handleSyncAllSources)
 	s.mux.HandleFunc("GET /api/client/v1/apps", s.handleListApps)
 	s.mux.HandleFunc("GET /api/client/v1/apps/{id}", s.handleGetApp)
+	s.mux.HandleFunc("GET /api/client/v1/apps/{id}/versions", s.handleGetAppVersions)
 	s.mux.HandleFunc("GET /api/client/v1/installed", s.handleInstalled)
 	s.mux.HandleFunc("POST /api/client/v1/install", s.handleInstall)
+	s.mux.HandleFunc("GET /api/client/v1/history", s.handleInstallHistory)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "lazycat-appstore-client"})
 	})

@@ -19,6 +19,7 @@ import (
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
+	"lazycat.community/appstore/ent/clientinstallhistory"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/collaborator"
@@ -94,28 +95,29 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			apitoken.Table:            apitoken.ValidColumn,
-			app.Table:                 app.ValidColumn,
-			appscreenshot.Table:       appscreenshot.ValidColumn,
-			apptag.Table:              apptag.ValidColumn,
-			appversion.Table:          appversion.ValidColumn,
-			appvisibility.Table:       appvisibility.ValidColumn,
-			category.Table:            category.ValidColumn,
-			clientsource.Table:        clientsource.ValidColumn,
-			clientsourceapp.Table:     clientsourceapp.ValidColumn,
-			collaborator.Table:        collaborator.ValidColumn,
-			collaboratorrequest.Table: collaboratorrequest.ValidColumn,
-			collection.Table:          collection.ValidColumn,
-			collectionapp.Table:       collectionapp.ValidColumn,
-			comment.Table:             comment.ValidColumn,
-			favorite.Table:            favorite.ValidColumn,
-			groupmember.Table:         groupmember.ValidColumn,
-			outdatedmark.Table:        outdatedmark.ValidColumn,
-			reviewrequest.Table:       reviewrequest.ValidColumn,
-			sitesetting.Table:         sitesetting.ValidColumn,
-			tag.Table:                 tag.ValidColumn,
-			user.Table:                user.ValidColumn,
-			usergroup.Table:           usergroup.ValidColumn,
+			apitoken.Table:             apitoken.ValidColumn,
+			app.Table:                  app.ValidColumn,
+			appscreenshot.Table:        appscreenshot.ValidColumn,
+			apptag.Table:               apptag.ValidColumn,
+			appversion.Table:           appversion.ValidColumn,
+			appvisibility.Table:        appvisibility.ValidColumn,
+			category.Table:             category.ValidColumn,
+			clientinstallhistory.Table: clientinstallhistory.ValidColumn,
+			clientsource.Table:         clientsource.ValidColumn,
+			clientsourceapp.Table:      clientsourceapp.ValidColumn,
+			collaborator.Table:         collaborator.ValidColumn,
+			collaboratorrequest.Table:  collaboratorrequest.ValidColumn,
+			collection.Table:           collection.ValidColumn,
+			collectionapp.Table:        collectionapp.ValidColumn,
+			comment.Table:              comment.ValidColumn,
+			favorite.Table:             favorite.ValidColumn,
+			groupmember.Table:          groupmember.ValidColumn,
+			outdatedmark.Table:         outdatedmark.ValidColumn,
+			reviewrequest.Table:        reviewrequest.ValidColumn,
+			sitesetting.Table:          sitesetting.ValidColumn,
+			tag.Table:                  tag.ValidColumn,
+			user.Table:                 user.ValidColumn,
+			usergroup.Table:            usergroup.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

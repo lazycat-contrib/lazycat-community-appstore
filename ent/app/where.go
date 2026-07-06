@@ -64,6 +64,11 @@ func CategoryID(v int) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldCategoryID, v))
 }
 
+// PackageID applies equality check predicate on the "package_id" field. It's identical to PackageIDEQ.
+func PackageID(v string) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldPackageID, v))
+}
+
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldName, v))
@@ -207,6 +212,71 @@ func CategoryIDIsNil() predicate.App {
 // CategoryIDNotNil applies the NotNil predicate on the "category_id" field.
 func CategoryIDNotNil() predicate.App {
 	return predicate.App(sql.FieldNotNull(FieldCategoryID))
+}
+
+// PackageIDEQ applies the EQ predicate on the "package_id" field.
+func PackageIDEQ(v string) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldPackageID, v))
+}
+
+// PackageIDNEQ applies the NEQ predicate on the "package_id" field.
+func PackageIDNEQ(v string) predicate.App {
+	return predicate.App(sql.FieldNEQ(FieldPackageID, v))
+}
+
+// PackageIDIn applies the In predicate on the "package_id" field.
+func PackageIDIn(vs ...string) predicate.App {
+	return predicate.App(sql.FieldIn(FieldPackageID, vs...))
+}
+
+// PackageIDNotIn applies the NotIn predicate on the "package_id" field.
+func PackageIDNotIn(vs ...string) predicate.App {
+	return predicate.App(sql.FieldNotIn(FieldPackageID, vs...))
+}
+
+// PackageIDGT applies the GT predicate on the "package_id" field.
+func PackageIDGT(v string) predicate.App {
+	return predicate.App(sql.FieldGT(FieldPackageID, v))
+}
+
+// PackageIDGTE applies the GTE predicate on the "package_id" field.
+func PackageIDGTE(v string) predicate.App {
+	return predicate.App(sql.FieldGTE(FieldPackageID, v))
+}
+
+// PackageIDLT applies the LT predicate on the "package_id" field.
+func PackageIDLT(v string) predicate.App {
+	return predicate.App(sql.FieldLT(FieldPackageID, v))
+}
+
+// PackageIDLTE applies the LTE predicate on the "package_id" field.
+func PackageIDLTE(v string) predicate.App {
+	return predicate.App(sql.FieldLTE(FieldPackageID, v))
+}
+
+// PackageIDContains applies the Contains predicate on the "package_id" field.
+func PackageIDContains(v string) predicate.App {
+	return predicate.App(sql.FieldContains(FieldPackageID, v))
+}
+
+// PackageIDHasPrefix applies the HasPrefix predicate on the "package_id" field.
+func PackageIDHasPrefix(v string) predicate.App {
+	return predicate.App(sql.FieldHasPrefix(FieldPackageID, v))
+}
+
+// PackageIDHasSuffix applies the HasSuffix predicate on the "package_id" field.
+func PackageIDHasSuffix(v string) predicate.App {
+	return predicate.App(sql.FieldHasSuffix(FieldPackageID, v))
+}
+
+// PackageIDEqualFold applies the EqualFold predicate on the "package_id" field.
+func PackageIDEqualFold(v string) predicate.App {
+	return predicate.App(sql.FieldEqualFold(FieldPackageID, v))
+}
+
+// PackageIDContainsFold applies the ContainsFold predicate on the "package_id" field.
+func PackageIDContainsFold(v string) predicate.App {
+	return predicate.App(sql.FieldContainsFold(FieldPackageID, v))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.

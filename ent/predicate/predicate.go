@@ -27,6 +27,9 @@ type AppVisibility func(*sql.Selector)
 // Category is the predicate function for category builders.
 type Category func(*sql.Selector)
 
+// ClientInstallHistory is the predicate function for clientinstallhistory builders.
+type ClientInstallHistory func(*sql.Selector)
+
 // ClientSource is the predicate function for clientsource builders.
 type ClientSource func(*sql.Selector)
 

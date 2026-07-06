@@ -42,15 +42,17 @@ type VersionDTO struct {
 }
 
 type SourceAppDTO struct {
-	ID               int         `json:"id"`
-	SourceID         int         `json:"sourceId"`
-	SourceName       string      `json:"sourceName"`
-	Name             string      `json:"name"`
-	Slug             string      `json:"slug"`
-	Summary          string      `json:"summary"`
-	Category         string      `json:"category,omitempty"`
-	InstallProtected bool        `json:"installProtected"`
-	LatestVersion    *VersionDTO `json:"latestVersion,omitempty"`
+	ID               int          `json:"id"`
+	SourceID         int          `json:"sourceId"`
+	SourceName       string       `json:"sourceName"`
+	PackageID        string       `json:"packageId"`
+	Name             string       `json:"name"`
+	Slug             string       `json:"slug"`
+	Summary          string       `json:"summary"`
+	Category         string       `json:"category,omitempty"`
+	InstallProtected bool         `json:"installProtected"`
+	LatestVersion    *VersionDTO  `json:"latestVersion,omitempty"`
+	Versions         []VersionDTO `json:"versions,omitempty"`
 }
 
 type SyncAllResult struct {
@@ -69,6 +71,7 @@ type InstalledApplicationDTO struct {
 
 type InstallRequestDTO struct {
 	AppID           int    `json:"appId"`
+	Version         string `json:"version,omitempty"`
 	InstallPassword string `json:"installPassword,omitempty"`
 	Name            string `json:"name,omitempty"`
 	PackageID       string `json:"pkgId,omitempty"`
@@ -86,4 +89,19 @@ type InstallResultDTO struct {
 type PackageManager interface {
 	QueryInstalled(ctx context.Context, userID string) ([]InstalledApplicationDTO, error)
 	InstallLPK(ctx context.Context, userID string, req InstallRequestDTO) (InstallResultDTO, error)
+}
+
+type InstallHistoryDTO struct {
+	ID          int       `json:"id"`
+	SourceID    *int      `json:"sourceId,omitempty"`
+	SourceAppID *int      `json:"sourceAppId,omitempty"`
+	SourceName  string    `json:"sourceName,omitempty"`
+	PackageID   string    `json:"packageId"`
+	AppName     string    `json:"appName"`
+	Version     string    `json:"version,omitempty"`
+	Result      string    `json:"result"`
+	DownloadURL string    `json:"downloadUrl,omitempty"`
+	SHA256      string    `json:"sha256,omitempty"`
+	Error       string    `json:"error,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
 }

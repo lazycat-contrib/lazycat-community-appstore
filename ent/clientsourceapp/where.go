@@ -65,6 +65,11 @@ func ExternalID(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldExternalID, v))
 }
 
+// PackageID applies equality check predicate on the "package_id" field. It's identical to PackageIDEQ.
+func PackageID(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldPackageID, v))
+}
+
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldName, v))
@@ -93,6 +98,11 @@ func InstallProtected(v bool) predicate.ClientSourceApp {
 // LatestVersionJSON applies equality check predicate on the "latest_version_json" field. It's identical to LatestVersionJSONEQ.
 func LatestVersionJSON(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldLatestVersionJSON, v))
+}
+
+// VersionsJSON applies equality check predicate on the "versions_json" field. It's identical to VersionsJSONEQ.
+func VersionsJSON(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldVersionsJSON, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -188,6 +198,71 @@ func ExternalIDEqualFold(v string) predicate.ClientSourceApp {
 // ExternalIDContainsFold applies the ContainsFold predicate on the "external_id" field.
 func ExternalIDContainsFold(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldExternalID, v))
+}
+
+// PackageIDEQ applies the EQ predicate on the "package_id" field.
+func PackageIDEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldPackageID, v))
+}
+
+// PackageIDNEQ applies the NEQ predicate on the "package_id" field.
+func PackageIDNEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldPackageID, v))
+}
+
+// PackageIDIn applies the In predicate on the "package_id" field.
+func PackageIDIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldPackageID, vs...))
+}
+
+// PackageIDNotIn applies the NotIn predicate on the "package_id" field.
+func PackageIDNotIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldPackageID, vs...))
+}
+
+// PackageIDGT applies the GT predicate on the "package_id" field.
+func PackageIDGT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldPackageID, v))
+}
+
+// PackageIDGTE applies the GTE predicate on the "package_id" field.
+func PackageIDGTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldPackageID, v))
+}
+
+// PackageIDLT applies the LT predicate on the "package_id" field.
+func PackageIDLT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldPackageID, v))
+}
+
+// PackageIDLTE applies the LTE predicate on the "package_id" field.
+func PackageIDLTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldPackageID, v))
+}
+
+// PackageIDContains applies the Contains predicate on the "package_id" field.
+func PackageIDContains(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContains(FieldPackageID, v))
+}
+
+// PackageIDHasPrefix applies the HasPrefix predicate on the "package_id" field.
+func PackageIDHasPrefix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasPrefix(FieldPackageID, v))
+}
+
+// PackageIDHasSuffix applies the HasSuffix predicate on the "package_id" field.
+func PackageIDHasSuffix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasSuffix(FieldPackageID, v))
+}
+
+// PackageIDEqualFold applies the EqualFold predicate on the "package_id" field.
+func PackageIDEqualFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEqualFold(FieldPackageID, v))
+}
+
+// PackageIDContainsFold applies the ContainsFold predicate on the "package_id" field.
+func PackageIDContainsFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldPackageID, v))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.
@@ -523,6 +598,71 @@ func LatestVersionJSONEqualFold(v string) predicate.ClientSourceApp {
 // LatestVersionJSONContainsFold applies the ContainsFold predicate on the "latest_version_json" field.
 func LatestVersionJSONContainsFold(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldLatestVersionJSON, v))
+}
+
+// VersionsJSONEQ applies the EQ predicate on the "versions_json" field.
+func VersionsJSONEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldVersionsJSON, v))
+}
+
+// VersionsJSONNEQ applies the NEQ predicate on the "versions_json" field.
+func VersionsJSONNEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldVersionsJSON, v))
+}
+
+// VersionsJSONIn applies the In predicate on the "versions_json" field.
+func VersionsJSONIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldVersionsJSON, vs...))
+}
+
+// VersionsJSONNotIn applies the NotIn predicate on the "versions_json" field.
+func VersionsJSONNotIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldVersionsJSON, vs...))
+}
+
+// VersionsJSONGT applies the GT predicate on the "versions_json" field.
+func VersionsJSONGT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldVersionsJSON, v))
+}
+
+// VersionsJSONGTE applies the GTE predicate on the "versions_json" field.
+func VersionsJSONGTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldVersionsJSON, v))
+}
+
+// VersionsJSONLT applies the LT predicate on the "versions_json" field.
+func VersionsJSONLT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldVersionsJSON, v))
+}
+
+// VersionsJSONLTE applies the LTE predicate on the "versions_json" field.
+func VersionsJSONLTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldVersionsJSON, v))
+}
+
+// VersionsJSONContains applies the Contains predicate on the "versions_json" field.
+func VersionsJSONContains(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContains(FieldVersionsJSON, v))
+}
+
+// VersionsJSONHasPrefix applies the HasPrefix predicate on the "versions_json" field.
+func VersionsJSONHasPrefix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasPrefix(FieldVersionsJSON, v))
+}
+
+// VersionsJSONHasSuffix applies the HasSuffix predicate on the "versions_json" field.
+func VersionsJSONHasSuffix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasSuffix(FieldVersionsJSON, v))
+}
+
+// VersionsJSONEqualFold applies the EqualFold predicate on the "versions_json" field.
+func VersionsJSONEqualFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEqualFold(FieldVersionsJSON, v))
+}
+
+// VersionsJSONContainsFold applies the ContainsFold predicate on the "versions_json" field.
+func VersionsJSONContainsFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldVersionsJSON, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

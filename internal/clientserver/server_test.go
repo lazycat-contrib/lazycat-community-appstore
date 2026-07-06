@@ -3,6 +3,7 @@ package clientserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -90,17 +91,34 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 			t.Fatalf("password header = %q", got)
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"apps": []map[string]any{{
-			"id":       7,
-			"name":     "Notes",
-			"slug":     "notes",
-			"summary":  "Write notes",
-			"category": "tools",
+			"id":        7,
+			"packageId": "cloud.lazycat.app.notes",
+			"name":      "Notes",
+			"slug":      "notes",
+			"summary":   "Write notes",
+			"category":  "tools",
 			"latestVersion": map[string]any{
 				"version":             "1.2.3",
 				"downloadUrl":         "https://github.com/org/notes/releases/download/a/notes.lpk",
 				"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/a/notes.lpk",
 				"sha256":              strings.Repeat("a", 64),
 				"size":                123,
+			},
+			"versions": []map[string]any{
+				{
+					"version":             "1.2.3",
+					"downloadUrl":         "https://github.com/org/notes/releases/download/a/notes.lpk",
+					"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/a/notes.lpk",
+					"sha256":              strings.Repeat("a", 64),
+					"size":                123,
+				},
+				{
+					"version":             "1.0.0",
+					"downloadUrl":         "https://github.com/org/notes/releases/download/old/notes.lpk",
+					"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/old/notes.lpk",
+					"sha256":              strings.Repeat("b", 64),
+					"size":                100,
+				},
 			},
 		}}})
 	}))
@@ -117,7 +135,7 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	}
 	apps := app.request("GET", "/api/client/v1/apps", ``, "alice")
 	body := apps.Body.String()
-	if !strings.Contains(body, `"slug":"notes"`) || !strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") {
+	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) {
 		t.Fatalf("cached app missing mirror rewrite: %s", body)
 	}
 }
@@ -142,6 +160,7 @@ func TestSyncSourceAuthFailureIsStored(t *testing.T) {
 type fakePackageManager struct {
 	installed []InstalledApplicationDTO
 	install   InstallResultDTO
+	err       error
 	req       InstallRequestDTO
 }
 
@@ -151,6 +170,9 @@ func (f *fakePackageManager) QueryInstalled(ctx context.Context, userID string) 
 
 func (f *fakePackageManager) InstallLPK(ctx context.Context, userID string, req InstallRequestDTO) (InstallResultDTO, error) {
 	f.req = req
+	if f.err != nil {
+		return InstallResultDTO{}, f.err
+	}
 	return f.install, nil
 }
 
@@ -172,8 +194,52 @@ func TestInstallUsesCachedAppVersion(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("install = %d %s", rec.Code, rec.Body.String())
 	}
-	if pm.req.DownloadURL == "" || pm.req.SHA256 == "" || pm.req.PackageID != "notes" {
+	if pm.req.DownloadURL == "" || pm.req.SHA256 == "" || pm.req.PackageID != "cloud.lazycat.app.notes" {
 		t.Fatalf("bad install request: %#v", pm.req)
+	}
+}
+
+func TestAppVersionsEndpointReturnsCachedVersions(t *testing.T) {
+	app := testServer(t)
+	seedCachedApp(t, app.server.db, "alice")
+
+	rec := app.request("GET", "/api/client/v1/apps/1/versions", ``, "alice")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"version":"1.0.0"`) || !strings.Contains(rec.Body.String(), `"version":"1.2.3"`) {
+		t.Fatalf("versions = %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestInstallCanSelectOlderVersionAndRecordsHistory(t *testing.T) {
+	app := testServer(t)
+	pm := &fakePackageManager{install: InstallResultDTO{Mode: "lazycat-go-sdk", TaskID: "task-rollback"}}
+	app.server.pkg = pm
+	seedCachedApp(t, app.server.db, "alice")
+
+	rec := app.request("POST", "/api/client/v1/install", `{"appId":1,"version":"1.0.0"}`, "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("install old version = %d %s", rec.Code, rec.Body.String())
+	}
+	if pm.req.Version != "1.0.0" || !strings.Contains(pm.req.DownloadURL, "/old/notes.lpk") || pm.req.SHA256 != strings.Repeat("b", 64) {
+		t.Fatalf("bad rollback request: %#v", pm.req)
+	}
+	history := app.request("GET", "/api/client/v1/history", ``, "alice")
+	if history.Code != http.StatusOK || !strings.Contains(history.Body.String(), `"version":"1.0.0"`) || !strings.Contains(history.Body.String(), `"result":"SUCCESS"`) {
+		t.Fatalf("history missing success = %d %s", history.Code, history.Body.String())
+	}
+}
+
+func TestFailedInstallRecordsHistory(t *testing.T) {
+	app := testServer(t)
+	app.server.pkg = &fakePackageManager{err: errors.New("sdk offline")}
+	seedCachedApp(t, app.server.db, "alice")
+
+	rec := app.request("POST", "/api/client/v1/install", `{"appId":1}`, "alice")
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("failed install = %d %s", rec.Code, rec.Body.String())
+	}
+	history := app.request("GET", "/api/client/v1/history", ``, "alice")
+	if history.Code != http.StatusOK || !strings.Contains(history.Body.String(), `"result":"FAILED"`) || !strings.Contains(history.Body.String(), "sdk offline") {
+		t.Fatalf("history missing failure = %d %s", history.Code, history.Body.String())
 	}
 }
 
@@ -205,13 +271,32 @@ func seedCachedApp(t *testing.T, client *ent.Client, userID string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	versions, err := json.Marshal([]VersionDTO{
+		{
+			Version:     "1.2.3",
+			DownloadURL: "https://download.example/notes.lpk",
+			SHA256:      strings.Repeat("a", 64),
+			Size:        123,
+		},
+		{
+			Version:     "1.0.0",
+			DownloadURL: "https://download.example/old/notes.lpk",
+			SHA256:      strings.Repeat("b", 64),
+			Size:        100,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := client.ClientSourceApp.Create().
 		SetSourceID(source.ID).
 		SetExternalID("7").
+		SetPackageID("cloud.lazycat.app.notes").
 		SetName("Notes").
 		SetSlug("notes").
 		SetSummary("Write notes").
 		SetLatestVersionJSON(string(version)).
+		SetVersionsJSON(string(versions)).
 		Save(ctx); err != nil {
 		t.Fatal(err)
 	}

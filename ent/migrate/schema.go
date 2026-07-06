@@ -41,6 +41,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "owner_id", Type: field.TypeInt},
 		{Name: "category_id", Type: field.TypeInt, Nullable: true},
+		{Name: "package_id", Type: field.TypeString, Unique: true},
 		{Name: "name", Type: field.TypeString},
 		{Name: "slug", Type: field.TypeString, Unique: true},
 		{Name: "summary", Type: field.TypeString, Default: ""},
@@ -73,7 +74,7 @@ var (
 			{
 				Name:    "app_status",
 				Unique:  false,
-				Columns: []*schema.Column{AppsColumns[8]},
+				Columns: []*schema.Column{AppsColumns[9]},
 			},
 		},
 	}
@@ -219,6 +220,45 @@ var (
 			},
 		},
 	}
+	// ClientInstallHistoriesColumns holds the columns for the "client_install_histories" table.
+	ClientInstallHistoriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeString, Default: ""},
+		{Name: "source_id", Type: field.TypeInt, Nullable: true},
+		{Name: "source_app_id", Type: field.TypeInt, Nullable: true},
+		{Name: "source_name", Type: field.TypeString, Default: ""},
+		{Name: "package_id", Type: field.TypeString},
+		{Name: "app_name", Type: field.TypeString},
+		{Name: "version", Type: field.TypeString, Default: ""},
+		{Name: "result", Type: field.TypeEnum, Enums: []string{"SUCCESS", "FAILED"}, Default: "SUCCESS"},
+		{Name: "download_url", Type: field.TypeString, Default: ""},
+		{Name: "sha256", Type: field.TypeString, Default: ""},
+		{Name: "error", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// ClientInstallHistoriesTable holds the schema information for the "client_install_histories" table.
+	ClientInstallHistoriesTable = &schema.Table{
+		Name:       "client_install_histories",
+		Columns:    ClientInstallHistoriesColumns,
+		PrimaryKey: []*schema.Column{ClientInstallHistoriesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "clientinstallhistory_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ClientInstallHistoriesColumns[1], ClientInstallHistoriesColumns[12]},
+			},
+			{
+				Name:    "clientinstallhistory_package_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ClientInstallHistoriesColumns[5], ClientInstallHistoriesColumns[12]},
+			},
+			{
+				Name:    "clientinstallhistory_source_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ClientInstallHistoriesColumns[2], ClientInstallHistoriesColumns[12]},
+			},
+		},
+	}
 	// ClientSourcesColumns holds the columns for the "client_sources" table.
 	ClientSourcesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -257,12 +297,14 @@ var (
 	ClientSourceAppsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "external_id", Type: field.TypeString, Default: ""},
+		{Name: "package_id", Type: field.TypeString},
 		{Name: "name", Type: field.TypeString},
 		{Name: "slug", Type: field.TypeString},
 		{Name: "summary", Type: field.TypeString, Default: ""},
 		{Name: "category", Type: field.TypeString, Default: ""},
 		{Name: "install_protected", Type: field.TypeBool, Default: false},
 		{Name: "latest_version_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "versions_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "source_id", Type: field.TypeInt},
@@ -275,21 +317,26 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "client_source_apps_client_sources_apps",
-				Columns:    []*schema.Column{ClientSourceAppsColumns[10]},
+				Columns:    []*schema.Column{ClientSourceAppsColumns[12]},
 				RefColumns: []*schema.Column{ClientSourcesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
 		Indexes: []*schema.Index{
 			{
-				Name:    "clientsourceapp_source_id_slug",
+				Name:    "clientsourceapp_source_id_package_id",
 				Unique:  true,
-				Columns: []*schema.Column{ClientSourceAppsColumns[10], ClientSourceAppsColumns[3]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[12], ClientSourceAppsColumns[2]},
+			},
+			{
+				Name:    "clientsourceapp_source_id_slug",
+				Unique:  false,
+				Columns: []*schema.Column{ClientSourceAppsColumns[12], ClientSourceAppsColumns[4]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[10], ClientSourceAppsColumns[9]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[12], ClientSourceAppsColumns[11]},
 			},
 		},
 	}
@@ -636,6 +683,7 @@ var (
 		AppVersionsTable,
 		AppVisibilitiesTable,
 		CategoriesTable,
+		ClientInstallHistoriesTable,
 		ClientSourcesTable,
 		ClientSourceAppsTable,
 		CollaboratorsTable,

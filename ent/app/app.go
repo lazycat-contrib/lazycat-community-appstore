@@ -18,6 +18,8 @@ const (
 	FieldOwnerID = "owner_id"
 	// FieldCategoryID holds the string denoting the category_id field in the database.
 	FieldCategoryID = "category_id"
+	// FieldPackageID holds the string denoting the package_id field in the database.
+	FieldPackageID = "package_id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
 	// FieldSlug holds the string denoting the slug field in the database.
@@ -51,6 +53,7 @@ var Columns = []string{
 	FieldID,
 	FieldOwnerID,
 	FieldCategoryID,
+	FieldPackageID,
 	FieldName,
 	FieldSlug,
 	FieldSummary,
@@ -76,6 +79,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// PackageIDValidator is a validator for the "package_id" field. It is called by the builders before save.
+	PackageIDValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
 	// SlugValidator is a validator for the "slug" field. It is called by the builders before save.
@@ -145,6 +150,11 @@ func ByOwnerID(opts ...sql.OrderTermOption) OrderOption {
 // ByCategoryID orders the results by the category_id field.
 func ByCategoryID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCategoryID, opts...).ToFunc()
+}
+
+// ByPackageID orders the results by the package_id field.
+func ByPackageID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPackageID, opts...).ToFunc()
 }
 
 // ByName orders the results by the name field.

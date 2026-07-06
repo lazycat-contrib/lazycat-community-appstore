@@ -93,6 +93,18 @@ func (f CategoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CategoryMutation", m)
 }
 
+// The ClientInstallHistoryFunc type is an adapter to allow the use of ordinary
+// function as ClientInstallHistory mutator.
+type ClientInstallHistoryFunc func(context.Context, *ent.ClientInstallHistoryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ClientInstallHistoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ClientInstallHistoryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ClientInstallHistoryMutation", m)
+}
+
 // The ClientSourceFunc type is an adapter to allow the use of ordinary
 // function as ClientSource mutator.
 type ClientSourceFunc func(context.Context, *ent.ClientSourceMutation) (ent.Value, error)

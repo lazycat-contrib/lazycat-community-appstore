@@ -1,8 +1,11 @@
 package server
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
@@ -234,6 +237,7 @@ func TestAdminCanCreateCollectionAndPublicCanListIt(t *testing.T) {
 	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.featured-app").
 		SetName("Featured App").
 		SetSlug("featured-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -272,6 +276,7 @@ func TestScreenshotUploadAppearsOnAppDetail(t *testing.T) {
 	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.screenshot-app").
 		SetName("Screenshot App").
 		SetSlug("screenshot-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -312,6 +317,7 @@ func TestMaintainerCanReorderAndDeleteScreenshots(t *testing.T) {
 	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.managed-screenshots").
 		SetName("Managed Screenshots").
 		SetSlug("managed-screenshots").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -366,6 +372,7 @@ func TestDownloadEndpointIncrementsDownloadCount(t *testing.T) {
 	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.download-app").
 		SetName("Download App").
 		SetSlug("download-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -419,6 +426,7 @@ func TestDownloadEndpointUsesGitHubMirror(t *testing.T) {
 	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.mirrored-app").
 		SetName("Mirrored App").
 		SetSlug("mirrored-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -481,6 +489,7 @@ func TestUserCanListFavorites(t *testing.T) {
 	viewer := app.server.db.User.Create().SetUsername("favorite-viewer").SetPasswordHash("x").SaveX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(submitter.ID).
+		SetPackageID("cloud.lazycat.test.favorite-app").
 		SetName("Favorite App").
 		SetSlug("favorite-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -501,6 +510,7 @@ func TestOwnerAppInfoUpdateRequiresReviewUnlessUnreviewedUpdatesAllowed(t *testi
 	owner := app.server.db.User.Create().SetUsername("publisher").SetPasswordHash("x").SaveX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.stable-app").
 		SetName("Stable App").
 		SetSlug("stable-app").
 		SetSummary("old summary").
@@ -536,6 +546,7 @@ func TestOwnerAppInfoUpdateRequiresReviewUnlessUnreviewedUpdatesAllowed(t *testi
 
 	fast := app.server.db.App.Create().
 		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.fast-app").
 		SetName("Fast App").
 		SetSlug("fast-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -558,6 +569,7 @@ func TestRejectingVersionUploadDoesNotRejectApprovedApp(t *testing.T) {
 	owner := app.server.db.User.Create().SetUsername("version-owner").SetPasswordHash("x").SaveX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.versioned-app").
 		SetName("Versioned App").
 		SetSlug("versioned-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -613,6 +625,7 @@ func TestDynamicSettingsAffectRegistrationAndLPKUpload(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	_ = writer.WriteField("name", "Tiny Limit App")
+	_ = writer.WriteField("packageId", "cloud.lazycat.test.tiny-limit-app")
 	_ = writer.WriteField("version", "1.0.0")
 	part, err := writer.CreateFormFile("file", "too-large.lpk")
 	if err != nil {
@@ -640,6 +653,7 @@ func TestOwnerCanUnlistApp(t *testing.T) {
 	owner := app.server.db.User.Create().SetUsername("unlister").SetPasswordHash("x").SaveX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.public-until-unlisted").
 		SetName("Public Until Unlisted").
 		SetSlug("public-until-unlisted").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -668,6 +682,7 @@ func TestDeleteAppCleansAssociatedRecords(t *testing.T) {
 	other := app.server.db.User.Create().SetUsername("cleanup-user").SetPasswordHash("x").SaveX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.cleanup-app").
 		SetName("Cleanup App").
 		SetSlug("cleanup-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -748,12 +763,14 @@ func TestAdminCanUpdateAndDeleteCollection(t *testing.T) {
 	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
 	first := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.first-app").
 		SetName("First App").
 		SetSlug("first-app").
 		SetStatus(apppkg.StatusAPPROVED).
 		SaveX(ctx)
 	second := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.second-app").
 		SetName("Second App").
 		SetSlug("second-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -933,6 +950,7 @@ func TestServerStartsWithGitHubStorageBackendForExternalVersions(t *testing.T) {
 	app := &testApp{t: t, server: srv, handler: srv.Handler()}
 	app.login("admin", "changeme")
 	rec := app.do(http.MethodPost, "/api/v1/apps", map[string]any{
+		"packageId":   "cloud.lazycat.test.github-linked-app",
 		"name":        "GitHub Linked App",
 		"version":     "1.0.0",
 		"sourceType":  "GITHUB",
@@ -957,6 +975,7 @@ func TestAPITokenCanPublishExternalApp(t *testing.T) {
 		SaveX(ctx)
 
 	body := strings.NewReader(`{
+		"packageId":"cloud.lazycat.test.ci-app",
 		"name":"CI App",
 		"version":"1.2.3",
 		"summary":"published by CI",
@@ -982,6 +1001,7 @@ func TestExternalVersionRequiresValidSHA256(t *testing.T) {
 	app := newTestApp(t)
 	app.login("admin", "changeme")
 	rec := app.do(http.MethodPost, "/api/v1/apps", map[string]any{
+		"packageId":   "cloud.lazycat.test.bad-checksum-app",
 		"name":        "Bad Checksum App",
 		"version":     "1.0.0",
 		"sourceType":  "GITHUB",
@@ -993,12 +1013,122 @@ func TestExternalVersionRequiresValidSHA256(t *testing.T) {
 	}
 }
 
+func TestMultipartCreateAppFillsMetadataFromLPK(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+	lpk := testLPKArchive(t, "cloud.lazycat.test.upload-meta", "1.2.3", "Upload Meta", "Parsed from package.yml")
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", "upload-meta.lpk")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write(lpk); err != nil {
+		t.Fatalf("write lpk: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/apps", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	for _, cookie := range app.cookies {
+		req.AddCookie(cookie)
+	}
+	rec := httptest.NewRecorder()
+	app.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create app from upload status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	created := app.server.db.App.Query().Where(apppkg.PackageIDEQ("cloud.lazycat.test.upload-meta")).OnlyX(t.Context())
+	if created.Name != "Upload Meta" || created.Slug != "upload-meta" || created.Summary != "Parsed from package.yml" {
+		t.Fatalf("metadata not applied: %+v", created)
+	}
+	version := app.server.db.AppVersion.Query().Where(appversion.AppIDEQ(created.ID)).OnlyX(t.Context())
+	if version.Version != "1.2.3" || version.Sha256 == "" || version.FileSize != int64(len(lpk)) {
+		t.Fatalf("version metadata not applied: %+v", version)
+	}
+}
+
+func TestURLCreateAppFillsMetadataAndSHA256(t *testing.T) {
+	app := newTestApp(t)
+	app.server.allowPrivateLPKURLHosts = true
+	app.login("admin", "changeme")
+	lpk := testLPKArchive(t, "cloud.lazycat.test.url-meta", "2.0.0", "URL Meta", "Fetched from URL")
+	sum := sha256.Sum256(lpk)
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(lpk)
+	}))
+	defer feed.Close()
+
+	rec := app.do(http.MethodPost, "/api/v1/apps", map[string]any{
+		"downloadUrl": feed.URL + "/url-meta.lpk",
+		"sourceType":  "GITHUB",
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create app from url status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	created := app.server.db.App.Query().Where(apppkg.PackageIDEQ("cloud.lazycat.test.url-meta")).OnlyX(t.Context())
+	version := app.server.db.AppVersion.Query().Where(appversion.AppIDEQ(created.ID)).OnlyX(t.Context())
+	if created.Name != "URL Meta" || version.Version != "2.0.0" || version.Sha256 != hex.EncodeToString(sum[:]) || version.FileSize != int64(len(lpk)) {
+		t.Fatalf("url metadata not applied: app=%+v version=%+v", created, version)
+	}
+}
+
+func TestVersionUploadRejectsPackageMismatch(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.expected").
+		SetName("Expected").
+		SetSlug("expected").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	app.login("admin", "changeme")
+	lpk := testLPKArchive(t, "cloud.lazycat.test.other", "1.0.0", "Other", "Mismatch")
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", "other.lpk")
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write(lpk); err != nil {
+		t.Fatalf("write lpk: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/apps/%d/versions", record.ID), body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	for _, cookie := range app.cookies {
+		req.AddCookie(cookie)
+	}
+	rec := httptest.NewRecorder()
+	app.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "does not match") {
+		t.Fatalf("mismatch status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestInspectLPKURLRejectsPrivateHost(t *testing.T) {
+	app := newTestApp(t)
+	_, err := app.server.inspectLPKURL(t.Context(), "http://127.0.0.1/app.lpk", 1024)
+	if err == nil || !strings.Contains(err.Error(), "private or local") {
+		t.Fatalf("inspect private host error = %v", err)
+	}
+}
+
 func TestApprovedExternalVersionsRespectRetention(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()
 	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.external-retention").
 		SetName("External Retention").
 		SetSlug("external-retention").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -1170,6 +1300,7 @@ func TestSourceFeedExposesUpstreamDownloadURLForClientMirrors(t *testing.T) {
 	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.mirrored-source-app").
 		SetName("Mirrored Source App").
 		SetSlug("mirrored-source-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -1240,6 +1371,7 @@ func TestInstallPasswordProtectsDownloadAndSourceFeedMarksApp(t *testing.T) {
 	app.login("admin", "changeme")
 
 	rec := app.do(http.MethodPost, "/api/v1/apps", map[string]any{
+		"packageId":       "cloud.lazycat.test.protected-install-app",
 		"name":            "Protected Install App",
 		"version":         "1.0.0",
 		"summary":         "Requires an install password",
@@ -1320,6 +1452,7 @@ func TestPrivateAppVisibilityUsesGroupsAndSourceFeedStaysPublic(t *testing.T) {
 	app.server.db.GroupMember.Create().SetGroupID(group.ID).SetUserID(alice.ID).SaveX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.private-app").
 		SetName("Private App").
 		SetSlug("private-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -1368,6 +1501,7 @@ func TestGroupMembershipAndVisibilityRejectInvalidAssignments(t *testing.T) {
 	otherGroup := app.server.db.UserGroup.Create().SetOwnerID(otherOwner.ID).SetName("Other").SetSlug("other").SaveX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.visibility-guard").
 		SetName("Visibility Guard").
 		SetSlug("visibility-guard").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -1401,6 +1535,7 @@ func TestSocialActionsRequireVisibleApprovedApp(t *testing.T) {
 	group := app.server.db.UserGroup.Create().SetOwnerID(owner.ID).SetName("Private Social").SetSlug("private-social").SaveX(ctx)
 	privateApp := app.server.db.App.Create().
 		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.private-social-app").
 		SetName("Private Social App").
 		SetSlug("private-social-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -1444,6 +1579,7 @@ func TestCollaboratorRequestListIncludesRequesterProfile(t *testing.T) {
 	requester := app.server.db.User.Create().SetUsername("collab-requester").SetEmail("requester@example.com").SetPasswordHash("x").SaveX(ctx)
 	record := app.server.db.App.Create().
 		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.collab-app").
 		SetName("Collab App").
 		SetSlug("collab-app").
 		SetStatus(apppkg.StatusAPPROVED).
@@ -1484,6 +1620,23 @@ func TestSiteAdminCanListAndUpdateUsers(t *testing.T) {
 	if updated.Role != user.RoleSOFTWARE_ADMIN {
 		t.Fatalf("role = %s, want SOFTWARE_ADMIN", updated.Role)
 	}
+}
+
+func testLPKArchive(t *testing.T, packageID, version, name, description string) []byte {
+	t.Helper()
+	body := fmt.Sprintf("package: %s\nversion: %s\nname: %s\ndescription: %s\n", packageID, version, name, description)
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	if err := tw.WriteHeader(&tar.Header{Name: "package.yml", Mode: 0o644, Size: int64(len(body))}); err != nil {
+		t.Fatalf("WriteHeader: %v", err)
+	}
+	if _, err := tw.Write([]byte(body)); err != nil {
+		t.Fatalf("Write package.yml: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("Close tar: %v", err)
+	}
+	return buf.Bytes()
 }
 
 func (a *testApp) serverCookieFor(userID int) *http.Cookie {

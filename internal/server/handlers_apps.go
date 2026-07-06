@@ -27,6 +27,7 @@ import (
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/internal/auth"
+	"lazycat.community/appstore/internal/lpkmeta"
 	"lazycat.community/appstore/internal/storage"
 )
 
@@ -111,6 +112,7 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 
 type createAppJSON struct {
 	Name                   string   `json:"name"`
+	PackageID              string   `json:"packageId"`
 	Slug                   string   `json:"slug"`
 	Summary                string   `json:"summary"`
 	Description            string   `json:"description"`
@@ -165,13 +167,29 @@ func (s *Server) handleCreateApp(w http.ResponseWriter, r *http.Request, u *entg
 		badRequest(w, err)
 		return
 	}
+	var inspected lpkInspection
+	if input.DownloadURL != "" && appInputNeedsLPKInspection(input) {
+		var err error
+		inspected, err = s.inspectLPKURL(r.Context(), input.DownloadURL, s.effectiveMaxLPKSize(r.Context()))
+		if err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "LPK_METADATA_FAILED", err.Error(), nil)
+			return
+		}
+		if err := applyAppMetadata(&input, inspected.Metadata); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "LPK_METADATA_FAILED", err.Error(), nil)
+			return
+		}
+		if input.SHA256 == "" {
+			input.SHA256 = inspected.SHA256
+		}
+	}
 	record, err := s.createAppRecord(r, u, input)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "APP_CREATE_FAILED", err.Error(), nil)
 		return
 	}
-	if input.DownloadURL != "" && input.Version != "" {
-		_, err = s.createExternalVersion(r, u, record, input.Version, input.Changelog, input.DownloadURL, input.SourceType, input.SHA256)
+	if input.DownloadURL != "" {
+		_, err = s.createExternalVersion(r, u, record, input.Version, input.Changelog, input.DownloadURL, input.SourceType, input.SHA256, inspected.Size)
 		if err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "VERSION_CREATE_FAILED", err.Error(), nil)
 			return
@@ -189,6 +207,7 @@ func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *e
 	commentsEnabled := true
 	input := createAppJSON{
 		Name:                   r.FormValue("name"),
+		PackageID:              r.FormValue("packageId"),
 		Slug:                   r.FormValue("slug"),
 		Summary:                r.FormValue("summary"),
 		Description:            r.FormValue("description"),
@@ -204,17 +223,25 @@ func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *e
 	if tags := strings.TrimSpace(r.FormValue("tags")); tags != "" {
 		input.Tags = splitCSV(tags)
 	}
+	file, header, fileErr := r.FormFile("file")
+	if fileErr == nil {
+		defer file.Close()
+		meta, err := parseUploadedLPKMetadata(file, header, maxLPKSize)
+		if err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "APP_CREATE_FAILED", err.Error(), nil)
+			return
+		}
+		if err := applyAppMetadata(&input, meta); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "APP_CREATE_FAILED", err.Error(), nil)
+			return
+		}
+	}
 	record, err := s.createAppRecord(r, u, input)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "APP_CREATE_FAILED", err.Error(), nil)
 		return
 	}
-	file, header, err := r.FormFile("file")
-	if err == nil {
-		defer file.Close()
-		if input.Version == "" {
-			input.Version = "0.1.0"
-		}
+	if fileErr == nil {
 		if _, err := s.createUploadedVersion(r, u, record, input.Version, input.Changelog, file, header); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "VERSION_CREATE_FAILED", err.Error(), nil)
 			return
@@ -232,6 +259,10 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 	if slug == "" {
 		slug = slugify(name)
 	}
+	packageID := strings.TrimSpace(input.PackageID)
+	if packageID == "" {
+		return nil, errors.New("packageId is required")
+	}
 	status := app.StatusPENDING
 	if isAdmin(u) {
 		status = app.StatusAPPROVED
@@ -242,6 +273,7 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 	}
 	create := s.db.App.Create().
 		SetOwnerID(u.ID).
+		SetPackageID(packageID).
 		SetName(name).
 		SetSlug(slug).
 		SetSummary(input.Summary).
@@ -478,7 +510,25 @@ func (s *Server) handleCreateVersion(w http.ResponseWriter, r *http.Request, u *
 		badRequest(w, err)
 		return
 	}
-	created, err := s.createExternalVersion(r, u, record, input.Version, input.Changelog, input.DownloadURL, input.SourceType, input.SHA256)
+	var inspected lpkInspection
+	if input.DownloadURL != "" && versionInputNeedsLPKInspection(input) {
+		inspected, err = s.inspectLPKURL(r.Context(), input.DownloadURL, s.effectiveMaxLPKSize(r.Context()))
+		if err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "LPK_METADATA_FAILED", err.Error(), nil)
+			return
+		}
+		if inspected.Metadata.PackageID != "" && inspected.Metadata.PackageID != record.PackageID {
+			writeError(w, http.StatusUnprocessableEntity, "LPK_METADATA_FAILED", fmt.Sprintf("LPK package %q does not match app packageId %q", inspected.Metadata.PackageID, record.PackageID), nil)
+			return
+		}
+		if input.Version == "" {
+			input.Version = inspected.Metadata.Version
+		}
+		if input.SHA256 == "" {
+			input.SHA256 = inspected.SHA256
+		}
+	}
+	created, err := s.createExternalVersion(r, u, record, input.Version, input.Changelog, input.DownloadURL, input.SourceType, input.SHA256, inspected.Size)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "VERSION_CREATE_FAILED", err.Error(), nil)
 		return
@@ -487,7 +537,17 @@ func (s *Server) handleCreateVersion(w http.ResponseWriter, r *http.Request, u *
 }
 
 func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *entgo.App, versionName, changelog string, file multipart.File, header *multipart.FileHeader) (*entgo.AppVersion, error) {
+	meta, err := parseUploadedLPKMetadata(file, header, s.effectiveMaxLPKSize(r.Context()))
+	if err != nil {
+		return nil, err
+	}
+	if meta.PackageID != "" && record.PackageID != "" && meta.PackageID != record.PackageID {
+		return nil, fmt.Errorf("LPK package %q does not match app packageId %q", meta.PackageID, record.PackageID)
+	}
 	versionName = strings.TrimSpace(versionName)
+	if versionName == "" {
+		versionName = meta.Version
+	}
 	if versionName == "" {
 		return nil, errors.New("version is required")
 	}
@@ -535,7 +595,7 @@ func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *e
 	return created, nil
 }
 
-func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *entgo.App, versionName, changelog, downloadURL, sourceType, sha256 string) (*entgo.AppVersion, error) {
+func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *entgo.App, versionName, changelog, downloadURL, sourceType, sha256 string, fileSize int64) (*entgo.AppVersion, error) {
 	versionName = strings.TrimSpace(versionName)
 	downloadURL = strings.TrimSpace(downloadURL)
 	sha256 = strings.TrimSpace(strings.ToLower(sha256))
@@ -572,6 +632,9 @@ func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *e
 		SetSourceType(source).
 		SetDownloadURL(downloadURL).
 		SetSha256(sha256)
+	if fileSize > 0 {
+		create.SetFileSize(fileSize)
+	}
 	if status == appversion.StatusAPPROVED {
 		create.SetPublishedAt(time.Now())
 	}
@@ -592,6 +655,64 @@ func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *e
 		s.enforceVersionRetention(r, record.ID)
 	}
 	return created, nil
+}
+
+func appInputNeedsLPKInspection(input createAppJSON) bool {
+	return strings.TrimSpace(input.PackageID) == "" ||
+		strings.TrimSpace(input.Name) == "" ||
+		strings.TrimSpace(input.Version) == "" ||
+		strings.TrimSpace(input.SHA256) == ""
+}
+
+func versionInputNeedsLPKInspection(input createAppJSON) bool {
+	return strings.TrimSpace(input.Version) == "" || strings.TrimSpace(input.SHA256) == ""
+}
+
+func applyAppMetadata(input *createAppJSON, meta lpkmeta.Metadata) error {
+	if input.PackageID != "" && meta.PackageID != "" && input.PackageID != meta.PackageID {
+		return fmt.Errorf("LPK package %q does not match packageId %q", meta.PackageID, input.PackageID)
+	}
+	if input.PackageID == "" {
+		input.PackageID = meta.PackageID
+	}
+	if input.Name == "" {
+		input.Name = meta.Name
+		if input.Name == "" {
+			input.Name = packageDisplayName(meta.PackageID)
+		}
+	}
+	if input.Summary == "" {
+		input.Summary = packageSummary(meta.Description)
+	}
+	if input.Description == "" {
+		input.Description = meta.Description
+	}
+	if input.Version == "" {
+		input.Version = meta.Version
+	}
+	return nil
+}
+
+func packageDisplayName(packageID string) string {
+	packageID = strings.TrimSpace(packageID)
+	if packageID == "" {
+		return ""
+	}
+	parts := strings.Split(packageID, ".")
+	return strings.TrimSpace(parts[len(parts)-1])
+}
+
+func packageSummary(description string) string {
+	description = strings.TrimSpace(description)
+	if description == "" {
+		return ""
+	}
+	line := strings.TrimSpace(strings.Split(description, "\n")[0])
+	runes := []rune(line)
+	if len(runes) <= 120 {
+		return line
+	}
+	return strings.TrimSpace(string(runes[:117])) + "..."
 }
 
 func isSHA256Hex(value string) bool {
@@ -624,6 +745,7 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 		ID:                     record.ID,
 		OwnerID:                record.OwnerID,
 		CategoryID:             record.CategoryID,
+		PackageID:              record.PackageID,
 		Name:                   record.Name,
 		Slug:                   record.Slug,
 		Summary:                record.Summary,

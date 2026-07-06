@@ -28,6 +28,7 @@ func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	if search := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q"))); search != "" {
 		query = query.Where(
 			clientsourceapp.Or(
+				clientsourceapp.PackageIDContainsFold(search),
 				clientsourceapp.NameContainsFold(search),
 				clientsourceapp.SlugContainsFold(search),
 				clientsourceapp.SummaryContainsFold(search),
@@ -77,11 +78,43 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"app": dto})
 }
 
+func (s *Server) handleGetAppVersions(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil || id <= 0 {
+		writeError(w, http.StatusBadRequest, "INVALID_ID", "Invalid app id")
+		return
+	}
+	item, err := s.db.ClientSourceApp.Query().
+		Where(clientsourceapp.IDEQ(id), clientsourceapp.HasSourceWith(clientsource.UserIDEQ(currentUserID(r)))).
+		WithSource().
+		Only(r.Context())
+	if err != nil {
+		if ent.IsNotFound(err) {
+			writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "APP_LOAD_FAILED", "Could not load app")
+		return
+	}
+	dto, err := sourceAppDTO(item)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "APP_LOAD_FAILED", "Could not read app cache")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"versions": dto.Versions})
+}
+
 func sourceAppDTO(app *ent.ClientSourceApp) (SourceAppDTO, error) {
 	var version *VersionDTO
+	versions := []VersionDTO{}
 	if app.LatestVersionJSON != "" {
 		version = &VersionDTO{}
 		if err := json.Unmarshal([]byte(app.LatestVersionJSON), version); err != nil {
+			return SourceAppDTO{}, err
+		}
+	}
+	if app.VersionsJSON != "" {
+		if err := json.Unmarshal([]byte(app.VersionsJSON), &versions); err != nil {
 			return SourceAppDTO{}, err
 		}
 	}
@@ -93,11 +126,13 @@ func sourceAppDTO(app *ent.ClientSourceApp) (SourceAppDTO, error) {
 		ID:               app.ID,
 		SourceID:         app.SourceID,
 		SourceName:       sourceName,
+		PackageID:        app.PackageID,
 		Name:             app.Name,
 		Slug:             app.Slug,
 		Summary:          app.Summary,
 		Category:         app.Category,
 		InstallProtected: app.InstallProtected,
 		LatestVersion:    version,
+		Versions:         versions,
 	}, nil
 }

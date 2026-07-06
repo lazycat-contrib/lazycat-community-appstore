@@ -16,6 +16,7 @@ func (App) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("owner_id"),
 		field.Int("category_id").Optional().Nillable(),
+		field.String("package_id").NotEmpty().Unique(),
 		field.String("name").NotEmpty(),
 		field.String("slug").NotEmpty().Unique(),
 		field.String("summary").Default(""),

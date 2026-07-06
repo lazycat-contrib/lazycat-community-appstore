@@ -21,6 +21,8 @@ type App struct {
 	OwnerID int `json:"owner_id,omitempty"`
 	// CategoryID holds the value of the "category_id" field.
 	CategoryID *int `json:"category_id,omitempty"`
+	// PackageID holds the value of the "package_id" field.
+	PackageID string `json:"package_id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// Slug holds the value of the "slug" field.
@@ -57,7 +59,7 @@ func (*App) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldDownloadCount:
 			values[i] = new(sql.NullInt64)
-		case app.FieldName, app.FieldSlug, app.FieldSummary, app.FieldDescription, app.FieldIconURL, app.FieldStatus, app.FieldInstallPasswordHash:
+		case app.FieldPackageID, app.FieldName, app.FieldSlug, app.FieldSummary, app.FieldDescription, app.FieldIconURL, app.FieldStatus, app.FieldInstallPasswordHash:
 			values[i] = new(sql.NullString)
 		case app.FieldCreatedAt, app.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -94,6 +96,12 @@ func (_m *App) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CategoryID = new(int)
 				*_m.CategoryID = int(value.Int64)
+			}
+		case app.FieldPackageID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field package_id", values[i])
+			} else if value.Valid {
+				_m.PackageID = value.String
 			}
 		case app.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -211,6 +219,9 @@ func (_m *App) String() string {
 		builder.WriteString("category_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("package_id=")
+	builder.WriteString(_m.PackageID)
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)

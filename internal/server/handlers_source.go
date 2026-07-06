@@ -60,6 +60,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 		}
 		appInput := feed.AppInput{
 			ID:               record.ID,
+			PackageID:        record.PackageID,
 			Name:             record.Name,
 			Slug:             record.Slug,
 			Summary:          record.Summary,

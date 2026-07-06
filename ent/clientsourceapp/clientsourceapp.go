@@ -18,6 +18,8 @@ const (
 	FieldSourceID = "source_id"
 	// FieldExternalID holds the string denoting the external_id field in the database.
 	FieldExternalID = "external_id"
+	// FieldPackageID holds the string denoting the package_id field in the database.
+	FieldPackageID = "package_id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
 	// FieldSlug holds the string denoting the slug field in the database.
@@ -30,6 +32,8 @@ const (
 	FieldInstallProtected = "install_protected"
 	// FieldLatestVersionJSON holds the string denoting the latest_version_json field in the database.
 	FieldLatestVersionJSON = "latest_version_json"
+	// FieldVersionsJSON holds the string denoting the versions_json field in the database.
+	FieldVersionsJSON = "versions_json"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -52,12 +56,14 @@ var Columns = []string{
 	FieldID,
 	FieldSourceID,
 	FieldExternalID,
+	FieldPackageID,
 	FieldName,
 	FieldSlug,
 	FieldSummary,
 	FieldCategory,
 	FieldInstallProtected,
 	FieldLatestVersionJSON,
+	FieldVersionsJSON,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -75,6 +81,8 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultExternalID holds the default value on creation for the "external_id" field.
 	DefaultExternalID string
+	// PackageIDValidator is a validator for the "package_id" field. It is called by the builders before save.
+	PackageIDValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
 	// SlugValidator is a validator for the "slug" field. It is called by the builders before save.
@@ -87,6 +95,8 @@ var (
 	DefaultInstallProtected bool
 	// DefaultLatestVersionJSON holds the default value on creation for the "latest_version_json" field.
 	DefaultLatestVersionJSON string
+	// DefaultVersionsJSON holds the default value on creation for the "versions_json" field.
+	DefaultVersionsJSON string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -111,6 +121,11 @@ func BySourceID(opts ...sql.OrderTermOption) OrderOption {
 // ByExternalID orders the results by the external_id field.
 func ByExternalID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldExternalID, opts...).ToFunc()
+}
+
+// ByPackageID orders the results by the package_id field.
+func ByPackageID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPackageID, opts...).ToFunc()
 }
 
 // ByName orders the results by the name field.
@@ -141,6 +156,11 @@ func ByInstallProtected(opts ...sql.OrderTermOption) OrderOption {
 // ByLatestVersionJSON orders the results by the latest_version_json field.
 func ByLatestVersionJSON(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLatestVersionJSON, opts...).ToFunc()
+}
+
+// ByVersionsJSON orders the results by the versions_json field.
+func ByVersionsJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVersionsJSON, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

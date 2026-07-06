@@ -40,6 +40,12 @@ func (_c *AppCreate) SetNillableCategoryID(v *int) *AppCreate {
 	return _c
 }
 
+// SetPackageID sets the "package_id" field.
+func (_c *AppCreate) SetPackageID(v string) *AppCreate {
+	_c.mutation.SetPackageID(v)
+	return _c
+}
+
 // SetName sets the "name" field.
 func (_c *AppCreate) SetName(v string) *AppCreate {
 	_c.mutation.SetName(v)
@@ -270,6 +276,14 @@ func (_c *AppCreate) check() error {
 	if _, ok := _c.mutation.OwnerID(); !ok {
 		return &ValidationError{Name: "owner_id", err: errors.New(`ent: missing required field "App.owner_id"`)}
 	}
+	if _, ok := _c.mutation.PackageID(); !ok {
+		return &ValidationError{Name: "package_id", err: errors.New(`ent: missing required field "App.package_id"`)}
+	}
+	if v, ok := _c.mutation.PackageID(); ok {
+		if err := app.PackageIDValidator(v); err != nil {
+			return &ValidationError{Name: "package_id", err: fmt.Errorf(`ent: validator failed for field "App.package_id": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "App.name"`)}
 	}
@@ -351,6 +365,10 @@ func (_c *AppCreate) createSpec() (*App, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CategoryID(); ok {
 		_spec.SetField(app.FieldCategoryID, field.TypeInt, value)
 		_node.CategoryID = &value
+	}
+	if value, ok := _c.mutation.PackageID(); ok {
+		_spec.SetField(app.FieldPackageID, field.TypeString, value)
+		_node.PackageID = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(app.FieldName, field.TypeString, value)

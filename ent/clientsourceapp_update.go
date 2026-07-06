@@ -57,6 +57,20 @@ func (_u *ClientSourceAppUpdate) SetNillableExternalID(v *string) *ClientSourceA
 	return _u
 }
 
+// SetPackageID sets the "package_id" field.
+func (_u *ClientSourceAppUpdate) SetPackageID(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetPackageID(v)
+	return _u
+}
+
+// SetNillablePackageID sets the "package_id" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillablePackageID(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetPackageID(*v)
+	}
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *ClientSourceAppUpdate) SetName(v string) *ClientSourceAppUpdate {
 	_u.mutation.SetName(v)
@@ -141,6 +155,20 @@ func (_u *ClientSourceAppUpdate) SetNillableLatestVersionJSON(v *string) *Client
 	return _u
 }
 
+// SetVersionsJSON sets the "versions_json" field.
+func (_u *ClientSourceAppUpdate) SetVersionsJSON(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetVersionsJSON(v)
+	return _u
+}
+
+// SetNillableVersionsJSON sets the "versions_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableVersionsJSON(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetVersionsJSON(*v)
+	}
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *ClientSourceAppUpdate) SetCreatedAt(v time.Time) *ClientSourceAppUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -215,6 +243,11 @@ func (_u *ClientSourceAppUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *ClientSourceAppUpdate) check() error {
+	if v, ok := _u.mutation.PackageID(); ok {
+		if err := clientsourceapp.PackageIDValidator(v); err != nil {
+			return &ValidationError{Name: "package_id", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.package_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Name(); ok {
 		if err := clientsourceapp.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.name": %w`, err)}
@@ -246,6 +279,9 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.ExternalID(); ok {
 		_spec.SetField(clientsourceapp.FieldExternalID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PackageID(); ok {
+		_spec.SetField(clientsourceapp.FieldPackageID, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(clientsourceapp.FieldName, field.TypeString, value)
 	}
@@ -263,6 +299,9 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.LatestVersionJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldLatestVersionJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.VersionsJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldVersionsJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(clientsourceapp.FieldCreatedAt, field.TypeTime, value)
@@ -347,6 +386,20 @@ func (_u *ClientSourceAppUpdateOne) SetNillableExternalID(v *string) *ClientSour
 	return _u
 }
 
+// SetPackageID sets the "package_id" field.
+func (_u *ClientSourceAppUpdateOne) SetPackageID(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetPackageID(v)
+	return _u
+}
+
+// SetNillablePackageID sets the "package_id" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillablePackageID(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetPackageID(*v)
+	}
+	return _u
+}
+
 // SetName sets the "name" field.
 func (_u *ClientSourceAppUpdateOne) SetName(v string) *ClientSourceAppUpdateOne {
 	_u.mutation.SetName(v)
@@ -427,6 +480,20 @@ func (_u *ClientSourceAppUpdateOne) SetLatestVersionJSON(v string) *ClientSource
 func (_u *ClientSourceAppUpdateOne) SetNillableLatestVersionJSON(v *string) *ClientSourceAppUpdateOne {
 	if v != nil {
 		_u.SetLatestVersionJSON(*v)
+	}
+	return _u
+}
+
+// SetVersionsJSON sets the "versions_json" field.
+func (_u *ClientSourceAppUpdateOne) SetVersionsJSON(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetVersionsJSON(v)
+	return _u
+}
+
+// SetNillableVersionsJSON sets the "versions_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableVersionsJSON(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetVersionsJSON(*v)
 	}
 	return _u
 }
@@ -518,6 +585,11 @@ func (_u *ClientSourceAppUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *ClientSourceAppUpdateOne) check() error {
+	if v, ok := _u.mutation.PackageID(); ok {
+		if err := clientsourceapp.PackageIDValidator(v); err != nil {
+			return &ValidationError{Name: "package_id", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.package_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Name(); ok {
 		if err := clientsourceapp.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.name": %w`, err)}
@@ -566,6 +638,9 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	if value, ok := _u.mutation.ExternalID(); ok {
 		_spec.SetField(clientsourceapp.FieldExternalID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PackageID(); ok {
+		_spec.SetField(clientsourceapp.FieldPackageID, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(clientsourceapp.FieldName, field.TypeString, value)
 	}
@@ -583,6 +658,9 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	}
 	if value, ok := _u.mutation.LatestVersionJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldLatestVersionJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.VersionsJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldVersionsJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(clientsourceapp.FieldCreatedAt, field.TypeTime, value)

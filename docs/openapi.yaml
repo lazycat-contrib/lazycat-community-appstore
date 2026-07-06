@@ -912,6 +912,14 @@ paths:
       responses:
         "200":
           description: Site settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [settings]
+                properties:
+                  settings:
+                    $ref: "#/components/schemas/SiteSettings"
     patch:
       tags: [Admin]
       summary: Site admin update settings
@@ -926,6 +934,297 @@ paths:
       responses:
         "200":
           description: Settings updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [settings]
+                properties:
+                  settings:
+                    $ref: "#/components/schemas/SiteSettings"
+
+  /api/client/v1/sources:
+    get:
+      tags: [Client]
+      summary: List software sources stored by the standalone client
+      description: Client endpoints use the optional x-hc-user-id header supplied by the LazyCat runtime. When it is absent, data is scoped to the local user.
+      security: []
+      responses:
+        "200":
+          description: Source subscriptions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sources]
+                properties:
+                  sources:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClientSource"
+    post:
+      tags: [Client]
+      summary: Add a software source to the standalone client
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientSourceInput"
+      responses:
+        "201":
+          description: Source created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [source]
+                properties:
+                  source:
+                    $ref: "#/components/schemas/ClientSource"
+        "409":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+
+  /api/client/v1/sources/{id}:
+    patch:
+      tags: [Client]
+      summary: Update a standalone client source
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientSourceInput"
+      responses:
+        "200":
+          description: Source updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [source]
+                properties:
+                  source:
+                    $ref: "#/components/schemas/ClientSource"
+        "404":
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [Client]
+      summary: Delete a standalone client source and its cached apps
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Source deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /api/client/v1/sources/{id}/sync:
+    post:
+      tags: [Client]
+      summary: Sync one standalone client source
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Source sync result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [source]
+                properties:
+                  source:
+                    $ref: "#/components/schemas/ClientSource"
+        "401":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+        "502":
+          $ref: "#/components/responses/Error"
+
+  /api/client/v1/sources/sync:
+    post:
+      tags: [Client]
+      summary: Sync all standalone client sources
+      security: []
+      responses:
+        "200":
+          description: Sync counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [result]
+                properties:
+                  result:
+                    $ref: "#/components/schemas/ClientSyncAllResult"
+
+  /api/client/v1/apps:
+    get:
+      tags: [Client]
+      summary: List cached apps from synced client sources
+      security: []
+      parameters:
+        - name: sourceId
+          in: query
+          schema:
+            type: integer
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cached source apps.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [apps]
+                properties:
+                  apps:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClientSourceApp"
+
+  /api/client/v1/apps/{id}:
+    get:
+      tags: [Client]
+      summary: Get one cached client source app
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Cached source app.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [app]
+                properties:
+                  app:
+                    $ref: "#/components/schemas/ClientSourceApp"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /api/client/v1/apps/{id}/versions:
+    get:
+      tags: [Client]
+      summary: List versions for one cached client source app
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Versions available from the synced source feed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versions]
+                properties:
+                  versions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClientVersion"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /api/client/v1/installed:
+    get:
+      tags: [Client]
+      summary: Query apps installed on the current LazyCat device
+      description: This endpoint is local to the standalone client. The server storefront never receives or stores this device inventory.
+      security: []
+      responses:
+        "200":
+          description: Installed LazyCat applications.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [apps]
+                properties:
+                  apps:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InstalledApplication"
+        "502":
+          $ref: "#/components/responses/Error"
+
+  /api/client/v1/install:
+    post:
+      tags: [Client]
+      summary: Install a cached source app through the LazyCat Go SDK
+      description: If version is omitted, the latest source version is installed. Supplying version lets the client install an older synced version for rollback.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientInstallRequest"
+      responses:
+        "200":
+          description: Install task result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientInstallResult"
+        "404":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+        "502":
+          $ref: "#/components/responses/Error"
+
+  /api/client/v1/history:
+    get:
+      tags: [Client]
+      summary: List install attempts recorded by the standalone client
+      security: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        "200":
+          description: Install history entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [history]
+                properties:
+                  history:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InstallHistoryEntry"
+        "400":
+          $ref: "#/components/responses/Error"
 
   /source/v1/index.json:
     get:
@@ -1137,6 +1436,12 @@ components:
         announcement:
           $ref: "#/components/schemas/SiteAnnouncement"
 
+    SiteSettings:
+      type: object
+      additionalProperties:
+        type: string
+      description: Site admin settings keyed by server setting names such as site_title, site_public_url, source_password, github_mirror, announcement_enabled, and max_lpk_size.
+
     SourceIndex:
       type: object
       required: [schema, baseUrl, generatedAt, site, announcement, apps]
@@ -1161,10 +1466,13 @@ components:
 
     SourceApp:
       type: object
-      required: [id, name, slug, summary, description, installProtected, updatedAt, latestVersion, versions]
+      required: [id, packageId, name, slug, summary, description, installProtected, updatedAt, latestVersion, versions]
       properties:
         id:
           type: integer
+        packageId:
+          type: string
+          description: LazyCat package identity from V2 package.yml package.
         name:
           type: string
         slug:
@@ -1237,6 +1545,198 @@ components:
           type: string
           format: date-time
 
+    ClientSource:
+      type: object
+      required: [id, name, url, password, mirror, lastAppCount, lastInstallableCount]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        password:
+          type: string
+          description: Source feed password stored locally by the standalone client.
+        mirror:
+          type: string
+          description: Optional mirror prefix used by the client for GitHub download URLs.
+        lastSync:
+          type: string
+          format: date-time
+        lastError:
+          type: string
+        lastErrorCode:
+          type: string
+        lastAppCount:
+          type: integer
+        lastInstallableCount:
+          type: integer
+
+    ClientSourceInput:
+      type: object
+      required: [name, url]
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        password:
+          type: string
+        mirror:
+          type: string
+
+    ClientVersion:
+      type: object
+      required: [version, downloadUrl, sha256, size]
+      properties:
+        version:
+          type: string
+        downloadUrl:
+          type: string
+          format: uri
+        upstreamDownloadUrl:
+          type: string
+          format: uri
+        sourceType:
+          type: string
+        sha256:
+          type: string
+        size:
+          type: integer
+          format: int64
+
+    ClientSourceApp:
+      type: object
+      required: [id, sourceId, sourceName, packageId, name, slug, summary, installProtected, versions]
+      properties:
+        id:
+          type: integer
+        sourceId:
+          type: integer
+        sourceName:
+          type: string
+        packageId:
+          type: string
+          description: LazyCat package identity used to match installed apps and install history.
+        name:
+          type: string
+        slug:
+          type: string
+        summary:
+          type: string
+        category:
+          type: string
+        installProtected:
+          type: boolean
+        latestVersion:
+          $ref: "#/components/schemas/ClientVersion"
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientVersion"
+
+    ClientSyncAllResult:
+      type: object
+      required: [success, failed]
+      properties:
+        success:
+          type: integer
+        failed:
+          type: integer
+
+    InstalledApplication:
+      type: object
+      required: [appid]
+      properties:
+        appid:
+          type: string
+          description: Package ID reported by the LazyCat runtime.
+        title:
+          type: string
+        version:
+          type: string
+        status:
+          type: string
+        instanceStatus:
+          type: string
+        icon:
+          type: string
+
+    ClientInstallRequest:
+      type: object
+      required: [appId]
+      properties:
+        appId:
+          type: integer
+          description: Cached client source app ID.
+        version:
+          type: string
+          description: Optional target version. Omit to install the latest synced version.
+        installPassword:
+          type: string
+        name:
+          type: string
+          deprecated: true
+          description: Ignored by normal client installs; the server derives install metadata from the cached source app.
+        pkgId:
+          type: string
+          deprecated: true
+        downloadUrl:
+          type: string
+          deprecated: true
+        sha256:
+          type: string
+          deprecated: true
+
+    ClientInstallResult:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+        taskId:
+          type: string
+        status:
+          type: string
+        detail:
+          type: string
+
+    InstallHistoryEntry:
+      type: object
+      required: [id, packageId, appName, result, createdAt]
+      properties:
+        id:
+          type: integer
+        sourceId:
+          type: integer
+          nullable: true
+        sourceAppId:
+          type: integer
+          nullable: true
+        sourceName:
+          type: string
+        packageId:
+          type: string
+        appName:
+          type: string
+        version:
+          type: string
+        result:
+          type: string
+          enum: [SUCCESS, FAILED]
+        downloadUrl:
+          type: string
+        sha256:
+          type: string
+        error:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
     SetupRequest:
       type: object
       required: [username, password]
@@ -1295,7 +1795,7 @@ components:
 
     AppSummary:
       type: object
-      required: [id, ownerId, owner, name, slug, status, allowUnreviewedUpdates, commentsEnabled, installProtected, downloadCount, tags, visibleGroupIds, createdAt, updatedAt]
+      required: [id, ownerId, owner, packageId, name, slug, status, allowUnreviewedUpdates, commentsEnabled, installProtected, downloadCount, tags, visibleGroupIds, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -1308,6 +1808,9 @@ components:
           nullable: true
         category:
           type: string
+        packageId:
+          type: string
+          description: LazyCat package identity from V2 package.yml package. This is the stable install identity; slug is only the storefront route/display identifier.
         name:
           type: string
         slug:
@@ -1511,8 +2014,11 @@ components:
 
     CreateAppRequest:
       type: object
-      required: [name]
+      description: Submit app metadata and optionally create the first version from an external LPK URL. For reachable V2 LPK URLs, the server can read package.yml and fill missing packageId, name, summary, description, version, file size, and sha256. Explicit JSON fields override LPK metadata.
       properties:
+        packageId:
+          type: string
+          description: Required when no V2 LPK metadata is supplied by downloadUrl. Must match package.yml package when metadata is available.
         name:
           type: string
         slug:
@@ -1545,14 +2051,20 @@ components:
           $ref: "#/components/schemas/SourceType"
         downloadUrl:
           type: string
+          format: uri
+          description: External LPK URL. When metadata fields are missing, the server fetches this URL to parse a V2 LPK and compute SHA256.
         sha256:
           type: string
           pattern: "^[0-9a-f]{64}$"
+          description: Optional when downloadUrl is reachable and points to a valid V2 LPK; otherwise required for external versions.
 
     CreateAppMultipart:
       type: object
-      required: [name]
+      description: Submit app metadata and optionally upload the first V2 LPK file. The server reads package.yml from the LPK and fills missing packageId, name, summary, description, and version. Explicit form fields override LPK metadata.
       properties:
+        packageId:
+          type: string
+          description: Required when no file metadata is supplied. Must match package.yml package when a file is uploaded.
         name:
           type: string
         slug:
@@ -1609,7 +2121,8 @@ components:
 
     CreateVersionRequest:
       type: object
-      required: [version, downloadUrl, sha256]
+      required: [downloadUrl]
+      description: Link a new external version. If version or sha256 is omitted, the server fetches downloadUrl, parses V2 package.yml, verifies packageId matches the app, records file size, and computes SHA256. If the URL cannot be inspected, version and sha256 must be supplied.
       properties:
         version:
           type: string
@@ -1619,13 +2132,16 @@ components:
           $ref: "#/components/schemas/SourceType"
         downloadUrl:
           type: string
+          format: uri
         sha256:
           type: string
           pattern: "^[0-9a-f]{64}$"
+          description: Optional when downloadUrl can be inspected as a valid V2 LPK.
 
     CreateVersionMultipart:
       type: object
-      required: [version, file]
+      required: [file]
+      description: Upload a new V2 LPK version. If version is omitted, the server reads it from package.yml and verifies package.yml package matches the app packageId.
       properties:
         version:
           type: string

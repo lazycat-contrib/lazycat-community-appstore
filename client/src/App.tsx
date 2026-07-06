@@ -69,6 +69,7 @@ type StoreApp = {
   id: number;
   ownerId: number;
   owner: string;
+  packageId?: string;
   categoryId?: number;
   name: string;
   slug: string;
@@ -191,23 +192,27 @@ type SourceSubscription = {
 
 type SourceInput = Pick<SourceSubscription, 'name' | 'url' | 'password' | 'mirror'>;
 
+type SourceVersion = {
+  version: string;
+  downloadUrl: string;
+  upstreamDownloadUrl?: string;
+  sourceType?: string;
+  sha256: string;
+  size: number;
+};
+
 type SourceApp = {
   id: number;
   sourceId?: SourceID;
   sourceName: string;
+  packageId?: string;
   name: string;
   slug: string;
   summary: string;
   category?: string;
   installProtected?: boolean;
-  latestVersion?: {
-    version: string;
-    downloadUrl: string;
-    upstreamDownloadUrl?: string;
-    sourceType?: string;
-    sha256: string;
-    size: number;
-  };
+  latestVersion?: SourceVersion;
+  versions?: SourceVersion[];
 };
 
 type FavoriteData = {
@@ -256,6 +261,7 @@ type InstallActivity = {
 
 type InstallPasswordRequest = {
   app: StoreApp | SourceApp;
+  version?: string;
 };
 
 type ClientSourceStats = {
@@ -288,6 +294,21 @@ type ClientInstallResult = {
   taskId?: string;
   status?: string;
   detail?: string;
+};
+
+type InstallHistoryEntry = {
+  id: number;
+  sourceId?: SourceID;
+  sourceAppId?: number;
+  sourceName?: string;
+  packageId: string;
+  appName: string;
+  version?: string;
+  result: 'SUCCESS' | 'FAILED';
+  downloadUrl?: string;
+  sha256?: string;
+  error?: string;
+  createdAt: string;
 };
 
 function errorMessage(error: unknown, fallback: string) {
@@ -364,6 +385,14 @@ function hasInstallableVersion(app: StoreApp | SourceApp) {
   return Boolean(app.latestVersion?.downloadUrl);
 }
 
+function selectedSourceVersion(app: SourceApp, version?: string) {
+  const wanted = version?.trim();
+  if (wanted) {
+    return app.versions?.find((item) => item.version === wanted) || (app.latestVersion?.version === wanted ? app.latestVersion : undefined);
+  }
+  return app.latestVersion;
+}
+
 function withInstallPassword(rawUrl: string, password?: string) {
   if (!password) return rawUrl;
   try {
@@ -399,12 +428,28 @@ function normalizeAppIdentity(value?: string) {
 }
 
 function findInstalledApplication(app: StoreApp | SourceApp, installedApps: InstalledApplication[]) {
+  const packageID = normalizeAppIdentity('packageId' in app ? app.packageId : undefined);
   const appID = normalizeAppIdentity(app.slug);
   const appName = normalizeAppIdentity(app.name);
   return installedApps.find((item) => {
     const installedID = normalizeAppIdentity(item.appid);
+    if (packageID && installedID && packageID === installedID) return true;
     if (appID && installedID) return appID === installedID;
     return appName !== '' && normalizeAppIdentity(item.title) === appName;
+  });
+}
+
+function findSourceForInstalled(item: InstalledApplication, sourceApps: SourceApp[]) {
+  const installedID = normalizeAppIdentity(item.appid);
+  const installedTitle = normalizeAppIdentity(item.title);
+  return sourceApps.find((app) => {
+    const packageID = normalizeAppIdentity(app.packageId);
+    const slug = normalizeAppIdentity(app.slug);
+    const name = normalizeAppIdentity(app.name);
+    return (
+      (installedID && (installedID === packageID || installedID === slug)) ||
+      (installedTitle && installedTitle === name)
+    );
   });
 }
 
@@ -432,7 +477,7 @@ function reviewFieldLabel(key: string, t: (key: string, options?: any) => string
   return labels[key] || key;
 }
 
-type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'admin';
+type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'history' | 'admin';
 type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
 type ThemeMode = 'system' | 'light' | 'dark';
 type ResolvedTheme = Exclude<ThemeMode, 'system'>;
@@ -451,6 +496,7 @@ const clientTabs: NavItem[] = [
   { key: 'sources', labelKey: 'nav.sources', icon: Cloud },
   { key: 'search', labelKey: 'nav.install', icon: Download },
   { key: 'profile', labelKey: 'nav.installed', icon: Archive },
+  { key: 'history', labelKey: 'nav.history', icon: History },
 ];
 
 function readThemeMode(): ThemeMode {
@@ -520,6 +566,7 @@ export function App() {
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
   const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
   const [installedApps, setInstalledApps] = useState<InstalledApplication[]>([]);
+  const [installHistory, setInstallHistory] = useState<InstallHistoryEntry[]>([]);
   const [installedState, setInstalledState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [installedError, setInstalledError] = useState('');
   const [installActivity, setInstallActivity] = useState<InstallActivity | null>(null);
@@ -705,6 +752,12 @@ export function App() {
     return data.apps;
   }
 
+  async function loadInstallHistory() {
+    const data = await clientApi<{ history: InstallHistoryEntry[] }>('/history');
+    setInstallHistory(data.history || []);
+    return data.history || [];
+  }
+
   async function refreshClientData(options: { silent?: boolean } = {}) {
     if (!options.silent) setLoading(true);
     setApps([]);
@@ -714,7 +767,7 @@ export function App() {
     setReviews([]);
     setUser(null);
     try {
-      await Promise.all([loadClientSources(), loadClientApps()]);
+      await Promise.all([loadClientSources(), loadClientApps(), loadInstallHistory()]);
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('toast.clientDataLoadFailed')) });
     } finally {
@@ -785,13 +838,13 @@ export function App() {
     }
   }
 
-  async function installApp(app: StoreApp | SourceApp, options: { installPassword?: string } = {}) {
+  async function installApp(app: StoreApp | SourceApp, options: { installPassword?: string; version?: string } = {}) {
     if (app.installProtected && !options.installPassword) {
-      setInstallPasswordRequest({ app });
+      setInstallPasswordRequest({ app, version: options.version });
       return;
     }
     await runAction(setToast, t('toast.installFailed'), async () => {
-      const version = app.latestVersion;
+      const version = 'sourceName' in app ? selectedSourceVersion(app, options.version) : app.latestVersion;
       if (!version) {
         setToast({ tone: 'error', message: t('toast.noInstallableVersion') });
         return;
@@ -818,6 +871,7 @@ export function App() {
               method: 'POST',
               body: JSON.stringify({
                 appId: app.id,
+                version: version.version,
                 installPassword: options.installPassword,
               }),
             }).then((value) => ({
@@ -843,12 +897,16 @@ export function App() {
         messageKey: result.messageKey,
         messageParams: result.messageParams,
       });
-      if (result.mode === 'lazycat-go-sdk') void loadInstalledApps({ quiet: true });
+      if (result.mode === 'lazycat-go-sdk') {
+        void loadInstalledApps({ quiet: true });
+        void loadInstallHistory();
+      }
       setToast({
         tone: success ? 'success' : 'error',
         message: t(result.messageKey, result.messageParams),
       });
     });
+    if ('sourceName' in app) void loadInstallHistory();
   }
 
   async function approveReview(review: Review, approve: boolean) {
@@ -1060,6 +1118,10 @@ export function App() {
                 onOpen={openApp}
                 onInstall={installApp}
                 onNavigate={setTab}
+                onCategory={(category) => {
+                  setActiveCategory(category);
+                  setTab('search');
+                }}
                 setToast={setToast}
               />
             )}
@@ -1110,6 +1172,7 @@ export function App() {
                 groups={groups}
                 setGroups={setGroups}
                 categories={categories}
+                sourceApps={sourceApps}
                 sourceStats={sourceStats}
                 installedApps={installedApps}
                 installedState={installedState}
@@ -1120,6 +1183,14 @@ export function App() {
                 setToast={setToast}
                 hasAPI={HAS_API}
                 onNavigate={setTab}
+              />
+            )}
+            {tab === 'history' && !HAS_API && (
+              <ClientHistoryView
+                history={installHistory}
+                sourceApps={sourceApps}
+                onRefresh={() => void loadInstallHistory()}
+                onOpenSource={setSelectedSourceApp}
               />
             )}
             {tab === 'admin' && (
@@ -1174,8 +1245,9 @@ export function App() {
           onCancel={() => setInstallPasswordRequest(null)}
           onSubmit={(password) => {
             const target = installPasswordRequest.app;
+            const targetVersion = installPasswordRequest.version;
             setInstallPasswordRequest(null);
-            void installApp(target, { installPassword: password });
+            void installApp(target, { installPassword: password, version: targetVersion });
           }}
         />
       )}
@@ -1472,6 +1544,7 @@ function HomeView({
   onOpen,
   onInstall,
   onNavigate,
+  onCategory,
   setToast,
 }: {
   apps: StoreApp[];
@@ -1481,6 +1554,7 @@ function HomeView({
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp) => void;
   onNavigate: (tab: TabKey) => void;
+  onCategory: (category: string) => void;
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
@@ -1550,6 +1624,24 @@ function HomeView({
           </div>
         </div>
       </section>
+
+      {categories.length > 0 && (
+        <section className="panel category-rail-panel">
+          <SectionTitle icon={Tag} title={t('home.categories')} />
+          <div className="category-rail" aria-label={t('home.categories')}>
+            <button type="button" className="secondary-button compact-button" onClick={() => onCategory('all')}>
+              <Layers3 size={16} />
+              <span>{t('common.all')}</span>
+            </button>
+            {categories.map((category) => (
+              <button type="button" className="secondary-button compact-button" key={category.id} onClick={() => onCategory(category.name)}>
+                <Tag size={16} />
+                <span>{category.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="panel">
         <SectionTitle icon={History} title={t('home.latest')} />
@@ -2230,13 +2322,14 @@ function SourceAppDrawer({
   installedMatch?: InstalledApplication;
   installedState: 'idle' | 'loading' | 'loaded' | 'error';
   onClose: () => void;
-  onInstall: (app: SourceApp) => void;
+  onInstall: (app: SourceApp, options?: { version?: string }) => void;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const drawerTitleId = `source-app-drawer-title-${app.sourceId || app.sourceName}-${app.id}`;
   const latestVersion = app.latestVersion;
+  const sourceVersions = app.versions && app.versions.length > 0 ? app.versions : latestVersion ? [latestVersion] : [];
   const installable = hasInstallableVersion(app);
   const hasChecksum = Boolean(latestVersion?.sha256);
   const hasSize = Boolean(latestVersion?.size && latestVersion.size > 0);
@@ -2361,6 +2454,45 @@ function SourceAppDrawer({
           </div>
         </section>
 
+        <section className="source-version-panel">
+          <div className="section-title">
+            <History size={19} />
+            <h3>{t('sourceDetail.availableVersions')}</h3>
+          </div>
+          {sourceVersions.length === 0 ? (
+            <EmptyState icon={History} title={t('sourceDetail.noVersions')} body={t('sourceDetail.noVersionsBody')} />
+          ) : (
+            <div className="source-version-list">
+              {sourceVersions.map((version) => {
+                const isLatest = version.version === latestVersion?.version;
+                const canInstallVersion = Boolean(version.downloadUrl);
+                return (
+                  <div className="source-version-row" key={`${version.version}-${version.downloadUrl}`}>
+                    <div>
+                      <strong>{version.version}</strong>
+                      <span>{version.sourceType || t('drawer.sourceMissing')} · {version.size ? formatBytes(version.size) : t('drawer.sizeMissing')} · {shortSHA(version.sha256)}</span>
+                    </div>
+                    <div className="row-actions">
+                      <span className={cx('status-badge', isLatest ? 'approved' : 'pending')}>
+                        {isLatest ? t('sourceDetail.latest') : t('sourceDetail.rollbackCandidate')}
+                      </span>
+                      <button
+                        type="button"
+                        className="secondary-button compact-button"
+                        disabled={!canInstallVersion}
+                        onClick={() => void onInstall(app, { version: version.version })}
+                      >
+                        <Download size={17} />
+                        <span>{isLatest ? t('common.install') : t('sourceDetail.rollback')}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
         <section className="source-detail-urls">
           <h3>{t('sourceDetail.downloadDetails')}</h3>
           <div className="detail-url-row">
@@ -2383,6 +2515,106 @@ function SourceAppDrawer({
   );
 }
 
+function ClientHistoryView({
+  history,
+  sourceApps,
+  onRefresh,
+  onOpenSource,
+}: {
+  history: InstallHistoryEntry[];
+  sourceApps: SourceApp[];
+  onRefresh: () => void;
+  onOpenSource: (app: SourceApp) => void;
+}) {
+  const { t } = useTranslation();
+  const sourceAppByPackage = useMemo(() => {
+    const map = new Map<string, SourceApp>();
+    sourceApps.forEach((app) => {
+      if (app.packageId) map.set(normalizeAppIdentity(app.packageId), app);
+      if (app.slug) map.set(normalizeAppIdentity(app.slug), app);
+    });
+    return map;
+  }, [sourceApps]);
+  const successCount = history.filter((item) => item.result === 'SUCCESS').length;
+  const failedCount = history.filter((item) => item.result === 'FAILED').length;
+
+  return (
+    <section className="page-grid">
+      <div className="page-heading with-action">
+        <div>
+          <span className="eyebrow subtle">{t('mode.standaloneClient')}</span>
+          <h1>{t('history.title')}</h1>
+          <p>{t('history.body')}</p>
+        </div>
+        <button type="button" className="primary-button" onClick={onRefresh}>
+          <RefreshCw size={18} />
+          <span>{t('common.refresh')}</span>
+        </button>
+      </div>
+      <div className="client-summary-grid" aria-label={t('history.summary')}>
+        <div>
+          <span>{t('history.total')}</span>
+          <strong>{history.length}</strong>
+        </div>
+        <div>
+          <span>{t('history.success')}</span>
+          <strong>{successCount}</strong>
+        </div>
+        <div className={cx(failedCount > 0 && 'warning')}>
+          <span>{t('history.failed')}</span>
+          <strong>{failedCount}</strong>
+        </div>
+      </div>
+      <section className="panel">
+        <SectionTitle icon={History} title={t('history.events')} />
+        <div className="history-list">
+          {history.length === 0 ? (
+            <EmptyState icon={History} title={t('history.empty')} body={t('history.emptyBody')} />
+          ) : (
+            history.map((item) => {
+              const matched = sourceAppByPackage.get(normalizeAppIdentity(item.packageId));
+              return (
+                <article className="history-row" key={item.id}>
+                  <div className={cx('history-result', item.result === 'SUCCESS' ? 'success' : 'failed')}>
+                    {item.result === 'SUCCESS' ? <Check size={18} /> : <AlertCircle size={18} />}
+                  </div>
+                  <div className="history-main">
+                    <strong>{item.appName}</strong>
+                    <span>{item.packageId}</span>
+                    <div className="history-facts">
+                      <small>{item.sourceName || t('profile.installedLocalExisting')}</small>
+                      <small>{item.version || '-'}</small>
+                      <small>{formatDate(item.createdAt)}</small>
+                      <small>{shortSHA(item.sha256)}</small>
+                    </div>
+                    {item.error && (
+                      <p className="inline-alert">
+                        <AlertCircle size={15} />
+                        <span>{item.error}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="row-actions">
+                    <span className={cx('status-badge', item.result === 'SUCCESS' ? 'approved' : 'failed')}>
+                      {item.result === 'SUCCESS' ? t('history.success') : t('history.failed')}
+                    </span>
+                    {matched && (
+                      <button type="button" className="secondary-button compact-button" onClick={() => onOpenSource(matched)}>
+                        <ChevronRight size={17} />
+                        <span>{t('history.openApp')}</span>
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })
+          )}
+        </div>
+      </section>
+    </section>
+  );
+}
+
 function ProfileView({
   user,
   setUser,
@@ -2390,6 +2622,7 @@ function ProfileView({
   groups,
   setGroups,
   categories,
+  sourceApps,
   sourceStats,
   installedApps,
   installedState,
@@ -2407,6 +2640,7 @@ function ProfileView({
   groups: Group[];
   setGroups: (groups: Group[]) => void;
   categories: Category[];
+  sourceApps: SourceApp[];
   sourceStats: ClientSourceStats;
   installedApps: InstalledApplication[];
   installedState: 'idle' | 'loading' | 'loaded' | 'error';
@@ -2420,11 +2654,12 @@ function ProfileView({
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
+  const [workspaceTab, setWorkspaceTab] = useState<'overview' | 'submit' | 'tokens' | 'groups' | 'favorites'>('overview');
   const [authForm, setAuthForm] = useState({ username: '', password: '', email: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
   const [uploadForm, setUploadForm] = useState({
     name: '',
-    version: '0.1.0',
+    version: '',
     summary: '',
     description: '',
     categoryId: '',
@@ -2446,6 +2681,13 @@ function ProfileView({
   const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
   const authHint = mode === 'login' ? t('auth.loginHint') : mode === 'register' ? t('auth.registerHint') : t('auth.verifyHint');
   const AuthSubmitIcon = mode === 'verify' ? Check : mode === 'register' ? Plus : LogIn;
+  const workspaceTabs = [
+    { key: 'overview', label: t('profile.tabs.overview'), icon: Gauge },
+    { key: 'submit', label: t('profile.tabs.submit'), icon: Upload },
+    { key: 'tokens', label: t('profile.tabs.tokens'), icon: KeyRound },
+    { key: 'groups', label: t('profile.tabs.groups'), icon: Users },
+    { key: 'favorites', label: t('profile.tabs.favorites'), icon: Heart },
+  ] as const;
   const ownedApps = useMemo(() => {
     if (!user) return [];
     return apps
@@ -2471,9 +2713,10 @@ function ProfileView({
   const appInfoComplete = appInfoReady && appInfoDetailed;
   const externalDownloadReady = Boolean(uploadForm.downloadUrl.trim());
   const externalChecksumReady = Boolean(uploadForm.sha256.trim());
-  const externalArtifactReady = externalDownloadReady && externalChecksumReady;
+  const externalArtifactReady = externalDownloadReady;
   const artifactReady = artifactMode === 'local' ? Boolean(file) : externalArtifactReady;
-  const canSubmitUpload = appInfoReady && artifactReady;
+  const appIdentityCanAutofill = artifactMode === 'local' ? Boolean(file) : externalDownloadReady;
+  const canSubmitUpload = (appInfoReady || appIdentityCanAutofill) && artifactReady;
   const isDirectPublishUser = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const sourceCacheReady = sourceStats.syncedSourceCount > 0;
   const installCatalogReady = sourceStats.installableSourceAppCount > 0;
@@ -2592,10 +2835,6 @@ function ProfileView({
       setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
       return;
     }
-    if (artifactMode === 'external' && !uploadForm.sha256.trim()) {
-      setToast({ tone: 'error', message: t('submitApp.sha256Required') });
-      return;
-    }
     await runAction(setToast, t('submitApp.failed'), async () => {
       let created: { app?: StoreApp };
       if (artifactMode === 'local' && file) {
@@ -2623,7 +2862,7 @@ function ProfileView({
       }
       setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
       setToast({ tone: 'success', message: t('submitApp.submitted') });
-      setUploadForm({ name: '', version: '0.1.0', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, sourceType: 'GITHUB', downloadUrl: '', sha256: '', installPassword: '' });
+      setUploadForm({ name: '', version: '', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, sourceType: 'GITHUB', downloadUrl: '', sha256: '', installPassword: '' });
       setArtifactMode('local');
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -2759,23 +2998,27 @@ function ProfileView({
             <EmptyState icon={Download} title={installedEmptyTitle} body={installedEmptyBody} />
           ) : (
             <div className="installed-app-grid">
-              {installedApps.map((item) => (
-                <article className="installed-app-card" key={item.appid || item.title}>
-                  {item.icon ? (
-                    <img className="installed-app-icon" src={item.icon} alt="" />
-                  ) : (
-                    <AvatarIcon seed={item.appid || item.title || 'installed-app'} title={item.title || item.appid} size={42} />
-                  )}
-                  <div>
-                    <strong>{item.title || item.appid || t('common.app')}</strong>
-                    <span>{item.appid || t('profile.installedAppIdMissing')}</span>
-                  </div>
-                  <div className="installed-app-meta">
-                    <span>{item.version || '-'}</span>
-                    <small>{item.instanceStatus || item.status || t('statusLabels.unknown')}</small>
-                  </div>
-                </article>
-              ))}
+              {installedApps.map((item) => {
+                const sourceMatch = findSourceForInstalled(item, sourceApps);
+                return (
+                  <article className="installed-app-card" key={item.appid || item.title}>
+                    {item.icon ? (
+                      <img className="installed-app-icon" src={item.icon} alt="" />
+                    ) : (
+                      <AvatarIcon seed={item.appid || item.title || 'installed-app'} title={item.title || item.appid} size={42} />
+                    )}
+                    <div>
+                      <strong>{item.title || item.appid || t('common.app')}</strong>
+                      <span title={item.appid || undefined}>{item.appid || t('profile.installedAppIdMissing')}</span>
+                      <small>{sourceMatch ? t('profile.installedFromSource', { source: sourceMatch.sourceName }) : t('profile.installedLocalExisting')}</small>
+                    </div>
+                    <div className="installed-app-meta">
+                      <span>{item.version || '-'}</span>
+                      <small>{item.instanceStatus || item.status || t('statusLabels.unknown')}</small>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
@@ -2926,6 +3169,23 @@ function ProfileView({
         <h1>{t('profile.serverTitle')}</h1>
         <p>{t('profile.serverBody')}</p>
       </div>
+      <div className="segmented workspace-tabs" aria-label={t('profile.tabs.label')}>
+        {workspaceTabs.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              type="button"
+              key={item.key}
+              className={cx(workspaceTab === item.key && 'active')}
+              onClick={() => setWorkspaceTab(item.key)}
+            >
+              <Icon size={17} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {workspaceTab === 'overview' && (
       <div className="split">
         <div className="panel profile-card">
           <AvatarIcon seed={user.email || user.username} title={user.username} size={74} className="avatar-large" />
@@ -3000,8 +3260,10 @@ function ProfileView({
           </div>
         </section>
       </div>
+      )}
 
-      <section className="split">
+      {workspaceTab === 'submit' && (
+      <section className="workspace-pane">
         <form className="panel form-panel" onSubmit={submitUpload}>
           <SectionTitle icon={Upload} title={t('submitApp.title')} />
           <div className="workflow-strip">
@@ -3149,7 +3411,6 @@ function ProfileView({
                 <label>
                   <span>{t('common.sha256')}</span>
                   <input
-                    required
                     maxLength={64}
                     pattern="[a-fA-F0-9]{64}"
                     title={t('submitApp.sha256Pattern')}
@@ -3190,6 +3451,10 @@ function ProfileView({
             <span>{t('common.submit')}</span>
           </button>
         </form>
+      </section>
+      )}
+      {workspaceTab === 'tokens' && (
+      <section className="workspace-pane">
         <section className="panel">
           <SectionTitle icon={KeyRound} title={t('token.title')} />
           <div className="review-list">
@@ -3209,9 +3474,15 @@ function ProfileView({
           </button>
         </section>
       </section>
+      )}
 
-      <section className="split">
+      {workspaceTab === 'groups' && (
+      <section className="workspace-pane">
         <GroupPanel groups={groups} setGroups={setGroups} setToast={setToast} />
+      </section>
+      )}
+      {workspaceTab === 'favorites' && (
+      <section className="workspace-pane">
         <section className="panel">
           <SectionTitle icon={Heart} title={t('favorites.title')} />
           <div className="review-list">
@@ -3244,6 +3515,7 @@ function ProfileView({
           </button>
         </section>
       </section>
+      )}
     </section>
   );
 }
@@ -3343,6 +3615,7 @@ function AdminPanel({
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
+  const [adminTab, setAdminTab] = useState<'reviews' | 'site' | 'users' | 'taxonomy' | 'collections' | 'inventory'>('reviews');
   const [users, setUsers] = useState<User[]>([]);
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [reviewApps, setReviewApps] = useState<StoreApp[]>([]);
@@ -3358,6 +3631,14 @@ function AdminPanel({
   const [collectionDrafts, setCollectionDrafts] = useState<Record<number, { name: string; slug: string; kind: string; appIds: string }>>({});
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const isSiteAdmin = user.role === 'SITE_ADMIN';
+  const adminTabs = [
+    { key: 'reviews', label: t('admin.tabs.reviews'), icon: ShieldCheck },
+    ...(isSiteAdmin ? [{ key: 'site' as const, label: t('admin.tabs.site'), icon: Settings }] : []),
+    ...(isSiteAdmin ? [{ key: 'users' as const, label: t('admin.tabs.users'), icon: Users }] : []),
+    { key: 'taxonomy', label: t('admin.tabs.taxonomy'), icon: Tag },
+    { key: 'collections', label: t('admin.tabs.collections'), icon: Layers3 },
+    { key: 'inventory', label: t('admin.tabs.inventory'), icon: PackagePlus },
+  ] as const;
   const collectionKindOptions = [
     { value: 'MANUAL', label: t('admin.collectionKinds.manual') },
     { value: 'RECENT_UPDATED', label: t('admin.collectionKinds.recentUpdated') },
@@ -3457,7 +3738,7 @@ function AdminPanel({
           api<{ settings: Record<string, string> }>('/api/v1/admin/settings'),
         ]);
         setUsers(userData.users);
-        setSettings(settingData.settings);
+        setSettings(settingData.settings || {});
       }
     });
   }
@@ -3680,6 +3961,24 @@ function AdminPanel({
         <h1>{t('admin.title')}</h1>
         <p>{t('admin.body')}</p>
       </div>
+      <div className="segmented workspace-tabs" aria-label={t('admin.tabs.label')}>
+        {adminTabs.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              type="button"
+              key={item.key}
+              className={cx(adminTab === item.key && 'active')}
+              onClick={() => setAdminTab(item.key)}
+            >
+              <Icon size={17} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {adminTab === 'reviews' && (
+      <>
       <section className="panel">
         <SectionTitle icon={Gauge} title={t('admin.operationsOverview')} />
         <div className="source-readiness" aria-label={t('admin.operationsOverview')}>
@@ -3790,7 +4089,9 @@ function AdminPanel({
           )}
         </div>
       </section>
-      {isSiteAdmin && (
+      </>
+      )}
+      {isSiteAdmin && adminTab === 'site' && (
         <section className="settings-layout">
           <form className="panel form-panel site-settings-panel" onSubmit={saveSettings}>
             <SectionTitle icon={Settings} title={t('admin.siteSettings')} />
@@ -3854,6 +4155,10 @@ function AdminPanel({
               </div>
             )}
           </section>
+        </section>
+      )}
+      {isSiteAdmin && adminTab === 'users' && (
+        <section className="workspace-pane">
           <section className="panel">
             <SectionTitle icon={Users} title={t('admin.userManagement')} />
             <div className="review-list">
@@ -3878,6 +4183,7 @@ function AdminPanel({
           </section>
         </section>
       )}
+      {adminTab === 'taxonomy' && (
       <section className="split">
         <div className="panel form-panel">
           <SectionTitle icon={Layers3} title={t('admin.categoriesAndTags')} />
@@ -3927,6 +4233,8 @@ function AdminPanel({
           </div>
         </section>
       </section>
+      )}
+      {adminTab === 'collections' && (
       <section className="split">
         <form className="panel form-panel" onSubmit={createCollection}>
           <SectionTitle icon={Layers3} title={t('admin.collection')} />
@@ -3982,6 +4290,8 @@ function AdminPanel({
           </div>
         </section>
       </section>
+      )}
+      {adminTab === 'inventory' && (
       <section className="panel">
         <SectionTitle icon={PackagePlus} title={t('admin.optionalApps')} />
           <div className="review-list">
@@ -3997,6 +4307,7 @@ function AdminPanel({
             ))}
           </div>
       </section>
+      )}
     </section>
   );
 }
@@ -4073,9 +4384,9 @@ function AppDrawer({
   const versionNumberReady = Boolean(versionForm.version.trim());
   const versionExternalDownloadReady = Boolean(versionForm.downloadUrl.trim());
   const versionExternalChecksumReady = Boolean(versionForm.sha256.trim());
-  const versionExternalArtifactReady = versionExternalDownloadReady && versionExternalChecksumReady;
+  const versionExternalArtifactReady = versionExternalDownloadReady;
   const versionArtifactReady = versionArtifactMode === 'local' ? Boolean(versionFile) : versionExternalArtifactReady;
-  const canSubmitVersion = versionNumberReady && versionArtifactReady;
+  const canSubmitVersion = versionArtifactReady;
   const versionPublishesDirectly = user?.role === 'SITE_ADMIN' || user?.role === 'SOFTWARE_ADMIN' || app.allowUnreviewedUpdates;
 
   useEffect(() => {
@@ -4183,20 +4494,12 @@ function AppDrawer({
 
   async function submitExternalVersion(event: FormEvent) {
     event.preventDefault();
-    if (!versionForm.version.trim()) {
-      setToast({ tone: 'error', message: t('drawer.versionRequired') });
-      return;
-    }
     if (versionArtifactMode === 'local' && !versionFile) {
       setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
       return;
     }
     if (versionArtifactMode === 'external' && !versionForm.downloadUrl.trim()) {
       setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
-      return;
-    }
-    if (versionArtifactMode === 'external' && !versionForm.sha256.trim()) {
-      setToast({ tone: 'error', message: t('submitApp.sha256Required') });
       return;
     }
     await runAction(setToast, t('drawer.versionSubmitFailed'), async () => {
@@ -4645,7 +4948,6 @@ function AppDrawer({
                       <label>
                         <span>{t('common.sha256')}</span>
                         <input
-                          required
                           maxLength={64}
                           pattern="[a-fA-F0-9]{64}"
                           title={t('submitApp.sha256Pattern')}

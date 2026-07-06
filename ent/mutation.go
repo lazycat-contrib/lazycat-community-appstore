@@ -18,6 +18,7 @@ import (
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
+	"lazycat.community/appstore/ent/clientinstallhistory"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/collaborator"
@@ -45,28 +46,29 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAPIToken            = "APIToken"
-	TypeApp                 = "App"
-	TypeAppScreenshot       = "AppScreenshot"
-	TypeAppTag              = "AppTag"
-	TypeAppVersion          = "AppVersion"
-	TypeAppVisibility       = "AppVisibility"
-	TypeCategory            = "Category"
-	TypeClientSource        = "ClientSource"
-	TypeClientSourceApp     = "ClientSourceApp"
-	TypeCollaborator        = "Collaborator"
-	TypeCollaboratorRequest = "CollaboratorRequest"
-	TypeCollection          = "Collection"
-	TypeCollectionApp       = "CollectionApp"
-	TypeComment             = "Comment"
-	TypeFavorite            = "Favorite"
-	TypeGroupMember         = "GroupMember"
-	TypeOutdatedMark        = "OutdatedMark"
-	TypeReviewRequest       = "ReviewRequest"
-	TypeSiteSetting         = "SiteSetting"
-	TypeTag                 = "Tag"
-	TypeUser                = "User"
-	TypeUserGroup           = "UserGroup"
+	TypeAPIToken             = "APIToken"
+	TypeApp                  = "App"
+	TypeAppScreenshot        = "AppScreenshot"
+	TypeAppTag               = "AppTag"
+	TypeAppVersion           = "AppVersion"
+	TypeAppVisibility        = "AppVisibility"
+	TypeCategory             = "Category"
+	TypeClientInstallHistory = "ClientInstallHistory"
+	TypeClientSource         = "ClientSource"
+	TypeClientSourceApp      = "ClientSourceApp"
+	TypeCollaborator         = "Collaborator"
+	TypeCollaboratorRequest  = "CollaboratorRequest"
+	TypeCollection           = "Collection"
+	TypeCollectionApp        = "CollectionApp"
+	TypeComment              = "Comment"
+	TypeFavorite             = "Favorite"
+	TypeGroupMember          = "GroupMember"
+	TypeOutdatedMark         = "OutdatedMark"
+	TypeReviewRequest        = "ReviewRequest"
+	TypeSiteSetting          = "SiteSetting"
+	TypeTag                  = "Tag"
+	TypeUser                 = "User"
+	TypeUserGroup            = "UserGroup"
 )
 
 // APITokenMutation represents an operation that mutates the APIToken nodes in the graph.
@@ -733,6 +735,7 @@ type AppMutation struct {
 	addowner_id              *int
 	category_id              *int
 	addcategory_id           *int
+	package_id               *string
 	name                     *string
 	slug                     *string
 	summary                  *string
@@ -974,6 +977,42 @@ func (m *AppMutation) ResetCategoryID() {
 	m.category_id = nil
 	m.addcategory_id = nil
 	delete(m.clearedFields, app.FieldCategoryID)
+}
+
+// SetPackageID sets the "package_id" field.
+func (m *AppMutation) SetPackageID(s string) {
+	m.package_id = &s
+}
+
+// PackageID returns the value of the "package_id" field in the mutation.
+func (m *AppMutation) PackageID() (r string, exists bool) {
+	v := m.package_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPackageID returns the old "package_id" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldPackageID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPackageID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPackageID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPackageID: %w", err)
+	}
+	return oldValue.PackageID, nil
+}
+
+// ResetPackageID resets all changes to the "package_id" field.
+func (m *AppMutation) ResetPackageID() {
+	m.package_id = nil
 }
 
 // SetName sets the "name" field.
@@ -1475,12 +1514,15 @@ func (m *AppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AppMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.owner_id != nil {
 		fields = append(fields, app.FieldOwnerID)
 	}
 	if m.category_id != nil {
 		fields = append(fields, app.FieldCategoryID)
+	}
+	if m.package_id != nil {
+		fields = append(fields, app.FieldPackageID)
 	}
 	if m.name != nil {
 		fields = append(fields, app.FieldName)
@@ -1530,6 +1572,8 @@ func (m *AppMutation) Field(name string) (ent.Value, bool) {
 		return m.OwnerID()
 	case app.FieldCategoryID:
 		return m.CategoryID()
+	case app.FieldPackageID:
+		return m.PackageID()
 	case app.FieldName:
 		return m.Name()
 	case app.FieldSlug:
@@ -1567,6 +1611,8 @@ func (m *AppMutation) OldField(ctx context.Context, name string) (ent.Value, err
 		return m.OldOwnerID(ctx)
 	case app.FieldCategoryID:
 		return m.OldCategoryID(ctx)
+	case app.FieldPackageID:
+		return m.OldPackageID(ctx)
 	case app.FieldName:
 		return m.OldName(ctx)
 	case app.FieldSlug:
@@ -1613,6 +1659,13 @@ func (m *AppMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCategoryID(v)
+		return nil
+	case app.FieldPackageID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPackageID(v)
 		return nil
 	case app.FieldName:
 		v, ok := value.(string)
@@ -1806,6 +1859,9 @@ func (m *AppMutation) ResetField(name string) error {
 		return nil
 	case app.FieldCategoryID:
 		m.ResetCategoryID()
+		return nil
+	case app.FieldPackageID:
+		m.ResetPackageID()
 		return nil
 	case app.FieldName:
 		m.ResetName()
@@ -5439,6 +5495,1038 @@ func (m *CategoryMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Category edge %s", name)
 }
 
+// ClientInstallHistoryMutation represents an operation that mutates the ClientInstallHistory nodes in the graph.
+type ClientInstallHistoryMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	user_id          *string
+	source_id        *int
+	addsource_id     *int
+	source_app_id    *int
+	addsource_app_id *int
+	source_name      *string
+	package_id       *string
+	app_name         *string
+	version          *string
+	result           *clientinstallhistory.Result
+	download_url     *string
+	sha256           *string
+	error            *string
+	created_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*ClientInstallHistory, error)
+	predicates       []predicate.ClientInstallHistory
+}
+
+var _ ent.Mutation = (*ClientInstallHistoryMutation)(nil)
+
+// clientinstallhistoryOption allows management of the mutation configuration using functional options.
+type clientinstallhistoryOption func(*ClientInstallHistoryMutation)
+
+// newClientInstallHistoryMutation creates new mutation for the ClientInstallHistory entity.
+func newClientInstallHistoryMutation(c config, op Op, opts ...clientinstallhistoryOption) *ClientInstallHistoryMutation {
+	m := &ClientInstallHistoryMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeClientInstallHistory,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withClientInstallHistoryID sets the ID field of the mutation.
+func withClientInstallHistoryID(id int) clientinstallhistoryOption {
+	return func(m *ClientInstallHistoryMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ClientInstallHistory
+		)
+		m.oldValue = func(ctx context.Context) (*ClientInstallHistory, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ClientInstallHistory.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withClientInstallHistory sets the old ClientInstallHistory of the mutation.
+func withClientInstallHistory(node *ClientInstallHistory) clientinstallhistoryOption {
+	return func(m *ClientInstallHistoryMutation) {
+		m.oldValue = func(context.Context) (*ClientInstallHistory, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ClientInstallHistoryMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ClientInstallHistoryMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ClientInstallHistoryMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ClientInstallHistoryMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ClientInstallHistory.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *ClientInstallHistoryMutation) SetUserID(s string) {
+	m.user_id = &s
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *ClientInstallHistoryMutation) UserID() (r string, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *ClientInstallHistoryMutation) ResetUserID() {
+	m.user_id = nil
+}
+
+// SetSourceID sets the "source_id" field.
+func (m *ClientInstallHistoryMutation) SetSourceID(i int) {
+	m.source_id = &i
+	m.addsource_id = nil
+}
+
+// SourceID returns the value of the "source_id" field in the mutation.
+func (m *ClientInstallHistoryMutation) SourceID() (r int, exists bool) {
+	v := m.source_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceID returns the old "source_id" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldSourceID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceID: %w", err)
+	}
+	return oldValue.SourceID, nil
+}
+
+// AddSourceID adds i to the "source_id" field.
+func (m *ClientInstallHistoryMutation) AddSourceID(i int) {
+	if m.addsource_id != nil {
+		*m.addsource_id += i
+	} else {
+		m.addsource_id = &i
+	}
+}
+
+// AddedSourceID returns the value that was added to the "source_id" field in this mutation.
+func (m *ClientInstallHistoryMutation) AddedSourceID() (r int, exists bool) {
+	v := m.addsource_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSourceID clears the value of the "source_id" field.
+func (m *ClientInstallHistoryMutation) ClearSourceID() {
+	m.source_id = nil
+	m.addsource_id = nil
+	m.clearedFields[clientinstallhistory.FieldSourceID] = struct{}{}
+}
+
+// SourceIDCleared returns if the "source_id" field was cleared in this mutation.
+func (m *ClientInstallHistoryMutation) SourceIDCleared() bool {
+	_, ok := m.clearedFields[clientinstallhistory.FieldSourceID]
+	return ok
+}
+
+// ResetSourceID resets all changes to the "source_id" field.
+func (m *ClientInstallHistoryMutation) ResetSourceID() {
+	m.source_id = nil
+	m.addsource_id = nil
+	delete(m.clearedFields, clientinstallhistory.FieldSourceID)
+}
+
+// SetSourceAppID sets the "source_app_id" field.
+func (m *ClientInstallHistoryMutation) SetSourceAppID(i int) {
+	m.source_app_id = &i
+	m.addsource_app_id = nil
+}
+
+// SourceAppID returns the value of the "source_app_id" field in the mutation.
+func (m *ClientInstallHistoryMutation) SourceAppID() (r int, exists bool) {
+	v := m.source_app_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceAppID returns the old "source_app_id" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldSourceAppID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceAppID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceAppID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceAppID: %w", err)
+	}
+	return oldValue.SourceAppID, nil
+}
+
+// AddSourceAppID adds i to the "source_app_id" field.
+func (m *ClientInstallHistoryMutation) AddSourceAppID(i int) {
+	if m.addsource_app_id != nil {
+		*m.addsource_app_id += i
+	} else {
+		m.addsource_app_id = &i
+	}
+}
+
+// AddedSourceAppID returns the value that was added to the "source_app_id" field in this mutation.
+func (m *ClientInstallHistoryMutation) AddedSourceAppID() (r int, exists bool) {
+	v := m.addsource_app_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSourceAppID clears the value of the "source_app_id" field.
+func (m *ClientInstallHistoryMutation) ClearSourceAppID() {
+	m.source_app_id = nil
+	m.addsource_app_id = nil
+	m.clearedFields[clientinstallhistory.FieldSourceAppID] = struct{}{}
+}
+
+// SourceAppIDCleared returns if the "source_app_id" field was cleared in this mutation.
+func (m *ClientInstallHistoryMutation) SourceAppIDCleared() bool {
+	_, ok := m.clearedFields[clientinstallhistory.FieldSourceAppID]
+	return ok
+}
+
+// ResetSourceAppID resets all changes to the "source_app_id" field.
+func (m *ClientInstallHistoryMutation) ResetSourceAppID() {
+	m.source_app_id = nil
+	m.addsource_app_id = nil
+	delete(m.clearedFields, clientinstallhistory.FieldSourceAppID)
+}
+
+// SetSourceName sets the "source_name" field.
+func (m *ClientInstallHistoryMutation) SetSourceName(s string) {
+	m.source_name = &s
+}
+
+// SourceName returns the value of the "source_name" field in the mutation.
+func (m *ClientInstallHistoryMutation) SourceName() (r string, exists bool) {
+	v := m.source_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceName returns the old "source_name" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldSourceName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceName: %w", err)
+	}
+	return oldValue.SourceName, nil
+}
+
+// ResetSourceName resets all changes to the "source_name" field.
+func (m *ClientInstallHistoryMutation) ResetSourceName() {
+	m.source_name = nil
+}
+
+// SetPackageID sets the "package_id" field.
+func (m *ClientInstallHistoryMutation) SetPackageID(s string) {
+	m.package_id = &s
+}
+
+// PackageID returns the value of the "package_id" field in the mutation.
+func (m *ClientInstallHistoryMutation) PackageID() (r string, exists bool) {
+	v := m.package_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPackageID returns the old "package_id" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldPackageID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPackageID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPackageID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPackageID: %w", err)
+	}
+	return oldValue.PackageID, nil
+}
+
+// ResetPackageID resets all changes to the "package_id" field.
+func (m *ClientInstallHistoryMutation) ResetPackageID() {
+	m.package_id = nil
+}
+
+// SetAppName sets the "app_name" field.
+func (m *ClientInstallHistoryMutation) SetAppName(s string) {
+	m.app_name = &s
+}
+
+// AppName returns the value of the "app_name" field in the mutation.
+func (m *ClientInstallHistoryMutation) AppName() (r string, exists bool) {
+	v := m.app_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppName returns the old "app_name" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldAppName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppName: %w", err)
+	}
+	return oldValue.AppName, nil
+}
+
+// ResetAppName resets all changes to the "app_name" field.
+func (m *ClientInstallHistoryMutation) ResetAppName() {
+	m.app_name = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *ClientInstallHistoryMutation) SetVersion(s string) {
+	m.version = &s
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *ClientInstallHistoryMutation) Version() (r string, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *ClientInstallHistoryMutation) ResetVersion() {
+	m.version = nil
+}
+
+// SetResult sets the "result" field.
+func (m *ClientInstallHistoryMutation) SetResult(c clientinstallhistory.Result) {
+	m.result = &c
+}
+
+// Result returns the value of the "result" field in the mutation.
+func (m *ClientInstallHistoryMutation) Result() (r clientinstallhistory.Result, exists bool) {
+	v := m.result
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResult returns the old "result" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldResult(ctx context.Context) (v clientinstallhistory.Result, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResult is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResult requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResult: %w", err)
+	}
+	return oldValue.Result, nil
+}
+
+// ResetResult resets all changes to the "result" field.
+func (m *ClientInstallHistoryMutation) ResetResult() {
+	m.result = nil
+}
+
+// SetDownloadURL sets the "download_url" field.
+func (m *ClientInstallHistoryMutation) SetDownloadURL(s string) {
+	m.download_url = &s
+}
+
+// DownloadURL returns the value of the "download_url" field in the mutation.
+func (m *ClientInstallHistoryMutation) DownloadURL() (r string, exists bool) {
+	v := m.download_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDownloadURL returns the old "download_url" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldDownloadURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDownloadURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDownloadURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDownloadURL: %w", err)
+	}
+	return oldValue.DownloadURL, nil
+}
+
+// ResetDownloadURL resets all changes to the "download_url" field.
+func (m *ClientInstallHistoryMutation) ResetDownloadURL() {
+	m.download_url = nil
+}
+
+// SetSha256 sets the "sha256" field.
+func (m *ClientInstallHistoryMutation) SetSha256(s string) {
+	m.sha256 = &s
+}
+
+// Sha256 returns the value of the "sha256" field in the mutation.
+func (m *ClientInstallHistoryMutation) Sha256() (r string, exists bool) {
+	v := m.sha256
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSha256 returns the old "sha256" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldSha256(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSha256 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSha256 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSha256: %w", err)
+	}
+	return oldValue.Sha256, nil
+}
+
+// ResetSha256 resets all changes to the "sha256" field.
+func (m *ClientInstallHistoryMutation) ResetSha256() {
+	m.sha256 = nil
+}
+
+// SetError sets the "error" field.
+func (m *ClientInstallHistoryMutation) SetError(s string) {
+	m.error = &s
+}
+
+// Error returns the value of the "error" field in the mutation.
+func (m *ClientInstallHistoryMutation) Error() (r string, exists bool) {
+	v := m.error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldError returns the old "error" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldError: %w", err)
+	}
+	return oldValue.Error, nil
+}
+
+// ResetError resets all changes to the "error" field.
+func (m *ClientInstallHistoryMutation) ResetError() {
+	m.error = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ClientInstallHistoryMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ClientInstallHistoryMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ClientInstallHistory entity.
+// If the ClientInstallHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientInstallHistoryMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ClientInstallHistoryMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the ClientInstallHistoryMutation builder.
+func (m *ClientInstallHistoryMutation) Where(ps ...predicate.ClientInstallHistory) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ClientInstallHistoryMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ClientInstallHistoryMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ClientInstallHistory, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ClientInstallHistoryMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ClientInstallHistoryMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ClientInstallHistory).
+func (m *ClientInstallHistoryMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ClientInstallHistoryMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.user_id != nil {
+		fields = append(fields, clientinstallhistory.FieldUserID)
+	}
+	if m.source_id != nil {
+		fields = append(fields, clientinstallhistory.FieldSourceID)
+	}
+	if m.source_app_id != nil {
+		fields = append(fields, clientinstallhistory.FieldSourceAppID)
+	}
+	if m.source_name != nil {
+		fields = append(fields, clientinstallhistory.FieldSourceName)
+	}
+	if m.package_id != nil {
+		fields = append(fields, clientinstallhistory.FieldPackageID)
+	}
+	if m.app_name != nil {
+		fields = append(fields, clientinstallhistory.FieldAppName)
+	}
+	if m.version != nil {
+		fields = append(fields, clientinstallhistory.FieldVersion)
+	}
+	if m.result != nil {
+		fields = append(fields, clientinstallhistory.FieldResult)
+	}
+	if m.download_url != nil {
+		fields = append(fields, clientinstallhistory.FieldDownloadURL)
+	}
+	if m.sha256 != nil {
+		fields = append(fields, clientinstallhistory.FieldSha256)
+	}
+	if m.error != nil {
+		fields = append(fields, clientinstallhistory.FieldError)
+	}
+	if m.created_at != nil {
+		fields = append(fields, clientinstallhistory.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ClientInstallHistoryMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case clientinstallhistory.FieldUserID:
+		return m.UserID()
+	case clientinstallhistory.FieldSourceID:
+		return m.SourceID()
+	case clientinstallhistory.FieldSourceAppID:
+		return m.SourceAppID()
+	case clientinstallhistory.FieldSourceName:
+		return m.SourceName()
+	case clientinstallhistory.FieldPackageID:
+		return m.PackageID()
+	case clientinstallhistory.FieldAppName:
+		return m.AppName()
+	case clientinstallhistory.FieldVersion:
+		return m.Version()
+	case clientinstallhistory.FieldResult:
+		return m.Result()
+	case clientinstallhistory.FieldDownloadURL:
+		return m.DownloadURL()
+	case clientinstallhistory.FieldSha256:
+		return m.Sha256()
+	case clientinstallhistory.FieldError:
+		return m.Error()
+	case clientinstallhistory.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ClientInstallHistoryMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case clientinstallhistory.FieldUserID:
+		return m.OldUserID(ctx)
+	case clientinstallhistory.FieldSourceID:
+		return m.OldSourceID(ctx)
+	case clientinstallhistory.FieldSourceAppID:
+		return m.OldSourceAppID(ctx)
+	case clientinstallhistory.FieldSourceName:
+		return m.OldSourceName(ctx)
+	case clientinstallhistory.FieldPackageID:
+		return m.OldPackageID(ctx)
+	case clientinstallhistory.FieldAppName:
+		return m.OldAppName(ctx)
+	case clientinstallhistory.FieldVersion:
+		return m.OldVersion(ctx)
+	case clientinstallhistory.FieldResult:
+		return m.OldResult(ctx)
+	case clientinstallhistory.FieldDownloadURL:
+		return m.OldDownloadURL(ctx)
+	case clientinstallhistory.FieldSha256:
+		return m.OldSha256(ctx)
+	case clientinstallhistory.FieldError:
+		return m.OldError(ctx)
+	case clientinstallhistory.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ClientInstallHistory field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ClientInstallHistoryMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case clientinstallhistory.FieldUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case clientinstallhistory.FieldSourceID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceID(v)
+		return nil
+	case clientinstallhistory.FieldSourceAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceAppID(v)
+		return nil
+	case clientinstallhistory.FieldSourceName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceName(v)
+		return nil
+	case clientinstallhistory.FieldPackageID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPackageID(v)
+		return nil
+	case clientinstallhistory.FieldAppName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppName(v)
+		return nil
+	case clientinstallhistory.FieldVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case clientinstallhistory.FieldResult:
+		v, ok := value.(clientinstallhistory.Result)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResult(v)
+		return nil
+	case clientinstallhistory.FieldDownloadURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDownloadURL(v)
+		return nil
+	case clientinstallhistory.FieldSha256:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSha256(v)
+		return nil
+	case clientinstallhistory.FieldError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetError(v)
+		return nil
+	case clientinstallhistory.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ClientInstallHistory field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ClientInstallHistoryMutation) AddedFields() []string {
+	var fields []string
+	if m.addsource_id != nil {
+		fields = append(fields, clientinstallhistory.FieldSourceID)
+	}
+	if m.addsource_app_id != nil {
+		fields = append(fields, clientinstallhistory.FieldSourceAppID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ClientInstallHistoryMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case clientinstallhistory.FieldSourceID:
+		return m.AddedSourceID()
+	case clientinstallhistory.FieldSourceAppID:
+		return m.AddedSourceAppID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ClientInstallHistoryMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case clientinstallhistory.FieldSourceID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceID(v)
+		return nil
+	case clientinstallhistory.FieldSourceAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceAppID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ClientInstallHistory numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ClientInstallHistoryMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(clientinstallhistory.FieldSourceID) {
+		fields = append(fields, clientinstallhistory.FieldSourceID)
+	}
+	if m.FieldCleared(clientinstallhistory.FieldSourceAppID) {
+		fields = append(fields, clientinstallhistory.FieldSourceAppID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ClientInstallHistoryMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ClientInstallHistoryMutation) ClearField(name string) error {
+	switch name {
+	case clientinstallhistory.FieldSourceID:
+		m.ClearSourceID()
+		return nil
+	case clientinstallhistory.FieldSourceAppID:
+		m.ClearSourceAppID()
+		return nil
+	}
+	return fmt.Errorf("unknown ClientInstallHistory nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ClientInstallHistoryMutation) ResetField(name string) error {
+	switch name {
+	case clientinstallhistory.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case clientinstallhistory.FieldSourceID:
+		m.ResetSourceID()
+		return nil
+	case clientinstallhistory.FieldSourceAppID:
+		m.ResetSourceAppID()
+		return nil
+	case clientinstallhistory.FieldSourceName:
+		m.ResetSourceName()
+		return nil
+	case clientinstallhistory.FieldPackageID:
+		m.ResetPackageID()
+		return nil
+	case clientinstallhistory.FieldAppName:
+		m.ResetAppName()
+		return nil
+	case clientinstallhistory.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case clientinstallhistory.FieldResult:
+		m.ResetResult()
+		return nil
+	case clientinstallhistory.FieldDownloadURL:
+		m.ResetDownloadURL()
+		return nil
+	case clientinstallhistory.FieldSha256:
+		m.ResetSha256()
+		return nil
+	case clientinstallhistory.FieldError:
+		m.ResetError()
+		return nil
+	case clientinstallhistory.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ClientInstallHistory field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ClientInstallHistoryMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ClientInstallHistoryMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ClientInstallHistoryMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ClientInstallHistoryMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ClientInstallHistoryMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ClientInstallHistoryMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ClientInstallHistoryMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ClientInstallHistory unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ClientInstallHistoryMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ClientInstallHistory edge %s", name)
+}
+
 // ClientSourceMutation represents an operation that mutates the ClientSource nodes in the graph.
 type ClientSourceMutation struct {
 	config
@@ -6588,12 +7676,14 @@ type ClientSourceAppMutation struct {
 	typ                 string
 	id                  *int
 	external_id         *string
+	package_id          *string
 	name                *string
 	slug                *string
 	summary             *string
 	category            *string
 	install_protected   *bool
 	latest_version_json *string
+	versions_json       *string
 	created_at          *time.Time
 	updated_at          *time.Time
 	clearedFields       map[string]struct{}
@@ -6772,6 +7862,42 @@ func (m *ClientSourceAppMutation) OldExternalID(ctx context.Context) (v string, 
 // ResetExternalID resets all changes to the "external_id" field.
 func (m *ClientSourceAppMutation) ResetExternalID() {
 	m.external_id = nil
+}
+
+// SetPackageID sets the "package_id" field.
+func (m *ClientSourceAppMutation) SetPackageID(s string) {
+	m.package_id = &s
+}
+
+// PackageID returns the value of the "package_id" field in the mutation.
+func (m *ClientSourceAppMutation) PackageID() (r string, exists bool) {
+	v := m.package_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPackageID returns the old "package_id" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldPackageID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPackageID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPackageID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPackageID: %w", err)
+	}
+	return oldValue.PackageID, nil
+}
+
+// ResetPackageID resets all changes to the "package_id" field.
+func (m *ClientSourceAppMutation) ResetPackageID() {
+	m.package_id = nil
 }
 
 // SetName sets the "name" field.
@@ -6990,6 +8116,42 @@ func (m *ClientSourceAppMutation) ResetLatestVersionJSON() {
 	m.latest_version_json = nil
 }
 
+// SetVersionsJSON sets the "versions_json" field.
+func (m *ClientSourceAppMutation) SetVersionsJSON(s string) {
+	m.versions_json = &s
+}
+
+// VersionsJSON returns the value of the "versions_json" field in the mutation.
+func (m *ClientSourceAppMutation) VersionsJSON() (r string, exists bool) {
+	v := m.versions_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersionsJSON returns the old "versions_json" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldVersionsJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersionsJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersionsJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersionsJSON: %w", err)
+	}
+	return oldValue.VersionsJSON, nil
+}
+
+// ResetVersionsJSON resets all changes to the "versions_json" field.
+func (m *ClientSourceAppMutation) ResetVersionsJSON() {
+	m.versions_json = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *ClientSourceAppMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -7123,12 +8285,15 @@ func (m *ClientSourceAppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceAppMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 12)
 	if m.source != nil {
 		fields = append(fields, clientsourceapp.FieldSourceID)
 	}
 	if m.external_id != nil {
 		fields = append(fields, clientsourceapp.FieldExternalID)
+	}
+	if m.package_id != nil {
+		fields = append(fields, clientsourceapp.FieldPackageID)
 	}
 	if m.name != nil {
 		fields = append(fields, clientsourceapp.FieldName)
@@ -7148,6 +8313,9 @@ func (m *ClientSourceAppMutation) Fields() []string {
 	if m.latest_version_json != nil {
 		fields = append(fields, clientsourceapp.FieldLatestVersionJSON)
 	}
+	if m.versions_json != nil {
+		fields = append(fields, clientsourceapp.FieldVersionsJSON)
+	}
 	if m.created_at != nil {
 		fields = append(fields, clientsourceapp.FieldCreatedAt)
 	}
@@ -7166,6 +8334,8 @@ func (m *ClientSourceAppMutation) Field(name string) (ent.Value, bool) {
 		return m.SourceID()
 	case clientsourceapp.FieldExternalID:
 		return m.ExternalID()
+	case clientsourceapp.FieldPackageID:
+		return m.PackageID()
 	case clientsourceapp.FieldName:
 		return m.Name()
 	case clientsourceapp.FieldSlug:
@@ -7178,6 +8348,8 @@ func (m *ClientSourceAppMutation) Field(name string) (ent.Value, bool) {
 		return m.InstallProtected()
 	case clientsourceapp.FieldLatestVersionJSON:
 		return m.LatestVersionJSON()
+	case clientsourceapp.FieldVersionsJSON:
+		return m.VersionsJSON()
 	case clientsourceapp.FieldCreatedAt:
 		return m.CreatedAt()
 	case clientsourceapp.FieldUpdatedAt:
@@ -7195,6 +8367,8 @@ func (m *ClientSourceAppMutation) OldField(ctx context.Context, name string) (en
 		return m.OldSourceID(ctx)
 	case clientsourceapp.FieldExternalID:
 		return m.OldExternalID(ctx)
+	case clientsourceapp.FieldPackageID:
+		return m.OldPackageID(ctx)
 	case clientsourceapp.FieldName:
 		return m.OldName(ctx)
 	case clientsourceapp.FieldSlug:
@@ -7207,6 +8381,8 @@ func (m *ClientSourceAppMutation) OldField(ctx context.Context, name string) (en
 		return m.OldInstallProtected(ctx)
 	case clientsourceapp.FieldLatestVersionJSON:
 		return m.OldLatestVersionJSON(ctx)
+	case clientsourceapp.FieldVersionsJSON:
+		return m.OldVersionsJSON(ctx)
 	case clientsourceapp.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case clientsourceapp.FieldUpdatedAt:
@@ -7233,6 +8409,13 @@ func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetExternalID(v)
+		return nil
+	case clientsourceapp.FieldPackageID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPackageID(v)
 		return nil
 	case clientsourceapp.FieldName:
 		v, ok := value.(string)
@@ -7275,6 +8458,13 @@ func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetLatestVersionJSON(v)
+		return nil
+	case clientsourceapp.FieldVersionsJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersionsJSON(v)
 		return nil
 	case clientsourceapp.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -7348,6 +8538,9 @@ func (m *ClientSourceAppMutation) ResetField(name string) error {
 	case clientsourceapp.FieldExternalID:
 		m.ResetExternalID()
 		return nil
+	case clientsourceapp.FieldPackageID:
+		m.ResetPackageID()
+		return nil
 	case clientsourceapp.FieldName:
 		m.ResetName()
 		return nil
@@ -7365,6 +8558,9 @@ func (m *ClientSourceAppMutation) ResetField(name string) error {
 		return nil
 	case clientsourceapp.FieldLatestVersionJSON:
 		m.ResetLatestVersionJSON()
+		return nil
+	case clientsourceapp.FieldVersionsJSON:
+		m.ResetVersionsJSON()
 		return nil
 	case clientsourceapp.FieldCreatedAt:
 		m.ResetCreatedAt()

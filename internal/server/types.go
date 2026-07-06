@@ -50,6 +50,7 @@ type appSummary struct {
 	Owner                  string    `json:"owner"`
 	CategoryID             *int      `json:"categoryId,omitempty"`
 	Category               string    `json:"category,omitempty"`
+	PackageID              string    `json:"packageId"`
 	Name                   string    `json:"name"`
 	Slug                   string    `json:"slug"`
 	Summary                string    `json:"summary"`

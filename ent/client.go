@@ -22,6 +22,7 @@ import (
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
+	"lazycat.community/appstore/ent/clientinstallhistory"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/collaborator"
@@ -58,6 +59,8 @@ type Client struct {
 	AppVisibility *AppVisibilityClient
 	// Category is the client for interacting with the Category builders.
 	Category *CategoryClient
+	// ClientInstallHistory is the client for interacting with the ClientInstallHistory builders.
+	ClientInstallHistory *ClientInstallHistoryClient
 	// ClientSource is the client for interacting with the ClientSource builders.
 	ClientSource *ClientSourceClient
 	// ClientSourceApp is the client for interacting with the ClientSourceApp builders.
@@ -106,6 +109,7 @@ func (c *Client) init() {
 	c.AppVersion = NewAppVersionClient(c.config)
 	c.AppVisibility = NewAppVisibilityClient(c.config)
 	c.Category = NewCategoryClient(c.config)
+	c.ClientInstallHistory = NewClientInstallHistoryClient(c.config)
 	c.ClientSource = NewClientSourceClient(c.config)
 	c.ClientSourceApp = NewClientSourceAppClient(c.config)
 	c.Collaborator = NewCollaboratorClient(c.config)
@@ -211,30 +215,31 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                 ctx,
-		config:              cfg,
-		APIToken:            NewAPITokenClient(cfg),
-		App:                 NewAppClient(cfg),
-		AppScreenshot:       NewAppScreenshotClient(cfg),
-		AppTag:              NewAppTagClient(cfg),
-		AppVersion:          NewAppVersionClient(cfg),
-		AppVisibility:       NewAppVisibilityClient(cfg),
-		Category:            NewCategoryClient(cfg),
-		ClientSource:        NewClientSourceClient(cfg),
-		ClientSourceApp:     NewClientSourceAppClient(cfg),
-		Collaborator:        NewCollaboratorClient(cfg),
-		CollaboratorRequest: NewCollaboratorRequestClient(cfg),
-		Collection:          NewCollectionClient(cfg),
-		CollectionApp:       NewCollectionAppClient(cfg),
-		Comment:             NewCommentClient(cfg),
-		Favorite:            NewFavoriteClient(cfg),
-		GroupMember:         NewGroupMemberClient(cfg),
-		OutdatedMark:        NewOutdatedMarkClient(cfg),
-		ReviewRequest:       NewReviewRequestClient(cfg),
-		SiteSetting:         NewSiteSettingClient(cfg),
-		Tag:                 NewTagClient(cfg),
-		User:                NewUserClient(cfg),
-		UserGroup:           NewUserGroupClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		APIToken:             NewAPITokenClient(cfg),
+		App:                  NewAppClient(cfg),
+		AppScreenshot:        NewAppScreenshotClient(cfg),
+		AppTag:               NewAppTagClient(cfg),
+		AppVersion:           NewAppVersionClient(cfg),
+		AppVisibility:        NewAppVisibilityClient(cfg),
+		Category:             NewCategoryClient(cfg),
+		ClientInstallHistory: NewClientInstallHistoryClient(cfg),
+		ClientSource:         NewClientSourceClient(cfg),
+		ClientSourceApp:      NewClientSourceAppClient(cfg),
+		Collaborator:         NewCollaboratorClient(cfg),
+		CollaboratorRequest:  NewCollaboratorRequestClient(cfg),
+		Collection:           NewCollectionClient(cfg),
+		CollectionApp:        NewCollectionAppClient(cfg),
+		Comment:              NewCommentClient(cfg),
+		Favorite:             NewFavoriteClient(cfg),
+		GroupMember:          NewGroupMemberClient(cfg),
+		OutdatedMark:         NewOutdatedMarkClient(cfg),
+		ReviewRequest:        NewReviewRequestClient(cfg),
+		SiteSetting:          NewSiteSettingClient(cfg),
+		Tag:                  NewTagClient(cfg),
+		User:                 NewUserClient(cfg),
+		UserGroup:            NewUserGroupClient(cfg),
 	}, nil
 }
 
@@ -252,30 +257,31 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                 ctx,
-		config:              cfg,
-		APIToken:            NewAPITokenClient(cfg),
-		App:                 NewAppClient(cfg),
-		AppScreenshot:       NewAppScreenshotClient(cfg),
-		AppTag:              NewAppTagClient(cfg),
-		AppVersion:          NewAppVersionClient(cfg),
-		AppVisibility:       NewAppVisibilityClient(cfg),
-		Category:            NewCategoryClient(cfg),
-		ClientSource:        NewClientSourceClient(cfg),
-		ClientSourceApp:     NewClientSourceAppClient(cfg),
-		Collaborator:        NewCollaboratorClient(cfg),
-		CollaboratorRequest: NewCollaboratorRequestClient(cfg),
-		Collection:          NewCollectionClient(cfg),
-		CollectionApp:       NewCollectionAppClient(cfg),
-		Comment:             NewCommentClient(cfg),
-		Favorite:            NewFavoriteClient(cfg),
-		GroupMember:         NewGroupMemberClient(cfg),
-		OutdatedMark:        NewOutdatedMarkClient(cfg),
-		ReviewRequest:       NewReviewRequestClient(cfg),
-		SiteSetting:         NewSiteSettingClient(cfg),
-		Tag:                 NewTagClient(cfg),
-		User:                NewUserClient(cfg),
-		UserGroup:           NewUserGroupClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		APIToken:             NewAPITokenClient(cfg),
+		App:                  NewAppClient(cfg),
+		AppScreenshot:        NewAppScreenshotClient(cfg),
+		AppTag:               NewAppTagClient(cfg),
+		AppVersion:           NewAppVersionClient(cfg),
+		AppVisibility:        NewAppVisibilityClient(cfg),
+		Category:             NewCategoryClient(cfg),
+		ClientInstallHistory: NewClientInstallHistoryClient(cfg),
+		ClientSource:         NewClientSourceClient(cfg),
+		ClientSourceApp:      NewClientSourceAppClient(cfg),
+		Collaborator:         NewCollaboratorClient(cfg),
+		CollaboratorRequest:  NewCollaboratorRequestClient(cfg),
+		Collection:           NewCollectionClient(cfg),
+		CollectionApp:        NewCollectionAppClient(cfg),
+		Comment:              NewCommentClient(cfg),
+		Favorite:             NewFavoriteClient(cfg),
+		GroupMember:          NewGroupMemberClient(cfg),
+		OutdatedMark:         NewOutdatedMarkClient(cfg),
+		ReviewRequest:        NewReviewRequestClient(cfg),
+		SiteSetting:          NewSiteSettingClient(cfg),
+		Tag:                  NewTagClient(cfg),
+		User:                 NewUserClient(cfg),
+		UserGroup:            NewUserGroupClient(cfg),
 	}, nil
 }
 
@@ -306,10 +312,10 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
-		c.Category, c.ClientSource, c.ClientSourceApp, c.Collaborator,
-		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment, c.Favorite,
-		c.GroupMember, c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User,
-		c.UserGroup,
+		c.Category, c.ClientInstallHistory, c.ClientSource, c.ClientSourceApp,
+		c.Collaborator, c.CollaboratorRequest, c.Collection, c.CollectionApp,
+		c.Comment, c.Favorite, c.GroupMember, c.OutdatedMark, c.ReviewRequest,
+		c.SiteSetting, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -320,10 +326,10 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
-		c.Category, c.ClientSource, c.ClientSourceApp, c.Collaborator,
-		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment, c.Favorite,
-		c.GroupMember, c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User,
-		c.UserGroup,
+		c.Category, c.ClientInstallHistory, c.ClientSource, c.ClientSourceApp,
+		c.Collaborator, c.CollaboratorRequest, c.Collection, c.CollectionApp,
+		c.Comment, c.Favorite, c.GroupMember, c.OutdatedMark, c.ReviewRequest,
+		c.SiteSetting, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -346,6 +352,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AppVisibility.mutate(ctx, m)
 	case *CategoryMutation:
 		return c.Category.mutate(ctx, m)
+	case *ClientInstallHistoryMutation:
+		return c.ClientInstallHistory.mutate(ctx, m)
 	case *ClientSourceMutation:
 		return c.ClientSource.mutate(ctx, m)
 	case *ClientSourceAppMutation:
@@ -1309,6 +1317,139 @@ func (c *CategoryClient) mutate(ctx context.Context, m *CategoryMutation) (Value
 		return (&CategoryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Category mutation op: %q", m.Op())
+	}
+}
+
+// ClientInstallHistoryClient is a client for the ClientInstallHistory schema.
+type ClientInstallHistoryClient struct {
+	config
+}
+
+// NewClientInstallHistoryClient returns a client for the ClientInstallHistory from the given config.
+func NewClientInstallHistoryClient(c config) *ClientInstallHistoryClient {
+	return &ClientInstallHistoryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `clientinstallhistory.Hooks(f(g(h())))`.
+func (c *ClientInstallHistoryClient) Use(hooks ...Hook) {
+	c.hooks.ClientInstallHistory = append(c.hooks.ClientInstallHistory, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `clientinstallhistory.Intercept(f(g(h())))`.
+func (c *ClientInstallHistoryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ClientInstallHistory = append(c.inters.ClientInstallHistory, interceptors...)
+}
+
+// Create returns a builder for creating a ClientInstallHistory entity.
+func (c *ClientInstallHistoryClient) Create() *ClientInstallHistoryCreate {
+	mutation := newClientInstallHistoryMutation(c.config, OpCreate)
+	return &ClientInstallHistoryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ClientInstallHistory entities.
+func (c *ClientInstallHistoryClient) CreateBulk(builders ...*ClientInstallHistoryCreate) *ClientInstallHistoryCreateBulk {
+	return &ClientInstallHistoryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ClientInstallHistoryClient) MapCreateBulk(slice any, setFunc func(*ClientInstallHistoryCreate, int)) *ClientInstallHistoryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ClientInstallHistoryCreateBulk{err: fmt.Errorf("calling to ClientInstallHistoryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ClientInstallHistoryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ClientInstallHistoryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ClientInstallHistory.
+func (c *ClientInstallHistoryClient) Update() *ClientInstallHistoryUpdate {
+	mutation := newClientInstallHistoryMutation(c.config, OpUpdate)
+	return &ClientInstallHistoryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ClientInstallHistoryClient) UpdateOne(_m *ClientInstallHistory) *ClientInstallHistoryUpdateOne {
+	mutation := newClientInstallHistoryMutation(c.config, OpUpdateOne, withClientInstallHistory(_m))
+	return &ClientInstallHistoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ClientInstallHistoryClient) UpdateOneID(id int) *ClientInstallHistoryUpdateOne {
+	mutation := newClientInstallHistoryMutation(c.config, OpUpdateOne, withClientInstallHistoryID(id))
+	return &ClientInstallHistoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ClientInstallHistory.
+func (c *ClientInstallHistoryClient) Delete() *ClientInstallHistoryDelete {
+	mutation := newClientInstallHistoryMutation(c.config, OpDelete)
+	return &ClientInstallHistoryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ClientInstallHistoryClient) DeleteOne(_m *ClientInstallHistory) *ClientInstallHistoryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ClientInstallHistoryClient) DeleteOneID(id int) *ClientInstallHistoryDeleteOne {
+	builder := c.Delete().Where(clientinstallhistory.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ClientInstallHistoryDeleteOne{builder}
+}
+
+// Query returns a query builder for ClientInstallHistory.
+func (c *ClientInstallHistoryClient) Query() *ClientInstallHistoryQuery {
+	return &ClientInstallHistoryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeClientInstallHistory},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ClientInstallHistory entity by its id.
+func (c *ClientInstallHistoryClient) Get(ctx context.Context, id int) (*ClientInstallHistory, error) {
+	return c.Query().Where(clientinstallhistory.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ClientInstallHistoryClient) GetX(ctx context.Context, id int) *ClientInstallHistory {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ClientInstallHistoryClient) Hooks() []Hook {
+	return c.hooks.ClientInstallHistory
+}
+
+// Interceptors returns the client interceptors.
+func (c *ClientInstallHistoryClient) Interceptors() []Interceptor {
+	return c.inters.ClientInstallHistory
+}
+
+func (c *ClientInstallHistoryClient) mutate(ctx context.Context, m *ClientInstallHistoryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ClientInstallHistoryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ClientInstallHistoryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ClientInstallHistoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ClientInstallHistoryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ClientInstallHistory mutation op: %q", m.Op())
 	}
 }
 
@@ -3343,14 +3484,15 @@ func (c *UserGroupClient) mutate(ctx context.Context, m *UserGroupMutation) (Val
 type (
 	hooks struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
-		ClientSource, ClientSourceApp, Collaborator, CollaboratorRequest, Collection,
-		CollectionApp, Comment, Favorite, GroupMember, OutdatedMark, ReviewRequest,
-		SiteSetting, Tag, User, UserGroup []ent.Hook
+		ClientInstallHistory, ClientSource, ClientSourceApp, Collaborator,
+		CollaboratorRequest, Collection, CollectionApp, Comment, Favorite, GroupMember,
+		OutdatedMark, ReviewRequest, SiteSetting, Tag, User, UserGroup []ent.Hook
 	}
 	inters struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
-		ClientSource, ClientSourceApp, Collaborator, CollaboratorRequest, Collection,
-		CollectionApp, Comment, Favorite, GroupMember, OutdatedMark, ReviewRequest,
-		SiteSetting, Tag, User, UserGroup []ent.Interceptor
+		ClientInstallHistory, ClientSource, ClientSourceApp, Collaborator,
+		CollaboratorRequest, Collection, CollectionApp, Comment, Favorite, GroupMember,
+		OutdatedMark, ReviewRequest, SiteSetting, Tag, User,
+		UserGroup []ent.Interceptor
 	}
 )

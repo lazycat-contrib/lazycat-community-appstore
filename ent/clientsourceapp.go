@@ -22,6 +22,8 @@ type ClientSourceApp struct {
 	SourceID int `json:"source_id,omitempty"`
 	// ExternalID holds the value of the "external_id" field.
 	ExternalID string `json:"external_id,omitempty"`
+	// PackageID holds the value of the "package_id" field.
+	PackageID string `json:"package_id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// Slug holds the value of the "slug" field.
@@ -34,6 +36,8 @@ type ClientSourceApp struct {
 	InstallProtected bool `json:"install_protected,omitempty"`
 	// LatestVersionJSON holds the value of the "latest_version_json" field.
 	LatestVersionJSON string `json:"latest_version_json,omitempty"`
+	// VersionsJSON holds the value of the "versions_json" field.
+	VersionsJSON string `json:"versions_json,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -73,7 +77,7 @@ func (*ClientSourceApp) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID:
 			values[i] = new(sql.NullInt64)
-		case clientsourceapp.FieldExternalID, clientsourceapp.FieldName, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldCategory, clientsourceapp.FieldLatestVersionJSON:
+		case clientsourceapp.FieldExternalID, clientsourceapp.FieldPackageID, clientsourceapp.FieldName, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldCategory, clientsourceapp.FieldLatestVersionJSON, clientsourceapp.FieldVersionsJSON:
 			values[i] = new(sql.NullString)
 		case clientsourceapp.FieldCreatedAt, clientsourceapp.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -110,6 +114,12 @@ func (_m *ClientSourceApp) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ExternalID = value.String
 			}
+		case clientsourceapp.FieldPackageID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field package_id", values[i])
+			} else if value.Valid {
+				_m.PackageID = value.String
+			}
 		case clientsourceapp.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
@@ -145,6 +155,12 @@ func (_m *ClientSourceApp) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field latest_version_json", values[i])
 			} else if value.Valid {
 				_m.LatestVersionJSON = value.String
+			}
+		case clientsourceapp.FieldVersionsJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field versions_json", values[i])
+			} else if value.Valid {
+				_m.VersionsJSON = value.String
 			}
 		case clientsourceapp.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -205,6 +221,9 @@ func (_m *ClientSourceApp) String() string {
 	builder.WriteString("external_id=")
 	builder.WriteString(_m.ExternalID)
 	builder.WriteString(", ")
+	builder.WriteString("package_id=")
+	builder.WriteString(_m.PackageID)
+	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
@@ -222,6 +241,9 @@ func (_m *ClientSourceApp) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("latest_version_json=")
 	builder.WriteString(_m.LatestVersionJSON)
+	builder.WriteString(", ")
+	builder.WriteString("versions_json=")
+	builder.WriteString(_m.VersionsJSON)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))
