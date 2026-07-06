@@ -46,15 +46,12 @@ import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInpu
 import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
-import { SelectableCard as XSelectableCard } from '@astryxdesign/core/SelectableCard';
-import { HStack as XHStack, VStack as XVStack } from '@astryxdesign/core/Stack';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
-import { Text as XText } from '@astryxdesign/core/Text';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
-import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
@@ -70,6 +67,44 @@ import {
 } from './shared/constants';
 import { getAstryxTheme, type AstryxThemeName } from './shared/astryxThemes';
 import { AstryxThemeSelector, LanguageSelector, readAstryxThemeName, readSystemTheme, readThemeMode, ThemeToggle } from './shared/theme';
+import type {
+  APITokenRecord,
+  Category,
+  ClientInstallResult,
+  ClientSettings,
+  ClientSourceStats,
+  CollaboratorRequest,
+  Collection,
+  CollectionDraft,
+  Comment,
+  CommentNotification,
+  FavoriteData,
+  GitHubMirror,
+  Group,
+  InstallActivity,
+  InstalledApplication,
+  InstallHistoryEntry,
+  InstallOptions,
+  InstallPasswordRequest,
+  ResolvedTheme,
+  Review,
+  Screenshot,
+  SetupStatus,
+  SiteAnnouncement,
+  SiteProfile,
+  SortMode,
+  SourceApp,
+  SourceID,
+  SourceInput,
+  SourceSubscription,
+  SourceVersion,
+  StoreApp,
+  TagRecord,
+  ThemeMode,
+  Toast,
+  User,
+  Version,
+} from './shared/types';
 import {
   applicableMirrorsForVersion,
   arrayOrEmpty,
@@ -99,6 +134,7 @@ import {
   withInstallPassword,
 } from './shared/utils';
 import { AppIcon, AvatarIcon } from './components/AppIcon';
+import { ArtifactModeOption } from './shared/components/ArtifactModeOption';
 import { FilePicker } from './shared/components/FilePicker';
 import { ClientHistoryView } from './modules/client/ClientHistoryView';
 import { ClientCatalog } from './modules/client/ClientCatalog';
@@ -106,326 +142,11 @@ import { InstalledAppsView } from './modules/client/InstalledAppsView';
 import { ClientSettingsView } from './modules/client/ClientSettingsView';
 import { SourcesView as ClientSourcesView } from './modules/client/SourcesView';
 import { CollectionAppPicker } from './modules/admin/CollectionAppPicker';
+import { AppSubmissionForm, type SubmissionArtifactMode } from './modules/profile/AppSubmissionForm';
 import { StorageSettingsPanel, defaultStorageSettings, type StorageSettings } from './modules/admin/StorageSettingsPanel';
 import { AppGrid } from './modules/storefront/AppGrid';
 import { StorefrontHome } from './modules/storefront/StorefrontHome';
 import { StorefrontSearch } from './modules/storefront/StorefrontSearch';
-
-type User = {
-  id: number;
-  username: string;
-  email?: string;
-  role: 'USER' | 'SOFTWARE_ADMIN' | 'SITE_ADMIN';
-  emailVerified?: boolean;
-};
-
-type Version = {
-  id: number;
-  appId: number;
-  version: string;
-  changelog: string;
-  status: string;
-  sourceType: string;
-  downloadUrl: string;
-  fileSize: number;
-  sha256: string;
-  createdAt: string;
-  publishedAt?: string;
-};
-
-type StoreApp = {
-  id: number;
-  ownerId: number;
-  owner: string;
-  packageId?: string;
-  categoryId?: number;
-  name: string;
-  slug: string;
-  summary: string;
-  description: string;
-  iconUrl?: string;
-  status: string;
-  category?: string;
-  categoryI18n?: Record<string, string>;
-  tags: string[];
-  visibleGroupIds: number[];
-  allowUnreviewedUpdates: boolean;
-  commentsEnabled: boolean;
-  emailNotificationsEnabled: boolean;
-  installProtected: boolean;
-  downloadCount: number;
-  latestVersion?: Version;
-  versions?: Version[];
-  screenshots?: Screenshot[];
-  comments?: Comment[];
-  favorites?: number;
-  outdatedMarks?: number;
-  outdatedMarked?: boolean;
-  canManageApp?: boolean;
-  canUploadVersion?: boolean;
-  updatedAt: string;
-};
-
-type Screenshot = {
-  id: number;
-  appId: number;
-  imageUrl: string;
-  caption: string;
-  deviceType?: 'DESKTOP' | 'MOBILE' | string;
-  sortOrder: number;
-};
-
-type Comment = {
-  id: number;
-  userId: number;
-  parentId?: number;
-  authorType?: 'USER' | 'CLIENT' | string;
-  clientUserId?: string;
-  username: string;
-  body: string;
-  canDelete?: boolean;
-  replies?: Comment[];
-  createdAt: string;
-};
-
-type Review = {
-  id: number;
-  kind: string;
-  status: string;
-  appId?: number;
-  versionId?: number;
-  requesterId: number;
-  note: string;
-  reviewNote?: string;
-  createdAt: string;
-};
-
-type Category = {
-  id: number;
-  name: string;
-  nameI18n?: Record<string, string>;
-  slug: string;
-  sortOrder?: number;
-};
-
-type TagRecord = {
-  id: number;
-  name: string;
-  nameI18n?: Record<string, string>;
-  slug: string;
-};
-
-type Collection = {
-  id: number;
-  name: string;
-  slug: string;
-  description: string;
-  kind: string;
-  apps: StoreApp[];
-};
-
-type CollaboratorRequest = {
-  id: number;
-  app_id?: number;
-  appId?: number;
-  user_id?: number;
-  userId?: number;
-  username?: string;
-  email?: string;
-  status: string;
-  message: string;
-  created_at?: string;
-  createdAt?: string;
-};
-
-type Group = {
-  id: number;
-  owner_id?: number;
-  ownerId?: number;
-  name: string;
-  slug: string;
-  description: string;
-};
-
-type APITokenRecord = {
-  id: number;
-  name: string;
-  prefix: string;
-  created_at?: string;
-  createdAt?: string;
-};
-
-type SourceID = number | string;
-
-type GitHubMirror = {
-  id: string;
-  kind: 'download' | 'raw';
-  name: string;
-  url: string;
-};
-
-type SourceSubscription = {
-  id: SourceID;
-  name: string;
-  url: string;
-  password: string;
-  defaultDownloadMirrorId: string;
-  defaultRawMirrorId: string;
-  githubMirrors: GitHubMirror[];
-  lastSync?: string;
-  lastError?: string;
-  lastErrorCode?: SourceErrorCode;
-  lastAppCount?: number;
-  lastInstallableCount?: number;
-};
-
-type SourceInput = Pick<SourceSubscription, 'name' | 'url' | 'password' | 'defaultDownloadMirrorId' | 'defaultRawMirrorId'>;
-
-type ClientSettings = {
-  commentDisplayName: string;
-  autoSyncEnabled: boolean;
-  autoSyncIntervalMinutes: number;
-  syncOnStartup: boolean;
-  lastAutoSyncAt?: string;
-  lastAutoSyncStatus?: string;
-  lastAutoSyncError?: string;
-};
-
-type CommentNotification = {
-  id: number;
-  appId: number;
-  commentId: number;
-  appName: string;
-  actorName: string;
-  body: string;
-  read: boolean;
-  createdAt: string;
-};
-
-type SourceVersion = {
-  version: string;
-  downloadUrl: string;
-  upstreamDownloadUrl?: string;
-  sourceType?: string;
-  sha256: string;
-  size: number;
-};
-
-type SourceApp = {
-  id: number;
-  sourceId?: SourceID;
-  sourceName: string;
-  externalId?: string;
-  packageId?: string;
-  name: string;
-  slug: string;
-  summary: string;
-  category?: string;
-  categoryI18n?: Record<string, string>;
-  iconUrl?: string;
-  installProtected?: boolean;
-  screenshots?: Screenshot[];
-  latestVersion?: SourceVersion;
-  versions?: SourceVersion[];
-};
-
-type FavoriteData = {
-  apps: StoreApp[];
-  submitters: User[];
-};
-
-type SetupStatus = {
-  needsSetup: boolean;
-};
-
-type SiteAnnouncement = {
-  enabled: boolean;
-  level: 'info' | 'warning' | 'success';
-  title?: string;
-  body?: string;
-  linkLabel?: string;
-  linkUrl?: string;
-  updatedAt?: string;
-};
-
-type SiteProfile = {
-  title: string;
-  iconUrl?: string;
-  publicUrl: string;
-  sourceUrl: string;
-  announcement: SiteAnnouncement;
-};
-
-type Toast = {
-  tone: 'success' | 'error' | 'neutral';
-  message: string;
-};
-
-type InstallActivity = {
-  title: string;
-  source: string;
-  checksum: string;
-  status: 'running' | 'success' | 'error';
-  progress: number;
-  stageKey: string;
-  resultMode?: string;
-  messageKey?: string;
-  messageParams?: Record<string, string | number>;
-};
-
-type InstallPasswordRequest = {
-  app: StoreApp | SourceApp;
-  version?: string;
-};
-
-type InstallOptions = {
-  installPassword?: string;
-  version?: string;
-  mirrorId?: string;
-};
-
-type ClientSourceStats = {
-  sourceCount: number;
-  syncedSourceCount: number;
-  staleSourceCount: number;
-  authSourceCount: number;
-  failedSourceCount: number;
-  sourceAppCount: number;
-  installableSourceAppCount: number;
-};
-
-type SourceErrorCode = 'auth' | 'format' | 'http' | 'network';
-
-type InstalledApplication = {
-  appid?: string;
-  title?: string;
-  version?: string;
-  status?: string;
-  instanceStatus?: string;
-  icon?: string;
-};
-
-type ClientInstallResult = {
-  mode: string;
-  taskId?: string;
-  status?: string;
-  detail?: string;
-};
-
-type InstallHistoryEntry = {
-  id: number;
-  sourceId?: SourceID;
-  sourceAppId?: number;
-  sourceName?: string;
-  packageId: string;
-  appName: string;
-  version?: string;
-  result: 'SUCCESS' | 'FAILED';
-  downloadUrl?: string;
-  sha256?: string;
-  error?: string;
-  createdAt: string;
-};
 
 function reviewFieldLabel(key: string, t: (key: string, options?: any) => string) {
   const labels: Record<string, string> = {
@@ -443,8 +164,6 @@ function reviewFieldLabel(key: string, t: (key: string, options?: any) => string
 
 type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'history' | 'settings' | 'admin';
 type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
-type ThemeMode = 'system' | 'light' | 'dark';
-type ResolvedTheme = Exclude<ThemeMode, 'system'>;
 
 const serverBaseTabs: NavItem[] = [
   { key: 'home', labelKey: 'nav.store', icon: Home },
@@ -462,8 +181,6 @@ const clientTabs: NavItem[] = [
   { key: 'settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
-type SortMode = 'recent' | 'downloads' | 'name';
-type CollectionDraft = { name: string; slug: string; kind: string; appIds: number[] };
 type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string };
 
 function verificationTokenFromURL() {
@@ -2077,7 +1794,7 @@ function ProfileView({
     installPassword: '',
   });
   const [recentSubmission, setRecentSubmission] = useState<{ name: string; status: string } | null>(null);
-  const [artifactMode, setArtifactMode] = useState<'local' | 'external'>('local');
+  const [artifactMode, setArtifactMode] = useState<SubmissionArtifactMode>('local');
   const [file, setFile] = useState<File | null>(null);
   const [desktopScreenshotFiles, setDesktopScreenshotFiles] = useState<File[]>([]);
   const [mobileScreenshotFiles, setMobileScreenshotFiles] = useState<File[]>([]);
@@ -2117,16 +1834,6 @@ function ProfileView({
       needsVersion: ownedApps.filter((app) => app.status === 'APPROVED' && !hasInstallableVersion(app)).length,
     };
   }, [ownedApps]);
-  const appInfoReady = Boolean(uploadForm.name.trim());
-  const appInfoDetailed = Boolean(uploadForm.summary.trim() && uploadForm.description.trim());
-  const appInfoComplete = appInfoReady && appInfoDetailed;
-  const externalDownloadReady = Boolean(uploadForm.downloadUrl.trim());
-  const externalChecksumReady = Boolean(uploadForm.sha256.trim());
-  const externalArtifactReady = externalDownloadReady;
-  const artifactReady = artifactMode === 'local' ? Boolean(file) : externalArtifactReady;
-  const appIdentityCanAutofill = artifactMode === 'local' ? Boolean(file) : externalDownloadReady;
-  const canSubmitUpload = (appInfoReady || appIdentityCanAutofill) && artifactReady;
-  const isDirectPublishUser = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const sourceCacheReady = sourceStats.syncedSourceCount > 0;
   const installCatalogReady = sourceStats.installableSourceAppCount > 0;
   const installedLookupReady = installedState === 'loaded';
@@ -2615,204 +2322,24 @@ function ProfileView({
       )}
 
       {workspaceTab === 'apps' && isSubmitOpen && (
-      <section className="workspace-pane">
-        <form className="panel form-panel" onSubmit={submitUpload}>
-          <div className="section-title with-action">
-            <div>
-              <Upload size={19} />
-              <h2>{t('submitApp.title')}</h2>
-            </div>
-            <XButton type="button" variant="secondary" size="sm" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setIsSubmitOpen(false)} />
-          </div>
-          <div className="workflow-strip">
-            <div>
-              <strong>{t('submitApp.publishPath')}</strong>
-              <span>{t('submitApp.reviewHint')}</span>
-            </div>
-            <div className="workflow-steps" aria-label={t('submitApp.publishPath')}>
-              <span>{t('submitApp.stepIdentity')}</span>
-              <ChevronRight size={14} />
-              <span>{t('submitApp.stepArtifact')}</span>
-              <ChevronRight size={14} />
-              <span>{t('submitApp.stepReview')}</span>
-            </div>
-          </div>
-          <div className="submission-readiness" aria-label={t('submitApp.readiness')}>
-            <div className={cx('readiness-step', appInfoComplete && 'ready')}>
-              <span className={cx('status-badge', appInfoComplete ? 'approved' : appInfoReady ? 'pending' : 'unlisted')}>
-                {appInfoComplete ? <Check size={14} /> : <AlertCircle size={14} />}
-                {appInfoComplete ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
-              </span>
-              <strong>{t('submitApp.readinessAppInfo')}</strong>
-              <small>
-                {appInfoReady
-                  ? appInfoDetailed
-                    ? t('submitApp.readinessAppInfoReady')
-                    : t('submitApp.readinessAppInfoNeedsDetails')
-                  : t('submitApp.readinessAppInfoMissing')}
-              </small>
-            </div>
-            <div className={cx('readiness-step', artifactReady && 'ready')}>
-              <span className={cx('status-badge', artifactReady ? 'approved' : 'unlisted')}>
-                {artifactReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                {artifactReady ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
-              </span>
-              <strong>{t('submitApp.readinessArtifact')}</strong>
-              <small>
-                {artifactMode === 'local'
-                  ? file
-                    ? t('submitApp.readinessArtifactLocalReady', { name: file.name, size: formatBytes(file.size) })
-                    : t('submitApp.readinessArtifactLocalMissing')
-                  : externalArtifactReady
-                    ? t('submitApp.readinessArtifactExternalReady')
-                    : externalDownloadReady || externalChecksumReady
-                      ? t('submitApp.readinessArtifactExternalPartial')
-                      : t('submitApp.readinessArtifactExternalMissing')}
-              </small>
-            </div>
-            <div className="readiness-step ready">
-              <span className="status-badge synced">
-                <ShieldCheck size={14} />
-                {isDirectPublishUser ? t('submitApp.readinessDirect') : t('submitApp.readinessQueued')}
-              </span>
-              <strong>{t('submitApp.readinessReview')}</strong>
-              <small>{isDirectPublishUser ? t('submitApp.readinessReviewDirect') : t('submitApp.readinessReviewQueued')}</small>
-            </div>
-          </div>
-          {recentSubmission && (
-            <p className="inline-success">
-              <Check size={15} />
-              <span>
-                {recentSubmission.status === 'APPROVED'
-                  ? t('submitApp.submittedListed', { name: recentSubmission.name })
-                  : t('submitApp.submittedQueued', { name: recentSubmission.name })}
-              </span>
-            </p>
-          )}
-          <XTextInput label={t('submitApp.appName')} value={uploadForm.name} onChange={(value) => setUploadForm({ ...uploadForm, name: value })} />
-          <XTextInput label={t('common.version')} value={uploadForm.version} onChange={(value) => setUploadForm({ ...uploadForm, version: value })} />
-          <XTextInput label={t('common.summary')} value={uploadForm.summary} onChange={(value) => setUploadForm({ ...uploadForm, summary: value })} />
-          <XTextArea label={t('common.description')} value={uploadForm.description} rows={4} onChange={(value) => setUploadForm({ ...uploadForm, description: value })} />
-          <XSelector
-            label={t('common.category')}
-            value={uploadForm.categoryId}
-            options={[
-              { value: '', label: t('common.uncategorized') },
-              ...categories.map((category) => ({ value: String(category.id), label: localizedName(category) })),
-            ]}
-            onChange={(value) => setUploadForm({ ...uploadForm, categoryId: value })}
-          />
-          <XTextInput label={t('common.tags')} value={uploadForm.tags} onChange={(value) => setUploadForm({ ...uploadForm, tags: value })} />
-          <div className="artifact-section">
-            <div className="artifact-section-head">
-              <strong>{t('submitApp.artifactMode')}</strong>
-              <span>{artifactMode === 'local' ? t('submitApp.localArtifactHint') : t('submitApp.externalArtifactHint')}</span>
-            </div>
-            <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
-              <ArtifactModeOption
-                icon={<Upload size={17} />}
-                title={t('submitApp.localArtifact')}
-                hint={t('submitApp.localArtifactHint')}
-                isSelected={artifactMode === 'local'}
-                onSelect={() => selectArtifactMode('local')}
-              />
-              <ArtifactModeOption
-                icon={<Link size={17} />}
-                title={t('submitApp.externalArtifact')}
-                hint={t('submitApp.externalArtifactHint')}
-                isSelected={artifactMode === 'external'}
-                onSelect={() => selectArtifactMode('external')}
-              />
-            </div>
-            {artifactMode === 'local' ? (
-              <FilePicker
-                label={t('common.lpkFile')}
-                help={t('submitApp.localFileHelp')}
-                value={file}
-                inputRef={fileInputRef}
-                accept=".lpk"
-                required
-                onChange={(nextFile) => setFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
-              />
-            ) : (
-              <div className="artifact-fields">
-                <p className="field-help">{t('submitApp.externalFieldsHelp')}</p>
-                <XSelector
-                  label={t('submitApp.externalSource')}
-                  value={uploadForm.sourceType}
-                  options={[
-                    { value: 'GITHUB', label: 'GitHub Release' },
-                    { value: 'WEBDAV', label: 'WebDAV URL' },
-                    { value: 'S3', label: 'S3 URL' },
-                  ]}
-                  onChange={(value) => setUploadForm({ ...uploadForm, sourceType: value })}
-                />
-                <XTextInput
-                  label={t('submitApp.externalDownloadUrl')}
-                  description={t('submitApp.externalDownloadHelp')}
-                  value={uploadForm.downloadUrl}
-                  onChange={(value) => setUploadForm({ ...uploadForm, downloadUrl: value })}
-                />
-                <XTextInput
-                  label={t('common.sha256')}
-                  description={t('submitApp.sha256Help')}
-                  value={uploadForm.sha256}
-                  onChange={(value) => setUploadForm({ ...uploadForm, sha256: value })}
-                />
-              </div>
-            )}
-          </div>
-          <div className="artifact-section">
-            <div className="artifact-section-head">
-              <strong>{t('submitApp.screenshots')}</strong>
-              <span>{t('submitApp.screenshotsHelp')}</span>
-            </div>
-            <div className="screenshot-upload-grid">
-              <FilePicker
-                label={t('submitApp.desktopScreenshots')}
-                help={t('submitApp.desktopScreenshotsHelp', { count: desktopScreenshotFiles.length })}
-                value={desktopScreenshotFiles}
-                accept=".png,.jpg,.jpeg,.webp"
-                multiple
-                maxFiles={8}
-                onChange={(nextFiles) => setDesktopScreenshotFiles(Array.isArray(nextFiles) ? nextFiles : nextFiles ? [nextFiles] : [])}
-              />
-              <FilePicker
-                label={t('submitApp.mobileScreenshots')}
-                help={t('submitApp.mobileScreenshotsHelp', { count: mobileScreenshotFiles.length })}
-                value={mobileScreenshotFiles}
-                accept=".png,.jpg,.jpeg,.webp"
-                multiple
-                maxFiles={8}
-                onChange={(nextFiles) => setMobileScreenshotFiles(Array.isArray(nextFiles) ? nextFiles : nextFiles ? [nextFiles] : [])}
-              />
-            </div>
-          </div>
-          <XTextInput
-            type="password"
-            label={t('submitApp.installPassword')}
-            description={t('submitApp.installPasswordHelp')}
-            value={uploadForm.installPassword}
-            onChange={(value) => setUploadForm({ ...uploadForm, installPassword: value })}
-          />
-          <XSwitch
-            label={t('submitApp.emailNotificationsEnabled')}
-            value={uploadForm.emailNotificationsEnabled}
-            labelSpacing="spread"
-            width="100%"
-            onChange={(checked) => setUploadForm({ ...uploadForm, emailNotificationsEnabled: checked })}
-          />
-          <XSwitch
-            label={t('submitApp.allowUnreviewedUpdates')}
-            value={uploadForm.allowUnreviewedUpdates}
-            labelSpacing="spread"
-            width="100%"
-            onChange={(checked) => setUploadForm({ ...uploadForm, allowUnreviewedUpdates: checked })}
-          />
-          {!canSubmitUpload && <p className="field-help">{t('submitApp.submitBlocked')}</p>}
-          <XButton type="submit" variant="primary" label={t('common.submit')} icon={<Upload size={18} />} isDisabled={!canSubmitUpload} />
-        </form>
-      </section>
+      <AppSubmissionForm
+        draft={uploadForm}
+        onDraftChange={setUploadForm}
+        categories={categories}
+        artifactMode={artifactMode}
+        onArtifactModeChange={selectArtifactMode}
+        file={file}
+        onFileChange={setFile}
+        fileInputRef={fileInputRef}
+        desktopScreenshotFiles={desktopScreenshotFiles}
+        onDesktopScreenshotFilesChange={setDesktopScreenshotFiles}
+        mobileScreenshotFiles={mobileScreenshotFiles}
+        onMobileScreenshotFilesChange={setMobileScreenshotFiles}
+        recentSubmission={recentSubmission}
+        isDirectPublishUser={user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN'}
+        onSubmit={submitUpload}
+        onCancel={() => setIsSubmitOpen(false)}
+      />
       )}
       {workspaceTab === 'tokens' && (
       <section className="workspace-pane">
@@ -4789,36 +4316,6 @@ function SectionTitle({ icon: Icon, title }: { icon: typeof Home; title: string 
       <Icon size={19} />
       <h2>{title}</h2>
     </div>
-  );
-}
-
-function ArtifactModeOption({
-  icon,
-  title,
-  hint,
-  isSelected,
-  onSelect,
-}: {
-  icon: ReactNode;
-  title: string;
-  hint: string;
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <XSelectableCard label={title} isSelected={isSelected} onChange={onSelect} padding={3} height="100%">
-      <XHStack gap={2} align="start">
-        {icon}
-        <XVStack gap={1}>
-          <XText type="body" weight="semibold" display="block" wordBreak="break-word">
-            {title}
-          </XText>
-          <XText type="supporting" color="secondary" display="block" wordBreak="break-word">
-            {hint}
-          </XText>
-        </XVStack>
-      </XHStack>
-    </XSelectableCard>
   );
 }
 
