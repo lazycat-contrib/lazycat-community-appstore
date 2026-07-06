@@ -498,7 +498,7 @@ export function App() {
   const navItems = HAS_API ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : clientTabs;
   const modeLabel = HAS_API ? t('mode.serverStore') : t('mode.standaloneClient');
   const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
-  const drawerOpen = Boolean(selectedApp || selectedSourceApp);
+  const drawerOpen = Boolean(selectedApp || (!HAS_API && selectedSourceApp));
   const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
 
   const [sources, setSources] = useState<SourceSubscription[]>([]);
@@ -980,7 +980,7 @@ export function App() {
                 query={query}
                 mode={HAS_API ? 'server' : 'client'}
                 sourceStats={sourceStats}
-                installedApps={installedApps}
+                installedApps={HAS_API ? [] : installedApps}
                 onCategory={setActiveCategory}
                 onSubmitter={setActiveSubmitter}
                 onSortMode={setSortMode}
@@ -1062,7 +1062,7 @@ export function App() {
         />
       )}
 
-      {selectedSourceApp && (
+      {!HAS_API && selectedSourceApp && (
         <SourceAppDrawer
           app={selectedSourceApp}
           installedMatch={findInstalledApplication(selectedSourceApp, installedApps)}
@@ -1631,10 +1631,6 @@ function SearchView({
           onInstall={onInstall}
           empty={{ title: t('search.noResultsTitle'), body: t('search.noResultsBody') }}
         />
-      </section>
-      <section className="panel">
-        <SectionTitle icon={Cloud} title={t('search.subscribedApps')} />
-        <SourceAppGrid apps={filteredSourceApps} installedApps={installedApps} onOpen={onOpenSource} onInstall={onInstall} onGoSources={onGoSources} />
       </section>
     </section>
   );
@@ -2394,6 +2390,12 @@ function ProfileView({
         : installedState === 'error'
           ? installedError || t('profile.clientInstalledError')
           : t('profile.clientInstalledIdle');
+  const installedSummary = useMemo(() => {
+    const versioned = installedApps.filter((item) => item.version).length;
+    const statusKnown = installedApps.filter((item) => item.status || item.instanceStatus).length;
+    const active = installedApps.filter((item) => /running|active|started/i.test(`${item.status || ''} ${item.instanceStatus || ''}`)).length;
+    return { total: installedApps.length, versioned, statusKnown, active };
+  }, [installedApps]);
 
   useEffect(() => {
     if (!user) return;
@@ -2582,46 +2584,77 @@ function ProfileView({
             </div>
           </div>
         </section>
-        <div className="split">
-          <div className="panel profile-card">
-            <AvatarIcon seed="lazycat-standalone-client" title={t('profile.clientTitle')} size={74} className="avatar-large" />
-            <h2>{t('profile.clientInstalledTitle')}</h2>
-            <p>{t('profile.clientInstalledHelp')}</p>
-            <div className={cx('installed-state', installedState)}>
-              <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loaded' ? 'synced' : 'unsynced')}>
-                {t(`profile.installedState.${installedState}`)}
-              </span>
-              {installedState === 'error' && <small>{installedError}</small>}
+        <section className="panel install-center-panel">
+          <div className="install-center-head">
+            <div className="install-center-title">
+              <AvatarIcon seed="lazycat-standalone-client" title={t('profile.clientTitle')} size={58} className="avatar-large" />
+              <div>
+                <span className="eyebrow subtle">{t('profile.clientDeviceOnly')}</span>
+                <h2>{t('profile.clientInstalledTitle')}</h2>
+                <p>{t('profile.clientInstalledHelp')}</p>
+              </div>
             </div>
-            <button type="button" className="primary-button" disabled={installedState === 'loading'} onClick={() => void onLoadInstalled()}>
-              <RefreshCw size={18} />
-              <span>{installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}</span>
-            </button>
+            <div className="install-center-actions">
+              <div className={cx('installed-state', installedState)}>
+                <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loaded' ? 'synced' : installedState === 'loading' ? 'pending' : 'unsynced')}>
+                  {t(`profile.installedState.${installedState}`)}
+                </span>
+                <small>{installedReadinessBody}</small>
+              </div>
+              <button type="button" className="primary-button" disabled={installedState === 'loading'} onClick={() => void onLoadInstalled()}>
+                <RefreshCw size={18} />
+                <span>{installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}</span>
+              </button>
+            </div>
           </div>
-          <section className="panel">
-            <SectionTitle icon={Download} title={t('profile.installed')} />
-            {installedState === 'error' && (
-              <p className="inline-alert">
-                <AlertCircle size={15} />
-                <span>{installedError}</span>
-              </p>
-            )}
-            <div className="review-list">
-              {installedApps.length === 0 ? (
-                <EmptyState icon={Download} title={installedEmptyTitle} body={installedEmptyBody} />
-              ) : (
-                installedApps.map((item) => (
-                  <div className="review-row" key={item.appid || item.title}>
-                    <div>
-                      <strong>{item.title || item.appid}</strong>
-                      <span>{item.version || '-'} · {t('profile.status', { status: item.status ?? '-' })}</span>
-                    </div>
-                  </div>
-                ))
-              )}
+          <div className="install-center-metrics" aria-label={t('profile.clientInstalledTitle')}>
+            <div>
+              <span>{t('profile.installedTotal')}</span>
+              <strong>{installedSummary.total}</strong>
             </div>
-          </section>
-        </div>
+            <div>
+              <span>{t('profile.installedVersioned')}</span>
+              <strong>{installedSummary.versioned}</strong>
+            </div>
+            <div>
+              <span>{t('profile.installedStatusKnown')}</span>
+              <strong>{installedSummary.statusKnown}</strong>
+            </div>
+            <div>
+              <span>{t('profile.installedActive')}</span>
+              <strong>{installedSummary.active}</strong>
+            </div>
+          </div>
+          {installedState === 'error' && (
+            <p className="inline-alert">
+              <AlertCircle size={15} />
+              <span>{installedError}</span>
+            </p>
+          )}
+          {installedApps.length === 0 ? (
+            <EmptyState icon={Download} title={installedEmptyTitle} body={installedEmptyBody} />
+          ) : (
+            <div className="installed-app-grid">
+              {installedApps.map((item) => (
+                <article className="installed-app-card" key={item.appid || item.title}>
+                  {item.icon ? (
+                    <img className="installed-app-icon" src={item.icon} alt="" />
+                  ) : (
+                    <AvatarIcon seed={item.appid || item.title || 'installed-app'} title={item.title || item.appid} size={42} />
+                  )}
+                  <div>
+                    <strong>{item.title || item.appid || t('common.app')}</strong>
+                    <span>{item.appid || t('profile.installedAppIdMissing')}</span>
+                  </div>
+                  <div className="installed-app-meta">
+                    <span>{item.version || '-'}</span>
+                    <small>{item.instanceStatus || item.status || t('statusLabels.unknown')}</small>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </section>
     );
   }
@@ -3084,33 +3117,6 @@ function ProfileView({
           <button type="button" className="secondary-button" onClick={() => void loadFavorites()}>
             <RefreshCw size={18} />
             <span>{t('favorites.refresh')}</span>
-          </button>
-        </section>
-        <section className="panel">
-          <SectionTitle icon={Download} title={t('profile.installed')} />
-          {installedState === 'error' && (
-            <p className="inline-alert">
-              <AlertCircle size={15} />
-              <span>{installedError}</span>
-            </p>
-          )}
-          <div className="review-list">
-            {installedApps.length === 0 ? (
-              <EmptyState icon={Download} title={installedState === 'loaded' ? t('profile.installedEmptyLoaded') : t('profile.installedEmpty')} body={installedState === 'idle' ? t('profile.installedIdleBody') : undefined} />
-            ) : (
-              installedApps.map((item) => (
-                <div className="review-row" key={item.appid || item.title}>
-                  <div>
-                    <strong>{item.title || item.appid}</strong>
-                    <span>{item.version || '-'} · {t('profile.status', { status: item.status ?? '-' })}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <button type="button" className="secondary-button" disabled={installedState === 'loading'} onClick={() => void onLoadInstalled()}>
-            <RefreshCw size={18} />
-            <span>{installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}</span>
           </button>
         </section>
       </section>

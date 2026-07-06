@@ -29,7 +29,6 @@ import (
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/user"
-	"lazycat.community/appstore/internal/clientserver"
 	"lazycat.community/appstore/internal/config"
 )
 
@@ -38,20 +37,6 @@ type testApp struct {
 	server  *Server
 	handler http.Handler
 	cookies []*http.Cookie
-}
-
-type fakePackageManager struct {
-	installed []clientserver.InstalledApplicationDTO
-	userID    string
-}
-
-func (f *fakePackageManager) QueryInstalled(ctx context.Context, userID string) ([]clientserver.InstalledApplicationDTO, error) {
-	f.userID = userID
-	return f.installed, nil
-}
-
-func (f *fakePackageManager) InstallLPK(context.Context, string, clientserver.InstallRequestDTO) (clientserver.InstallResultDTO, error) {
-	return clientserver.InstallResultDTO{}, nil
 }
 
 func TestSetupWizardCreatesFirstSiteAdmin(t *testing.T) {
@@ -135,20 +120,18 @@ func TestEmbeddedAppConfigUsesSameOriginAPI(t *testing.T) {
 	}
 }
 
-func TestServerExposesClientInstalledEndpoint(t *testing.T) {
+func TestServerDoesNotExposeClientInstalledEndpoint(t *testing.T) {
 	app := newTestApp(t)
-	pm := &fakePackageManager{installed: []clientserver.InstalledApplicationDTO{{AppID: "notes", Title: "Notes", Version: "1.2.3", Status: "Installed"}}}
-	app.server.pkg = pm
 
 	req := httptest.NewRequest(http.MethodGet, "/api/client/v1/installed", nil)
 	req.Header.Set("x-hc-user-id", "alice")
 	rec := httptest.NewRecorder()
 	app.handler.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"appid":"notes"`) {
-		t.Fatalf("installed status = %d, body = %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("installed endpoint status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if pm.userID != "alice" {
-		t.Fatalf("user id = %q, want alice", pm.userID)
+	if strings.Contains(rec.Body.String(), `"apps"`) || strings.Contains(rec.Body.String(), `"appid"`) {
+		t.Fatalf("server leaked installed app payload: %s", rec.Body.String())
 	}
 }
 

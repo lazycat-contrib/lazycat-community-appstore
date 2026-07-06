@@ -16,7 +16,6 @@ import (
 	"entgo.io/ent/dialect"
 
 	"lazycat.community/appstore/ent"
-	"lazycat.community/appstore/internal/clientserver"
 	"lazycat.community/appstore/internal/config"
 	"lazycat.community/appstore/internal/storage"
 	"lazycat.community/appstore/web"
@@ -31,7 +30,6 @@ type Server struct {
 	db      *ent.Client
 	storage storage.Backend
 	mailer  Mailer
-	pkg     clientserver.PackageManager
 	mux     *http.ServeMux
 	web     http.Handler
 }
@@ -60,7 +58,6 @@ func New(cfg config.Config) (*Server, error) {
 		db:      client,
 		storage: backend,
 		mailer:  newSMTPMailer(cfg),
-		pkg:     clientserver.NewLazyCatPackageManager(),
 		mux:     http.NewServeMux(),
 	}
 	s.web = embeddedWebHandler(cfg)
@@ -163,7 +160,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/me/tokens", s.withAuth(s.handleCreateToken))
 	s.mux.HandleFunc("DELETE /api/v1/me/tokens/{id}", s.withAuth(s.handleDeleteToken))
 	s.mux.HandleFunc("GET /api/v1/me/favorites", s.withAuth(s.handleListFavorites))
-	s.mux.HandleFunc("GET /api/client/v1/installed", s.handleClientInstalled)
 
 	s.mux.HandleFunc("GET /api/v1/apps", s.handleListApps)
 	s.mux.HandleFunc("POST /api/v1/apps", s.withAuth(s.handleCreateApp))
