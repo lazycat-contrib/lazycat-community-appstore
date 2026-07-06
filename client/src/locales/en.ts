@@ -1,5 +1,5 @@
 const en = {
-      appName: 'LazyCat Private Store',
+      appName: '懒猫私有商店',
       language: {
         label: 'Language',
         zh: '中文',
@@ -175,6 +175,7 @@ const en = {
         browseInstallable: 'Browse apps',
         emptyTitle: 'No installable apps yet',
         emptyBody: 'Submit the first LPK, or create categories and featured collections in the admin area. Clients can subscribe to /source/v1/index.json right away.',
+        emptyLoginBody: 'Log in to submit the first LPK, or let an admin create categories and featured collections. Clients can subscribe to /source/v1/index.json right away.',
         emptyAction: 'Submit first app',
       },
       search: {
@@ -224,6 +225,14 @@ const en = {
         addTitle: 'Add source',
         subscriptions: 'Subscriptions',
         syncedApps: 'Synced apps',
+        privacyTitle: 'Client display identity',
+        privacyBody: 'Use a display name for comments without exposing the real local username. If left blank, a localized default name is used.',
+        privacyDefaultBadge: 'Local setting',
+        commentDisplayName: 'Comment display name',
+        commentDisplayNameHelp: 'When empty, comments use "{{name}}".',
+        defaultCommentDisplayName: 'LazyCat user',
+        privacySaved: 'Client options saved',
+        privacySaveFailed: 'Failed to save client options',
         summary: 'Source runtime summary',
         url: 'URL',
         password: 'Access password',

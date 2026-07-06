@@ -1,0 +1,84 @@
+/* Standalone-client-specific styles live here as pages are split out of App.tsx. */
+
+.detail-page-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  overflow: auto;
+  background: var(--paper);
+  color: var(--ink);
+  padding: clamp(18px, 3vw, 34px);
+  opacity: 1;
+  transition: opacity 180ms var(--ease-out);
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+.detail-page {
+  position: relative;
+  width: min(1120px, 100%);
+  min-height: calc(100dvh - clamp(36px, 6vw, 68px));
+  margin: 0 auto;
+  padding-bottom: calc(28px + env(safe-area-inset-bottom));
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+
+.detail-page > .close {
+  position: sticky;
+  top: 0;
+  justify-self: end;
+  z-index: 2;
+  margin-bottom: -58px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.detail-page .detail-head,
+.detail-page .install-trust,
+.detail-page .detail-summary,
+.detail-page .source-version-panel,
+.detail-page .source-detail-urls,
+.detail-page .comment-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 18px;
+}
+
+.detail-page .detail-head {
+  margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+  .detail-page-backdrop {
+    padding: 12px;
+  }
+
+  .detail-page {
+    min-height: calc(100dvh - 24px);
+    gap: 12px;
+  }
+
+  .detail-page > .close {
+    margin-bottom: -52px;
+  }
+
+  .detail-page .detail-head,
+  .detail-page .install-trust,
+  .detail-page .detail-summary,
+  .detail-page .source-version-panel,
+  .detail-page .source-detail-urls,
+  .detail-page .comment-section {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-page-backdrop {
+    transition: opacity 120ms ease;
+  }
+}

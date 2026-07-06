@@ -1,0 +1,37 @@
+.file-drop-field[data-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.file-drop-field[data-disabled='true'] .file-drop-box {
+  background: var(--disabled-bg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .file-drop-field:not([data-disabled='true']):hover .file-drop-box {
+    border-color: color-mix(in srgb, var(--green) 45%, var(--line));
+    box-shadow: var(--shadow-soft);
+  }
+}
+
+.file-drop-box {
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.file-drop-field:active .file-drop-box {
+  transform: scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .file-drop-box {
+    transition-duration: 1ms !important;
+  }
+
+  .file-drop-field:active .file-drop-box {
+    transform: none;
+  }
+}
