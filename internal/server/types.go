@@ -26,6 +26,24 @@ func toPublicUser(u *ent.User) publicUser {
 	}
 }
 
+type siteProfile struct {
+	Title        string           `json:"title"`
+	IconURL      string           `json:"iconUrl,omitempty"`
+	PublicURL    string           `json:"publicUrl"`
+	SourceURL    string           `json:"sourceUrl"`
+	Announcement siteAnnouncement `json:"announcement"`
+}
+
+type siteAnnouncement struct {
+	Enabled   bool   `json:"enabled"`
+	Level     string `json:"level"`
+	Title     string `json:"title,omitempty"`
+	Body      string `json:"body,omitempty"`
+	LinkLabel string `json:"linkLabel,omitempty"`
+	LinkURL   string `json:"linkUrl,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
+}
+
 type appSummary struct {
 	ID                     int       `json:"id"`
 	OwnerID                int       `json:"ownerId"`

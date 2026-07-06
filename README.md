@@ -104,6 +104,7 @@ lzc-cli project release -o ../../dist/lazycat-community-appstore-client.lpk
 - App screenshots, comments, favorites, outdated marks, collaborator requests.
 - User groups and app visibility filtering.
 - Categories, tags, manual collections, recent-updated collections, most-downloaded collections.
+- Site title, icon, public source URL, and storefront announcement customization.
 - Source feed password protection, password rotation setting, GitHub mirror rewriting.
 - Source feed versions expose upstream URLs so subscribed clients can apply their own GitHub mirror.
 - Download endpoint with download-count tracking.

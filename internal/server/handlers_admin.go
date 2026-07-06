@@ -1,10 +1,10 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -321,12 +321,22 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		return
 	}
 	values := map[string]string{
-		"max_lpk_size":             strconv.FormatInt(s.cfg.MaxLPKSize, 10),
-		"max_versions":             strconv.Itoa(s.cfg.MaxVersions),
-		"require_email_verify":     strconv.FormatBool(s.cfg.RequireEmailVerify),
-		"source_password":          s.cfg.SourcePassword,
-		"source_password_rotation": strconv.Itoa(s.cfg.SourcePasswordRotation),
-		"github_mirror":            s.cfg.GitHubMirror,
+		settingMaxLPKSize:             strconv.FormatInt(s.cfg.MaxLPKSize, 10),
+		settingMaxVersions:            strconv.Itoa(s.cfg.MaxVersions),
+		settingRequireEmailVerify:     strconv.FormatBool(s.cfg.RequireEmailVerify),
+		settingSourcePassword:         s.cfg.SourcePassword,
+		settingSourcePasswordRotation: strconv.Itoa(s.cfg.SourcePasswordRotation),
+		settingGitHubMirror:           s.cfg.GitHubMirror,
+		settingSiteTitle:              s.siteProfile(r.Context()).Title,
+		settingSiteIconURL:            "",
+		settingSitePublicURL:          s.sitePublicURL(r.Context()),
+		settingAnnouncementEnabled:    "false",
+		settingAnnouncementLevel:      "info",
+		settingAnnouncementTitle:      "",
+		settingAnnouncementBody:       "",
+		settingAnnouncementLinkLabel:  "",
+		settingAnnouncementLinkURL:    "",
+		settingAnnouncementUpdatedAt:  "",
 	}
 	for _, record := range records {
 		if isPublicSetting(record.Key) {
@@ -343,10 +353,15 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request, u 
 		return
 	}
 	for key, value := range input {
+		value = strings.TrimSpace(value)
 		if err := validateSetting(key, value); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
 			return
 		}
+		input[key] = normalizeSettingValue(key, value)
+	}
+	if s.settingsChangeAnnouncement(r.Context(), input) {
+		input[settingAnnouncementUpdatedAt] = time.Now().UTC().Format(time.RFC3339)
 	}
 	for key, value := range input {
 		exists, err := s.db.SiteSetting.Query().Where(sitesetting.KeyEQ(key)).Only(r.Context())
@@ -364,29 +379,52 @@ func validateSetting(key, value string) error {
 		return fmt.Errorf("unknown setting %q", key)
 	}
 	switch key {
-	case "max_lpk_size":
+	case settingMaxLPKSize:
 		parsed, err := strconv.ParseInt(value, 10, 64)
 		if err != nil || parsed <= 0 {
 			return fmt.Errorf("%s must be a positive integer", key)
 		}
-	case "max_versions", "source_password_rotation":
+	case settingMaxVersions, settingSourcePasswordRotation:
 		parsed, err := strconv.Atoi(value)
 		if err != nil || parsed < 0 {
 			return fmt.Errorf("%s must be a non-negative integer", key)
 		}
-	case "require_email_verify":
+	case settingRequireEmailVerify, settingAnnouncementEnabled:
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("%s must be a boolean", key)
 		}
-	case "github_mirror":
-		if strings.TrimSpace(value) == "" {
-			return nil
-		}
-		parsed, err := url.Parse(value)
-		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+	case settingGitHubMirror, settingSitePublicURL, settingSiteIconURL, settingAnnouncementLinkURL:
+		if !isHTTPURLOrEmpty(value) {
 			return fmt.Errorf("%s must be an http or https URL", key)
 		}
-	case "source_password":
+	case settingAnnouncementLevel:
+		if !validAnnouncementLevel(value) {
+			return fmt.Errorf("%s must be info, warning, or success", key)
+		}
+	case settingSiteTitle:
+		if len([]rune(value)) > 80 {
+			return fmt.Errorf("%s must be 80 characters or fewer", key)
+		}
+	case settingAnnouncementTitle:
+		if len([]rune(value)) > 120 {
+			return fmt.Errorf("%s must be 120 characters or fewer", key)
+		}
+	case settingAnnouncementBody:
+		if len([]rune(value)) > 600 {
+			return fmt.Errorf("%s must be 600 characters or fewer", key)
+		}
+	case settingAnnouncementLinkLabel:
+		if len([]rune(value)) > 60 {
+			return fmt.Errorf("%s must be 60 characters or fewer", key)
+		}
+	case settingAnnouncementUpdatedAt:
+		if value == "" {
+			return nil
+		}
+		if _, err := time.Parse(time.RFC3339, value); err != nil {
+			return fmt.Errorf("%s must be an RFC3339 timestamp", key)
+		}
+	case settingSourcePassword:
 		return nil
 	}
 	return nil
@@ -394,10 +432,62 @@ func validateSetting(key, value string) error {
 
 func isPublicSetting(key string) bool {
 	switch key {
-	case "max_lpk_size", "max_versions", "require_email_verify", "source_password", "source_password_rotation", "github_mirror":
+	case settingMaxLPKSize,
+		settingMaxVersions,
+		settingRequireEmailVerify,
+		settingSourcePassword,
+		settingSourcePasswordRotation,
+		settingGitHubMirror,
+		settingSiteTitle,
+		settingSiteIconURL,
+		settingSitePublicURL,
+		settingAnnouncementEnabled,
+		settingAnnouncementLevel,
+		settingAnnouncementTitle,
+		settingAnnouncementBody,
+		settingAnnouncementLinkLabel,
+		settingAnnouncementLinkURL,
+		settingAnnouncementUpdatedAt:
 		return true
 	default:
 		return false
+	}
+}
+
+func normalizeSettingValue(key, value string) string {
+	switch key {
+	case settingGitHubMirror, settingSitePublicURL, settingSiteIconURL, settingAnnouncementLinkURL:
+		return cleanURLSetting(value)
+	default:
+		return value
+	}
+}
+
+func (s *Server) settingsChangeAnnouncement(ctx context.Context, input map[string]string) bool {
+	for key, value := range input {
+		switch key {
+		case settingAnnouncementEnabled,
+			settingAnnouncementLevel,
+			settingAnnouncementTitle,
+			settingAnnouncementBody,
+			settingAnnouncementLinkLabel,
+			settingAnnouncementLinkURL:
+			if value != s.setting(ctx, key, announcementSettingDefault(key)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func announcementSettingDefault(key string) string {
+	switch key {
+	case settingAnnouncementEnabled:
+		return "false"
+	case settingAnnouncementLevel:
+		return "info"
+	default:
+		return ""
 	}
 }
 

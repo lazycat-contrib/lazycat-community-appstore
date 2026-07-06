@@ -219,6 +219,24 @@ type SetupStatus = {
   needsSetup: boolean;
 };
 
+type SiteAnnouncement = {
+  enabled: boolean;
+  level: 'info' | 'warning' | 'success';
+  title?: string;
+  body?: string;
+  linkLabel?: string;
+  linkUrl?: string;
+  updatedAt?: string;
+};
+
+type SiteProfile = {
+  title: string;
+  iconUrl?: string;
+  publicUrl: string;
+  sourceUrl: string;
+  announcement: SiteAnnouncement;
+};
+
 type Toast = {
   tone: 'success' | 'error' | 'neutral';
   message: string;
@@ -251,6 +269,8 @@ type ClientSourceStats = {
 };
 
 const SOURCE_STALE_MS = 24 * 60 * 60 * 1000;
+const ANNOUNCEMENT_DISMISS_STORAGE_KEY = 'lazycat-appstore-dismissed-announcement';
+const ANNOUNCEMENT_NOTIFY_STORAGE_KEY = 'lazycat-appstore-notified-announcement';
 
 type SourceErrorCode = 'auth' | 'format' | 'http' | 'network';
 
@@ -358,6 +378,20 @@ function withInstallPassword(rawUrl: string, password?: string) {
 
 function shortSHA(value?: string) {
   return value ? value.slice(0, 16) : '-';
+}
+
+function stripTrailingSlash(value: string) {
+  return value.trim().replace(/\/+$/, '');
+}
+
+function defaultSiteProfile(title: string): SiteProfile {
+  const publicUrl = stripTrailingSlash(API_BASE || window.location.origin);
+  return {
+    title,
+    publicUrl,
+    sourceUrl: `${publicUrl}/source/v1/index.json`,
+    announcement: { enabled: false, level: 'info' },
+  };
 }
 
 function normalizeAppIdentity(value?: string) {
@@ -490,6 +524,14 @@ export function App() {
   const [installedError, setInstalledError] = useState('');
   const [installActivity, setInstallActivity] = useState<InstallActivity | null>(null);
   const [installPasswordRequest, setInstallPasswordRequest] = useState<InstallPasswordRequest | null>(null);
+  const [siteProfile, setSiteProfile] = useState<SiteProfile>(() => defaultSiteProfile(t('appName')));
+  const [dismissedAnnouncement, setDismissedAnnouncement] = useState(() => {
+    try {
+      return localStorage.getItem(ANNOUNCEMENT_DISMISS_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
   const [setupRequired, setSetupRequired] = useState(false);
@@ -497,9 +539,18 @@ export function App() {
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const navItems = HAS_API ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : clientTabs;
   const modeLabel = HAS_API ? t('mode.serverStore') : t('mode.standaloneClient');
+  const siteTitle = HAS_API ? siteProfile.title : t('appName');
   const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
   const drawerOpen = Boolean(selectedApp || (!HAS_API && selectedSourceApp));
   const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
+  const announcementKey =
+    siteProfile.announcement.updatedAt ||
+    `${siteProfile.announcement.level}:${siteProfile.announcement.title || ''}:${siteProfile.announcement.body || ''}`;
+  const showAnnouncement =
+    HAS_API &&
+    siteProfile.announcement.enabled &&
+    Boolean(siteProfile.announcement.title || siteProfile.announcement.body) &&
+    announcementKey !== dismissedAnnouncement;
 
   const [sources, setSources] = useState<SourceSubscription[]>([]);
 
@@ -527,8 +578,30 @@ export function App() {
 
   useEffect(() => {
     document.documentElement.lang = currentLanguage === 'en' ? 'en' : 'zh-CN';
-    document.title = t('appName');
-  }, [currentLanguage, t]);
+    document.title = siteTitle;
+  }, [currentLanguage, siteTitle]);
+
+  useEffect(() => {
+    if (!siteProfile.iconUrl) return;
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.href = siteProfile.iconUrl;
+  }, [siteProfile.iconUrl]);
+
+  useEffect(() => {
+    if (!showAnnouncement || !announcementKey) return;
+    try {
+      if (localStorage.getItem(ANNOUNCEMENT_NOTIFY_STORAGE_KEY) === announcementKey) return;
+      localStorage.setItem(ANNOUNCEMENT_NOTIFY_STORAGE_KEY, announcementKey);
+    } catch {
+      // Notification still works for this session when storage is blocked.
+    }
+    setToast({ tone: 'neutral', message: siteProfile.announcement.title || t('site.newAnnouncement') });
+  }, [announcementKey, showAnnouncement, siteProfile.announcement.title, t]);
 
   useEffect(() => {
     try {
@@ -581,12 +654,14 @@ export function App() {
         setUser(null);
         return;
       }
-      const [me, appData, categoryData, collectionData] = await Promise.allSettled([
+      const [siteData, me, appData, categoryData, collectionData] = await Promise.allSettled([
+        api<{ site: SiteProfile }>('/api/v1/site/profile'),
         api<{ user: User }>('/api/v1/auth/me'),
         api<{ apps: StoreApp[] }>('/api/v1/apps'),
         api<{ categories: Category[] }>('/api/v1/categories'),
         api<{ collections: Collection[] }>('/api/v1/collections'),
       ]);
+      if (siteData.status === 'fulfilled') setSiteProfile(siteData.value.site);
       if (me.status === 'fulfilled') setUser(me.value.user);
       if (appData.status === 'fulfilled') setApps(appData.value.apps);
       if (categoryData.status === 'fulfilled') setCategories(categoryData.value.categories);
@@ -600,6 +675,12 @@ export function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadSiteProfile() {
+    if (!HAS_API) return;
+    const data = await api<{ site: SiteProfile }>('/api/v1/site/profile');
+    setSiteProfile(data.site);
   }
 
   async function loadClientSources() {
@@ -872,10 +953,10 @@ export function App() {
       <aside className="sidebar" inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>
         <div className="brand">
           <div className="brand-mark">
-            <Archive size={22} />
+            {HAS_API && siteProfile.iconUrl ? <img src={siteProfile.iconUrl} alt="" /> : <Archive size={22} />}
           </div>
           <div>
-            <strong>{t('appName')}</strong>
+            <strong>{siteTitle}</strong>
             <span>{modeLabel}</span>
           </div>
         </div>
@@ -957,11 +1038,25 @@ export function App() {
           </div>
         ) : (
           <>
+            {showAnnouncement && (
+              <AnnouncementBanner
+                announcement={siteProfile.announcement}
+                onDismiss={() => {
+                  setDismissedAnnouncement(announcementKey);
+                  try {
+                    localStorage.setItem(ANNOUNCEMENT_DISMISS_STORAGE_KEY, announcementKey);
+                  } catch {
+                    // Dismissal still applies for this session when storage is blocked.
+                  }
+                }}
+              />
+            )}
             {tab === 'home' && (
               <HomeView
                 apps={filteredApps}
                 categories={categories}
                 collections={collections}
+                siteProfile={siteProfile}
                 onOpen={openApp}
                 onInstall={installApp}
                 onNavigate={setTab}
@@ -1029,7 +1124,7 @@ export function App() {
             )}
             {tab === 'admin' && (
               user && canReview ? (
-                <AdminPanel user={user} reviews={reviews} onApprove={approveReview} setToast={setToast} />
+                <AdminPanel user={user} reviews={reviews} onApprove={approveReview} onSiteProfileSaved={loadSiteProfile} setToast={setToast} />
               ) : (
                 <EmptyState
                   icon={ShieldCheck}
@@ -1342,10 +1437,38 @@ function SetupWizard({
   );
 }
 
+function AnnouncementBanner({ announcement, onDismiss }: { announcement: SiteAnnouncement; onDismiss?: () => void }) {
+  const { t } = useTranslation();
+  const tone = announcement.level || 'info';
+  return (
+    <section className={cx('announcement-banner', tone)} aria-live="polite">
+      <div>
+        <span className="status-badge synced">{t(`site.announcementLevels.${tone}`)}</span>
+        {announcement.title && <strong>{announcement.title}</strong>}
+        {announcement.body && <p>{announcement.body}</p>}
+      </div>
+      <div className="announcement-actions">
+        {announcement.linkUrl && (
+          <a className="secondary-button compact-button" href={announcement.linkUrl} target="_blank" rel="noreferrer">
+            <Link size={16} />
+            <span>{announcement.linkLabel || t('site.announcementLink')}</span>
+          </a>
+        )}
+        {onDismiss && (
+          <button type="button" className="icon-button" aria-label={t('site.dismissAnnouncement')} onClick={onDismiss}>
+            <X size={17} />
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function HomeView({
   apps,
   categories,
   collections,
+  siteProfile,
   onOpen,
   onInstall,
   onNavigate,
@@ -1354,6 +1477,7 @@ function HomeView({
   apps: StoreApp[];
   categories: Category[];
   collections: Collection[];
+  siteProfile: SiteProfile;
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp) => void;
   onNavigate: (tab: TabKey) => void;
@@ -1362,7 +1486,7 @@ function HomeView({
   const { t } = useTranslation();
   const latest = [...apps].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).slice(0, 6);
   const approvedCount = apps.filter((app) => app.status === 'APPROVED').length;
-  const sourceFeedURL = `${API_BASE || window.location.origin}/source/v1/index.json`;
+  const sourceFeedURL = siteProfile.sourceUrl || `${API_BASE || window.location.origin}/source/v1/index.json`;
 
   async function copySourceFeed() {
     try {
@@ -1379,7 +1503,7 @@ function HomeView({
       <div className="hero-band">
         <div>
           <span className="eyebrow">{t('home.eyebrow')}</span>
-          <h1>{t('home.title')}</h1>
+          <h1>{siteProfile.title || t('home.title')}</h1>
           <p>{t('home.body')}</p>
           <div className="hero-actions">
             <button type="button" className="primary-button" onClick={() => onNavigate('search')}>
@@ -3209,11 +3333,13 @@ function AdminPanel({
   user,
   reviews,
   onApprove,
+  onSiteProfileSaved,
   setToast,
 }: {
   user: User;
   reviews: Review[];
   onApprove: (review: Review, approve: boolean) => void;
+  onSiteProfileSaved: () => Promise<void>;
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
@@ -3237,7 +3363,30 @@ function AdminPanel({
     { value: 'RECENT_UPDATED', label: t('admin.collectionKinds.recentUpdated') },
     { value: 'MOST_DOWNLOADED', label: t('admin.collectionKinds.mostDownloaded') },
   ];
-  const settingFields = [
+  const siteIdentityFields = [
+    { key: 'site_title', label: t('admin.settings.siteTitle'), help: t('admin.settingsHelp.siteTitle') },
+    { key: 'site_icon_url', label: t('admin.settings.siteIconURL'), help: t('admin.settingsHelp.siteIconURL'), type: 'url' },
+    { key: 'site_public_url', label: t('admin.settings.sitePublicURL'), help: t('admin.settingsHelp.sitePublicURL'), type: 'url' },
+  ];
+  const announcementFields = [
+    { key: 'announcement_enabled', label: t('admin.settings.announcementEnabled'), help: t('admin.settingsHelp.announcementEnabled'), type: 'boolean' },
+    {
+      key: 'announcement_level',
+      label: t('admin.settings.announcementLevel'),
+      help: t('admin.settingsHelp.announcementLevel'),
+      type: 'select',
+      options: [
+        { value: 'info', label: t('site.announcementLevels.info') },
+        { value: 'warning', label: t('site.announcementLevels.warning') },
+        { value: 'success', label: t('site.announcementLevels.success') },
+      ],
+    },
+    { key: 'announcement_title', label: t('admin.settings.announcementTitle'), help: t('admin.settingsHelp.announcementTitle') },
+    { key: 'announcement_body', label: t('admin.settings.announcementBody'), help: t('admin.settingsHelp.announcementBody'), type: 'textarea' },
+    { key: 'announcement_link_label', label: t('admin.settings.announcementLinkLabel'), help: t('admin.settingsHelp.announcementLinkLabel') },
+    { key: 'announcement_link_url', label: t('admin.settings.announcementLinkURL'), help: t('admin.settingsHelp.announcementLinkURL'), type: 'url' },
+  ];
+  const policySettingFields = [
     { key: 'max_lpk_size', label: t('admin.settings.maxLPKSize'), help: t('admin.settingsHelp.maxLPKSize'), inputMode: 'numeric' },
     { key: 'max_versions', label: t('admin.settings.maxVersions'), help: t('admin.settingsHelp.maxVersions'), inputMode: 'numeric' },
     { key: 'source_password', label: t('admin.settings.sourcePassword'), help: t('admin.settingsHelp.sourcePassword'), type: 'password' },
@@ -3270,6 +3419,17 @@ function AdminPanel({
     : sourceProtected
       ? t('admin.opsSourceProtected')
       : t('admin.opsSourceOpen');
+  const adminPublicURL = stripTrailingSlash(settings.site_public_url || window.location.origin);
+  const adminSourceURL = adminPublicURL ? `${adminPublicURL}/source/v1/index.json` : '';
+  const announcementPreview: SiteAnnouncement = {
+    enabled: settings.announcement_enabled === 'true',
+    level: settings.announcement_level === 'warning' || settings.announcement_level === 'success' ? settings.announcement_level : 'info',
+    title: settings.announcement_title,
+    body: settings.announcement_body,
+    linkLabel: settings.announcement_link_label,
+    linkUrl: settings.announcement_link_url,
+    updatedAt: settings.announcement_updated_at,
+  };
 
   useEffect(() => {
     void reload();
@@ -3335,7 +3495,59 @@ function AdminPanel({
       await api('/api/v1/admin/settings', { method: 'PATCH', body: JSON.stringify(settings) });
       setToast({ tone: 'success', message: t('admin.settingsSaved') });
       await reload();
+      await onSiteProfileSaved();
     });
+  }
+
+  function updateSetting(key: string, value: string) {
+    setSettings((current) => ({ ...current, [key]: value }));
+  }
+
+  function renderSettingField(field: {
+    key: string;
+    label: string;
+    help: string;
+    type?: string;
+    inputMode?: string;
+    options?: Array<{ value: string; label: string }>;
+  }) {
+    return (
+      <label key={field.key}>
+        <span>{field.label}</span>
+        {field.type === 'boolean' ? (
+          <select value={settings[field.key] || 'false'} onChange={(event) => updateSetting(field.key, event.target.value)}>
+            <option value="false">{t('common.off')}</option>
+            <option value="true">{t('common.on')}</option>
+          </select>
+        ) : field.type === 'select' ? (
+          <select value={settings[field.key] || field.options?.[0]?.value || ''} onChange={(event) => updateSetting(field.key, event.target.value)}>
+            {(field.options || []).map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        ) : field.type === 'textarea' ? (
+          <textarea value={settings[field.key] || ''} onChange={(event) => updateSetting(field.key, event.target.value)} />
+        ) : (
+          <input
+            type={field.type || 'text'}
+            inputMode={field.inputMode as 'numeric' | undefined}
+            value={settings[field.key] || ''}
+            onChange={(event) => updateSetting(field.key, event.target.value)}
+          />
+        )}
+        <small className="field-help">{field.help}</small>
+      </label>
+    );
+  }
+
+  async function copyAdminSourceURL() {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error(t('home.copySourceUnsupported'));
+      await navigator.clipboard.writeText(adminSourceURL);
+      setToast({ tone: 'success', message: t('home.sourceCopied') });
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('home.copySourceFailed')) });
+    }
   }
 
   async function createCategory(event: FormEvent) {
@@ -3579,33 +3791,69 @@ function AdminPanel({
         </div>
       </section>
       {isSiteAdmin && (
-        <section className="split">
-          <form className="panel form-panel" onSubmit={saveSettings}>
+        <section className="settings-layout">
+          <form className="panel form-panel site-settings-panel" onSubmit={saveSettings}>
             <SectionTitle icon={Settings} title={t('admin.siteSettings')} />
-            {settingFields.map((field) => (
-              <label key={field.key}>
-                <span>{field.label}</span>
-                {field.type === 'boolean' ? (
-                  <select value={settings[field.key] || 'false'} onChange={(event) => setSettings({ ...settings, [field.key]: event.target.value })}>
-                    <option value="false">{t('common.off')}</option>
-                    <option value="true">{t('common.on')}</option>
-                  </select>
-                ) : (
-                  <input
-                    type={field.type || 'text'}
-                    inputMode={field.inputMode as 'numeric' | undefined}
-                    value={settings[field.key] || ''}
-                    onChange={(event) => setSettings({ ...settings, [field.key]: event.target.value })}
-                  />
-                )}
-                <small className="field-help">{field.help}</small>
-              </label>
-            ))}
+            <div className="settings-section">
+              <div className="settings-section-head">
+                <strong>{t('admin.siteIdentity')}</strong>
+                <span>{t('admin.siteIdentityBody')}</span>
+              </div>
+              <div className="settings-grid">
+                {siteIdentityFields.map(renderSettingField)}
+              </div>
+            </div>
+            <div className="settings-section">
+              <div className="settings-section-head">
+                <strong>{t('admin.announcementCenter')}</strong>
+                <span>{t('admin.announcementCenterBody')}</span>
+              </div>
+              <div className="settings-grid">
+                {announcementFields.map(renderSettingField)}
+              </div>
+            </div>
+            <div className="settings-section">
+              <div className="settings-section-head">
+                <strong>{t('admin.policySettings')}</strong>
+                <span>{t('admin.policySettingsBody')}</span>
+              </div>
+              <div className="settings-grid">
+                {policySettingFields.map(renderSettingField)}
+              </div>
+            </div>
             <button type="submit" className="primary-button">
               <Settings size={18} />
               <span>{t('admin.saveSettings')}</span>
             </button>
           </form>
+          <section className="panel site-preview-panel">
+            <SectionTitle icon={Archive} title={t('admin.sitePreview')} />
+            <div className="site-preview-brand">
+              <div className="brand-mark">
+                {settings.site_icon_url ? <img src={settings.site_icon_url} alt="" /> : <Archive size={22} />}
+              </div>
+              <div>
+                <strong>{settings.site_title || t('appName')}</strong>
+                <span>{adminPublicURL}</span>
+              </div>
+            </div>
+            <div className="source-url-preview">
+              <span>{t('admin.subscriptionURL')}</span>
+              <code>{adminSourceURL}</code>
+              <button type="button" className="secondary-button compact-button" onClick={() => void copyAdminSourceURL()}>
+                <Copy size={16} />
+                <span>{t('home.copySourceFeed')}</span>
+              </button>
+            </div>
+            {announcementPreview.enabled ? (
+              <AnnouncementBanner announcement={announcementPreview} />
+            ) : (
+              <div className="announcement-preview-empty">
+                <MessageSquare size={18} />
+                <span>{t('admin.announcementDisabled')}</span>
+              </div>
+            )}
+          </section>
           <section className="panel">
             <SectionTitle icon={Users} title={t('admin.userManagement')} />
             <div className="review-list">

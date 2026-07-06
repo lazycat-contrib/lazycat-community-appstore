@@ -120,6 +120,99 @@ func TestEmbeddedAppConfigUsesSameOriginAPI(t *testing.T) {
 	}
 }
 
+func TestPublicSiteProfileUsesSettings(t *testing.T) {
+	app := newTestApp(t)
+
+	rec := app.do(http.MethodGet, "/api/v1/site/profile", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("site profile status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"title":"LazyCat App Store"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"http://store.test/source/v1/index.json"`) {
+		t.Fatalf("default site profile body = %s", rec.Body.String())
+	}
+
+	app.login("admin", "changeme")
+	rec = app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{
+		"site_title":              "My NAS Store",
+		"site_icon_url":           "https://cdn.example.com/icon.png",
+		"site_public_url":         "https://apps.example.com/",
+		"announcement_enabled":    "true",
+		"announcement_level":      "warning",
+		"announcement_title":      "Maintenance",
+		"announcement_body":       "Downloads may be slower tonight.",
+		"announcement_link_label": "Details",
+		"announcement_link_url":   "https://status.example.com/",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("settings update status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	app.cookies = nil
+
+	rec = app.do(http.MethodGet, "/api/v1/site/profile", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("site profile status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`"title":"My NAS Store"`,
+		`"iconUrl":"https://cdn.example.com/icon.png"`,
+		`"publicUrl":"https://apps.example.com"`,
+		`"sourceUrl":"https://apps.example.com/source/v1/index.json"`,
+		`"enabled":true`,
+		`"level":"warning"`,
+		`"title":"Maintenance"`,
+		`"body":"Downloads may be slower tonight."`,
+		`"linkUrl":"https://status.example.com"`,
+		`"updatedAt":`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("site profile missing %q, body = %s", want, body)
+		}
+	}
+
+	var profile struct {
+		Site siteProfile `json:"site"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &profile); err != nil {
+		t.Fatalf("decode profile: %v", err)
+	}
+	firstAnnouncementUpdate := profile.Site.Announcement.UpdatedAt
+	if firstAnnouncementUpdate == "" {
+		t.Fatal("announcement updatedAt was not set")
+	}
+
+	app.login("admin", "changeme")
+	rec = app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{
+		"site_title":               "My NAS Store",
+		"site_icon_url":            "https://cdn.example.com/icon.png",
+		"site_public_url":          "https://apps.example.com",
+		"announcement_enabled":     "true",
+		"announcement_level":       "warning",
+		"announcement_title":       "Maintenance",
+		"announcement_body":        "Downloads may be slower tonight.",
+		"announcement_link_label":  "Details",
+		"announcement_link_url":    "https://status.example.com",
+		"announcement_updated_at":  firstAnnouncementUpdate,
+		"max_versions":             "8",
+		"max_lpk_size":             "1048576",
+		"source_password":          "",
+		"source_password_rotation": "0",
+		"github_mirror":            "",
+		"require_email_verify":     "false",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("policy-only settings update status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	app.cookies = nil
+	rec = app.do(http.MethodGet, "/api/v1/site/profile", nil)
+	if err := json.Unmarshal(rec.Body.Bytes(), &profile); err != nil {
+		t.Fatalf("decode profile after policy save: %v", err)
+	}
+	if profile.Site.Announcement.UpdatedAt != firstAnnouncementUpdate {
+		t.Fatalf("announcement timestamp changed on policy save: got %q want %q", profile.Site.Announcement.UpdatedAt, firstAnnouncementUpdate)
+	}
+}
+
 func TestServerDoesNotExposeClientInstalledEndpoint(t *testing.T) {
 	app := newTestApp(t)
 
@@ -1033,6 +1126,11 @@ func TestAdminSettingsRejectInvalidValues(t *testing.T) {
 		{"max_versions": "-1"},
 		{"max_lpk_size": "0"},
 		{"github_mirror": "ftp://mirror.example.com"},
+		{"site_public_url": "ftp://apps.example.com"},
+		{"site_icon_url": "file:///tmp/icon.png"},
+		{"announcement_link_url": "javascript:alert(1)"},
+		{"announcement_level": "danger"},
+		{"announcement_enabled": "yes"},
 	}
 	for _, body := range tests {
 		rec := app.do(http.MethodPatch, "/api/v1/admin/settings", body)
@@ -1098,6 +1196,42 @@ func TestSourceFeedExposesUpstreamDownloadURLForClientMirrors(t *testing.T) {
 	}
 	if !strings.Contains(body, fmt.Sprintf("/api/v1/apps/%d/versions/", record.ID)) {
 		t.Fatalf("source feed missing store download endpoint: %s", body)
+	}
+}
+
+func TestSourceFeedIncludesSiteProfileMetadata(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+	rec := app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{
+		"site_title":           "Source Brand",
+		"site_public_url":      "https://source.example.com",
+		"announcement_enabled": "true",
+		"announcement_level":   "info",
+		"announcement_title":   "Welcome",
+		"announcement_body":    "New apps land every Friday.",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("settings update status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	app.cookies = nil
+
+	rec = app.do(http.MethodGet, "/source/v1/index.json", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("source status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`"baseUrl":"https://source.example.com"`,
+		`"site":{"title":"Source Brand"`,
+		`"publicUrl":"https://source.example.com"`,
+		`"sourceUrl":"https://source.example.com/source/v1/index.json"`,
+		`"announcement":{"enabled":true`,
+		`"title":"Welcome"`,
+		`"body":"New apps land every Friday."`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("source feed missing %q, body = %s", want, body)
+		}
 	}
 }
 

@@ -6,10 +6,29 @@ import (
 )
 
 type Input struct {
-	BaseURL      string     `json:"baseUrl"`
-	GitHubMirror string     `json:"githubMirror,omitempty"`
-	GeneratedAt  time.Time  `json:"generatedAt"`
-	Apps         []AppInput `json:"apps"`
+	BaseURL      string           `json:"baseUrl"`
+	GitHubMirror string           `json:"githubMirror,omitempty"`
+	GeneratedAt  time.Time        `json:"generatedAt"`
+	Site         SiteMeta         `json:"site"`
+	Announcement AnnouncementMeta `json:"announcement"`
+	Apps         []AppInput       `json:"apps"`
+}
+
+type SiteMeta struct {
+	Title     string `json:"title"`
+	IconURL   string `json:"iconUrl,omitempty"`
+	PublicURL string `json:"publicUrl"`
+	SourceURL string `json:"sourceUrl"`
+}
+
+type AnnouncementMeta struct {
+	Enabled   bool   `json:"enabled"`
+	Level     string `json:"level"`
+	Title     string `json:"title,omitempty"`
+	Body      string `json:"body,omitempty"`
+	LinkLabel string `json:"linkLabel,omitempty"`
+	LinkURL   string `json:"linkUrl,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
 }
 
 type AppInput struct {
@@ -40,9 +59,12 @@ type VersionInput struct {
 }
 
 type Index struct {
-	Schema      string    `json:"schema"`
-	GeneratedAt time.Time `json:"generatedAt"`
-	Apps        []App     `json:"apps"`
+	Schema       string           `json:"schema"`
+	BaseURL      string           `json:"baseUrl"`
+	GeneratedAt  time.Time        `json:"generatedAt"`
+	Site         SiteMeta         `json:"site"`
+	Announcement AnnouncementMeta `json:"announcement"`
+	Apps         []App            `json:"apps"`
 }
 
 type App struct {
@@ -79,9 +101,18 @@ func BuildIndex(input Input) Index {
 	}
 
 	index := Index{
-		Schema:      "lazycat.appstore.source.v1",
-		GeneratedAt: generatedAt,
-		Apps:        make([]App, 0, len(input.Apps)),
+		Schema:       "lazycat.appstore.source.v1",
+		BaseURL:      strings.TrimRight(input.BaseURL, "/"),
+		GeneratedAt:  generatedAt,
+		Site:         input.Site,
+		Announcement: input.Announcement,
+		Apps:         make([]App, 0, len(input.Apps)),
+	}
+	if index.Site.PublicURL == "" {
+		index.Site.PublicURL = index.BaseURL
+	}
+	if index.Site.SourceURL == "" && index.Site.PublicURL != "" {
+		index.Site.SourceURL = strings.TrimRight(index.Site.PublicURL, "/") + "/source/v1/index.json"
 	}
 
 	for _, inApp := range input.Apps {

@@ -33,10 +33,26 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	profile := s.siteProfile(r.Context())
 	input := feed.Input{
-		BaseURL:      s.cfg.BaseURL,
+		BaseURL:      profile.PublicURL,
 		GitHubMirror: s.effectiveGitHubMirror(r.Context()),
-		Apps:         make([]feed.AppInput, 0, len(apps)),
+		Site: feed.SiteMeta{
+			Title:     profile.Title,
+			IconURL:   profile.IconURL,
+			PublicURL: profile.PublicURL,
+			SourceURL: profile.SourceURL,
+		},
+		Announcement: feed.AnnouncementMeta{
+			Enabled:   profile.Announcement.Enabled,
+			Level:     profile.Announcement.Level,
+			Title:     profile.Announcement.Title,
+			Body:      profile.Announcement.Body,
+			LinkLabel: profile.Announcement.LinkLabel,
+			LinkURL:   profile.Announcement.LinkURL,
+			UpdatedAt: profile.Announcement.UpdatedAt,
+		},
+		Apps: make([]feed.AppInput, 0, len(apps)),
 	}
 	for _, record := range apps {
 		if !s.appIsPublic(r.Context(), record.ID) {
@@ -73,7 +89,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 				Status:              string(versionRecord.Status),
 				Changelog:           versionRecord.Changelog,
 				SourceType:          string(versionRecord.SourceType),
-				DownloadURL:         s.absoluteURL(fmt.Sprintf("/api/v1/apps/%d/versions/%d/download", record.ID, versionRecord.ID)),
+				DownloadURL:         s.absoluteURL(r.Context(), fmt.Sprintf("/api/v1/apps/%d/versions/%d/download", record.ID, versionRecord.ID)),
 				UpstreamDownloadURL: versionRecord.DownloadURL,
 				SHA256:              versionRecord.Sha256,
 				Size:                versionRecord.FileSize,

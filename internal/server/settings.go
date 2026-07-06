@@ -2,10 +2,31 @@ package server
 
 import (
 	"context"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"lazycat.community/appstore/ent/sitesetting"
+)
+
+const (
+	settingMaxLPKSize             = "max_lpk_size"
+	settingMaxVersions            = "max_versions"
+	settingRequireEmailVerify     = "require_email_verify"
+	settingSourcePassword         = "source_password"
+	settingSourcePasswordRotation = "source_password_rotation"
+	settingGitHubMirror           = "github_mirror"
+	settingSiteTitle              = "site_title"
+	settingSiteIconURL            = "site_icon_url"
+	settingSitePublicURL          = "site_public_url"
+	settingAnnouncementEnabled    = "announcement_enabled"
+	settingAnnouncementLevel      = "announcement_level"
+	settingAnnouncementTitle      = "announcement_title"
+	settingAnnouncementBody       = "announcement_body"
+	settingAnnouncementLinkLabel  = "announcement_link_label"
+	settingAnnouncementLinkURL    = "announcement_link_url"
+	settingAnnouncementUpdatedAt  = "announcement_updated_at"
 )
 
 func (s *Server) setting(ctx context.Context, key, fallback string) string {
@@ -39,8 +60,8 @@ func (s *Server) setSetting(ctx context.Context, key, value string) error {
 }
 
 func (s *Server) sourcePassword(ctx context.Context) string {
-	password := s.setting(ctx, "source_password", s.cfg.SourcePassword)
-	rotationDays := s.settingInt(ctx, "source_password_rotation", s.cfg.SourcePasswordRotation)
+	password := s.setting(ctx, settingSourcePassword, s.cfg.SourcePassword)
+	rotationDays := s.settingInt(ctx, settingSourcePasswordRotation, s.cfg.SourcePasswordRotation)
 	if rotationDays <= 0 || password == "" {
 		return password
 	}
@@ -58,21 +79,21 @@ func (s *Server) sourcePassword(ctx context.Context) string {
 	if err != nil {
 		return password
 	}
-	_ = s.setSetting(ctx, "source_password", token)
+	_ = s.setSetting(ctx, settingSourcePassword, token)
 	_ = s.setSetting(ctx, "source_password_rotated_at", time.Now().UTC().Format(time.RFC3339))
 	return token
 }
 
 func (s *Server) effectiveGitHubMirror(ctx context.Context) string {
-	return s.setting(ctx, "github_mirror", s.cfg.GitHubMirror)
+	return s.setting(ctx, settingGitHubMirror, s.cfg.GitHubMirror)
 }
 
 func (s *Server) effectiveMaxVersions(ctx context.Context) int {
-	return s.settingInt(ctx, "max_versions", s.cfg.MaxVersions)
+	return s.settingInt(ctx, settingMaxVersions, s.cfg.MaxVersions)
 }
 
 func (s *Server) effectiveMaxLPKSize(ctx context.Context) int64 {
-	raw := s.setting(ctx, "max_lpk_size", "")
+	raw := s.setting(ctx, settingMaxLPKSize, "")
 	if raw == "" {
 		return s.cfg.MaxLPKSize
 	}
@@ -84,7 +105,7 @@ func (s *Server) effectiveMaxLPKSize(ctx context.Context) int64 {
 }
 
 func (s *Server) effectiveRequireEmailVerify(ctx context.Context) bool {
-	raw := s.setting(ctx, "require_email_verify", "")
+	raw := s.setting(ctx, settingRequireEmailVerify, "")
 	if raw == "" {
 		return s.cfg.RequireEmailVerify
 	}
@@ -93,4 +114,77 @@ func (s *Server) effectiveRequireEmailVerify(ctx context.Context) bool {
 		return s.cfg.RequireEmailVerify
 	}
 	return value
+}
+
+func (s *Server) siteProfile(ctx context.Context) siteProfile {
+	publicURL := s.sitePublicURL(ctx)
+	title := strings.TrimSpace(s.setting(ctx, settingSiteTitle, ""))
+	if title == "" {
+		title = "LazyCat App Store"
+	}
+	level := strings.TrimSpace(s.setting(ctx, settingAnnouncementLevel, "info"))
+	if !validAnnouncementLevel(level) {
+		level = "info"
+	}
+	announcement := siteAnnouncement{
+		Enabled:   s.settingBool(ctx, settingAnnouncementEnabled, false),
+		Level:     level,
+		Title:     strings.TrimSpace(s.setting(ctx, settingAnnouncementTitle, "")),
+		Body:      strings.TrimSpace(s.setting(ctx, settingAnnouncementBody, "")),
+		LinkLabel: strings.TrimSpace(s.setting(ctx, settingAnnouncementLinkLabel, "")),
+		LinkURL:   cleanURLSetting(s.setting(ctx, settingAnnouncementLinkURL, "")),
+		UpdatedAt: strings.TrimSpace(s.setting(ctx, settingAnnouncementUpdatedAt, "")),
+	}
+	return siteProfile{
+		Title:        title,
+		IconURL:      cleanURLSetting(s.setting(ctx, settingSiteIconURL, "")),
+		PublicURL:    publicURL,
+		SourceURL:    publicURL + "/source/v1/index.json",
+		Announcement: announcement,
+	}
+}
+
+func (s *Server) sitePublicURL(ctx context.Context) string {
+	value := cleanURLSetting(s.setting(ctx, settingSitePublicURL, ""))
+	if value != "" {
+		return value
+	}
+	if s.cfg.SitePublicURL != "" {
+		return cleanURLSetting(s.cfg.SitePublicURL)
+	}
+	return cleanURLSetting(s.cfg.BaseURL)
+}
+
+func (s *Server) settingBool(ctx context.Context, key string, fallback bool) bool {
+	raw := strings.TrimSpace(s.setting(ctx, key, ""))
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
+func cleanURLSetting(value string) string {
+	return strings.TrimRight(strings.TrimSpace(value), "/")
+}
+
+func isHTTPURLOrEmpty(value string) bool {
+	value = cleanURLSetting(value)
+	if value == "" {
+		return true
+	}
+	parsed, err := url.Parse(value)
+	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
+}
+
+func validAnnouncementLevel(value string) bool {
+	switch value {
+	case "info", "warning", "success":
+		return true
+	default:
+		return false
+	}
 }

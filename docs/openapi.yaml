@@ -146,6 +146,23 @@ paths:
         "422":
           $ref: "#/components/responses/Error"
 
+  /api/v1/site/profile:
+    get:
+      tags: [Site]
+      summary: Public site identity and announcement profile
+      security: []
+      responses:
+        "200":
+          description: Site profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [site]
+                properties:
+                  site:
+                    $ref: "#/components/schemas/SiteProfile"
+
   /api/v1/auth/me:
     get:
       tags: [Auth]
@@ -928,7 +945,11 @@ paths:
             type: string
       responses:
         "200":
-          description: Source index with public approved apps.
+          description: Source index with public approved apps and site metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceIndex"
         "401":
           $ref: "#/components/responses/Error"
 
@@ -1075,6 +1096,146 @@ components:
       properties:
         needsSetup:
           type: boolean
+
+    SiteAnnouncement:
+      type: object
+      required: [enabled, level]
+      properties:
+        enabled:
+          type: boolean
+        level:
+          type: string
+          enum: [info, warning, success]
+        title:
+          type: string
+        body:
+          type: string
+        linkLabel:
+          type: string
+        linkUrl:
+          type: string
+          format: uri
+        updatedAt:
+          type: string
+          format: date-time
+
+    SiteProfile:
+      type: object
+      required: [title, publicUrl, sourceUrl, announcement]
+      properties:
+        title:
+          type: string
+        iconUrl:
+          type: string
+          format: uri
+        publicUrl:
+          type: string
+          format: uri
+        sourceUrl:
+          type: string
+          format: uri
+        announcement:
+          $ref: "#/components/schemas/SiteAnnouncement"
+
+    SourceIndex:
+      type: object
+      required: [schema, baseUrl, generatedAt, site, announcement, apps]
+      properties:
+        schema:
+          type: string
+          example: lazycat.appstore.source.v1
+        baseUrl:
+          type: string
+          format: uri
+        generatedAt:
+          type: string
+          format: date-time
+        site:
+          $ref: "#/components/schemas/SourceSite"
+        announcement:
+          $ref: "#/components/schemas/SiteAnnouncement"
+        apps:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceApp"
+
+    SourceApp:
+      type: object
+      required: [id, name, slug, summary, description, installProtected, updatedAt, latestVersion, versions]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        iconUrl:
+          type: string
+          format: uri
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        submitter:
+          type: string
+        installProtected:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+        latestVersion:
+          $ref: "#/components/schemas/SourceVersion"
+        versions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceVersion"
+
+    SourceSite:
+      type: object
+      required: [title, publicUrl, sourceUrl]
+      properties:
+        title:
+          type: string
+        iconUrl:
+          type: string
+          format: uri
+        publicUrl:
+          type: string
+          format: uri
+        sourceUrl:
+          type: string
+          format: uri
+
+    SourceVersion:
+      type: object
+      required: [version, downloadUrl, sha256, size, publishedAt]
+      properties:
+        version:
+          type: string
+        changelog:
+          type: string
+        sourceType:
+          type: string
+        downloadUrl:
+          type: string
+          format: uri
+        upstreamDownloadUrl:
+          type: string
+          format: uri
+        sha256:
+          type: string
+        size:
+          type: integer
+          format: int64
+        publishedAt:
+          type: string
+          format: date-time
 
     SetupRequest:
       type: object

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -507,7 +508,7 @@ func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *e
 		SetChangelog(changelog).
 		SetStatus(status).
 		SetSourceType(appversion.SourceTypeLOCAL).
-		SetDownloadURL(s.absoluteURL(obj.DownloadURL)).
+		SetDownloadURL(s.absoluteURL(r.Context(), obj.DownloadURL)).
 		SetStoragePath(obj.Path).
 		SetFileSize(obj.Size).
 		SetSha256(obj.SHA256)
@@ -777,7 +778,7 @@ func (s *Server) handleUploadScreenshot(w http.ResponseWriter, r *http.Request, 
 	created, err := s.db.AppScreenshot.Create().
 		SetAppID(appID).
 		SetUploaderID(u.ID).
-		SetImageURL(s.absoluteURL(obj.DownloadURL)).
+		SetImageURL(s.absoluteURL(r.Context(), obj.DownloadURL)).
 		SetStoragePath(obj.Path).
 		SetCaption(r.FormValue("caption")).
 		SetSortOrder(count).
@@ -955,11 +956,11 @@ func (s *Server) loadComments(r *http.Request, appID int) ([]comment, error) {
 	return out, nil
 }
 
-func (s *Server) absoluteURL(path string) string {
+func (s *Server) absoluteURL(ctx context.Context, path string) string {
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 		return path
 	}
-	return strings.TrimRight(s.cfg.BaseURL, "/") + "/" + strings.TrimLeft(path, "/")
+	return strings.TrimRight(s.sitePublicURL(ctx), "/") + "/" + strings.TrimLeft(path, "/")
 }
 
 func splitCSV(value string) []string {
