@@ -20,6 +20,7 @@ import (
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
 	"lazycat.community/appstore/ent/clientinstallhistory"
+	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/collaborator"
@@ -27,6 +28,7 @@ import (
 	"lazycat.community/appstore/ent/collection"
 	"lazycat.community/appstore/ent/collectionapp"
 	"lazycat.community/appstore/ent/comment"
+	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/outdatedmark"
@@ -103,6 +105,7 @@ func checkColumn(t, c string) error {
 			appvisibility.Table:        appvisibility.ValidColumn,
 			category.Table:             category.ValidColumn,
 			clientinstallhistory.Table: clientinstallhistory.ValidColumn,
+			clientsetting.Table:        clientsetting.ValidColumn,
 			clientsource.Table:         clientsource.ValidColumn,
 			clientsourceapp.Table:      clientsourceapp.ValidColumn,
 			collaborator.Table:         collaborator.ValidColumn,
@@ -110,6 +113,7 @@ func checkColumn(t, c string) error {
 			collection.Table:           collection.ValidColumn,
 			collectionapp.Table:        collectionapp.ValidColumn,
 			comment.Table:              comment.ValidColumn,
+			commentnotification.Table:  commentnotification.ValidColumn,
 			favorite.Table:             favorite.ValidColumn,
 			groupmember.Table:          groupmember.ValidColumn,
 			outdatedmark.Table:         outdatedmark.ValidColumn,

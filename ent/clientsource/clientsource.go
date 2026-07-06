@@ -23,8 +23,12 @@ const (
 	FieldURL = "url"
 	// FieldPassword holds the string denoting the password field in the database.
 	FieldPassword = "password"
-	// FieldMirror holds the string denoting the mirror field in the database.
-	FieldMirror = "mirror"
+	// FieldDefaultDownloadMirrorID holds the string denoting the default_download_mirror_id field in the database.
+	FieldDefaultDownloadMirrorID = "default_download_mirror_id"
+	// FieldDefaultRawMirrorID holds the string denoting the default_raw_mirror_id field in the database.
+	FieldDefaultRawMirrorID = "default_raw_mirror_id"
+	// FieldMirrorsJSON holds the string denoting the mirrors_json field in the database.
+	FieldMirrorsJSON = "mirrors_json"
 	// FieldLastSync holds the string denoting the last_sync field in the database.
 	FieldLastSync = "last_sync"
 	// FieldLastError holds the string denoting the last_error field in the database.
@@ -59,7 +63,9 @@ var Columns = []string{
 	FieldName,
 	FieldURL,
 	FieldPassword,
-	FieldMirror,
+	FieldDefaultDownloadMirrorID,
+	FieldDefaultRawMirrorID,
+	FieldMirrorsJSON,
 	FieldLastSync,
 	FieldLastError,
 	FieldLastErrorCode,
@@ -88,8 +94,12 @@ var (
 	URLValidator func(string) error
 	// DefaultPassword holds the default value on creation for the "password" field.
 	DefaultPassword string
-	// DefaultMirror holds the default value on creation for the "mirror" field.
-	DefaultMirror string
+	// DefaultDefaultDownloadMirrorID holds the default value on creation for the "default_download_mirror_id" field.
+	DefaultDefaultDownloadMirrorID string
+	// DefaultDefaultRawMirrorID holds the default value on creation for the "default_raw_mirror_id" field.
+	DefaultDefaultRawMirrorID string
+	// DefaultMirrorsJSON holds the default value on creation for the "mirrors_json" field.
+	DefaultMirrorsJSON string
 	// DefaultLastAppCount holds the default value on creation for the "last_app_count" field.
 	DefaultLastAppCount int
 	// DefaultLastInstallableCount holds the default value on creation for the "last_installable_count" field.
@@ -155,9 +165,19 @@ func ByPassword(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPassword, opts...).ToFunc()
 }
 
-// ByMirror orders the results by the mirror field.
-func ByMirror(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldMirror, opts...).ToFunc()
+// ByDefaultDownloadMirrorID orders the results by the default_download_mirror_id field.
+func ByDefaultDownloadMirrorID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDefaultDownloadMirrorID, opts...).ToFunc()
+}
+
+// ByDefaultRawMirrorID orders the results by the default_raw_mirror_id field.
+func ByDefaultRawMirrorID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDefaultRawMirrorID, opts...).ToFunc()
+}
+
+// ByMirrorsJSON orders the results by the mirrors_json field.
+func ByMirrorsJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMirrorsJSON, opts...).ToFunc()
 }
 
 // ByLastSync orders the results by the last_sync field.

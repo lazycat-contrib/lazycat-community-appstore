@@ -25,6 +25,7 @@ func (App) Fields() []ent.Field {
 		field.Enum("status").Values("DRAFT", "PENDING", "APPROVED", "REJECTED", "UNLISTED").Default("PENDING"),
 		field.Bool("allow_unreviewed_updates").Default(false),
 		field.Bool("comments_enabled").Default(true),
+		field.Bool("email_notifications_enabled").Default(true),
 		field.String("install_password_hash").Default(""),
 		field.Int("download_count").Default(0),
 		field.Time("created_at").Default(time.Now),

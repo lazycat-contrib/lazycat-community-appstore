@@ -14,6 +14,7 @@ import (
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
+	"lazycat.community/appstore/internal/mirror"
 )
 
 type sourceSyncError struct {
@@ -37,6 +38,11 @@ type feedApp struct {
 	InstallProtected bool         `json:"installProtected"`
 	LatestVersion    *VersionDTO  `json:"latestVersion"`
 	Versions         []VersionDTO `json:"versions"`
+}
+
+type feedIndex struct {
+	GitHubMirrors []mirror.Entry  `json:"githubMirrors"`
+	Apps          json.RawMessage `json:"apps"`
 }
 
 func (s *Server) handleSyncSource(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +91,7 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 		}
 		return SourceDTO{}, err
 	}
-	apps, err := s.fetchSourceApps(ctx, source)
+	apps, mirrors, err := s.fetchSourceApps(ctx, source)
 	if err != nil {
 		var syncErr sourceSyncError
 		if !errors.As(err, &syncErr) {
@@ -152,12 +158,36 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 		}
 	}
 	now := time.Now()
+	mirrorsJSON := ""
+	if len(mirrors) > 0 {
+		encoded, err := json.Marshal(mirrors)
+		if err != nil {
+			_ = tx.Rollback()
+			return SourceDTO{}, err
+		}
+		mirrorsJSON = string(encoded)
+	}
+	defaultDownloadMirrorID := source.DefaultDownloadMirrorID
+	if defaultDownloadMirrorID != "" {
+		if entry, ok := mirror.Find(mirrors, defaultDownloadMirrorID); !ok || entry.Kind != mirror.KindDownload {
+			defaultDownloadMirrorID = ""
+		}
+	}
+	defaultRawMirrorID := source.DefaultRawMirrorID
+	if defaultRawMirrorID != "" {
+		if entry, ok := mirror.Find(mirrors, defaultRawMirrorID); !ok || entry.Kind != mirror.KindRaw {
+			defaultRawMirrorID = ""
+		}
+	}
 	updated, err := tx.ClientSource.UpdateOneID(source.ID).
 		SetLastSync(now).
 		ClearLastError().
 		ClearLastErrorCode().
 		SetLastAppCount(len(apps)).
 		SetLastInstallableCount(installableCount).
+		SetMirrorsJSON(mirrorsJSON).
+		SetDefaultDownloadMirrorID(defaultDownloadMirrorID).
+		SetDefaultRawMirrorID(defaultRawMirrorID).
 		Save(ctx)
 	if err != nil {
 		_ = tx.Rollback()
@@ -169,7 +199,7 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 	return sourceDTO(updated), nil
 }
 
-func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) ([]feedApp, error) {
+func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) ([]feedApp, []mirror.Entry, error) {
 	timeout := s.cfg.SyncTimeout
 	if timeout == 0 {
 		timeout = 20 * time.Second
@@ -178,7 +208,7 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	defer cancel()
 	feedURL, err := url.Parse(source.URL)
 	if err != nil {
-		return nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Invalid source URL"}
+		return nil, nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Invalid source URL"}
 	}
 	if source.Password != "" {
 		q := feedURL.Query()
@@ -187,34 +217,36 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL.String(), nil)
 	if err != nil {
-		return nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Invalid source URL"}
+		return nil, nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Invalid source URL"}
 	}
 	if source.Password != "" {
 		req.Header.Set("X-Source-Password", source.Password)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, sourceSyncError{code: "network", status: http.StatusBadGateway, message: "Could not reach source"}
+		return nil, nil, sourceSyncError{code: "network", status: http.StatusBadGateway, message: "Could not reach source"}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, sourceSyncError{code: "auth", status: http.StatusUnauthorized, message: "Source password is invalid"}
+		return nil, nil, sourceSyncError{code: "auth", status: http.StatusUnauthorized, message: "Source password is invalid"}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, sourceSyncError{code: "http", status: http.StatusBadGateway, message: fmt.Sprintf("Source returned HTTP %d", resp.StatusCode)}
+		return nil, nil, sourceSyncError{code: "http", status: http.StatusBadGateway, message: fmt.Sprintf("Source returned HTTP %d", resp.StatusCode)}
 	}
-	var root struct {
-		Apps json.RawMessage `json:"apps"`
-	}
+	var root feedIndex
 	if err := json.NewDecoder(resp.Body).Decode(&root); err != nil {
-		return nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed is not valid JSON"}
+		return nil, nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed is not valid JSON"}
 	}
 	if len(root.Apps) == 0 || strings.TrimSpace(string(root.Apps)) == "null" {
-		return nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed apps must be an array"}
+		return nil, nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed apps must be an array"}
+	}
+	mirrors, err := normalizeFeedMirrors(root.GitHubMirrors)
+	if err != nil {
+		return nil, nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: err.Error()}
 	}
 	var apps []feedApp
 	if err := json.Unmarshal(root.Apps, &apps); err != nil {
-		return nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed apps must be an array"}
+		return nil, nil, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed apps must be an array"}
 	}
 	out := make([]feedApp, 0, len(apps))
 	for _, app := range apps {
@@ -225,26 +257,33 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 		if app.PackageID == "" || app.Name == "" || app.Slug == "" {
 			continue
 		}
-		if app.LatestVersion != nil {
-			app.LatestVersion.DownloadURL = mirroredDownloadURL(source, app.LatestVersion, app.InstallProtected)
-		}
-		for i := range app.Versions {
-			app.Versions[i].DownloadURL = mirroredDownloadURL(source, &app.Versions[i], app.InstallProtected)
-		}
 		out = append(out, app)
 	}
-	return out, nil
+	return out, mirrors, nil
 }
 
-func mirroredDownloadURL(source *ent.ClientSource, version *VersionDTO, installProtected bool) string {
-	upstream := strings.TrimSpace(version.UpstreamDownloadURL)
-	direct := strings.TrimSpace(version.DownloadURL)
-	githubURL := upstream
-	if githubURL == "" {
-		githubURL = direct
+func normalizeFeedMirrors(input []mirror.Entry) ([]mirror.Entry, error) {
+	if len(input) == 0 {
+		return nil, nil
 	}
-	if !installProtected && source.Mirror != "" && (strings.Contains(githubURL, "github.com/") || strings.Contains(githubURL, "githubusercontent.com/")) {
-		return strings.TrimRight(source.Mirror, "/") + "/" + githubURL
+	linesByKind := map[string][]string{}
+	for _, entry := range input {
+		kind := mirror.CleanKind(entry.Kind)
+		if kind == "" {
+			return nil, fmt.Errorf("Source feed mirror %q has an invalid kind", strings.TrimSpace(entry.Name))
+		}
+		linesByKind[kind] = append(linesByKind[kind], strings.TrimSpace(entry.Name)+"=>"+strings.TrimSpace(entry.URL))
 	}
-	return direct
+	out := []mirror.Entry{}
+	for _, kind := range []string{mirror.KindDownload, mirror.KindRaw} {
+		if len(linesByKind[kind]) == 0 {
+			continue
+		}
+		entries, err := mirror.Parse(strings.Join(linesByKind[kind], "\n"), kind)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, entries...)
+	}
+	return out, nil
 }

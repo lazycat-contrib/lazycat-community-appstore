@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"lazycat.community/appstore/ent/sitesetting"
+	"lazycat.community/appstore/internal/mirror"
 )
 
 const (
@@ -16,7 +17,8 @@ const (
 	settingRequireEmailVerify     = "require_email_verify"
 	settingSourcePassword         = "source_password"
 	settingSourcePasswordRotation = "source_password_rotation"
-	settingGitHubMirror           = "github_mirror"
+	settingGitHubDownloadMirrors  = "github_download_mirrors"
+	settingGitHubRawMirrors       = "github_raw_mirrors"
 	settingSiteTitle              = "site_title"
 	settingSiteIconURL            = "site_icon_url"
 	settingSitePublicURL          = "site_public_url"
@@ -27,6 +29,11 @@ const (
 	settingAnnouncementLinkLabel  = "announcement_link_label"
 	settingAnnouncementLinkURL    = "announcement_link_url"
 	settingAnnouncementUpdatedAt  = "announcement_updated_at"
+	settingSMTPHost               = "smtp_host"
+	settingSMTPPort               = "smtp_port"
+	settingSMTPUser               = "smtp_user"
+	settingSMTPPass               = "smtp_pass"
+	settingSMTPFrom               = "smtp_from"
 )
 
 func (s *Server) setting(ctx context.Context, key, fallback string) string {
@@ -84,8 +91,10 @@ func (s *Server) sourcePassword(ctx context.Context) string {
 	return token
 }
 
-func (s *Server) effectiveGitHubMirror(ctx context.Context) string {
-	return s.setting(ctx, settingGitHubMirror, s.cfg.GitHubMirror)
+func (s *Server) effectiveGitHubMirrors(ctx context.Context) []mirror.Entry {
+	download, _ := mirror.Parse(s.setting(ctx, settingGitHubDownloadMirrors, s.cfg.GitHubDownloadMirrors), mirror.KindDownload)
+	raw, _ := mirror.Parse(s.setting(ctx, settingGitHubRawMirrors, s.cfg.GitHubRawMirrors), mirror.KindRaw)
+	return append(download, raw...)
 }
 
 func (s *Server) effectiveMaxVersions(ctx context.Context) int {
@@ -120,7 +129,7 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 	publicURL := s.sitePublicURL(ctx)
 	title := strings.TrimSpace(s.setting(ctx, settingSiteTitle, ""))
 	if title == "" {
-		title = "LazyCat App Store"
+		title = "懒猫私有商店服务端"
 	}
 	level := strings.TrimSpace(s.setting(ctx, settingAnnouncementLevel, "info"))
 	if !validAnnouncementLevel(level) {

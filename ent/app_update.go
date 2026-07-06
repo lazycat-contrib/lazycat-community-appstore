@@ -208,6 +208,20 @@ func (_u *AppUpdate) SetNillableCommentsEnabled(v *bool) *AppUpdate {
 	return _u
 }
 
+// SetEmailNotificationsEnabled sets the "email_notifications_enabled" field.
+func (_u *AppUpdate) SetEmailNotificationsEnabled(v bool) *AppUpdate {
+	_u.mutation.SetEmailNotificationsEnabled(v)
+	return _u
+}
+
+// SetNillableEmailNotificationsEnabled sets the "email_notifications_enabled" field if the given value is not nil.
+func (_u *AppUpdate) SetNillableEmailNotificationsEnabled(v *bool) *AppUpdate {
+	if v != nil {
+		_u.SetEmailNotificationsEnabled(*v)
+	}
+	return _u
+}
+
 // SetInstallPasswordHash sets the "install_password_hash" field.
 func (_u *AppUpdate) SetInstallPasswordHash(v string) *AppUpdate {
 	_u.mutation.SetInstallPasswordHash(v)
@@ -385,6 +399,9 @@ func (_u *AppUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.CommentsEnabled(); ok {
 		_spec.SetField(app.FieldCommentsEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.EmailNotificationsEnabled(); ok {
+		_spec.SetField(app.FieldEmailNotificationsEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.InstallPasswordHash(); ok {
 		_spec.SetField(app.FieldInstallPasswordHash, field.TypeString, value)
@@ -601,6 +618,20 @@ func (_u *AppUpdateOne) SetNillableCommentsEnabled(v *bool) *AppUpdateOne {
 	return _u
 }
 
+// SetEmailNotificationsEnabled sets the "email_notifications_enabled" field.
+func (_u *AppUpdateOne) SetEmailNotificationsEnabled(v bool) *AppUpdateOne {
+	_u.mutation.SetEmailNotificationsEnabled(v)
+	return _u
+}
+
+// SetNillableEmailNotificationsEnabled sets the "email_notifications_enabled" field if the given value is not nil.
+func (_u *AppUpdateOne) SetNillableEmailNotificationsEnabled(v *bool) *AppUpdateOne {
+	if v != nil {
+		_u.SetEmailNotificationsEnabled(*v)
+	}
+	return _u
+}
+
 // SetInstallPasswordHash sets the "install_password_hash" field.
 func (_u *AppUpdateOne) SetInstallPasswordHash(v string) *AppUpdateOne {
 	_u.mutation.SetInstallPasswordHash(v)
@@ -808,6 +839,9 @@ func (_u *AppUpdateOne) sqlSave(ctx context.Context) (_node *App, err error) {
 	}
 	if value, ok := _u.mutation.CommentsEnabled(); ok {
 		_spec.SetField(app.FieldCommentsEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.EmailNotificationsEnabled(); ok {
+		_spec.SetField(app.FieldEmailNotificationsEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.InstallPasswordHash(); ok {
 		_spec.SetField(app.FieldInstallPasswordHash, field.TypeString, value)

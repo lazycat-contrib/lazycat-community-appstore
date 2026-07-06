@@ -126,6 +126,7 @@ func sourceAppDTO(app *ent.ClientSourceApp) (SourceAppDTO, error) {
 		ID:               app.ID,
 		SourceID:         app.SourceID,
 		SourceName:       sourceName,
+		ExternalID:       app.ExternalID,
 		PackageID:        app.PackageID,
 		Name:             app.Name,
 		Slug:             app.Slug,

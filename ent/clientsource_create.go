@@ -53,16 +53,44 @@ func (_c *ClientSourceCreate) SetNillablePassword(v *string) *ClientSourceCreate
 	return _c
 }
 
-// SetMirror sets the "mirror" field.
-func (_c *ClientSourceCreate) SetMirror(v string) *ClientSourceCreate {
-	_c.mutation.SetMirror(v)
+// SetDefaultDownloadMirrorID sets the "default_download_mirror_id" field.
+func (_c *ClientSourceCreate) SetDefaultDownloadMirrorID(v string) *ClientSourceCreate {
+	_c.mutation.SetDefaultDownloadMirrorID(v)
 	return _c
 }
 
-// SetNillableMirror sets the "mirror" field if the given value is not nil.
-func (_c *ClientSourceCreate) SetNillableMirror(v *string) *ClientSourceCreate {
+// SetNillableDefaultDownloadMirrorID sets the "default_download_mirror_id" field if the given value is not nil.
+func (_c *ClientSourceCreate) SetNillableDefaultDownloadMirrorID(v *string) *ClientSourceCreate {
 	if v != nil {
-		_c.SetMirror(*v)
+		_c.SetDefaultDownloadMirrorID(*v)
+	}
+	return _c
+}
+
+// SetDefaultRawMirrorID sets the "default_raw_mirror_id" field.
+func (_c *ClientSourceCreate) SetDefaultRawMirrorID(v string) *ClientSourceCreate {
+	_c.mutation.SetDefaultRawMirrorID(v)
+	return _c
+}
+
+// SetNillableDefaultRawMirrorID sets the "default_raw_mirror_id" field if the given value is not nil.
+func (_c *ClientSourceCreate) SetNillableDefaultRawMirrorID(v *string) *ClientSourceCreate {
+	if v != nil {
+		_c.SetDefaultRawMirrorID(*v)
+	}
+	return _c
+}
+
+// SetMirrorsJSON sets the "mirrors_json" field.
+func (_c *ClientSourceCreate) SetMirrorsJSON(v string) *ClientSourceCreate {
+	_c.mutation.SetMirrorsJSON(v)
+	return _c
+}
+
+// SetNillableMirrorsJSON sets the "mirrors_json" field if the given value is not nil.
+func (_c *ClientSourceCreate) SetNillableMirrorsJSON(v *string) *ClientSourceCreate {
+	if v != nil {
+		_c.SetMirrorsJSON(*v)
 	}
 	return _c
 }
@@ -219,9 +247,17 @@ func (_c *ClientSourceCreate) defaults() {
 		v := clientsource.DefaultPassword
 		_c.mutation.SetPassword(v)
 	}
-	if _, ok := _c.mutation.Mirror(); !ok {
-		v := clientsource.DefaultMirror
-		_c.mutation.SetMirror(v)
+	if _, ok := _c.mutation.DefaultDownloadMirrorID(); !ok {
+		v := clientsource.DefaultDefaultDownloadMirrorID
+		_c.mutation.SetDefaultDownloadMirrorID(v)
+	}
+	if _, ok := _c.mutation.DefaultRawMirrorID(); !ok {
+		v := clientsource.DefaultDefaultRawMirrorID
+		_c.mutation.SetDefaultRawMirrorID(v)
+	}
+	if _, ok := _c.mutation.MirrorsJSON(); !ok {
+		v := clientsource.DefaultMirrorsJSON
+		_c.mutation.SetMirrorsJSON(v)
 	}
 	if _, ok := _c.mutation.LastAppCount(); !ok {
 		v := clientsource.DefaultLastAppCount
@@ -270,8 +306,14 @@ func (_c *ClientSourceCreate) check() error {
 	if _, ok := _c.mutation.Password(); !ok {
 		return &ValidationError{Name: "password", err: errors.New(`ent: missing required field "ClientSource.password"`)}
 	}
-	if _, ok := _c.mutation.Mirror(); !ok {
-		return &ValidationError{Name: "mirror", err: errors.New(`ent: missing required field "ClientSource.mirror"`)}
+	if _, ok := _c.mutation.DefaultDownloadMirrorID(); !ok {
+		return &ValidationError{Name: "default_download_mirror_id", err: errors.New(`ent: missing required field "ClientSource.default_download_mirror_id"`)}
+	}
+	if _, ok := _c.mutation.DefaultRawMirrorID(); !ok {
+		return &ValidationError{Name: "default_raw_mirror_id", err: errors.New(`ent: missing required field "ClientSource.default_raw_mirror_id"`)}
+	}
+	if _, ok := _c.mutation.MirrorsJSON(); !ok {
+		return &ValidationError{Name: "mirrors_json", err: errors.New(`ent: missing required field "ClientSource.mirrors_json"`)}
 	}
 	if v, ok := _c.mutation.LastErrorCode(); ok {
 		if err := clientsource.LastErrorCodeValidator(v); err != nil {
@@ -332,9 +374,17 @@ func (_c *ClientSourceCreate) createSpec() (*ClientSource, *sqlgraph.CreateSpec)
 		_spec.SetField(clientsource.FieldPassword, field.TypeString, value)
 		_node.Password = value
 	}
-	if value, ok := _c.mutation.Mirror(); ok {
-		_spec.SetField(clientsource.FieldMirror, field.TypeString, value)
-		_node.Mirror = value
+	if value, ok := _c.mutation.DefaultDownloadMirrorID(); ok {
+		_spec.SetField(clientsource.FieldDefaultDownloadMirrorID, field.TypeString, value)
+		_node.DefaultDownloadMirrorID = value
+	}
+	if value, ok := _c.mutation.DefaultRawMirrorID(); ok {
+		_spec.SetField(clientsource.FieldDefaultRawMirrorID, field.TypeString, value)
+		_node.DefaultRawMirrorID = value
+	}
+	if value, ok := _c.mutation.MirrorsJSON(); ok {
+		_spec.SetField(clientsource.FieldMirrorsJSON, field.TypeString, value)
+		_node.MirrorsJSON = value
 	}
 	if value, ok := _c.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)

@@ -142,6 +142,20 @@ func (_c *AppCreate) SetNillableCommentsEnabled(v *bool) *AppCreate {
 	return _c
 }
 
+// SetEmailNotificationsEnabled sets the "email_notifications_enabled" field.
+func (_c *AppCreate) SetEmailNotificationsEnabled(v bool) *AppCreate {
+	_c.mutation.SetEmailNotificationsEnabled(v)
+	return _c
+}
+
+// SetNillableEmailNotificationsEnabled sets the "email_notifications_enabled" field if the given value is not nil.
+func (_c *AppCreate) SetNillableEmailNotificationsEnabled(v *bool) *AppCreate {
+	if v != nil {
+		_c.SetEmailNotificationsEnabled(*v)
+	}
+	return _c
+}
+
 // SetInstallPasswordHash sets the "install_password_hash" field.
 func (_c *AppCreate) SetInstallPasswordHash(v string) *AppCreate {
 	_c.mutation.SetInstallPasswordHash(v)
@@ -253,6 +267,10 @@ func (_c *AppCreate) defaults() {
 		v := app.DefaultCommentsEnabled
 		_c.mutation.SetCommentsEnabled(v)
 	}
+	if _, ok := _c.mutation.EmailNotificationsEnabled(); !ok {
+		v := app.DefaultEmailNotificationsEnabled
+		_c.mutation.SetEmailNotificationsEnabled(v)
+	}
 	if _, ok := _c.mutation.InstallPasswordHash(); !ok {
 		v := app.DefaultInstallPasswordHash
 		_c.mutation.SetInstallPasswordHash(v)
@@ -319,6 +337,9 @@ func (_c *AppCreate) check() error {
 	}
 	if _, ok := _c.mutation.CommentsEnabled(); !ok {
 		return &ValidationError{Name: "comments_enabled", err: errors.New(`ent: missing required field "App.comments_enabled"`)}
+	}
+	if _, ok := _c.mutation.EmailNotificationsEnabled(); !ok {
+		return &ValidationError{Name: "email_notifications_enabled", err: errors.New(`ent: missing required field "App.email_notifications_enabled"`)}
 	}
 	if _, ok := _c.mutation.InstallPasswordHash(); !ok {
 		return &ValidationError{Name: "install_password_hash", err: errors.New(`ent: missing required field "App.install_password_hash"`)}
@@ -401,6 +422,10 @@ func (_c *AppCreate) createSpec() (*App, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CommentsEnabled(); ok {
 		_spec.SetField(app.FieldCommentsEnabled, field.TypeBool, value)
 		_node.CommentsEnabled = value
+	}
+	if value, ok := _c.mutation.EmailNotificationsEnabled(); ok {
+		_spec.SetField(app.FieldEmailNotificationsEnabled, field.TypeBool, value)
+		_node.EmailNotificationsEnabled = value
 	}
 	if value, ok := _c.mutation.InstallPasswordHash(); ok {
 		_spec.SetField(app.FieldInstallPasswordHash, field.TypeString, value)

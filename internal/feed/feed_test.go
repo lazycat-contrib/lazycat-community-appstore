@@ -1,11 +1,17 @@
 package feed
 
-import "testing"
+import (
+	"testing"
 
-func TestBuildIndexUsesLatestApprovedVersionAndMirror(t *testing.T) {
+	"lazycat.community/appstore/internal/mirror"
+)
+
+func TestBuildIndexUsesLatestApprovedVersionAndPublishesMirrors(t *testing.T) {
 	index := BuildIndex(Input{
-		BaseURL:      "https://store.example.com",
-		GitHubMirror: "https://mirror.example.com/",
+		BaseURL: "https://store.example.com",
+		GitHubMirrors: []mirror.Entry{
+			{ID: mirror.ID(mirror.KindDownload, "https://mirror.example.com/https://github.com"), Kind: mirror.KindDownload, Name: "Fast", URL: "https://mirror.example.com/https://github.com"},
+		},
 		Apps: []AppInput{
 			{
 				ID:          1,
@@ -30,7 +36,10 @@ func TestBuildIndexUsesLatestApprovedVersionAndMirror(t *testing.T) {
 	if app.LatestVersion.Version != "1.0.0" {
 		t.Fatalf("latest version = %q, want 1.0.0", app.LatestVersion.Version)
 	}
-	if app.LatestVersion.DownloadURL != "https://mirror.example.com/https://github.com/acme/demo/releases/download/v1/demo.lpk" {
+	if len(index.GitHubMirrors) != 1 || index.GitHubMirrors[0].Name != "Fast" {
+		t.Fatalf("github mirrors = %#v", index.GitHubMirrors)
+	}
+	if app.LatestVersion.DownloadURL != "https://store.example.com/api/v1/apps/1/versions/2/download" {
 		t.Fatalf("download URL = %q", app.LatestVersion.DownloadURL)
 	}
 	if app.LatestVersion.UpstreamDownloadURL != "https://github.com/acme/demo/releases/download/v1/demo.lpk" {
@@ -64,7 +73,6 @@ func TestBuildIndexKeepsStoreDownloadURLWithoutMirror(t *testing.T) {
 
 func TestBuildIndexDoesNotMirrorProtectedAppDownloads(t *testing.T) {
 	index := BuildIndex(Input{
-		GitHubMirror: "https://mirror.example.com",
 		Apps: []AppInput{
 			{
 				ID:               1,

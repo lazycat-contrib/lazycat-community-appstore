@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: LazyCat Community App Store API
+  title: LazyCat Private Store Server API
   version: 0.1.0
   description: REST API for the self-hosted LazyCat LPK app store server.
 servers:
@@ -1440,7 +1440,7 @@ components:
       type: object
       additionalProperties:
         type: string
-      description: Site admin settings keyed by server setting names such as site_title, site_public_url, source_password, github_mirror, announcement_enabled, and max_lpk_size.
+      description: Site admin settings keyed by server setting names such as site_title, site_public_url, source_password, github_download_mirrors, github_raw_mirrors, announcement_enabled, and max_lpk_size.
 
     SourceIndex:
       type: object
@@ -1757,10 +1757,12 @@ components:
         sourcePassword:
           type: string
           description: Source feed access password when sourcePasswordEnabled is true.
-        githubMirror:
+        githubDownloadMirrors:
           type: string
-          format: uri
-          description: Optional HTTP(S) mirror prefix for GitHub downloads.
+          description: Optional Release/Code(ZIP) GitHub mirrors, one name=>url entry per line.
+        githubRawMirrors:
+          type: string
+          description: Optional raw.githubusercontent.com mirrors, one name=>url entry per line.
         requireEmailVerify:
           type: boolean
 

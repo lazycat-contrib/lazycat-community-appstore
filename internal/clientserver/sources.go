@@ -10,6 +10,7 @@ import (
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
+	"lazycat.community/appstore/internal/mirror"
 )
 
 func (s *Server) handleListSources(w http.ResponseWriter, r *http.Request) {
@@ -33,12 +34,15 @@ func (s *Server) handleCreateSource(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if input.DefaultDownloadMirrorID != "" || input.DefaultRawMirrorID != "" {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Default mirror is not available until the source has been synced")
+		return
+	}
 	created, err := s.db.ClientSource.Create().
 		SetUserID(currentUserID(r)).
 		SetName(input.Name).
 		SetURL(input.URL).
 		SetPassword(input.Password).
-		SetMirror(input.Mirror).
 		Save(r.Context())
 	if err != nil {
 		if ent.IsConstraintError(err) {
@@ -71,11 +75,20 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SOURCE_LOAD_FAILED", "Could not load source")
 		return
 	}
+	if !sourceHasMirrorKind(source, input.DefaultDownloadMirrorID, mirror.KindDownload) {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Default download mirror is not available from this source")
+		return
+	}
+	if !sourceHasMirrorKind(source, input.DefaultRawMirrorID, mirror.KindRaw) {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Default raw mirror is not available from this source")
+		return
+	}
 	updated, err := s.db.ClientSource.UpdateOne(source).
 		SetName(input.Name).
 		SetURL(input.URL).
 		SetPassword(input.Password).
-		SetMirror(input.Mirror).
+		SetDefaultDownloadMirrorID(input.DefaultDownloadMirrorID).
+		SetDefaultRawMirrorID(input.DefaultRawMirrorID).
 		Save(r.Context())
 	if err != nil {
 		if ent.IsConstraintError(err) {
@@ -124,7 +137,8 @@ func readSourceInput(w http.ResponseWriter, r *http.Request) (SourceInput, bool)
 	input.Name = strings.TrimSpace(input.Name)
 	input.URL = normalizeSourceURL(input.URL)
 	input.Password = strings.TrimSpace(input.Password)
-	input.Mirror = strings.TrimRight(strings.TrimSpace(input.Mirror), "/")
+	input.DefaultDownloadMirrorID = strings.TrimSpace(input.DefaultDownloadMirrorID)
+	input.DefaultRawMirrorID = strings.TrimSpace(input.DefaultRawMirrorID)
 	if input.Name == "" {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Source name is required")
 		return SourceInput{}, false
@@ -159,15 +173,18 @@ func pathID(w http.ResponseWriter, r *http.Request) (int, bool) {
 }
 
 func sourceDTO(source *ent.ClientSource) SourceDTO {
+	mirrors := sourceMirrors(source)
 	dto := SourceDTO{
-		ID:                   source.ID,
-		Name:                 source.Name,
-		URL:                  source.URL,
-		Password:             source.Password,
-		Mirror:               source.Mirror,
-		LastSync:             source.LastSync,
-		LastAppCount:         source.LastAppCount,
-		LastInstallableCount: source.LastInstallableCount,
+		ID:                      source.ID,
+		Name:                    source.Name,
+		URL:                     source.URL,
+		Password:                source.Password,
+		DefaultDownloadMirrorID: source.DefaultDownloadMirrorID,
+		DefaultRawMirrorID:      source.DefaultRawMirrorID,
+		GitHubMirrors:           mirrors,
+		LastSync:                source.LastSync,
+		LastAppCount:            source.LastAppCount,
+		LastInstallableCount:    source.LastInstallableCount,
 	}
 	if source.LastError != nil {
 		dto.LastError = *source.LastError
@@ -176,4 +193,21 @@ func sourceDTO(source *ent.ClientSource) SourceDTO {
 		dto.LastErrorCode = string(*source.LastErrorCode)
 	}
 	return dto
+}
+
+func sourceHasMirrorKind(source *ent.ClientSource, id string, kind string) bool {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return true
+	}
+	entry, ok := mirror.Find(sourceMirrors(source), id)
+	return ok && entry.Kind == kind
+}
+
+func sourceMirrors(source *ent.ClientSource) []mirror.Entry {
+	mirrors := []mirror.Entry{}
+	if source.MirrorsJSON != "" {
+		_ = json.Unmarshal([]byte(source.MirrorsJSON), &mirrors)
+	}
+	return mirrors
 }

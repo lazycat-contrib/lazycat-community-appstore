@@ -16,6 +16,7 @@ application:
     - BASE_URL=https://${LAZYCAT_APP_DOMAIN}
     - SITE_PUBLIC_URL=https://${LAZYCAT_APP_DOMAIN}
     - CLIENT_ORIGINS=https://${LAZYCAT_APP_DOMAIN}
+    - TRUST_LAZYCAT_CLIENT_COMMENTS=true
     - DB_DRIVER=sqlite3
     - DB_DSN=/lzcapp/var/data/store.db
     - STORAGE_BACKEND=local
@@ -25,7 +26,8 @@ application:
     - REQUIRE_EMAIL_VERIFY=false
     - SOURCE_PASSWORD={{ .U.source_password }}
     - SOURCE_PASSWORD_ROTATION=0
-    - GITHUB_MIRROR={{ .U.github_mirror }}
+    - GITHUB_DOWNLOAD_MIRRORS={{ .U.github_download_mirrors }}
+    - GITHUB_RAW_MIRRORS={{ .U.github_raw_mirrors }}
     - ADMIN_USERNAME={{ .U.admin_username }}
     - ADMIN_PASSWORD={{ .U.admin_password }}
     - SESSION_SECRET={{ stable_secret "session_secret_v1" }}

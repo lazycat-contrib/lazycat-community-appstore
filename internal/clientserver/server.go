@@ -28,7 +28,7 @@ func New(cfg Config) (*Server, error) {
 }
 
 func newTestServer(db *ent.Client) *Server {
-	s := &Server{cfg: Config{DefaultSourceName: "Community Store"}, db: db, pkg: unavailablePackageManager{}, mux: http.NewServeMux()}
+	s := &Server{cfg: Config{DefaultSourceName: "懒猫私有商店"}, db: db, pkg: unavailablePackageManager{}, mux: http.NewServeMux()}
 	s.routes()
 	return s
 }
@@ -48,14 +48,19 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/client/v1/sources/{id}", s.handleDeleteSource)
 	s.mux.HandleFunc("POST /api/client/v1/sources/{id}/sync", s.handleSyncSource)
 	s.mux.HandleFunc("POST /api/client/v1/sources/sync", s.handleSyncAllSources)
+	s.mux.HandleFunc("GET /api/client/v1/settings", s.handleGetSettings)
+	s.mux.HandleFunc("PATCH /api/client/v1/settings", s.handleUpdateSettings)
 	s.mux.HandleFunc("GET /api/client/v1/apps", s.handleListApps)
 	s.mux.HandleFunc("GET /api/client/v1/apps/{id}", s.handleGetApp)
 	s.mux.HandleFunc("GET /api/client/v1/apps/{id}/versions", s.handleGetAppVersions)
+	s.mux.HandleFunc("GET /api/client/v1/apps/{id}/comments", s.handleListSourceAppComments)
+	s.mux.HandleFunc("POST /api/client/v1/apps/{id}/comments", s.handleCreateSourceAppComment)
+	s.mux.HandleFunc("DELETE /api/client/v1/apps/{id}/comments/{commentId}", s.handleDeleteSourceAppComment)
 	s.mux.HandleFunc("GET /api/client/v1/installed", s.handleInstalled)
 	s.mux.HandleFunc("POST /api/client/v1/install", s.handleInstall)
 	s.mux.HandleFunc("GET /api/client/v1/history", s.handleInstallHistory)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "lazycat-appstore-client"})
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "lazycat-private-store-client"})
 	})
 	s.mux.Handle("/", embeddedClientHandler())
 }

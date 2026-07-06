@@ -23,6 +23,7 @@ import (
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
 	"lazycat.community/appstore/ent/clientinstallhistory"
+	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/collaborator"
@@ -30,6 +31,7 @@ import (
 	"lazycat.community/appstore/ent/collection"
 	"lazycat.community/appstore/ent/collectionapp"
 	"lazycat.community/appstore/ent/comment"
+	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/outdatedmark"
@@ -61,6 +63,8 @@ type Client struct {
 	Category *CategoryClient
 	// ClientInstallHistory is the client for interacting with the ClientInstallHistory builders.
 	ClientInstallHistory *ClientInstallHistoryClient
+	// ClientSetting is the client for interacting with the ClientSetting builders.
+	ClientSetting *ClientSettingClient
 	// ClientSource is the client for interacting with the ClientSource builders.
 	ClientSource *ClientSourceClient
 	// ClientSourceApp is the client for interacting with the ClientSourceApp builders.
@@ -75,6 +79,8 @@ type Client struct {
 	CollectionApp *CollectionAppClient
 	// Comment is the client for interacting with the Comment builders.
 	Comment *CommentClient
+	// CommentNotification is the client for interacting with the CommentNotification builders.
+	CommentNotification *CommentNotificationClient
 	// Favorite is the client for interacting with the Favorite builders.
 	Favorite *FavoriteClient
 	// GroupMember is the client for interacting with the GroupMember builders.
@@ -110,6 +116,7 @@ func (c *Client) init() {
 	c.AppVisibility = NewAppVisibilityClient(c.config)
 	c.Category = NewCategoryClient(c.config)
 	c.ClientInstallHistory = NewClientInstallHistoryClient(c.config)
+	c.ClientSetting = NewClientSettingClient(c.config)
 	c.ClientSource = NewClientSourceClient(c.config)
 	c.ClientSourceApp = NewClientSourceAppClient(c.config)
 	c.Collaborator = NewCollaboratorClient(c.config)
@@ -117,6 +124,7 @@ func (c *Client) init() {
 	c.Collection = NewCollectionClient(c.config)
 	c.CollectionApp = NewCollectionAppClient(c.config)
 	c.Comment = NewCommentClient(c.config)
+	c.CommentNotification = NewCommentNotificationClient(c.config)
 	c.Favorite = NewFavoriteClient(c.config)
 	c.GroupMember = NewGroupMemberClient(c.config)
 	c.OutdatedMark = NewOutdatedMarkClient(c.config)
@@ -225,6 +233,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AppVisibility:        NewAppVisibilityClient(cfg),
 		Category:             NewCategoryClient(cfg),
 		ClientInstallHistory: NewClientInstallHistoryClient(cfg),
+		ClientSetting:        NewClientSettingClient(cfg),
 		ClientSource:         NewClientSourceClient(cfg),
 		ClientSourceApp:      NewClientSourceAppClient(cfg),
 		Collaborator:         NewCollaboratorClient(cfg),
@@ -232,6 +241,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Collection:           NewCollectionClient(cfg),
 		CollectionApp:        NewCollectionAppClient(cfg),
 		Comment:              NewCommentClient(cfg),
+		CommentNotification:  NewCommentNotificationClient(cfg),
 		Favorite:             NewFavoriteClient(cfg),
 		GroupMember:          NewGroupMemberClient(cfg),
 		OutdatedMark:         NewOutdatedMarkClient(cfg),
@@ -267,6 +277,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AppVisibility:        NewAppVisibilityClient(cfg),
 		Category:             NewCategoryClient(cfg),
 		ClientInstallHistory: NewClientInstallHistoryClient(cfg),
+		ClientSetting:        NewClientSettingClient(cfg),
 		ClientSource:         NewClientSourceClient(cfg),
 		ClientSourceApp:      NewClientSourceAppClient(cfg),
 		Collaborator:         NewCollaboratorClient(cfg),
@@ -274,6 +285,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Collection:           NewCollectionClient(cfg),
 		CollectionApp:        NewCollectionAppClient(cfg),
 		Comment:              NewCommentClient(cfg),
+		CommentNotification:  NewCommentNotificationClient(cfg),
 		Favorite:             NewFavoriteClient(cfg),
 		GroupMember:          NewGroupMemberClient(cfg),
 		OutdatedMark:         NewOutdatedMarkClient(cfg),
@@ -312,10 +324,10 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
-		c.Category, c.ClientInstallHistory, c.ClientSource, c.ClientSourceApp,
-		c.Collaborator, c.CollaboratorRequest, c.Collection, c.CollectionApp,
-		c.Comment, c.Favorite, c.GroupMember, c.OutdatedMark, c.ReviewRequest,
-		c.SiteSetting, c.Tag, c.User, c.UserGroup,
+		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
+		c.ClientSourceApp, c.Collaborator, c.CollaboratorRequest, c.Collection,
+		c.CollectionApp, c.Comment, c.CommentNotification, c.Favorite, c.GroupMember,
+		c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -326,10 +338,10 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
-		c.Category, c.ClientInstallHistory, c.ClientSource, c.ClientSourceApp,
-		c.Collaborator, c.CollaboratorRequest, c.Collection, c.CollectionApp,
-		c.Comment, c.Favorite, c.GroupMember, c.OutdatedMark, c.ReviewRequest,
-		c.SiteSetting, c.Tag, c.User, c.UserGroup,
+		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
+		c.ClientSourceApp, c.Collaborator, c.CollaboratorRequest, c.Collection,
+		c.CollectionApp, c.Comment, c.CommentNotification, c.Favorite, c.GroupMember,
+		c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -354,6 +366,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Category.mutate(ctx, m)
 	case *ClientInstallHistoryMutation:
 		return c.ClientInstallHistory.mutate(ctx, m)
+	case *ClientSettingMutation:
+		return c.ClientSetting.mutate(ctx, m)
 	case *ClientSourceMutation:
 		return c.ClientSource.mutate(ctx, m)
 	case *ClientSourceAppMutation:
@@ -368,6 +382,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CollectionApp.mutate(ctx, m)
 	case *CommentMutation:
 		return c.Comment.mutate(ctx, m)
+	case *CommentNotificationMutation:
+		return c.CommentNotification.mutate(ctx, m)
 	case *FavoriteMutation:
 		return c.Favorite.mutate(ctx, m)
 	case *GroupMemberMutation:
@@ -1453,6 +1469,139 @@ func (c *ClientInstallHistoryClient) mutate(ctx context.Context, m *ClientInstal
 	}
 }
 
+// ClientSettingClient is a client for the ClientSetting schema.
+type ClientSettingClient struct {
+	config
+}
+
+// NewClientSettingClient returns a client for the ClientSetting from the given config.
+func NewClientSettingClient(c config) *ClientSettingClient {
+	return &ClientSettingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `clientsetting.Hooks(f(g(h())))`.
+func (c *ClientSettingClient) Use(hooks ...Hook) {
+	c.hooks.ClientSetting = append(c.hooks.ClientSetting, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `clientsetting.Intercept(f(g(h())))`.
+func (c *ClientSettingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ClientSetting = append(c.inters.ClientSetting, interceptors...)
+}
+
+// Create returns a builder for creating a ClientSetting entity.
+func (c *ClientSettingClient) Create() *ClientSettingCreate {
+	mutation := newClientSettingMutation(c.config, OpCreate)
+	return &ClientSettingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ClientSetting entities.
+func (c *ClientSettingClient) CreateBulk(builders ...*ClientSettingCreate) *ClientSettingCreateBulk {
+	return &ClientSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ClientSettingClient) MapCreateBulk(slice any, setFunc func(*ClientSettingCreate, int)) *ClientSettingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ClientSettingCreateBulk{err: fmt.Errorf("calling to ClientSettingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ClientSettingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ClientSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ClientSetting.
+func (c *ClientSettingClient) Update() *ClientSettingUpdate {
+	mutation := newClientSettingMutation(c.config, OpUpdate)
+	return &ClientSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ClientSettingClient) UpdateOne(_m *ClientSetting) *ClientSettingUpdateOne {
+	mutation := newClientSettingMutation(c.config, OpUpdateOne, withClientSetting(_m))
+	return &ClientSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ClientSettingClient) UpdateOneID(id int) *ClientSettingUpdateOne {
+	mutation := newClientSettingMutation(c.config, OpUpdateOne, withClientSettingID(id))
+	return &ClientSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ClientSetting.
+func (c *ClientSettingClient) Delete() *ClientSettingDelete {
+	mutation := newClientSettingMutation(c.config, OpDelete)
+	return &ClientSettingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ClientSettingClient) DeleteOne(_m *ClientSetting) *ClientSettingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ClientSettingClient) DeleteOneID(id int) *ClientSettingDeleteOne {
+	builder := c.Delete().Where(clientsetting.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ClientSettingDeleteOne{builder}
+}
+
+// Query returns a query builder for ClientSetting.
+func (c *ClientSettingClient) Query() *ClientSettingQuery {
+	return &ClientSettingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeClientSetting},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ClientSetting entity by its id.
+func (c *ClientSettingClient) Get(ctx context.Context, id int) (*ClientSetting, error) {
+	return c.Query().Where(clientsetting.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ClientSettingClient) GetX(ctx context.Context, id int) *ClientSetting {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ClientSettingClient) Hooks() []Hook {
+	return c.hooks.ClientSetting
+}
+
+// Interceptors returns the client interceptors.
+func (c *ClientSettingClient) Interceptors() []Interceptor {
+	return c.inters.ClientSetting
+}
+
+func (c *ClientSettingClient) mutate(ctx context.Context, m *ClientSettingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ClientSettingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ClientSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ClientSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ClientSettingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ClientSetting mutation op: %q", m.Op())
+	}
+}
+
 // ClientSourceClient is a client for the ClientSource schema.
 type ClientSourceClient struct {
 	config
@@ -2413,6 +2562,139 @@ func (c *CommentClient) mutate(ctx context.Context, m *CommentMutation) (Value, 
 		return (&CommentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Comment mutation op: %q", m.Op())
+	}
+}
+
+// CommentNotificationClient is a client for the CommentNotification schema.
+type CommentNotificationClient struct {
+	config
+}
+
+// NewCommentNotificationClient returns a client for the CommentNotification from the given config.
+func NewCommentNotificationClient(c config) *CommentNotificationClient {
+	return &CommentNotificationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `commentnotification.Hooks(f(g(h())))`.
+func (c *CommentNotificationClient) Use(hooks ...Hook) {
+	c.hooks.CommentNotification = append(c.hooks.CommentNotification, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `commentnotification.Intercept(f(g(h())))`.
+func (c *CommentNotificationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CommentNotification = append(c.inters.CommentNotification, interceptors...)
+}
+
+// Create returns a builder for creating a CommentNotification entity.
+func (c *CommentNotificationClient) Create() *CommentNotificationCreate {
+	mutation := newCommentNotificationMutation(c.config, OpCreate)
+	return &CommentNotificationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CommentNotification entities.
+func (c *CommentNotificationClient) CreateBulk(builders ...*CommentNotificationCreate) *CommentNotificationCreateBulk {
+	return &CommentNotificationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CommentNotificationClient) MapCreateBulk(slice any, setFunc func(*CommentNotificationCreate, int)) *CommentNotificationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CommentNotificationCreateBulk{err: fmt.Errorf("calling to CommentNotificationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CommentNotificationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CommentNotificationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CommentNotification.
+func (c *CommentNotificationClient) Update() *CommentNotificationUpdate {
+	mutation := newCommentNotificationMutation(c.config, OpUpdate)
+	return &CommentNotificationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CommentNotificationClient) UpdateOne(_m *CommentNotification) *CommentNotificationUpdateOne {
+	mutation := newCommentNotificationMutation(c.config, OpUpdateOne, withCommentNotification(_m))
+	return &CommentNotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CommentNotificationClient) UpdateOneID(id int) *CommentNotificationUpdateOne {
+	mutation := newCommentNotificationMutation(c.config, OpUpdateOne, withCommentNotificationID(id))
+	return &CommentNotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CommentNotification.
+func (c *CommentNotificationClient) Delete() *CommentNotificationDelete {
+	mutation := newCommentNotificationMutation(c.config, OpDelete)
+	return &CommentNotificationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CommentNotificationClient) DeleteOne(_m *CommentNotification) *CommentNotificationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CommentNotificationClient) DeleteOneID(id int) *CommentNotificationDeleteOne {
+	builder := c.Delete().Where(commentnotification.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CommentNotificationDeleteOne{builder}
+}
+
+// Query returns a query builder for CommentNotification.
+func (c *CommentNotificationClient) Query() *CommentNotificationQuery {
+	return &CommentNotificationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCommentNotification},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CommentNotification entity by its id.
+func (c *CommentNotificationClient) Get(ctx context.Context, id int) (*CommentNotification, error) {
+	return c.Query().Where(commentnotification.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CommentNotificationClient) GetX(ctx context.Context, id int) *CommentNotification {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CommentNotificationClient) Hooks() []Hook {
+	return c.hooks.CommentNotification
+}
+
+// Interceptors returns the client interceptors.
+func (c *CommentNotificationClient) Interceptors() []Interceptor {
+	return c.inters.CommentNotification
+}
+
+func (c *CommentNotificationClient) mutate(ctx context.Context, m *CommentNotificationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CommentNotificationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CommentNotificationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CommentNotificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CommentNotificationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CommentNotification mutation op: %q", m.Op())
 	}
 }
 
@@ -3484,15 +3766,16 @@ func (c *UserGroupClient) mutate(ctx context.Context, m *UserGroupMutation) (Val
 type (
 	hooks struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
-		ClientInstallHistory, ClientSource, ClientSourceApp, Collaborator,
-		CollaboratorRequest, Collection, CollectionApp, Comment, Favorite, GroupMember,
-		OutdatedMark, ReviewRequest, SiteSetting, Tag, User, UserGroup []ent.Hook
+		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
+		Collaborator, CollaboratorRequest, Collection, CollectionApp, Comment,
+		CommentNotification, Favorite, GroupMember, OutdatedMark, ReviewRequest,
+		SiteSetting, Tag, User, UserGroup []ent.Hook
 	}
 	inters struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
-		ClientInstallHistory, ClientSource, ClientSourceApp, Collaborator,
-		CollaboratorRequest, Collection, CollectionApp, Comment, Favorite, GroupMember,
-		OutdatedMark, ReviewRequest, SiteSetting, Tag, User,
-		UserGroup []ent.Interceptor
+		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
+		Collaborator, CollaboratorRequest, Collection, CollectionApp, Comment,
+		CommentNotification, Favorite, GroupMember, OutdatedMark, ReviewRequest,
+		SiteSetting, Tag, User, UserGroup []ent.Interceptor
 	}
 )

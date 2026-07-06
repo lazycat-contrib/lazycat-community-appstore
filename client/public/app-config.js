@@ -1,5 +1,5 @@
 window.LAZYCAT_APPSTORE_CONFIG = {
   apiBaseURL: "",
   defaultSourceURL: "",
-  defaultSourceName: "Community Store"
+  defaultSourceName: "懒猫私有商店"
 };

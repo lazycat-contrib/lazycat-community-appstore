@@ -19,4 +19,4 @@ const runtimeConfig = window.LAZYCAT_APPSTORE_CONFIG || {};
 export const API_BASE = cleanURL(runtimeConfig.apiBaseURL || import.meta.env.VITE_API_BASE_URL);
 export const HAS_API = API_BASE !== '';
 export const DEFAULT_SOURCE_URL = cleanURL(runtimeConfig.defaultSourceURL);
-export const DEFAULT_SOURCE_NAME = (runtimeConfig.defaultSourceName || 'Community Store').trim() || 'Community Store';
+export const DEFAULT_SOURCE_NAME = (runtimeConfig.defaultSourceName || '懒猫私有商店').trim() || '懒猫私有商店';

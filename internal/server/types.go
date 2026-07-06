@@ -45,27 +45,28 @@ type siteAnnouncement struct {
 }
 
 type appSummary struct {
-	ID                     int       `json:"id"`
-	OwnerID                int       `json:"ownerId"`
-	Owner                  string    `json:"owner"`
-	CategoryID             *int      `json:"categoryId,omitempty"`
-	Category               string    `json:"category,omitempty"`
-	PackageID              string    `json:"packageId"`
-	Name                   string    `json:"name"`
-	Slug                   string    `json:"slug"`
-	Summary                string    `json:"summary"`
-	Description            string    `json:"description"`
-	IconURL                *string   `json:"iconUrl,omitempty"`
-	Status                 string    `json:"status"`
-	AllowUnreviewedUpdates bool      `json:"allowUnreviewedUpdates"`
-	CommentsEnabled        bool      `json:"commentsEnabled"`
-	InstallProtected       bool      `json:"installProtected"`
-	DownloadCount          int       `json:"downloadCount"`
-	Tags                   []string  `json:"tags"`
-	VisibleGroupIDs        []int     `json:"visibleGroupIds"`
-	LatestVersion          *version  `json:"latestVersion,omitempty"`
-	CreatedAt              time.Time `json:"createdAt"`
-	UpdatedAt              time.Time `json:"updatedAt"`
+	ID                        int       `json:"id"`
+	OwnerID                   int       `json:"ownerId"`
+	Owner                     string    `json:"owner"`
+	CategoryID                *int      `json:"categoryId,omitempty"`
+	Category                  string    `json:"category,omitempty"`
+	PackageID                 string    `json:"packageId"`
+	Name                      string    `json:"name"`
+	Slug                      string    `json:"slug"`
+	Summary                   string    `json:"summary"`
+	Description               string    `json:"description"`
+	IconURL                   *string   `json:"iconUrl,omitempty"`
+	Status                    string    `json:"status"`
+	AllowUnreviewedUpdates    bool      `json:"allowUnreviewedUpdates"`
+	CommentsEnabled           bool      `json:"commentsEnabled"`
+	EmailNotificationsEnabled bool      `json:"emailNotificationsEnabled"`
+	InstallProtected          bool      `json:"installProtected"`
+	DownloadCount             int       `json:"downloadCount"`
+	Tags                      []string  `json:"tags"`
+	VisibleGroupIDs           []int     `json:"visibleGroupIds"`
+	LatestVersion             *version  `json:"latestVersion,omitempty"`
+	CreatedAt                 time.Time `json:"createdAt"`
+	UpdatedAt                 time.Time `json:"updatedAt"`
 }
 
 type appDetail struct {
@@ -116,11 +117,27 @@ type version struct {
 }
 
 type comment struct {
+	ID           int       `json:"id"`
+	AppID        int       `json:"appId"`
+	UserID       int       `json:"userId"`
+	ParentID     *int      `json:"parentId,omitempty"`
+	AuthorType   string    `json:"authorType"`
+	ClientUserID string    `json:"clientUserId,omitempty"`
+	Username     string    `json:"username"`
+	Body         string    `json:"body"`
+	CanDelete    bool      `json:"canDelete"`
+	Replies      []comment `json:"replies,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
+}
+
+type commentNotificationDTO struct {
 	ID        int       `json:"id"`
 	AppID     int       `json:"appId"`
-	UserID    int       `json:"userId"`
-	Username  string    `json:"username"`
+	CommentID int       `json:"commentId"`
+	AppName   string    `json:"appName"`
+	ActorName string    `json:"actorName"`
 	Body      string    `json:"body"`
+	Read      bool      `json:"read"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 

@@ -28,6 +28,7 @@ import (
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/internal/auth"
 	"lazycat.community/appstore/internal/lpkmeta"
+	"lazycat.community/appstore/internal/mirror"
 	"lazycat.community/appstore/internal/storage"
 )
 
@@ -111,33 +112,35 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 }
 
 type createAppJSON struct {
-	Name                   string   `json:"name"`
-	PackageID              string   `json:"packageId"`
-	Slug                   string   `json:"slug"`
-	Summary                string   `json:"summary"`
-	Description            string   `json:"description"`
-	CategoryID             *int     `json:"categoryId"`
-	Tags                   []string `json:"tags"`
-	AllowUnreviewedUpdates bool     `json:"allowUnreviewedUpdates"`
-	CommentsEnabled        *bool    `json:"commentsEnabled"`
-	InstallPassword        string   `json:"installPassword"`
-	Version                string   `json:"version"`
-	Changelog              string   `json:"changelog"`
-	DownloadURL            string   `json:"downloadUrl"`
-	SourceType             string   `json:"sourceType"`
-	SHA256                 string   `json:"sha256"`
+	Name                      string   `json:"name"`
+	PackageID                 string   `json:"packageId"`
+	Slug                      string   `json:"slug"`
+	Summary                   string   `json:"summary"`
+	Description               string   `json:"description"`
+	CategoryID                *int     `json:"categoryId"`
+	Tags                      []string `json:"tags"`
+	AllowUnreviewedUpdates    bool     `json:"allowUnreviewedUpdates"`
+	CommentsEnabled           *bool    `json:"commentsEnabled"`
+	EmailNotificationsEnabled *bool    `json:"emailNotificationsEnabled"`
+	InstallPassword           string   `json:"installPassword"`
+	Version                   string   `json:"version"`
+	Changelog                 string   `json:"changelog"`
+	DownloadURL               string   `json:"downloadUrl"`
+	SourceType                string   `json:"sourceType"`
+	SHA256                    string   `json:"sha256"`
 }
 
 type updateAppJSON struct {
-	Name                   *string  `json:"name,omitempty"`
-	Summary                *string  `json:"summary,omitempty"`
-	Description            *string  `json:"description,omitempty"`
-	CategoryID             *int     `json:"categoryId,omitempty"`
-	Tags                   []string `json:"tags,omitempty"`
-	TagsSet                bool     `json:"tagsSet,omitempty"`
-	AllowUnreviewedUpdates *bool    `json:"allowUnreviewedUpdates,omitempty"`
-	CommentsEnabled        *bool    `json:"commentsEnabled,omitempty"`
-	InstallPassword        *string  `json:"installPassword,omitempty"`
+	Name                      *string  `json:"name,omitempty"`
+	Summary                   *string  `json:"summary,omitempty"`
+	Description               *string  `json:"description,omitempty"`
+	CategoryID                *int     `json:"categoryId,omitempty"`
+	Tags                      []string `json:"tags,omitempty"`
+	TagsSet                   bool     `json:"tagsSet,omitempty"`
+	AllowUnreviewedUpdates    *bool    `json:"allowUnreviewedUpdates,omitempty"`
+	CommentsEnabled           *bool    `json:"commentsEnabled,omitempty"`
+	EmailNotificationsEnabled *bool    `json:"emailNotificationsEnabled,omitempty"`
+	InstallPassword           *string  `json:"installPassword,omitempty"`
 }
 
 func (u *updateAppJSON) UnmarshalJSON(data []byte) error {
@@ -205,17 +208,22 @@ func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *e
 		return
 	}
 	commentsEnabled := true
+	emailNotificationsEnabled := true
 	input := createAppJSON{
-		Name:                   r.FormValue("name"),
-		PackageID:              r.FormValue("packageId"),
-		Slug:                   r.FormValue("slug"),
-		Summary:                r.FormValue("summary"),
-		Description:            r.FormValue("description"),
-		Version:                r.FormValue("version"),
-		Changelog:              r.FormValue("changelog"),
-		InstallPassword:        r.FormValue("installPassword"),
-		AllowUnreviewedUpdates: formBool(r, "allowUnreviewedUpdates"),
-		CommentsEnabled:        &commentsEnabled,
+		Name:                      r.FormValue("name"),
+		PackageID:                 r.FormValue("packageId"),
+		Slug:                      r.FormValue("slug"),
+		Summary:                   r.FormValue("summary"),
+		Description:               r.FormValue("description"),
+		Version:                   r.FormValue("version"),
+		Changelog:                 r.FormValue("changelog"),
+		InstallPassword:           r.FormValue("installPassword"),
+		AllowUnreviewedUpdates:    formBool(r, "allowUnreviewedUpdates"),
+		CommentsEnabled:           &commentsEnabled,
+		EmailNotificationsEnabled: &emailNotificationsEnabled,
+	}
+	if r.Form.Has("emailNotificationsEnabled") {
+		emailNotificationsEnabled = formBool(r, "emailNotificationsEnabled")
 	}
 	if categoryID, err := strconv.Atoi(r.FormValue("categoryId")); err == nil && categoryID > 0 {
 		input.CategoryID = &categoryID
@@ -271,6 +279,10 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 	if input.CommentsEnabled != nil {
 		commentsEnabled = *input.CommentsEnabled
 	}
+	emailNotificationsEnabled := true
+	if input.EmailNotificationsEnabled != nil {
+		emailNotificationsEnabled = *input.EmailNotificationsEnabled
+	}
 	create := s.db.App.Create().
 		SetOwnerID(u.ID).
 		SetPackageID(packageID).
@@ -280,7 +292,8 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 		SetDescription(input.Description).
 		SetStatus(status).
 		SetAllowUnreviewedUpdates(input.AllowUnreviewedUpdates).
-		SetCommentsEnabled(commentsEnabled)
+		SetCommentsEnabled(commentsEnabled).
+		SetEmailNotificationsEnabled(emailNotificationsEnabled)
 	if hash, err := hashInstallPassword(input.InstallPassword); err != nil {
 		return nil, err
 	} else if hash != "" {
@@ -374,6 +387,9 @@ func (s *Server) applyAppInfoUpdate(r *http.Request, id int, input updateAppJSON
 	}
 	if input.CommentsEnabled != nil {
 		update.SetCommentsEnabled(*input.CommentsEnabled)
+	}
+	if input.EmailNotificationsEnabled != nil {
+		update.SetEmailNotificationsEnabled(*input.EmailNotificationsEnabled)
 	}
 	if input.InstallPassword != nil {
 		hash, err := hashInstallPassword(*input.InstallPassword)
@@ -742,24 +758,25 @@ func (s *Server) isCollaborator(r *http.Request, appID, userID int) bool {
 
 func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User) appSummary {
 	dto := appSummary{
-		ID:                     record.ID,
-		OwnerID:                record.OwnerID,
-		CategoryID:             record.CategoryID,
-		PackageID:              record.PackageID,
-		Name:                   record.Name,
-		Slug:                   record.Slug,
-		Summary:                record.Summary,
-		Description:            record.Description,
-		IconURL:                record.IconURL,
-		Status:                 string(record.Status),
-		AllowUnreviewedUpdates: record.AllowUnreviewedUpdates,
-		CommentsEnabled:        record.CommentsEnabled,
-		InstallProtected:       record.InstallPasswordHash != "",
-		DownloadCount:          record.DownloadCount,
-		CreatedAt:              record.CreatedAt,
-		UpdatedAt:              record.UpdatedAt,
-		Tags:                   []string{},
-		VisibleGroupIDs:        s.visibleGroupIDs(r.Context(), record.ID),
+		ID:                        record.ID,
+		OwnerID:                   record.OwnerID,
+		CategoryID:                record.CategoryID,
+		PackageID:                 record.PackageID,
+		Name:                      record.Name,
+		Slug:                      record.Slug,
+		Summary:                   record.Summary,
+		Description:               record.Description,
+		IconURL:                   record.IconURL,
+		Status:                    string(record.Status),
+		AllowUnreviewedUpdates:    record.AllowUnreviewedUpdates,
+		CommentsEnabled:           record.CommentsEnabled,
+		EmailNotificationsEnabled: record.EmailNotificationsEnabled,
+		InstallProtected:          record.InstallPasswordHash != "",
+		DownloadCount:             record.DownloadCount,
+		CreatedAt:                 record.CreatedAt,
+		UpdatedAt:                 record.UpdatedAt,
+		Tags:                      []string{},
+		VisibleGroupIDs:           s.visibleGroupIDs(r.Context(), record.ID),
 	}
 	if owner, err := s.db.User.Get(r.Context(), record.OwnerID); err == nil {
 		dto.Owner = owner.Username
@@ -834,7 +851,20 @@ func (s *Server) handleDownloadVersion(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_, _ = s.db.App.UpdateOneID(appID).AddDownloadCount(1).Save(r.Context())
-	http.Redirect(w, r, mirrorDownloadURL(versionRecord.DownloadURL, s.effectiveGitHubMirror(r.Context())), http.StatusFound)
+	downloadURL := versionRecord.DownloadURL
+	if mirrorID := strings.TrimSpace(r.URL.Query().Get("mirrorId")); mirrorID != "" {
+		if !mirror.IsGitHubURL(downloadURL) {
+			writeError(w, http.StatusUnprocessableEntity, "MIRROR_NOT_APPLICABLE", "Mirror can only be used with GitHub downloads", nil)
+			return
+		}
+		entry, ok := mirror.FindApplicable(s.effectiveGitHubMirrors(r.Context()), mirrorID, downloadURL)
+		if !ok {
+			writeError(w, http.StatusUnprocessableEntity, "MIRROR_NOT_FOUND", "Mirror not found", nil)
+			return
+		}
+		downloadURL = mirror.RewriteGitHub(downloadURL, entry)
+	}
+	http.Redirect(w, r, downloadURL, http.StatusFound)
 }
 
 func hashInstallPassword(password string) (string, error) {
@@ -849,16 +879,6 @@ func hashInstallPassword(password string) (string, error) {
 		return "", errors.New("install password must be at most 256 bytes")
 	}
 	return auth.HashPassword(password)
-}
-
-func mirrorDownloadURL(rawURL, mirror string) string {
-	if mirror == "" {
-		return rawURL
-	}
-	if strings.Contains(rawURL, "github.com/") || strings.Contains(rawURL, "githubusercontent.com/") {
-		return strings.TrimRight(mirror, "/") + "/" + rawURL
-	}
-	return rawURL
 }
 
 func (s *Server) handleUploadScreenshot(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -1063,19 +1083,84 @@ func (s *Server) tagNames(r *http.Request, appID int) []string {
 }
 
 func (s *Server) loadComments(r *http.Request, appID int) ([]comment, error) {
-	records, err := s.db.Comment.Query().Where(commentpkg.AppIDEQ(appID), commentpkg.DeletedEQ(false)).Order(entgo.Desc(commentpkg.FieldCreatedAt)).Limit(50).All(r.Context())
+	records, err := s.db.Comment.Query().
+		Where(commentpkg.AppIDEQ(appID), commentpkg.DeletedEQ(false)).
+		Order(entgo.Asc(commentpkg.FieldCreatedAt)).
+		Limit(200).
+		All(r.Context())
 	if err != nil {
 		return nil, err
 	}
-	out := make([]comment, 0, len(records))
+	actor := s.optionalCommentActor(r)
+	appRecord, _ := s.db.App.Get(r.Context(), appID)
+	canMaintain := appRecord != nil && s.actorCanMaintainApp(actor, appRecord)
+
+	byID := make(map[int]comment, len(records))
+	topLevelIDs := make([]int, 0, len(records))
+	repliesByParent := make(map[int][]comment)
 	for _, record := range records {
-		dto := comment{ID: record.ID, AppID: record.AppID, UserID: record.UserID, Body: record.Body, CreatedAt: record.CreatedAt}
-		if u, err := s.db.User.Get(r.Context(), record.UserID); err == nil {
-			dto.Username = u.Username
+		dto := s.commentDTO(r, record, actor, canMaintain)
+		byID[record.ID] = dto
+		if record.ParentID != nil {
+			repliesByParent[*record.ParentID] = append(repliesByParent[*record.ParentID], dto)
+			continue
 		}
+		topLevelIDs = append(topLevelIDs, record.ID)
+	}
+
+	out := make([]comment, 0, len(topLevelIDs))
+	for _, id := range topLevelIDs {
+		dto := byID[id]
+		dto.Replies = repliesByParent[id]
 		out = append(out, dto)
 	}
 	return out, nil
+}
+
+func (s *Server) commentDTO(r *http.Request, record *entgo.Comment, actor commentActor, canMaintain bool) comment {
+	authorType := string(record.AuthorType)
+	if authorType == "" {
+		authorType = string(commentpkg.AuthorTypeUSER)
+	}
+	username := strings.TrimSpace(record.AuthorName)
+	if username == "" && record.AuthorType == commentpkg.AuthorTypeUSER && record.UserID > 0 {
+		if u, err := s.db.User.Get(r.Context(), record.UserID); err == nil {
+			username = u.Username
+		}
+	}
+	if username == "" {
+		if record.AuthorType == commentpkg.AuthorTypeCLIENT {
+			clientID := trimRunes(record.ClientUserID, 12)
+			if clientID == "" {
+				username = "LazyCat Client"
+			} else {
+				username = "LazyCat " + clientID
+			}
+		} else if record.UserID > 0 {
+			username = fmt.Sprintf("User #%d", record.UserID)
+		} else {
+			username = "User"
+		}
+	}
+	canDelete := canMaintain
+	if !canDelete && actor.User != nil && record.AuthorType == commentpkg.AuthorTypeUSER && record.UserID == actor.User.ID {
+		canDelete = true
+	}
+	if !canDelete && actor.IsClient && record.AuthorType == commentpkg.AuthorTypeCLIENT && record.ClientUserID != "" && record.ClientUserID == actor.ClientUserID {
+		canDelete = true
+	}
+	return comment{
+		ID:           record.ID,
+		AppID:        record.AppID,
+		UserID:       record.UserID,
+		ParentID:     record.ParentID,
+		AuthorType:   authorType,
+		ClientUserID: record.ClientUserID,
+		Username:     username,
+		Body:         record.Body,
+		CanDelete:    canDelete,
+		CreatedAt:    record.CreatedAt,
+	}
 }
 
 func (s *Server) absoluteURL(ctx context.Context, path string) string {

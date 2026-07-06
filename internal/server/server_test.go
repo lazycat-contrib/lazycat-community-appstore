@@ -33,6 +33,7 @@ import (
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/config"
+	"lazycat.community/appstore/internal/mirror"
 )
 
 type testApp struct {
@@ -55,7 +56,7 @@ func TestSetupWizardCreatesFirstSiteAdmin(t *testing.T) {
 		"password":              "owner-password",
 		"sourcePasswordEnabled": true,
 		"sourcePassword":        "feed-secret",
-		"githubMirror":          "https://mirror.example.com",
+		"githubDownloadMirrors": "美国 1=>https://mirror.example.com/https://github.com",
 		"requireEmailVerify":    true,
 	})
 	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), `"role":"SITE_ADMIN"`) {
@@ -71,8 +72,8 @@ func TestSetupWizardCreatesFirstSiteAdmin(t *testing.T) {
 	if got := app.server.setting(t.Context(), "source_password", ""); got != "feed-secret" {
 		t.Fatalf("source_password = %q, want feed-secret", got)
 	}
-	if got := app.server.setting(t.Context(), "github_mirror", ""); got != "https://mirror.example.com" {
-		t.Fatalf("github_mirror = %q, want https://mirror.example.com", got)
+	if got := app.server.setting(t.Context(), "github_download_mirrors", ""); got != "美国 1=>https://mirror.example.com/https://github.com" {
+		t.Fatalf("github_download_mirrors = %q", got)
 	}
 	if got := app.server.setting(t.Context(), "require_email_verify", "false"); got != "true" {
 		t.Fatalf("require_email_verify = %q, want true", got)
@@ -130,7 +131,7 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("site profile status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"title":"LazyCat App Store"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"http://store.test/source/v1/index.json"`) {
+	if !strings.Contains(rec.Body.String(), `"title":"懒猫私有商店服务端"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"http://store.test/source/v1/index.json"`) {
 		t.Fatalf("default site profile body = %s", rec.Body.String())
 	}
 
@@ -200,7 +201,8 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 		"max_lpk_size":             "1048576",
 		"source_password":          "",
 		"source_password_rotation": "0",
-		"github_mirror":            "",
+		"github_download_mirrors":  "",
+		"github_raw_mirrors":       "",
 		"require_email_verify":     "false",
 	})
 	if rec.Code != http.StatusOK {
@@ -441,13 +443,21 @@ func TestDownloadEndpointUsesGitHubMirror(t *testing.T) {
 		SetPublishedAt(time.Now()).
 		SaveX(ctx)
 	app.login("admin", "changeme")
-	rec := app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{"github_mirror": "https://mirror.example.com"})
+	mirrorURL := "https://mirror.example.com/https://github.com"
+	rec := app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{"github_download_mirrors": "Fast=>" + mirrorURL})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("settings update status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 
 	app.cookies = nil
 	rec = app.do(http.MethodGet, fmt.Sprintf("/api/v1/apps/%d/versions/%d/download", record.ID, version.ID), nil)
+	if rec.Code != http.StatusFound {
+		t.Fatalf("download status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if location := rec.Result().Header.Get("Location"); location != "https://github.com/acme/mirrored/releases/download/v1/app.lpk" {
+		t.Fatalf("Location without mirror = %q", location)
+	}
+	rec = app.do(http.MethodGet, fmt.Sprintf("/api/v1/apps/%d/versions/%d/download?mirrorId=%s", record.ID, version.ID, mirror.ID(mirror.KindDownload, mirrorURL)), nil)
 	if rec.Code != http.StatusFound {
 		t.Fatalf("download status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -1255,7 +1265,7 @@ func TestAdminSettingsRejectInvalidValues(t *testing.T) {
 		{"require_email_verify": "not-bool"},
 		{"max_versions": "-1"},
 		{"max_lpk_size": "0"},
-		{"github_mirror": "ftp://mirror.example.com"},
+		{"github_download_mirrors": "Bad=>ftp://mirror.example.com"},
 		{"site_public_url": "ftp://apps.example.com"},
 		{"site_icon_url": "file:///tmp/icon.png"},
 		{"announcement_link_url": "javascript:alert(1)"},
@@ -1317,12 +1327,20 @@ func TestSourceFeedExposesUpstreamDownloadURLForClientMirrors(t *testing.T) {
 		SetPublishedAt(time.Now()).
 		SaveX(ctx)
 
-	rec := app.do(http.MethodGet, "/source/v1/index.json", nil)
+	mirrorURL := "https://mirror.example.com/https://github.com"
+	app.login("admin", "changeme")
+	rec := app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{"github_download_mirrors": "Fast=>" + mirrorURL})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("settings update status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	app.cookies = nil
+
+	rec = app.do(http.MethodGet, "/source/v1/index.json", nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("source status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, `"sourceType":"GITHUB"`) || !strings.Contains(body, `"upstreamDownloadUrl":"`+upstream+`"`) {
+	if !strings.Contains(body, `"sourceType":"GITHUB"`) || !strings.Contains(body, `"upstreamDownloadUrl":"`+upstream+`"`) || !strings.Contains(body, `"githubMirrors"`) || !strings.Contains(body, `"name":"Fast"`) {
 		t.Fatalf("source feed missing upstream mirror fields: %s", body)
 	}
 	if !strings.Contains(body, fmt.Sprintf("/api/v1/apps/%d/versions/", record.ID)) {

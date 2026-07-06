@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/internal/mirror"
 )
 
 func TestSQLiteDSNAddsPragmas(t *testing.T) {
@@ -91,43 +92,50 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 		if got := r.Header.Get("X-Source-Password"); got != "pw" {
 			t.Fatalf("password header = %q", got)
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"apps": []map[string]any{{
-			"id":        7,
-			"packageId": "cloud.lazycat.app.notes",
-			"name":      "Notes",
-			"slug":      "notes",
-			"summary":   "Write notes",
-			"category":  "tools",
-			"iconUrl":   feed.URL + "/icons/notes.png",
-			"latestVersion": map[string]any{
-				"version":             "1.2.3",
-				"downloadUrl":         "https://github.com/org/notes/releases/download/a/notes.lpk",
-				"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/a/notes.lpk",
-				"sha256":              strings.Repeat("a", 64),
-				"size":                123,
+		writeJSON(w, http.StatusOK, map[string]any{
+			"githubMirrors": []map[string]any{
+				{"kind": "download", "name": "Fast", "url": "https://ghproxy.example/https://github.com"},
+				{"kind": "download", "name": "Backup", "url": "https://backup.example/https://github.com"},
 			},
-			"versions": []map[string]any{
-				{
+			"apps": []map[string]any{{
+				"id":        7,
+				"packageId": "cloud.lazycat.app.notes",
+				"name":      "Notes",
+				"slug":      "notes",
+				"summary":   "Write notes",
+				"category":  "tools",
+				"iconUrl":   feed.URL + "/icons/notes.png",
+				"latestVersion": map[string]any{
 					"version":             "1.2.3",
 					"downloadUrl":         "https://github.com/org/notes/releases/download/a/notes.lpk",
 					"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/a/notes.lpk",
 					"sha256":              strings.Repeat("a", 64),
 					"size":                123,
 				},
-				{
-					"version":             "1.0.0",
-					"downloadUrl":         "https://github.com/org/notes/releases/download/old/notes.lpk",
-					"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/old/notes.lpk",
-					"sha256":              strings.Repeat("b", 64),
-					"size":                100,
+				"versions": []map[string]any{
+					{
+						"version":             "1.2.3",
+						"downloadUrl":         "https://github.com/org/notes/releases/download/a/notes.lpk",
+						"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/a/notes.lpk",
+						"sha256":              strings.Repeat("a", 64),
+						"size":                123,
+					},
+					{
+						"version":             "1.0.0",
+						"downloadUrl":         "https://github.com/org/notes/releases/download/old/notes.lpk",
+						"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/old/notes.lpk",
+						"sha256":              strings.Repeat("b", 64),
+						"size":                100,
+					},
 				},
-			},
-		}}})
+			}}})
 	}))
 	defer feed.Close()
 
 	app := testServer(t)
-	create := app.request("POST", "/api/client/v1/sources", `{"name":"Feed","url":"`+feed.URL+`","password":"pw","mirror":"https://ghproxy.example"}`, "alice")
+	pm := &fakePackageManager{install: InstallResultDTO{Mode: "lazycat-go-sdk", TaskID: "task-mirror"}}
+	app.server.pkg = pm
+	create := app.request("POST", "/api/client/v1/sources", `{"name":"Feed","url":"`+feed.URL+`","password":"pw"}`, "alice")
 	if create.Code != http.StatusCreated {
 		t.Fatalf("create = %d %s", create.Code, create.Body.String())
 	}
@@ -137,8 +145,21 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	}
 	apps := app.request("GET", "/api/client/v1/apps", ``, "alice")
 	body := apps.Body.String()
-	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, `"iconUrl":"`+feed.URL+`/icons/notes.png"`) || !strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) {
-		t.Fatalf("cached app missing mirror rewrite: %s", body)
+	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, `"iconUrl":"`+feed.URL+`/icons/notes.png"`) || strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) {
+		t.Fatalf("cached app should keep original download URL: %s", body)
+	}
+	sources := app.request("GET", "/api/client/v1/sources", ``, "alice")
+	mirrorID := mirror.ID(mirror.KindDownload, "https://ghproxy.example/https://github.com")
+	if !strings.Contains(sources.Body.String(), `"name":"Fast"`) || !strings.Contains(sources.Body.String(), `"id":"`+mirrorID+`"`) {
+		t.Fatalf("source did not expose mirrors: %s", sources.Body.String())
+	}
+	install := app.request("POST", "/api/client/v1/install", `{"appId":1,"mirrorId":"`+mirrorID+`"}`, "alice")
+	if install.Code != http.StatusOK {
+		t.Fatalf("install with mirror = %d %s", install.Code, install.Body.String())
+	}
+	wantURL := "https://ghproxy.example/https://github.com/org/notes/releases/download/a/notes.lpk"
+	if pm.req.DownloadURL != wantURL {
+		t.Fatalf("mirrored install URL = %q, want %q", pm.req.DownloadURL, wantURL)
 	}
 }
 

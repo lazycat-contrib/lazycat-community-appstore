@@ -36,6 +36,8 @@ const (
 	FieldAllowUnreviewedUpdates = "allow_unreviewed_updates"
 	// FieldCommentsEnabled holds the string denoting the comments_enabled field in the database.
 	FieldCommentsEnabled = "comments_enabled"
+	// FieldEmailNotificationsEnabled holds the string denoting the email_notifications_enabled field in the database.
+	FieldEmailNotificationsEnabled = "email_notifications_enabled"
 	// FieldInstallPasswordHash holds the string denoting the install_password_hash field in the database.
 	FieldInstallPasswordHash = "install_password_hash"
 	// FieldDownloadCount holds the string denoting the download_count field in the database.
@@ -62,6 +64,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldAllowUnreviewedUpdates,
 	FieldCommentsEnabled,
+	FieldEmailNotificationsEnabled,
 	FieldInstallPasswordHash,
 	FieldDownloadCount,
 	FieldCreatedAt,
@@ -93,6 +96,8 @@ var (
 	DefaultAllowUnreviewedUpdates bool
 	// DefaultCommentsEnabled holds the default value on creation for the "comments_enabled" field.
 	DefaultCommentsEnabled bool
+	// DefaultEmailNotificationsEnabled holds the default value on creation for the "email_notifications_enabled" field.
+	DefaultEmailNotificationsEnabled bool
 	// DefaultInstallPasswordHash holds the default value on creation for the "install_password_hash" field.
 	DefaultInstallPasswordHash string
 	// DefaultDownloadCount holds the default value on creation for the "download_count" field.
@@ -195,6 +200,11 @@ func ByAllowUnreviewedUpdates(opts ...sql.OrderTermOption) OrderOption {
 // ByCommentsEnabled orders the results by the comments_enabled field.
 func ByCommentsEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCommentsEnabled, opts...).ToFunc()
+}
+
+// ByEmailNotificationsEnabled orders the results by the email_notifications_enabled field.
+func ByEmailNotificationsEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEmailNotificationsEnabled, opts...).ToFunc()
 }
 
 // ByInstallPasswordHash orders the results by the install_password_hash field.

@@ -3,15 +3,17 @@ package feed
 import (
 	"strings"
 	"time"
+
+	mirrorutil "lazycat.community/appstore/internal/mirror"
 )
 
 type Input struct {
-	BaseURL      string           `json:"baseUrl"`
-	GitHubMirror string           `json:"githubMirror,omitempty"`
-	GeneratedAt  time.Time        `json:"generatedAt"`
-	Site         SiteMeta         `json:"site"`
-	Announcement AnnouncementMeta `json:"announcement"`
-	Apps         []AppInput       `json:"apps"`
+	BaseURL       string             `json:"baseUrl"`
+	GitHubMirrors []mirrorutil.Entry `json:"githubMirrors,omitempty"`
+	GeneratedAt   time.Time          `json:"generatedAt"`
+	Site          SiteMeta           `json:"site"`
+	Announcement  AnnouncementMeta   `json:"announcement"`
+	Apps          []AppInput         `json:"apps"`
 }
 
 type SiteMeta struct {
@@ -60,12 +62,13 @@ type VersionInput struct {
 }
 
 type Index struct {
-	Schema       string           `json:"schema"`
-	BaseURL      string           `json:"baseUrl"`
-	GeneratedAt  time.Time        `json:"generatedAt"`
-	Site         SiteMeta         `json:"site"`
-	Announcement AnnouncementMeta `json:"announcement"`
-	Apps         []App            `json:"apps"`
+	Schema        string             `json:"schema"`
+	BaseURL       string             `json:"baseUrl"`
+	GitHubMirrors []mirrorutil.Entry `json:"githubMirrors,omitempty"`
+	GeneratedAt   time.Time          `json:"generatedAt"`
+	Site          SiteMeta           `json:"site"`
+	Announcement  AnnouncementMeta   `json:"announcement"`
+	Apps          []App              `json:"apps"`
 }
 
 type App struct {
@@ -103,12 +106,13 @@ func BuildIndex(input Input) Index {
 	}
 
 	index := Index{
-		Schema:       "lazycat.appstore.source.v1",
-		BaseURL:      strings.TrimRight(input.BaseURL, "/"),
-		GeneratedAt:  generatedAt,
-		Site:         input.Site,
-		Announcement: input.Announcement,
-		Apps:         make([]App, 0, len(input.Apps)),
+		Schema:        "lazycat.appstore.source.v1",
+		BaseURL:       strings.TrimRight(input.BaseURL, "/"),
+		GitHubMirrors: input.GitHubMirrors,
+		GeneratedAt:   generatedAt,
+		Site:          input.Site,
+		Announcement:  input.Announcement,
+		Apps:          make([]App, 0, len(input.Apps)),
 	}
 	if index.Site.PublicURL == "" {
 		index.Site.PublicURL = index.BaseURL
@@ -118,7 +122,7 @@ func BuildIndex(input Input) Index {
 	}
 
 	for _, inApp := range input.Apps {
-		versions := approvedVersions(inApp.Versions, input.GitHubMirror, inApp.InstallProtected)
+		versions := approvedVersions(inApp.Versions, inApp.InstallProtected)
 		if len(versions) == 0 {
 			continue
 		}
@@ -142,7 +146,7 @@ func BuildIndex(input Input) Index {
 	return index
 }
 
-func approvedVersions(inputs []VersionInput, mirror string, installProtected bool) []Version {
+func approvedVersions(inputs []VersionInput, installProtected bool) []Version {
 	versions := make([]Version, 0, len(inputs))
 	for _, input := range inputs {
 		if input.Status != "APPROVED" {
@@ -152,9 +156,6 @@ func approvedVersions(inputs []VersionInput, mirror string, installProtected boo
 		upstreamDownloadURL := input.UpstreamDownloadURL
 		if upstreamDownloadURL == "" {
 			upstreamDownloadURL = input.DownloadURL
-		}
-		if !installProtected && isGitHubSource(input.SourceType, upstreamDownloadURL) && mirror != "" {
-			downloadURL = mirrorDownload(upstreamDownloadURL, mirror)
 		}
 		if installProtected {
 			upstreamDownloadURL = ""
@@ -171,18 +172,4 @@ func approvedVersions(inputs []VersionInput, mirror string, installProtected boo
 		})
 	}
 	return versions
-}
-
-func isGitHubSource(sourceType, rawURL string) bool {
-	return strings.EqualFold(sourceType, "GITHUB") && (strings.Contains(rawURL, "github.com/") || strings.Contains(rawURL, "githubusercontent.com/"))
-}
-
-func mirrorDownload(rawURL, mirror string) string {
-	if mirror == "" {
-		return rawURL
-	}
-	if strings.Contains(rawURL, "github.com/") || strings.Contains(rawURL, "githubusercontent.com/") {
-		return strings.TrimRight(mirror, "/") + "/" + rawURL
-	}
-	return rawURL
 }

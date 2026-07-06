@@ -50,6 +50,7 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"DRAFT", "PENDING", "APPROVED", "REJECTED", "UNLISTED"}, Default: "PENDING"},
 		{Name: "allow_unreviewed_updates", Type: field.TypeBool, Default: false},
 		{Name: "comments_enabled", Type: field.TypeBool, Default: true},
+		{Name: "email_notifications_enabled", Type: field.TypeBool, Default: true},
 		{Name: "install_password_hash", Type: field.TypeString, Default: ""},
 		{Name: "download_count", Type: field.TypeInt, Default: 0},
 		{Name: "created_at", Type: field.TypeTime},
@@ -259,6 +260,28 @@ var (
 			},
 		},
 	}
+	// ClientSettingsColumns holds the columns for the "client_settings" table.
+	ClientSettingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "key", Type: field.TypeString},
+		{Name: "value", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ClientSettingsTable holds the schema information for the "client_settings" table.
+	ClientSettingsTable = &schema.Table{
+		Name:       "client_settings",
+		Columns:    ClientSettingsColumns,
+		PrimaryKey: []*schema.Column{ClientSettingsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "clientsetting_user_id_key",
+				Unique:  true,
+				Columns: []*schema.Column{ClientSettingsColumns[1], ClientSettingsColumns[2]},
+			},
+		},
+	}
 	// ClientSourcesColumns holds the columns for the "client_sources" table.
 	ClientSourcesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -266,7 +289,9 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "url", Type: field.TypeString},
 		{Name: "password", Type: field.TypeString, Default: ""},
-		{Name: "mirror", Type: field.TypeString, Default: ""},
+		{Name: "default_download_mirror_id", Type: field.TypeString, Default: ""},
+		{Name: "default_raw_mirror_id", Type: field.TypeString, Default: ""},
+		{Name: "mirrors_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "last_sync", Type: field.TypeTime, Nullable: true},
 		{Name: "last_error", Type: field.TypeString, Nullable: true},
 		{Name: "last_error_code", Type: field.TypeEnum, Nullable: true, Enums: []string{"auth", "format", "http", "network"}},
@@ -289,7 +314,7 @@ var (
 			{
 				Name:    "clientsource_user_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[12]},
+				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[14]},
 			},
 		},
 	}
@@ -456,6 +481,10 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "app_id", Type: field.TypeInt},
 		{Name: "user_id", Type: field.TypeInt},
+		{Name: "parent_id", Type: field.TypeInt, Nullable: true},
+		{Name: "author_type", Type: field.TypeEnum, Enums: []string{"USER", "CLIENT"}, Default: "USER"},
+		{Name: "author_name", Type: field.TypeString, Default: ""},
+		{Name: "client_user_id", Type: field.TypeString, Default: ""},
 		{Name: "body", Type: field.TypeString, Size: 2147483647},
 		{Name: "deleted", Type: field.TypeBool, Default: false},
 		{Name: "created_at", Type: field.TypeTime},
@@ -470,12 +499,57 @@ var (
 			{
 				Name:    "comment_app_id_deleted",
 				Unique:  false,
-				Columns: []*schema.Column{CommentsColumns[1], CommentsColumns[4]},
+				Columns: []*schema.Column{CommentsColumns[1], CommentsColumns[8]},
+			},
+			{
+				Name:    "comment_app_id_parent_id_deleted",
+				Unique:  false,
+				Columns: []*schema.Column{CommentsColumns[1], CommentsColumns[3], CommentsColumns[8]},
 			},
 			{
 				Name:    "comment_user_id",
 				Unique:  false,
 				Columns: []*schema.Column{CommentsColumns[2]},
+			},
+			{
+				Name:    "comment_client_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{CommentsColumns[6]},
+			},
+		},
+	}
+	// CommentNotificationsColumns holds the columns for the "comment_notifications" table.
+	CommentNotificationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "owner_id", Type: field.TypeInt},
+		{Name: "app_id", Type: field.TypeInt},
+		{Name: "comment_id", Type: field.TypeInt},
+		{Name: "app_name", Type: field.TypeString, Default: ""},
+		{Name: "actor_name", Type: field.TypeString, Default: ""},
+		{Name: "body", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "read", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// CommentNotificationsTable holds the schema information for the "comment_notifications" table.
+	CommentNotificationsTable = &schema.Table{
+		Name:       "comment_notifications",
+		Columns:    CommentNotificationsColumns,
+		PrimaryKey: []*schema.Column{CommentNotificationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "commentnotification_owner_id_read_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CommentNotificationsColumns[1], CommentNotificationsColumns[7], CommentNotificationsColumns[8]},
+			},
+			{
+				Name:    "commentnotification_app_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CommentNotificationsColumns[2], CommentNotificationsColumns[8]},
+			},
+			{
+				Name:    "commentnotification_comment_id",
+				Unique:  false,
+				Columns: []*schema.Column{CommentNotificationsColumns[3]},
 			},
 		},
 	}
@@ -685,6 +759,7 @@ var (
 		AppVisibilitiesTable,
 		CategoriesTable,
 		ClientInstallHistoriesTable,
+		ClientSettingsTable,
 		ClientSourcesTable,
 		ClientSourceAppsTable,
 		CollaboratorsTable,
@@ -692,6 +767,7 @@ var (
 		CollectionsTable,
 		CollectionAppsTable,
 		CommentsTable,
+		CommentNotificationsTable,
 		FavoritesTable,
 		GroupMembersTable,
 		OutdatedMarksTable,

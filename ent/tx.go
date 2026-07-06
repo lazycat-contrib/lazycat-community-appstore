@@ -28,6 +28,8 @@ type Tx struct {
 	Category *CategoryClient
 	// ClientInstallHistory is the client for interacting with the ClientInstallHistory builders.
 	ClientInstallHistory *ClientInstallHistoryClient
+	// ClientSetting is the client for interacting with the ClientSetting builders.
+	ClientSetting *ClientSettingClient
 	// ClientSource is the client for interacting with the ClientSource builders.
 	ClientSource *ClientSourceClient
 	// ClientSourceApp is the client for interacting with the ClientSourceApp builders.
@@ -42,6 +44,8 @@ type Tx struct {
 	CollectionApp *CollectionAppClient
 	// Comment is the client for interacting with the Comment builders.
 	Comment *CommentClient
+	// CommentNotification is the client for interacting with the CommentNotification builders.
+	CommentNotification *CommentNotificationClient
 	// Favorite is the client for interacting with the Favorite builders.
 	Favorite *FavoriteClient
 	// GroupMember is the client for interacting with the GroupMember builders.
@@ -197,6 +201,7 @@ func (tx *Tx) init() {
 	tx.AppVisibility = NewAppVisibilityClient(tx.config)
 	tx.Category = NewCategoryClient(tx.config)
 	tx.ClientInstallHistory = NewClientInstallHistoryClient(tx.config)
+	tx.ClientSetting = NewClientSettingClient(tx.config)
 	tx.ClientSource = NewClientSourceClient(tx.config)
 	tx.ClientSourceApp = NewClientSourceAppClient(tx.config)
 	tx.Collaborator = NewCollaboratorClient(tx.config)
@@ -204,6 +209,7 @@ func (tx *Tx) init() {
 	tx.Collection = NewCollectionClient(tx.config)
 	tx.CollectionApp = NewCollectionAppClient(tx.config)
 	tx.Comment = NewCommentClient(tx.config)
+	tx.CommentNotification = NewCommentNotificationClient(tx.config)
 	tx.Favorite = NewFavoriteClient(tx.config)
 	tx.GroupMember = NewGroupMemberClient(tx.config)
 	tx.OutdatedMark = NewOutdatedMarkClient(tx.config)

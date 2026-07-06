@@ -21,6 +21,14 @@ type Comment struct {
 	AppID int `json:"app_id,omitempty"`
 	// UserID holds the value of the "user_id" field.
 	UserID int `json:"user_id,omitempty"`
+	// ParentID holds the value of the "parent_id" field.
+	ParentID *int `json:"parent_id,omitempty"`
+	// AuthorType holds the value of the "author_type" field.
+	AuthorType comment.AuthorType `json:"author_type,omitempty"`
+	// AuthorName holds the value of the "author_name" field.
+	AuthorName string `json:"author_name,omitempty"`
+	// ClientUserID holds the value of the "client_user_id" field.
+	ClientUserID string `json:"client_user_id,omitempty"`
 	// Body holds the value of the "body" field.
 	Body string `json:"body,omitempty"`
 	// Deleted holds the value of the "deleted" field.
@@ -39,9 +47,9 @@ func (*Comment) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case comment.FieldDeleted:
 			values[i] = new(sql.NullBool)
-		case comment.FieldID, comment.FieldAppID, comment.FieldUserID:
+		case comment.FieldID, comment.FieldAppID, comment.FieldUserID, comment.FieldParentID:
 			values[i] = new(sql.NullInt64)
-		case comment.FieldBody:
+		case comment.FieldAuthorType, comment.FieldAuthorName, comment.FieldClientUserID, comment.FieldBody:
 			values[i] = new(sql.NullString)
 		case comment.FieldCreatedAt, comment.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -77,6 +85,31 @@ func (_m *Comment) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value.Valid {
 				_m.UserID = int(value.Int64)
+			}
+		case comment.FieldParentID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field parent_id", values[i])
+			} else if value.Valid {
+				_m.ParentID = new(int)
+				*_m.ParentID = int(value.Int64)
+			}
+		case comment.FieldAuthorType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field author_type", values[i])
+			} else if value.Valid {
+				_m.AuthorType = comment.AuthorType(value.String)
+			}
+		case comment.FieldAuthorName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field author_name", values[i])
+			} else if value.Valid {
+				_m.AuthorName = value.String
+			}
+		case comment.FieldClientUserID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field client_user_id", values[i])
+			} else if value.Valid {
+				_m.ClientUserID = value.String
 			}
 		case comment.FieldBody:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -143,6 +176,20 @@ func (_m *Comment) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("user_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
+	builder.WriteString(", ")
+	if v := _m.ParentID; v != nil {
+		builder.WriteString("parent_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("author_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AuthorType))
+	builder.WriteString(", ")
+	builder.WriteString("author_name=")
+	builder.WriteString(_m.AuthorName)
+	builder.WriteString(", ")
+	builder.WriteString("client_user_id=")
+	builder.WriteString(_m.ClientUserID)
 	builder.WriteString(", ")
 	builder.WriteString("body=")
 	builder.WriteString(_m.Body)

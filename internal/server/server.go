@@ -162,6 +162,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/me/tokens", s.withAuth(s.handleCreateToken))
 	s.mux.HandleFunc("DELETE /api/v1/me/tokens/{id}", s.withAuth(s.handleDeleteToken))
 	s.mux.HandleFunc("GET /api/v1/me/favorites", s.withAuth(s.handleListFavorites))
+	s.mux.HandleFunc("GET /api/v1/me/comment-notifications", s.withAuth(s.handleListCommentNotifications))
+	s.mux.HandleFunc("POST /api/v1/me/comment-notifications/read", s.withAuth(s.handleReadAllCommentNotifications))
+	s.mux.HandleFunc("POST /api/v1/me/comment-notifications/{id}/read", s.withAuth(s.handleReadCommentNotification))
 
 	s.mux.HandleFunc("GET /api/v1/apps", s.handleListApps)
 	s.mux.HandleFunc("POST /api/v1/apps", s.withAuth(s.handleCreateApp))
@@ -174,8 +177,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/screenshots", s.withAuth(s.handleUploadScreenshot))
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/screenshots/reorder", s.withAuth(s.handleReorderScreenshots))
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/screenshots/{screenshotId}", s.withAuth(s.handleDeleteScreenshot))
-	s.mux.HandleFunc("POST /api/v1/apps/{id}/comments", s.withAuth(s.handleCreateComment))
-	s.mux.HandleFunc("DELETE /api/v1/comments/{id}", s.withAuth(s.handleDeleteComment))
+	s.mux.HandleFunc("GET /api/v1/apps/{id}/comments", s.handleListComments)
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/comments", s.handleCreateComment)
+	s.mux.HandleFunc("DELETE /api/v1/comments/{id}", s.handleDeleteComment)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/favorites", s.withAuth(s.handleToggleFavorite))
 	s.mux.HandleFunc("POST /api/v1/submitters/{id}/favorites", s.withAuth(s.handleToggleSubmitterFavorite))
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/outdated-marks", s.withAuth(s.handleMarkOutdated))
@@ -213,6 +217,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PATCH /api/v1/admin/users/{id}", s.withRole(userRoleSiteAdmin)(s.handleAdminUpdateUser))
 	s.mux.HandleFunc("GET /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleGetSettings))
 	s.mux.HandleFunc("PATCH /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleUpdateSettings))
+	s.mux.HandleFunc("POST /api/v1/admin/settings/test-email", s.withRole(userRoleSiteAdmin)(s.handleSendTestEmail))
 
 	s.mux.HandleFunc("GET /source/v1/index.json", s.handleSourceIndex)
 
@@ -300,7 +305,7 @@ func (h spaFileServer) serveAppConfig(w http.ResponseWriter, r *http.Request) {
 	configJSON, err := json.Marshal(map[string]string{
 		"apiBaseURL":        "",
 		"defaultSourceURL":  strings.TrimRight(h.cfg.BaseURL, "/") + "/source/v1/index.json",
-		"defaultSourceName": "Community Store",
+		"defaultSourceName": "懒猫私有商店",
 	})
 	if err != nil {
 		http.Error(w, "build app config", http.StatusInternalServerError)

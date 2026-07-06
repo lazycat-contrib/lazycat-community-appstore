@@ -11,6 +11,7 @@ import (
 	"lazycat.community/appstore/ent/clientinstallhistory"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
+	"lazycat.community/appstore/internal/mirror"
 )
 
 func (s *Server) handleInstalled(w http.ResponseWriter, r *http.Request) {
@@ -56,12 +57,18 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "NO_INSTALLABLE_VERSION", "App has no installable version")
 		return
 	}
+	downloadURL, err := s.installDownloadURL(app, selected, input)
+	if err != nil {
+		_ = s.recordInstallHistory(r.Context(), currentUserID(r), app, dto, selected, clientinstallhistory.ResultFAILED, err.Error())
+		writeError(w, http.StatusUnprocessableEntity, "MIRROR_NOT_AVAILABLE", err.Error())
+		return
+	}
 	installReq := InstallRequestDTO{
 		AppID:       dto.ID,
 		Version:     selected.Version,
 		Name:        dto.Name,
 		PackageID:   dto.PackageID,
-		DownloadURL: withInstallPassword(selected.DownloadURL, input.InstallPassword),
+		DownloadURL: withInstallPassword(downloadURL, input.InstallPassword),
 		SHA256:      selected.SHA256,
 	}
 	result, err := s.pkg.InstallLPK(r.Context(), currentUserID(r), installReq)
@@ -72,6 +79,29 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.recordInstallHistory(r.Context(), currentUserID(r), app, dto, selected, clientinstallhistory.ResultSUCCESS, "")
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) installDownloadURL(app *ent.ClientSourceApp, version *VersionDTO, input InstallRequestDTO) (string, error) {
+	mirrorID := strings.TrimSpace(input.MirrorID)
+	if mirrorID == "" {
+		return version.DownloadURL, nil
+	}
+	source, err := app.Edges.SourceOrErr()
+	if err != nil {
+		return "", errors.New("Source was not loaded")
+	}
+	upstream := strings.TrimSpace(version.UpstreamDownloadURL)
+	if upstream == "" {
+		upstream = strings.TrimSpace(version.DownloadURL)
+	}
+	if !mirror.IsGitHubURL(upstream) {
+		return "", errors.New("Selected mirror can only be used with GitHub downloads")
+	}
+	entry, ok := mirror.FindApplicable(sourceMirrors(source), mirrorID, upstream)
+	if !ok {
+		return "", errors.New("Selected mirror is not available for this download")
+	}
+	return mirror.RewriteGitHub(upstream, entry), nil
 }
 
 func selectInstallVersion(app SourceAppDTO, wanted string) (*VersionDTO, error) {

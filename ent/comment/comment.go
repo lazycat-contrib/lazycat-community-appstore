@@ -3,6 +3,7 @@
 package comment
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -17,6 +18,14 @@ const (
 	FieldAppID = "app_id"
 	// FieldUserID holds the string denoting the user_id field in the database.
 	FieldUserID = "user_id"
+	// FieldParentID holds the string denoting the parent_id field in the database.
+	FieldParentID = "parent_id"
+	// FieldAuthorType holds the string denoting the author_type field in the database.
+	FieldAuthorType = "author_type"
+	// FieldAuthorName holds the string denoting the author_name field in the database.
+	FieldAuthorName = "author_name"
+	// FieldClientUserID holds the string denoting the client_user_id field in the database.
+	FieldClientUserID = "client_user_id"
 	// FieldBody holds the string denoting the body field in the database.
 	FieldBody = "body"
 	// FieldDeleted holds the string denoting the deleted field in the database.
@@ -34,6 +43,10 @@ var Columns = []string{
 	FieldID,
 	FieldAppID,
 	FieldUserID,
+	FieldParentID,
+	FieldAuthorType,
+	FieldAuthorName,
+	FieldClientUserID,
 	FieldBody,
 	FieldDeleted,
 	FieldCreatedAt,
@@ -51,6 +64,10 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultAuthorName holds the default value on creation for the "author_name" field.
+	DefaultAuthorName string
+	// DefaultClientUserID holds the default value on creation for the "client_user_id" field.
+	DefaultClientUserID string
 	// BodyValidator is a validator for the "body" field. It is called by the builders before save.
 	BodyValidator func(string) error
 	// DefaultDeleted holds the default value on creation for the "deleted" field.
@@ -62,6 +79,32 @@ var (
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
 )
+
+// AuthorType defines the type for the "author_type" enum field.
+type AuthorType string
+
+// AuthorTypeUSER is the default value of the AuthorType enum.
+const DefaultAuthorType = AuthorTypeUSER
+
+// AuthorType values.
+const (
+	AuthorTypeUSER   AuthorType = "USER"
+	AuthorTypeCLIENT AuthorType = "CLIENT"
+)
+
+func (at AuthorType) String() string {
+	return string(at)
+}
+
+// AuthorTypeValidator is a validator for the "author_type" field enum values. It is called by the builders before save.
+func AuthorTypeValidator(at AuthorType) error {
+	switch at {
+	case AuthorTypeUSER, AuthorTypeCLIENT:
+		return nil
+	default:
+		return fmt.Errorf("comment: invalid enum value for author_type field: %q", at)
+	}
+}
 
 // OrderOption defines the ordering options for the Comment queries.
 type OrderOption func(*sql.Selector)
@@ -79,6 +122,26 @@ func ByAppID(opts ...sql.OrderTermOption) OrderOption {
 // ByUserID orders the results by the user_id field.
 func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserID, opts...).ToFunc()
+}
+
+// ByParentID orders the results by the parent_id field.
+func ByParentID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldParentID, opts...).ToFunc()
+}
+
+// ByAuthorType orders the results by the author_type field.
+func ByAuthorType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAuthorType, opts...).ToFunc()
+}
+
+// ByAuthorName orders the results by the author_name field.
+func ByAuthorName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAuthorName, opts...).ToFunc()
+}
+
+// ByClientUserID orders the results by the client_user_id field.
+func ByClientUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldClientUserID, opts...).ToFunc()
 }
 
 // ByBody orders the results by the body field.

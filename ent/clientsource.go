@@ -25,8 +25,12 @@ type ClientSource struct {
 	URL string `json:"url,omitempty"`
 	// Password holds the value of the "password" field.
 	Password string `json:"password,omitempty"`
-	// Mirror holds the value of the "mirror" field.
-	Mirror string `json:"mirror,omitempty"`
+	// DefaultDownloadMirrorID holds the value of the "default_download_mirror_id" field.
+	DefaultDownloadMirrorID string `json:"default_download_mirror_id,omitempty"`
+	// DefaultRawMirrorID holds the value of the "default_raw_mirror_id" field.
+	DefaultRawMirrorID string `json:"default_raw_mirror_id,omitempty"`
+	// MirrorsJSON holds the value of the "mirrors_json" field.
+	MirrorsJSON string `json:"mirrors_json,omitempty"`
 	// LastSync holds the value of the "last_sync" field.
 	LastSync *time.Time `json:"last_sync,omitempty"`
 	// LastError holds the value of the "last_error" field.
@@ -72,7 +76,7 @@ func (*ClientSource) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case clientsource.FieldID, clientsource.FieldLastAppCount, clientsource.FieldLastInstallableCount:
 			values[i] = new(sql.NullInt64)
-		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldMirror, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
+		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldMirrorsJSON, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
 			values[i] = new(sql.NullString)
 		case clientsource.FieldLastSync, clientsource.FieldCreatedAt, clientsource.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -121,11 +125,23 @@ func (_m *ClientSource) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Password = value.String
 			}
-		case clientsource.FieldMirror:
+		case clientsource.FieldDefaultDownloadMirrorID:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field mirror", values[i])
+				return fmt.Errorf("unexpected type %T for field default_download_mirror_id", values[i])
 			} else if value.Valid {
-				_m.Mirror = value.String
+				_m.DefaultDownloadMirrorID = value.String
+			}
+		case clientsource.FieldDefaultRawMirrorID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field default_raw_mirror_id", values[i])
+			} else if value.Valid {
+				_m.DefaultRawMirrorID = value.String
+			}
+		case clientsource.FieldMirrorsJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mirrors_json", values[i])
+			} else if value.Valid {
+				_m.MirrorsJSON = value.String
 			}
 		case clientsource.FieldLastSync:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -225,8 +241,14 @@ func (_m *ClientSource) String() string {
 	builder.WriteString("password=")
 	builder.WriteString(_m.Password)
 	builder.WriteString(", ")
-	builder.WriteString("mirror=")
-	builder.WriteString(_m.Mirror)
+	builder.WriteString("default_download_mirror_id=")
+	builder.WriteString(_m.DefaultDownloadMirrorID)
+	builder.WriteString(", ")
+	builder.WriteString("default_raw_mirror_id=")
+	builder.WriteString(_m.DefaultRawMirrorID)
+	builder.WriteString(", ")
+	builder.WriteString("mirrors_json=")
+	builder.WriteString(_m.MirrorsJSON)
 	builder.WriteString(", ")
 	if v := _m.LastSync; v != nil {
 		builder.WriteString("last_sync=")

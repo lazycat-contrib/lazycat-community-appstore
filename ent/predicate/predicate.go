@@ -30,6 +30,9 @@ type Category func(*sql.Selector)
 // ClientInstallHistory is the predicate function for clientinstallhistory builders.
 type ClientInstallHistory func(*sql.Selector)
 
+// ClientSetting is the predicate function for clientsetting builders.
+type ClientSetting func(*sql.Selector)
+
 // ClientSource is the predicate function for clientsource builders.
 type ClientSource func(*sql.Selector)
 
@@ -50,6 +53,9 @@ type CollectionApp func(*sql.Selector)
 
 // Comment is the predicate function for comment builders.
 type Comment func(*sql.Selector)
+
+// CommentNotification is the predicate function for commentnotification builders.
+type CommentNotification func(*sql.Selector)
 
 // Favorite is the predicate function for favorite builders.
 type Favorite func(*sql.Selector)

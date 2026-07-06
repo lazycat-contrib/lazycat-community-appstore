@@ -105,6 +105,18 @@ func (f ClientInstallHistoryFunc) Mutate(ctx context.Context, m ent.Mutation) (e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ClientInstallHistoryMutation", m)
 }
 
+// The ClientSettingFunc type is an adapter to allow the use of ordinary
+// function as ClientSetting mutator.
+type ClientSettingFunc func(context.Context, *ent.ClientSettingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ClientSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ClientSettingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ClientSettingMutation", m)
+}
+
 // The ClientSourceFunc type is an adapter to allow the use of ordinary
 // function as ClientSource mutator.
 type ClientSourceFunc func(context.Context, *ent.ClientSourceMutation) (ent.Value, error)
@@ -187,6 +199,18 @@ func (f CommentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CommentMutation", m)
+}
+
+// The CommentNotificationFunc type is an adapter to allow the use of ordinary
+// function as CommentNotification mutator.
+type CommentNotificationFunc func(context.Context, *ent.CommentNotificationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CommentNotificationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CommentNotificationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CommentNotificationMutation", m)
 }
 
 // The FavoriteFunc type is an adapter to allow the use of ordinary

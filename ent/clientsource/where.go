@@ -75,9 +75,19 @@ func Password(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldPassword, v))
 }
 
-// Mirror applies equality check predicate on the "mirror" field. It's identical to MirrorEQ.
-func Mirror(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldEQ(FieldMirror, v))
+// DefaultDownloadMirrorID applies equality check predicate on the "default_download_mirror_id" field. It's identical to DefaultDownloadMirrorIDEQ.
+func DefaultDownloadMirrorID(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldDefaultDownloadMirrorID, v))
+}
+
+// DefaultRawMirrorID applies equality check predicate on the "default_raw_mirror_id" field. It's identical to DefaultRawMirrorIDEQ.
+func DefaultRawMirrorID(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldDefaultRawMirrorID, v))
+}
+
+// MirrorsJSON applies equality check predicate on the "mirrors_json" field. It's identical to MirrorsJSONEQ.
+func MirrorsJSON(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldMirrorsJSON, v))
 }
 
 // LastSync applies equality check predicate on the "last_sync" field. It's identical to LastSyncEQ.
@@ -370,69 +380,199 @@ func PasswordContainsFold(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldContainsFold(FieldPassword, v))
 }
 
-// MirrorEQ applies the EQ predicate on the "mirror" field.
-func MirrorEQ(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldEQ(FieldMirror, v))
+// DefaultDownloadMirrorIDEQ applies the EQ predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldDefaultDownloadMirrorID, v))
 }
 
-// MirrorNEQ applies the NEQ predicate on the "mirror" field.
-func MirrorNEQ(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldNEQ(FieldMirror, v))
+// DefaultDownloadMirrorIDNEQ applies the NEQ predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldDefaultDownloadMirrorID, v))
 }
 
-// MirrorIn applies the In predicate on the "mirror" field.
-func MirrorIn(vs ...string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldIn(FieldMirror, vs...))
+// DefaultDownloadMirrorIDIn applies the In predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldDefaultDownloadMirrorID, vs...))
 }
 
-// MirrorNotIn applies the NotIn predicate on the "mirror" field.
-func MirrorNotIn(vs ...string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldNotIn(FieldMirror, vs...))
+// DefaultDownloadMirrorIDNotIn applies the NotIn predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldDefaultDownloadMirrorID, vs...))
 }
 
-// MirrorGT applies the GT predicate on the "mirror" field.
-func MirrorGT(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldGT(FieldMirror, v))
+// DefaultDownloadMirrorIDGT applies the GT predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldDefaultDownloadMirrorID, v))
 }
 
-// MirrorGTE applies the GTE predicate on the "mirror" field.
-func MirrorGTE(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldGTE(FieldMirror, v))
+// DefaultDownloadMirrorIDGTE applies the GTE predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldDefaultDownloadMirrorID, v))
 }
 
-// MirrorLT applies the LT predicate on the "mirror" field.
-func MirrorLT(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldLT(FieldMirror, v))
+// DefaultDownloadMirrorIDLT applies the LT predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldDefaultDownloadMirrorID, v))
 }
 
-// MirrorLTE applies the LTE predicate on the "mirror" field.
-func MirrorLTE(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldLTE(FieldMirror, v))
+// DefaultDownloadMirrorIDLTE applies the LTE predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldDefaultDownloadMirrorID, v))
 }
 
-// MirrorContains applies the Contains predicate on the "mirror" field.
-func MirrorContains(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldContains(FieldMirror, v))
+// DefaultDownloadMirrorIDContains applies the Contains predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldDefaultDownloadMirrorID, v))
 }
 
-// MirrorHasPrefix applies the HasPrefix predicate on the "mirror" field.
-func MirrorHasPrefix(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldHasPrefix(FieldMirror, v))
+// DefaultDownloadMirrorIDHasPrefix applies the HasPrefix predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldDefaultDownloadMirrorID, v))
 }
 
-// MirrorHasSuffix applies the HasSuffix predicate on the "mirror" field.
-func MirrorHasSuffix(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldHasSuffix(FieldMirror, v))
+// DefaultDownloadMirrorIDHasSuffix applies the HasSuffix predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldDefaultDownloadMirrorID, v))
 }
 
-// MirrorEqualFold applies the EqualFold predicate on the "mirror" field.
-func MirrorEqualFold(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldEqualFold(FieldMirror, v))
+// DefaultDownloadMirrorIDEqualFold applies the EqualFold predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldDefaultDownloadMirrorID, v))
 }
 
-// MirrorContainsFold applies the ContainsFold predicate on the "mirror" field.
-func MirrorContainsFold(v string) predicate.ClientSource {
-	return predicate.ClientSource(sql.FieldContainsFold(FieldMirror, v))
+// DefaultDownloadMirrorIDContainsFold applies the ContainsFold predicate on the "default_download_mirror_id" field.
+func DefaultDownloadMirrorIDContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldDefaultDownloadMirrorID, v))
+}
+
+// DefaultRawMirrorIDEQ applies the EQ predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldDefaultRawMirrorID, v))
+}
+
+// DefaultRawMirrorIDNEQ applies the NEQ predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldDefaultRawMirrorID, v))
+}
+
+// DefaultRawMirrorIDIn applies the In predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldDefaultRawMirrorID, vs...))
+}
+
+// DefaultRawMirrorIDNotIn applies the NotIn predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldDefaultRawMirrorID, vs...))
+}
+
+// DefaultRawMirrorIDGT applies the GT predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldDefaultRawMirrorID, v))
+}
+
+// DefaultRawMirrorIDGTE applies the GTE predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldDefaultRawMirrorID, v))
+}
+
+// DefaultRawMirrorIDLT applies the LT predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldDefaultRawMirrorID, v))
+}
+
+// DefaultRawMirrorIDLTE applies the LTE predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldDefaultRawMirrorID, v))
+}
+
+// DefaultRawMirrorIDContains applies the Contains predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldDefaultRawMirrorID, v))
+}
+
+// DefaultRawMirrorIDHasPrefix applies the HasPrefix predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldDefaultRawMirrorID, v))
+}
+
+// DefaultRawMirrorIDHasSuffix applies the HasSuffix predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldDefaultRawMirrorID, v))
+}
+
+// DefaultRawMirrorIDEqualFold applies the EqualFold predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldDefaultRawMirrorID, v))
+}
+
+// DefaultRawMirrorIDContainsFold applies the ContainsFold predicate on the "default_raw_mirror_id" field.
+func DefaultRawMirrorIDContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldDefaultRawMirrorID, v))
+}
+
+// MirrorsJSONEQ applies the EQ predicate on the "mirrors_json" field.
+func MirrorsJSONEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldMirrorsJSON, v))
+}
+
+// MirrorsJSONNEQ applies the NEQ predicate on the "mirrors_json" field.
+func MirrorsJSONNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldMirrorsJSON, v))
+}
+
+// MirrorsJSONIn applies the In predicate on the "mirrors_json" field.
+func MirrorsJSONIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldMirrorsJSON, vs...))
+}
+
+// MirrorsJSONNotIn applies the NotIn predicate on the "mirrors_json" field.
+func MirrorsJSONNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldMirrorsJSON, vs...))
+}
+
+// MirrorsJSONGT applies the GT predicate on the "mirrors_json" field.
+func MirrorsJSONGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldMirrorsJSON, v))
+}
+
+// MirrorsJSONGTE applies the GTE predicate on the "mirrors_json" field.
+func MirrorsJSONGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldMirrorsJSON, v))
+}
+
+// MirrorsJSONLT applies the LT predicate on the "mirrors_json" field.
+func MirrorsJSONLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldMirrorsJSON, v))
+}
+
+// MirrorsJSONLTE applies the LTE predicate on the "mirrors_json" field.
+func MirrorsJSONLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldMirrorsJSON, v))
+}
+
+// MirrorsJSONContains applies the Contains predicate on the "mirrors_json" field.
+func MirrorsJSONContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldMirrorsJSON, v))
+}
+
+// MirrorsJSONHasPrefix applies the HasPrefix predicate on the "mirrors_json" field.
+func MirrorsJSONHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldMirrorsJSON, v))
+}
+
+// MirrorsJSONHasSuffix applies the HasSuffix predicate on the "mirrors_json" field.
+func MirrorsJSONHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldMirrorsJSON, v))
+}
+
+// MirrorsJSONEqualFold applies the EqualFold predicate on the "mirrors_json" field.
+func MirrorsJSONEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldMirrorsJSON, v))
+}
+
+// MirrorsJSONContainsFold applies the ContainsFold predicate on the "mirrors_json" field.
+func MirrorsJSONContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldMirrorsJSON, v))
 }
 
 // LastSyncEQ applies the EQ predicate on the "last_sync" field.

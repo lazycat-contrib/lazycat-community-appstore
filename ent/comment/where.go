@@ -64,6 +64,21 @@ func UserID(v int) predicate.Comment {
 	return predicate.Comment(sql.FieldEQ(FieldUserID, v))
 }
 
+// ParentID applies equality check predicate on the "parent_id" field. It's identical to ParentIDEQ.
+func ParentID(v int) predicate.Comment {
+	return predicate.Comment(sql.FieldEQ(FieldParentID, v))
+}
+
+// AuthorName applies equality check predicate on the "author_name" field. It's identical to AuthorNameEQ.
+func AuthorName(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldEQ(FieldAuthorName, v))
+}
+
+// ClientUserID applies equality check predicate on the "client_user_id" field. It's identical to ClientUserIDEQ.
+func ClientUserID(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldEQ(FieldClientUserID, v))
+}
+
 // Body applies equality check predicate on the "body" field. It's identical to BodyEQ.
 func Body(v string) predicate.Comment {
 	return predicate.Comment(sql.FieldEQ(FieldBody, v))
@@ -162,6 +177,206 @@ func UserIDLT(v int) predicate.Comment {
 // UserIDLTE applies the LTE predicate on the "user_id" field.
 func UserIDLTE(v int) predicate.Comment {
 	return predicate.Comment(sql.FieldLTE(FieldUserID, v))
+}
+
+// ParentIDEQ applies the EQ predicate on the "parent_id" field.
+func ParentIDEQ(v int) predicate.Comment {
+	return predicate.Comment(sql.FieldEQ(FieldParentID, v))
+}
+
+// ParentIDNEQ applies the NEQ predicate on the "parent_id" field.
+func ParentIDNEQ(v int) predicate.Comment {
+	return predicate.Comment(sql.FieldNEQ(FieldParentID, v))
+}
+
+// ParentIDIn applies the In predicate on the "parent_id" field.
+func ParentIDIn(vs ...int) predicate.Comment {
+	return predicate.Comment(sql.FieldIn(FieldParentID, vs...))
+}
+
+// ParentIDNotIn applies the NotIn predicate on the "parent_id" field.
+func ParentIDNotIn(vs ...int) predicate.Comment {
+	return predicate.Comment(sql.FieldNotIn(FieldParentID, vs...))
+}
+
+// ParentIDGT applies the GT predicate on the "parent_id" field.
+func ParentIDGT(v int) predicate.Comment {
+	return predicate.Comment(sql.FieldGT(FieldParentID, v))
+}
+
+// ParentIDGTE applies the GTE predicate on the "parent_id" field.
+func ParentIDGTE(v int) predicate.Comment {
+	return predicate.Comment(sql.FieldGTE(FieldParentID, v))
+}
+
+// ParentIDLT applies the LT predicate on the "parent_id" field.
+func ParentIDLT(v int) predicate.Comment {
+	return predicate.Comment(sql.FieldLT(FieldParentID, v))
+}
+
+// ParentIDLTE applies the LTE predicate on the "parent_id" field.
+func ParentIDLTE(v int) predicate.Comment {
+	return predicate.Comment(sql.FieldLTE(FieldParentID, v))
+}
+
+// ParentIDIsNil applies the IsNil predicate on the "parent_id" field.
+func ParentIDIsNil() predicate.Comment {
+	return predicate.Comment(sql.FieldIsNull(FieldParentID))
+}
+
+// ParentIDNotNil applies the NotNil predicate on the "parent_id" field.
+func ParentIDNotNil() predicate.Comment {
+	return predicate.Comment(sql.FieldNotNull(FieldParentID))
+}
+
+// AuthorTypeEQ applies the EQ predicate on the "author_type" field.
+func AuthorTypeEQ(v AuthorType) predicate.Comment {
+	return predicate.Comment(sql.FieldEQ(FieldAuthorType, v))
+}
+
+// AuthorTypeNEQ applies the NEQ predicate on the "author_type" field.
+func AuthorTypeNEQ(v AuthorType) predicate.Comment {
+	return predicate.Comment(sql.FieldNEQ(FieldAuthorType, v))
+}
+
+// AuthorTypeIn applies the In predicate on the "author_type" field.
+func AuthorTypeIn(vs ...AuthorType) predicate.Comment {
+	return predicate.Comment(sql.FieldIn(FieldAuthorType, vs...))
+}
+
+// AuthorTypeNotIn applies the NotIn predicate on the "author_type" field.
+func AuthorTypeNotIn(vs ...AuthorType) predicate.Comment {
+	return predicate.Comment(sql.FieldNotIn(FieldAuthorType, vs...))
+}
+
+// AuthorNameEQ applies the EQ predicate on the "author_name" field.
+func AuthorNameEQ(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldEQ(FieldAuthorName, v))
+}
+
+// AuthorNameNEQ applies the NEQ predicate on the "author_name" field.
+func AuthorNameNEQ(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldNEQ(FieldAuthorName, v))
+}
+
+// AuthorNameIn applies the In predicate on the "author_name" field.
+func AuthorNameIn(vs ...string) predicate.Comment {
+	return predicate.Comment(sql.FieldIn(FieldAuthorName, vs...))
+}
+
+// AuthorNameNotIn applies the NotIn predicate on the "author_name" field.
+func AuthorNameNotIn(vs ...string) predicate.Comment {
+	return predicate.Comment(sql.FieldNotIn(FieldAuthorName, vs...))
+}
+
+// AuthorNameGT applies the GT predicate on the "author_name" field.
+func AuthorNameGT(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldGT(FieldAuthorName, v))
+}
+
+// AuthorNameGTE applies the GTE predicate on the "author_name" field.
+func AuthorNameGTE(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldGTE(FieldAuthorName, v))
+}
+
+// AuthorNameLT applies the LT predicate on the "author_name" field.
+func AuthorNameLT(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldLT(FieldAuthorName, v))
+}
+
+// AuthorNameLTE applies the LTE predicate on the "author_name" field.
+func AuthorNameLTE(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldLTE(FieldAuthorName, v))
+}
+
+// AuthorNameContains applies the Contains predicate on the "author_name" field.
+func AuthorNameContains(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldContains(FieldAuthorName, v))
+}
+
+// AuthorNameHasPrefix applies the HasPrefix predicate on the "author_name" field.
+func AuthorNameHasPrefix(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldHasPrefix(FieldAuthorName, v))
+}
+
+// AuthorNameHasSuffix applies the HasSuffix predicate on the "author_name" field.
+func AuthorNameHasSuffix(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldHasSuffix(FieldAuthorName, v))
+}
+
+// AuthorNameEqualFold applies the EqualFold predicate on the "author_name" field.
+func AuthorNameEqualFold(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldEqualFold(FieldAuthorName, v))
+}
+
+// AuthorNameContainsFold applies the ContainsFold predicate on the "author_name" field.
+func AuthorNameContainsFold(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldContainsFold(FieldAuthorName, v))
+}
+
+// ClientUserIDEQ applies the EQ predicate on the "client_user_id" field.
+func ClientUserIDEQ(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldEQ(FieldClientUserID, v))
+}
+
+// ClientUserIDNEQ applies the NEQ predicate on the "client_user_id" field.
+func ClientUserIDNEQ(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldNEQ(FieldClientUserID, v))
+}
+
+// ClientUserIDIn applies the In predicate on the "client_user_id" field.
+func ClientUserIDIn(vs ...string) predicate.Comment {
+	return predicate.Comment(sql.FieldIn(FieldClientUserID, vs...))
+}
+
+// ClientUserIDNotIn applies the NotIn predicate on the "client_user_id" field.
+func ClientUserIDNotIn(vs ...string) predicate.Comment {
+	return predicate.Comment(sql.FieldNotIn(FieldClientUserID, vs...))
+}
+
+// ClientUserIDGT applies the GT predicate on the "client_user_id" field.
+func ClientUserIDGT(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldGT(FieldClientUserID, v))
+}
+
+// ClientUserIDGTE applies the GTE predicate on the "client_user_id" field.
+func ClientUserIDGTE(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldGTE(FieldClientUserID, v))
+}
+
+// ClientUserIDLT applies the LT predicate on the "client_user_id" field.
+func ClientUserIDLT(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldLT(FieldClientUserID, v))
+}
+
+// ClientUserIDLTE applies the LTE predicate on the "client_user_id" field.
+func ClientUserIDLTE(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldLTE(FieldClientUserID, v))
+}
+
+// ClientUserIDContains applies the Contains predicate on the "client_user_id" field.
+func ClientUserIDContains(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldContains(FieldClientUserID, v))
+}
+
+// ClientUserIDHasPrefix applies the HasPrefix predicate on the "client_user_id" field.
+func ClientUserIDHasPrefix(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldHasPrefix(FieldClientUserID, v))
+}
+
+// ClientUserIDHasSuffix applies the HasSuffix predicate on the "client_user_id" field.
+func ClientUserIDHasSuffix(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldHasSuffix(FieldClientUserID, v))
+}
+
+// ClientUserIDEqualFold applies the EqualFold predicate on the "client_user_id" field.
+func ClientUserIDEqualFold(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldEqualFold(FieldClientUserID, v))
+}
+
+// ClientUserIDContainsFold applies the ContainsFold predicate on the "client_user_id" field.
+func ClientUserIDContainsFold(v string) predicate.Comment {
+	return predicate.Comment(sql.FieldContainsFold(FieldClientUserID, v))
 }
 
 // BodyEQ applies the EQ predicate on the "body" field.

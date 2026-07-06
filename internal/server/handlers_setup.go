@@ -20,7 +20,8 @@ type setupRequest struct {
 	Email                 string `json:"email"`
 	Password              string `json:"password"`
 	SourcePassword        string `json:"sourcePassword"`
-	GitHubMirror          string `json:"githubMirror"`
+	GitHubDownloadMirrors string `json:"githubDownloadMirrors"`
+	GitHubRawMirrors      string `json:"githubRawMirrors"`
 	RequireEmailVerify    bool   `json:"requireEmailVerify"`
 	SourcePasswordEnabled bool   `json:"sourcePasswordEnabled"`
 }
@@ -53,7 +54,8 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	input.Username = strings.TrimSpace(input.Username)
 	input.Email = strings.TrimSpace(input.Email)
 	input.SourcePassword = strings.TrimSpace(input.SourcePassword)
-	input.GitHubMirror = strings.TrimRight(strings.TrimSpace(input.GitHubMirror), "/")
+	input.GitHubDownloadMirrors = normalizeSettingValue(settingGitHubDownloadMirrors, strings.TrimSpace(input.GitHubDownloadMirrors))
+	input.GitHubRawMirrors = normalizeSettingValue(settingGitHubRawMirrors, strings.TrimSpace(input.GitHubRawMirrors))
 	if input.Username == "" || len(input.Password) < 8 {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Username and a password of at least 8 characters are required", nil)
 		return
@@ -62,8 +64,14 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Email address is invalid", nil)
 		return
 	}
-	if input.GitHubMirror != "" {
-		if err := validateSetting("github_mirror", input.GitHubMirror); err != nil {
+	if input.GitHubDownloadMirrors != "" {
+		if err := validateSetting(settingGitHubDownloadMirrors, input.GitHubDownloadMirrors); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
+			return
+		}
+	}
+	if input.GitHubRawMirrors != "" {
+		if err := validateSetting(settingGitHubRawMirrors, input.GitHubRawMirrors); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
 			return
 		}
@@ -81,8 +89,11 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 	} else {
 		settings["source_password"] = ""
 	}
-	if input.GitHubMirror != "" {
-		settings["github_mirror"] = input.GitHubMirror
+	if input.GitHubDownloadMirrors != "" {
+		settings[settingGitHubDownloadMirrors] = input.GitHubDownloadMirrors
+	}
+	if input.GitHubRawMirrors != "" {
+		settings[settingGitHubRawMirrors] = input.GitHubRawMirrors
 	}
 
 	hash, err := auth.HashPassword(input.Password)

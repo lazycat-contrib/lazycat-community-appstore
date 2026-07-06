@@ -23,7 +23,7 @@ func main() {
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
 	}
-	log.Printf("LazyCat Community App Store server listening on %s", cfg.Addr)
+	log.Printf("LazyCat Private Store server listening on %s", cfg.Addr)
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

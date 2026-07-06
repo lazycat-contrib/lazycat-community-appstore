@@ -35,8 +35,8 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 
 	profile := s.siteProfile(r.Context())
 	input := feed.Input{
-		BaseURL:      profile.PublicURL,
-		GitHubMirror: s.effectiveGitHubMirror(r.Context()),
+		BaseURL:       profile.PublicURL,
+		GitHubMirrors: s.effectiveGitHubMirrors(r.Context()),
 		Site: feed.SiteMeta{
 			Title:     profile.Title,
 			IconURL:   profile.IconURL,

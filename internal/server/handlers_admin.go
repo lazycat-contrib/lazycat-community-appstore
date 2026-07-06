@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/mail"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/ent/tag"
+	"lazycat.community/appstore/internal/mirror"
 )
 
 func (s *Server) handleListReviews(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -326,7 +328,8 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingRequireEmailVerify:     strconv.FormatBool(s.cfg.RequireEmailVerify),
 		settingSourcePassword:         s.cfg.SourcePassword,
 		settingSourcePasswordRotation: strconv.Itoa(s.cfg.SourcePasswordRotation),
-		settingGitHubMirror:           s.cfg.GitHubMirror,
+		settingGitHubDownloadMirrors:  s.cfg.GitHubDownloadMirrors,
+		settingGitHubRawMirrors:       s.cfg.GitHubRawMirrors,
 		settingSiteTitle:              s.siteProfile(r.Context()).Title,
 		settingSiteIconURL:            "",
 		settingSitePublicURL:          s.sitePublicURL(r.Context()),
@@ -337,6 +340,11 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingAnnouncementLinkLabel:  "",
 		settingAnnouncementLinkURL:    "",
 		settingAnnouncementUpdatedAt:  "",
+		settingSMTPHost:               s.cfg.SMTPHost,
+		settingSMTPPort:               strconv.Itoa(s.cfg.SMTPPort),
+		settingSMTPUser:               s.cfg.SMTPUser,
+		settingSMTPPass:               s.cfg.SMTPPass,
+		settingSMTPFrom:               s.cfg.SMTPFrom,
 	}
 	for _, record := range records {
 		if isPublicSetting(record.Key) {
@@ -374,6 +382,83 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request, u 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+type testEmailRequest struct {
+	To       string            `json:"to"`
+	Settings map[string]string `json:"settings"`
+}
+
+func (s *Server) handleSendTestEmail(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	var input testEmailRequest
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	to := strings.TrimSpace(input.To)
+	if _, err := mail.ParseAddress(to); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "A valid recipient email is required", nil)
+		return
+	}
+	cfg, err := s.smtpConfigFromSettings(r.Context(), input.Settings)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	if strings.TrimSpace(cfg.Host) == "" || strings.TrimSpace(cfg.From) == "" {
+		writeError(w, http.StatusUnprocessableEntity, "SMTP_NOT_CONFIGURED", "SMTP host and from address are required", nil)
+		return
+	}
+	if _, err := mail.ParseAddress(cfg.From); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "SMTP from address must be valid", nil)
+		return
+	}
+	subject := "LazyCat private store test email"
+	body := "This is a test email from LazyCat private store.\n\nIf you received this message, SMTP delivery is configured correctly.\n"
+	if mailer, ok := s.mailer.(smtpMailer); ok {
+		if err := mailer.SendWithConfig(r.Context(), cfg, to, subject, body); err != nil {
+			writeError(w, http.StatusBadGateway, "TEST_EMAIL_FAILED", err.Error(), nil)
+			return
+		}
+	} else if err := s.mailer.Send(r.Context(), to, subject, body); err != nil {
+		writeError(w, http.StatusBadGateway, "TEST_EMAIL_FAILED", err.Error(), nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) smtpConfigFromSettings(ctx context.Context, settings map[string]string) (smtpConfig, error) {
+	cfg := s.smtpSettings(ctx)
+	if len(settings) == 0 {
+		return cfg, nil
+	}
+	for _, key := range []string{settingSMTPHost, settingSMTPPort, settingSMTPUser, settingSMTPPass, settingSMTPFrom} {
+		value, ok := settings[key]
+		if !ok {
+			continue
+		}
+		value = normalizeSettingValue(key, strings.TrimSpace(value))
+		if err := validateSetting(key, value); err != nil {
+			return smtpConfig{}, err
+		}
+		switch key {
+		case settingSMTPHost:
+			cfg.Host = value
+		case settingSMTPPort:
+			port, err := strconv.Atoi(value)
+			if err != nil {
+				return smtpConfig{}, fmt.Errorf("%s must be a valid port", key)
+			}
+			cfg.Port = port
+		case settingSMTPUser:
+			cfg.User = value
+		case settingSMTPPass:
+			cfg.Pass = value
+		case settingSMTPFrom:
+			cfg.From = value
+		}
+	}
+	return cfg, nil
+}
+
 func validateSetting(key, value string) error {
 	if !isPublicSetting(key) {
 		return fmt.Errorf("unknown setting %q", key)
@@ -393,7 +478,16 @@ func validateSetting(key, value string) error {
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("%s must be a boolean", key)
 		}
-	case settingGitHubMirror, settingSitePublicURL, settingSiteIconURL, settingAnnouncementLinkURL:
+	case settingSMTPPort:
+		parsed, err := strconv.Atoi(value)
+		if err != nil || parsed <= 0 || parsed > 65535 {
+			return fmt.Errorf("%s must be a valid port", key)
+		}
+	case settingGitHubDownloadMirrors, settingGitHubRawMirrors:
+		if _, err := mirror.Parse(value, settingMirrorKind(key)); err != nil {
+			return fmt.Errorf("%s %w", key, err)
+		}
+	case settingSitePublicURL, settingSiteIconURL, settingAnnouncementLinkURL:
 		if !isHTTPURLOrEmpty(value) {
 			return fmt.Errorf("%s must be an http or https URL", key)
 		}
@@ -424,7 +518,7 @@ func validateSetting(key, value string) error {
 		if _, err := time.Parse(time.RFC3339, value); err != nil {
 			return fmt.Errorf("%s must be an RFC3339 timestamp", key)
 		}
-	case settingSourcePassword:
+	case settingSourcePassword, settingSMTPHost, settingSMTPUser, settingSMTPPass, settingSMTPFrom:
 		return nil
 	}
 	return nil
@@ -437,7 +531,8 @@ func isPublicSetting(key string) bool {
 		settingRequireEmailVerify,
 		settingSourcePassword,
 		settingSourcePasswordRotation,
-		settingGitHubMirror,
+		settingGitHubDownloadMirrors,
+		settingGitHubRawMirrors,
 		settingSiteTitle,
 		settingSiteIconURL,
 		settingSitePublicURL,
@@ -447,7 +542,12 @@ func isPublicSetting(key string) bool {
 		settingAnnouncementBody,
 		settingAnnouncementLinkLabel,
 		settingAnnouncementLinkURL,
-		settingAnnouncementUpdatedAt:
+		settingAnnouncementUpdatedAt,
+		settingSMTPHost,
+		settingSMTPPort,
+		settingSMTPUser,
+		settingSMTPPass,
+		settingSMTPFrom:
 		return true
 	default:
 		return false
@@ -456,11 +556,24 @@ func isPublicSetting(key string) bool {
 
 func normalizeSettingValue(key, value string) string {
 	switch key {
-	case settingGitHubMirror, settingSitePublicURL, settingSiteIconURL, settingAnnouncementLinkURL:
+	case settingGitHubDownloadMirrors, settingGitHubRawMirrors:
+		normalized, err := mirror.Normalize(value, settingMirrorKind(key))
+		if err != nil {
+			return value
+		}
+		return normalized
+	case settingSitePublicURL, settingSiteIconURL, settingAnnouncementLinkURL:
 		return cleanURLSetting(value)
 	default:
 		return value
 	}
+}
+
+func settingMirrorKind(key string) string {
+	if key == settingGitHubRawMirrors {
+		return mirror.KindRaw
+	}
+	return mirror.KindDownload
 }
 
 func (s *Server) settingsChangeAnnouncement(ctx context.Context, input map[string]string) bool {

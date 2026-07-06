@@ -32,6 +32,62 @@ func (_c *CommentCreate) SetUserID(v int) *CommentCreate {
 	return _c
 }
 
+// SetParentID sets the "parent_id" field.
+func (_c *CommentCreate) SetParentID(v int) *CommentCreate {
+	_c.mutation.SetParentID(v)
+	return _c
+}
+
+// SetNillableParentID sets the "parent_id" field if the given value is not nil.
+func (_c *CommentCreate) SetNillableParentID(v *int) *CommentCreate {
+	if v != nil {
+		_c.SetParentID(*v)
+	}
+	return _c
+}
+
+// SetAuthorType sets the "author_type" field.
+func (_c *CommentCreate) SetAuthorType(v comment.AuthorType) *CommentCreate {
+	_c.mutation.SetAuthorType(v)
+	return _c
+}
+
+// SetNillableAuthorType sets the "author_type" field if the given value is not nil.
+func (_c *CommentCreate) SetNillableAuthorType(v *comment.AuthorType) *CommentCreate {
+	if v != nil {
+		_c.SetAuthorType(*v)
+	}
+	return _c
+}
+
+// SetAuthorName sets the "author_name" field.
+func (_c *CommentCreate) SetAuthorName(v string) *CommentCreate {
+	_c.mutation.SetAuthorName(v)
+	return _c
+}
+
+// SetNillableAuthorName sets the "author_name" field if the given value is not nil.
+func (_c *CommentCreate) SetNillableAuthorName(v *string) *CommentCreate {
+	if v != nil {
+		_c.SetAuthorName(*v)
+	}
+	return _c
+}
+
+// SetClientUserID sets the "client_user_id" field.
+func (_c *CommentCreate) SetClientUserID(v string) *CommentCreate {
+	_c.mutation.SetClientUserID(v)
+	return _c
+}
+
+// SetNillableClientUserID sets the "client_user_id" field if the given value is not nil.
+func (_c *CommentCreate) SetNillableClientUserID(v *string) *CommentCreate {
+	if v != nil {
+		_c.SetClientUserID(*v)
+	}
+	return _c
+}
+
 // SetBody sets the "body" field.
 func (_c *CommentCreate) SetBody(v string) *CommentCreate {
 	_c.mutation.SetBody(v)
@@ -115,6 +171,18 @@ func (_c *CommentCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *CommentCreate) defaults() {
+	if _, ok := _c.mutation.AuthorType(); !ok {
+		v := comment.DefaultAuthorType
+		_c.mutation.SetAuthorType(v)
+	}
+	if _, ok := _c.mutation.AuthorName(); !ok {
+		v := comment.DefaultAuthorName
+		_c.mutation.SetAuthorName(v)
+	}
+	if _, ok := _c.mutation.ClientUserID(); !ok {
+		v := comment.DefaultClientUserID
+		_c.mutation.SetClientUserID(v)
+	}
 	if _, ok := _c.mutation.Deleted(); !ok {
 		v := comment.DefaultDeleted
 		_c.mutation.SetDeleted(v)
@@ -136,6 +204,20 @@ func (_c *CommentCreate) check() error {
 	}
 	if _, ok := _c.mutation.UserID(); !ok {
 		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "Comment.user_id"`)}
+	}
+	if _, ok := _c.mutation.AuthorType(); !ok {
+		return &ValidationError{Name: "author_type", err: errors.New(`ent: missing required field "Comment.author_type"`)}
+	}
+	if v, ok := _c.mutation.AuthorType(); ok {
+		if err := comment.AuthorTypeValidator(v); err != nil {
+			return &ValidationError{Name: "author_type", err: fmt.Errorf(`ent: validator failed for field "Comment.author_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AuthorName(); !ok {
+		return &ValidationError{Name: "author_name", err: errors.New(`ent: missing required field "Comment.author_name"`)}
+	}
+	if _, ok := _c.mutation.ClientUserID(); !ok {
+		return &ValidationError{Name: "client_user_id", err: errors.New(`ent: missing required field "Comment.client_user_id"`)}
 	}
 	if _, ok := _c.mutation.Body(); !ok {
 		return &ValidationError{Name: "body", err: errors.New(`ent: missing required field "Comment.body"`)}
@@ -187,6 +269,22 @@ func (_c *CommentCreate) createSpec() (*Comment, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UserID(); ok {
 		_spec.SetField(comment.FieldUserID, field.TypeInt, value)
 		_node.UserID = value
+	}
+	if value, ok := _c.mutation.ParentID(); ok {
+		_spec.SetField(comment.FieldParentID, field.TypeInt, value)
+		_node.ParentID = &value
+	}
+	if value, ok := _c.mutation.AuthorType(); ok {
+		_spec.SetField(comment.FieldAuthorType, field.TypeEnum, value)
+		_node.AuthorType = value
+	}
+	if value, ok := _c.mutation.AuthorName(); ok {
+		_spec.SetField(comment.FieldAuthorName, field.TypeString, value)
+		_node.AuthorName = value
+	}
+	if value, ok := _c.mutation.ClientUserID(); ok {
+		_spec.SetField(comment.FieldClientUserID, field.TypeString, value)
+		_node.ClientUserID = value
 	}
 	if value, ok := _c.mutation.Body(); ok {
 		_spec.SetField(comment.FieldBody, field.TypeString, value)

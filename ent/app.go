@@ -39,6 +39,8 @@ type App struct {
 	AllowUnreviewedUpdates bool `json:"allow_unreviewed_updates,omitempty"`
 	// CommentsEnabled holds the value of the "comments_enabled" field.
 	CommentsEnabled bool `json:"comments_enabled,omitempty"`
+	// EmailNotificationsEnabled holds the value of the "email_notifications_enabled" field.
+	EmailNotificationsEnabled bool `json:"email_notifications_enabled,omitempty"`
 	// InstallPasswordHash holds the value of the "install_password_hash" field.
 	InstallPasswordHash string `json:"install_password_hash,omitempty"`
 	// DownloadCount holds the value of the "download_count" field.
@@ -55,7 +57,7 @@ func (*App) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case app.FieldAllowUnreviewedUpdates, app.FieldCommentsEnabled:
+		case app.FieldAllowUnreviewedUpdates, app.FieldCommentsEnabled, app.FieldEmailNotificationsEnabled:
 			values[i] = new(sql.NullBool)
 		case app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldDownloadCount:
 			values[i] = new(sql.NullInt64)
@@ -151,6 +153,12 @@ func (_m *App) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field comments_enabled", values[i])
 			} else if value.Valid {
 				_m.CommentsEnabled = value.Bool
+			}
+		case app.FieldEmailNotificationsEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field email_notifications_enabled", values[i])
+			} else if value.Valid {
+				_m.EmailNotificationsEnabled = value.Bool
 			}
 		case app.FieldInstallPasswordHash:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -248,6 +256,9 @@ func (_m *App) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("comments_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CommentsEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("email_notifications_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.EmailNotificationsEnabled))
 	builder.WriteString(", ")
 	builder.WriteString("install_password_hash=")
 	builder.WriteString(_m.InstallPasswordHash)

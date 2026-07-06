@@ -85,16 +85,44 @@ func (_u *ClientSourceUpdate) SetNillablePassword(v *string) *ClientSourceUpdate
 	return _u
 }
 
-// SetMirror sets the "mirror" field.
-func (_u *ClientSourceUpdate) SetMirror(v string) *ClientSourceUpdate {
-	_u.mutation.SetMirror(v)
+// SetDefaultDownloadMirrorID sets the "default_download_mirror_id" field.
+func (_u *ClientSourceUpdate) SetDefaultDownloadMirrorID(v string) *ClientSourceUpdate {
+	_u.mutation.SetDefaultDownloadMirrorID(v)
 	return _u
 }
 
-// SetNillableMirror sets the "mirror" field if the given value is not nil.
-func (_u *ClientSourceUpdate) SetNillableMirror(v *string) *ClientSourceUpdate {
+// SetNillableDefaultDownloadMirrorID sets the "default_download_mirror_id" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableDefaultDownloadMirrorID(v *string) *ClientSourceUpdate {
 	if v != nil {
-		_u.SetMirror(*v)
+		_u.SetDefaultDownloadMirrorID(*v)
+	}
+	return _u
+}
+
+// SetDefaultRawMirrorID sets the "default_raw_mirror_id" field.
+func (_u *ClientSourceUpdate) SetDefaultRawMirrorID(v string) *ClientSourceUpdate {
+	_u.mutation.SetDefaultRawMirrorID(v)
+	return _u
+}
+
+// SetNillableDefaultRawMirrorID sets the "default_raw_mirror_id" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableDefaultRawMirrorID(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetDefaultRawMirrorID(*v)
+	}
+	return _u
+}
+
+// SetMirrorsJSON sets the "mirrors_json" field.
+func (_u *ClientSourceUpdate) SetMirrorsJSON(v string) *ClientSourceUpdate {
+	_u.mutation.SetMirrorsJSON(v)
+	return _u
+}
+
+// SetNillableMirrorsJSON sets the "mirrors_json" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableMirrorsJSON(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetMirrorsJSON(*v)
 	}
 	return _u
 }
@@ -347,8 +375,14 @@ func (_u *ClientSourceUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.Password(); ok {
 		_spec.SetField(clientsource.FieldPassword, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Mirror(); ok {
-		_spec.SetField(clientsource.FieldMirror, field.TypeString, value)
+	if value, ok := _u.mutation.DefaultDownloadMirrorID(); ok {
+		_spec.SetField(clientsource.FieldDefaultDownloadMirrorID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DefaultRawMirrorID(); ok {
+		_spec.SetField(clientsource.FieldDefaultRawMirrorID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MirrorsJSON(); ok {
+		_spec.SetField(clientsource.FieldMirrorsJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)
@@ -507,16 +541,44 @@ func (_u *ClientSourceUpdateOne) SetNillablePassword(v *string) *ClientSourceUpd
 	return _u
 }
 
-// SetMirror sets the "mirror" field.
-func (_u *ClientSourceUpdateOne) SetMirror(v string) *ClientSourceUpdateOne {
-	_u.mutation.SetMirror(v)
+// SetDefaultDownloadMirrorID sets the "default_download_mirror_id" field.
+func (_u *ClientSourceUpdateOne) SetDefaultDownloadMirrorID(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetDefaultDownloadMirrorID(v)
 	return _u
 }
 
-// SetNillableMirror sets the "mirror" field if the given value is not nil.
-func (_u *ClientSourceUpdateOne) SetNillableMirror(v *string) *ClientSourceUpdateOne {
+// SetNillableDefaultDownloadMirrorID sets the "default_download_mirror_id" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableDefaultDownloadMirrorID(v *string) *ClientSourceUpdateOne {
 	if v != nil {
-		_u.SetMirror(*v)
+		_u.SetDefaultDownloadMirrorID(*v)
+	}
+	return _u
+}
+
+// SetDefaultRawMirrorID sets the "default_raw_mirror_id" field.
+func (_u *ClientSourceUpdateOne) SetDefaultRawMirrorID(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetDefaultRawMirrorID(v)
+	return _u
+}
+
+// SetNillableDefaultRawMirrorID sets the "default_raw_mirror_id" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableDefaultRawMirrorID(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetDefaultRawMirrorID(*v)
+	}
+	return _u
+}
+
+// SetMirrorsJSON sets the "mirrors_json" field.
+func (_u *ClientSourceUpdateOne) SetMirrorsJSON(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetMirrorsJSON(v)
+	return _u
+}
+
+// SetNillableMirrorsJSON sets the "mirrors_json" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableMirrorsJSON(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetMirrorsJSON(*v)
 	}
 	return _u
 }
@@ -799,8 +861,14 @@ func (_u *ClientSourceUpdateOne) sqlSave(ctx context.Context) (_node *ClientSour
 	if value, ok := _u.mutation.Password(); ok {
 		_spec.SetField(clientsource.FieldPassword, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.Mirror(); ok {
-		_spec.SetField(clientsource.FieldMirror, field.TypeString, value)
+	if value, ok := _u.mutation.DefaultDownloadMirrorID(); ok {
+		_spec.SetField(clientsource.FieldDefaultDownloadMirrorID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DefaultRawMirrorID(); ok {
+		_spec.SetField(clientsource.FieldDefaultRawMirrorID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MirrorsJSON(); ok {
+		_spec.SetField(clientsource.FieldMirrorsJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)

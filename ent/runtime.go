@@ -13,6 +13,7 @@ import (
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
 	"lazycat.community/appstore/ent/clientinstallhistory"
+	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/collaborator"
@@ -20,6 +21,7 @@ import (
 	"lazycat.community/appstore/ent/collection"
 	"lazycat.community/appstore/ent/collectionapp"
 	"lazycat.community/appstore/ent/comment"
+	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/outdatedmark"
@@ -83,20 +85,24 @@ func init() {
 	appDescCommentsEnabled := appFields[10].Descriptor()
 	// app.DefaultCommentsEnabled holds the default value on creation for the comments_enabled field.
 	app.DefaultCommentsEnabled = appDescCommentsEnabled.Default.(bool)
+	// appDescEmailNotificationsEnabled is the schema descriptor for email_notifications_enabled field.
+	appDescEmailNotificationsEnabled := appFields[11].Descriptor()
+	// app.DefaultEmailNotificationsEnabled holds the default value on creation for the email_notifications_enabled field.
+	app.DefaultEmailNotificationsEnabled = appDescEmailNotificationsEnabled.Default.(bool)
 	// appDescInstallPasswordHash is the schema descriptor for install_password_hash field.
-	appDescInstallPasswordHash := appFields[11].Descriptor()
+	appDescInstallPasswordHash := appFields[12].Descriptor()
 	// app.DefaultInstallPasswordHash holds the default value on creation for the install_password_hash field.
 	app.DefaultInstallPasswordHash = appDescInstallPasswordHash.Default.(string)
 	// appDescDownloadCount is the schema descriptor for download_count field.
-	appDescDownloadCount := appFields[12].Descriptor()
+	appDescDownloadCount := appFields[13].Descriptor()
 	// app.DefaultDownloadCount holds the default value on creation for the download_count field.
 	app.DefaultDownloadCount = appDescDownloadCount.Default.(int)
 	// appDescCreatedAt is the schema descriptor for created_at field.
-	appDescCreatedAt := appFields[13].Descriptor()
+	appDescCreatedAt := appFields[14].Descriptor()
 	// app.DefaultCreatedAt holds the default value on creation for the created_at field.
 	app.DefaultCreatedAt = appDescCreatedAt.Default.(func() time.Time)
 	// appDescUpdatedAt is the schema descriptor for updated_at field.
-	appDescUpdatedAt := appFields[14].Descriptor()
+	appDescUpdatedAt := appFields[15].Descriptor()
 	// app.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	app.DefaultUpdatedAt = appDescUpdatedAt.Default.(func() time.Time)
 	// app.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -233,6 +239,30 @@ func init() {
 	clientinstallhistoryDescCreatedAt := clientinstallhistoryFields[11].Descriptor()
 	// clientinstallhistory.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientinstallhistory.DefaultCreatedAt = clientinstallhistoryDescCreatedAt.Default.(func() time.Time)
+	clientsettingFields := schema.ClientSetting{}.Fields()
+	_ = clientsettingFields
+	// clientsettingDescUserID is the schema descriptor for user_id field.
+	clientsettingDescUserID := clientsettingFields[0].Descriptor()
+	// clientsetting.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	clientsetting.UserIDValidator = clientsettingDescUserID.Validators[0].(func(string) error)
+	// clientsettingDescKey is the schema descriptor for key field.
+	clientsettingDescKey := clientsettingFields[1].Descriptor()
+	// clientsetting.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	clientsetting.KeyValidator = clientsettingDescKey.Validators[0].(func(string) error)
+	// clientsettingDescValue is the schema descriptor for value field.
+	clientsettingDescValue := clientsettingFields[2].Descriptor()
+	// clientsetting.DefaultValue holds the default value on creation for the value field.
+	clientsetting.DefaultValue = clientsettingDescValue.Default.(string)
+	// clientsettingDescCreatedAt is the schema descriptor for created_at field.
+	clientsettingDescCreatedAt := clientsettingFields[3].Descriptor()
+	// clientsetting.DefaultCreatedAt holds the default value on creation for the created_at field.
+	clientsetting.DefaultCreatedAt = clientsettingDescCreatedAt.Default.(func() time.Time)
+	// clientsettingDescUpdatedAt is the schema descriptor for updated_at field.
+	clientsettingDescUpdatedAt := clientsettingFields[4].Descriptor()
+	// clientsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	clientsetting.DefaultUpdatedAt = clientsettingDescUpdatedAt.Default.(func() time.Time)
+	// clientsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	clientsetting.UpdateDefaultUpdatedAt = clientsettingDescUpdatedAt.UpdateDefault.(func() time.Time)
 	clientsourceFields := schema.ClientSource{}.Fields()
 	_ = clientsourceFields
 	// clientsourceDescUserID is the schema descriptor for user_id field.
@@ -251,24 +281,32 @@ func init() {
 	clientsourceDescPassword := clientsourceFields[3].Descriptor()
 	// clientsource.DefaultPassword holds the default value on creation for the password field.
 	clientsource.DefaultPassword = clientsourceDescPassword.Default.(string)
-	// clientsourceDescMirror is the schema descriptor for mirror field.
-	clientsourceDescMirror := clientsourceFields[4].Descriptor()
-	// clientsource.DefaultMirror holds the default value on creation for the mirror field.
-	clientsource.DefaultMirror = clientsourceDescMirror.Default.(string)
+	// clientsourceDescDefaultDownloadMirrorID is the schema descriptor for default_download_mirror_id field.
+	clientsourceDescDefaultDownloadMirrorID := clientsourceFields[4].Descriptor()
+	// clientsource.DefaultDefaultDownloadMirrorID holds the default value on creation for the default_download_mirror_id field.
+	clientsource.DefaultDefaultDownloadMirrorID = clientsourceDescDefaultDownloadMirrorID.Default.(string)
+	// clientsourceDescDefaultRawMirrorID is the schema descriptor for default_raw_mirror_id field.
+	clientsourceDescDefaultRawMirrorID := clientsourceFields[5].Descriptor()
+	// clientsource.DefaultDefaultRawMirrorID holds the default value on creation for the default_raw_mirror_id field.
+	clientsource.DefaultDefaultRawMirrorID = clientsourceDescDefaultRawMirrorID.Default.(string)
+	// clientsourceDescMirrorsJSON is the schema descriptor for mirrors_json field.
+	clientsourceDescMirrorsJSON := clientsourceFields[6].Descriptor()
+	// clientsource.DefaultMirrorsJSON holds the default value on creation for the mirrors_json field.
+	clientsource.DefaultMirrorsJSON = clientsourceDescMirrorsJSON.Default.(string)
 	// clientsourceDescLastAppCount is the schema descriptor for last_app_count field.
-	clientsourceDescLastAppCount := clientsourceFields[8].Descriptor()
+	clientsourceDescLastAppCount := clientsourceFields[10].Descriptor()
 	// clientsource.DefaultLastAppCount holds the default value on creation for the last_app_count field.
 	clientsource.DefaultLastAppCount = clientsourceDescLastAppCount.Default.(int)
 	// clientsourceDescLastInstallableCount is the schema descriptor for last_installable_count field.
-	clientsourceDescLastInstallableCount := clientsourceFields[9].Descriptor()
+	clientsourceDescLastInstallableCount := clientsourceFields[11].Descriptor()
 	// clientsource.DefaultLastInstallableCount holds the default value on creation for the last_installable_count field.
 	clientsource.DefaultLastInstallableCount = clientsourceDescLastInstallableCount.Default.(int)
 	// clientsourceDescCreatedAt is the schema descriptor for created_at field.
-	clientsourceDescCreatedAt := clientsourceFields[10].Descriptor()
+	clientsourceDescCreatedAt := clientsourceFields[12].Descriptor()
 	// clientsource.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsource.DefaultCreatedAt = clientsourceDescCreatedAt.Default.(func() time.Time)
 	// clientsourceDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsourceDescUpdatedAt := clientsourceFields[11].Descriptor()
+	clientsourceDescUpdatedAt := clientsourceFields[13].Descriptor()
 	// clientsource.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsource.DefaultUpdatedAt = clientsourceDescUpdatedAt.Default.(func() time.Time)
 	// clientsource.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -387,24 +425,54 @@ func init() {
 	collectionapp.DefaultCreatedAt = collectionappDescCreatedAt.Default.(func() time.Time)
 	commentFields := schema.Comment{}.Fields()
 	_ = commentFields
+	// commentDescAuthorName is the schema descriptor for author_name field.
+	commentDescAuthorName := commentFields[4].Descriptor()
+	// comment.DefaultAuthorName holds the default value on creation for the author_name field.
+	comment.DefaultAuthorName = commentDescAuthorName.Default.(string)
+	// commentDescClientUserID is the schema descriptor for client_user_id field.
+	commentDescClientUserID := commentFields[5].Descriptor()
+	// comment.DefaultClientUserID holds the default value on creation for the client_user_id field.
+	comment.DefaultClientUserID = commentDescClientUserID.Default.(string)
 	// commentDescBody is the schema descriptor for body field.
-	commentDescBody := commentFields[2].Descriptor()
+	commentDescBody := commentFields[6].Descriptor()
 	// comment.BodyValidator is a validator for the "body" field. It is called by the builders before save.
 	comment.BodyValidator = commentDescBody.Validators[0].(func(string) error)
 	// commentDescDeleted is the schema descriptor for deleted field.
-	commentDescDeleted := commentFields[3].Descriptor()
+	commentDescDeleted := commentFields[7].Descriptor()
 	// comment.DefaultDeleted holds the default value on creation for the deleted field.
 	comment.DefaultDeleted = commentDescDeleted.Default.(bool)
 	// commentDescCreatedAt is the schema descriptor for created_at field.
-	commentDescCreatedAt := commentFields[4].Descriptor()
+	commentDescCreatedAt := commentFields[8].Descriptor()
 	// comment.DefaultCreatedAt holds the default value on creation for the created_at field.
 	comment.DefaultCreatedAt = commentDescCreatedAt.Default.(func() time.Time)
 	// commentDescUpdatedAt is the schema descriptor for updated_at field.
-	commentDescUpdatedAt := commentFields[5].Descriptor()
+	commentDescUpdatedAt := commentFields[9].Descriptor()
 	// comment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	comment.DefaultUpdatedAt = commentDescUpdatedAt.Default.(func() time.Time)
 	// comment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	comment.UpdateDefaultUpdatedAt = commentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	commentnotificationFields := schema.CommentNotification{}.Fields()
+	_ = commentnotificationFields
+	// commentnotificationDescAppName is the schema descriptor for app_name field.
+	commentnotificationDescAppName := commentnotificationFields[3].Descriptor()
+	// commentnotification.DefaultAppName holds the default value on creation for the app_name field.
+	commentnotification.DefaultAppName = commentnotificationDescAppName.Default.(string)
+	// commentnotificationDescActorName is the schema descriptor for actor_name field.
+	commentnotificationDescActorName := commentnotificationFields[4].Descriptor()
+	// commentnotification.DefaultActorName holds the default value on creation for the actor_name field.
+	commentnotification.DefaultActorName = commentnotificationDescActorName.Default.(string)
+	// commentnotificationDescBody is the schema descriptor for body field.
+	commentnotificationDescBody := commentnotificationFields[5].Descriptor()
+	// commentnotification.DefaultBody holds the default value on creation for the body field.
+	commentnotification.DefaultBody = commentnotificationDescBody.Default.(string)
+	// commentnotificationDescRead is the schema descriptor for read field.
+	commentnotificationDescRead := commentnotificationFields[6].Descriptor()
+	// commentnotification.DefaultRead holds the default value on creation for the read field.
+	commentnotification.DefaultRead = commentnotificationDescRead.Default.(bool)
+	// commentnotificationDescCreatedAt is the schema descriptor for created_at field.
+	commentnotificationDescCreatedAt := commentnotificationFields[7].Descriptor()
+	// commentnotification.DefaultCreatedAt holds the default value on creation for the created_at field.
+	commentnotification.DefaultCreatedAt = commentnotificationDescCreatedAt.Default.(func() time.Time)
 	favoriteFields := schema.Favorite{}.Fields()
 	_ = favoriteFields
 	// favoriteDescCreatedAt is the schema descriptor for created_at field.

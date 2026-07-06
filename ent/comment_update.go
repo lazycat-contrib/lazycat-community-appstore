@@ -70,6 +70,75 @@ func (_u *CommentUpdate) AddUserID(v int) *CommentUpdate {
 	return _u
 }
 
+// SetParentID sets the "parent_id" field.
+func (_u *CommentUpdate) SetParentID(v int) *CommentUpdate {
+	_u.mutation.ResetParentID()
+	_u.mutation.SetParentID(v)
+	return _u
+}
+
+// SetNillableParentID sets the "parent_id" field if the given value is not nil.
+func (_u *CommentUpdate) SetNillableParentID(v *int) *CommentUpdate {
+	if v != nil {
+		_u.SetParentID(*v)
+	}
+	return _u
+}
+
+// AddParentID adds value to the "parent_id" field.
+func (_u *CommentUpdate) AddParentID(v int) *CommentUpdate {
+	_u.mutation.AddParentID(v)
+	return _u
+}
+
+// ClearParentID clears the value of the "parent_id" field.
+func (_u *CommentUpdate) ClearParentID() *CommentUpdate {
+	_u.mutation.ClearParentID()
+	return _u
+}
+
+// SetAuthorType sets the "author_type" field.
+func (_u *CommentUpdate) SetAuthorType(v comment.AuthorType) *CommentUpdate {
+	_u.mutation.SetAuthorType(v)
+	return _u
+}
+
+// SetNillableAuthorType sets the "author_type" field if the given value is not nil.
+func (_u *CommentUpdate) SetNillableAuthorType(v *comment.AuthorType) *CommentUpdate {
+	if v != nil {
+		_u.SetAuthorType(*v)
+	}
+	return _u
+}
+
+// SetAuthorName sets the "author_name" field.
+func (_u *CommentUpdate) SetAuthorName(v string) *CommentUpdate {
+	_u.mutation.SetAuthorName(v)
+	return _u
+}
+
+// SetNillableAuthorName sets the "author_name" field if the given value is not nil.
+func (_u *CommentUpdate) SetNillableAuthorName(v *string) *CommentUpdate {
+	if v != nil {
+		_u.SetAuthorName(*v)
+	}
+	return _u
+}
+
+// SetClientUserID sets the "client_user_id" field.
+func (_u *CommentUpdate) SetClientUserID(v string) *CommentUpdate {
+	_u.mutation.SetClientUserID(v)
+	return _u
+}
+
+// SetNillableClientUserID sets the "client_user_id" field if the given value is not nil.
+func (_u *CommentUpdate) SetNillableClientUserID(v *string) *CommentUpdate {
+	if v != nil {
+		_u.SetClientUserID(*v)
+	}
+	return _u
+}
+
 // SetBody sets the "body" field.
 func (_u *CommentUpdate) SetBody(v string) *CommentUpdate {
 	_u.mutation.SetBody(v)
@@ -161,6 +230,11 @@ func (_u *CommentUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *CommentUpdate) check() error {
+	if v, ok := _u.mutation.AuthorType(); ok {
+		if err := comment.AuthorTypeValidator(v); err != nil {
+			return &ValidationError{Name: "author_type", err: fmt.Errorf(`ent: validator failed for field "Comment.author_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Body(); ok {
 		if err := comment.BodyValidator(v); err != nil {
 			return &ValidationError{Name: "body", err: fmt.Errorf(`ent: validator failed for field "Comment.body": %w`, err)}
@@ -192,6 +266,24 @@ func (_u *CommentUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedUserID(); ok {
 		_spec.AddField(comment.FieldUserID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ParentID(); ok {
+		_spec.SetField(comment.FieldParentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedParentID(); ok {
+		_spec.AddField(comment.FieldParentID, field.TypeInt, value)
+	}
+	if _u.mutation.ParentIDCleared() {
+		_spec.ClearField(comment.FieldParentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AuthorType(); ok {
+		_spec.SetField(comment.FieldAuthorType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.AuthorName(); ok {
+		_spec.SetField(comment.FieldAuthorName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ClientUserID(); ok {
+		_spec.SetField(comment.FieldClientUserID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Body(); ok {
 		_spec.SetField(comment.FieldBody, field.TypeString, value)
@@ -264,6 +356,75 @@ func (_u *CommentUpdateOne) SetNillableUserID(v *int) *CommentUpdateOne {
 // AddUserID adds value to the "user_id" field.
 func (_u *CommentUpdateOne) AddUserID(v int) *CommentUpdateOne {
 	_u.mutation.AddUserID(v)
+	return _u
+}
+
+// SetParentID sets the "parent_id" field.
+func (_u *CommentUpdateOne) SetParentID(v int) *CommentUpdateOne {
+	_u.mutation.ResetParentID()
+	_u.mutation.SetParentID(v)
+	return _u
+}
+
+// SetNillableParentID sets the "parent_id" field if the given value is not nil.
+func (_u *CommentUpdateOne) SetNillableParentID(v *int) *CommentUpdateOne {
+	if v != nil {
+		_u.SetParentID(*v)
+	}
+	return _u
+}
+
+// AddParentID adds value to the "parent_id" field.
+func (_u *CommentUpdateOne) AddParentID(v int) *CommentUpdateOne {
+	_u.mutation.AddParentID(v)
+	return _u
+}
+
+// ClearParentID clears the value of the "parent_id" field.
+func (_u *CommentUpdateOne) ClearParentID() *CommentUpdateOne {
+	_u.mutation.ClearParentID()
+	return _u
+}
+
+// SetAuthorType sets the "author_type" field.
+func (_u *CommentUpdateOne) SetAuthorType(v comment.AuthorType) *CommentUpdateOne {
+	_u.mutation.SetAuthorType(v)
+	return _u
+}
+
+// SetNillableAuthorType sets the "author_type" field if the given value is not nil.
+func (_u *CommentUpdateOne) SetNillableAuthorType(v *comment.AuthorType) *CommentUpdateOne {
+	if v != nil {
+		_u.SetAuthorType(*v)
+	}
+	return _u
+}
+
+// SetAuthorName sets the "author_name" field.
+func (_u *CommentUpdateOne) SetAuthorName(v string) *CommentUpdateOne {
+	_u.mutation.SetAuthorName(v)
+	return _u
+}
+
+// SetNillableAuthorName sets the "author_name" field if the given value is not nil.
+func (_u *CommentUpdateOne) SetNillableAuthorName(v *string) *CommentUpdateOne {
+	if v != nil {
+		_u.SetAuthorName(*v)
+	}
+	return _u
+}
+
+// SetClientUserID sets the "client_user_id" field.
+func (_u *CommentUpdateOne) SetClientUserID(v string) *CommentUpdateOne {
+	_u.mutation.SetClientUserID(v)
+	return _u
+}
+
+// SetNillableClientUserID sets the "client_user_id" field if the given value is not nil.
+func (_u *CommentUpdateOne) SetNillableClientUserID(v *string) *CommentUpdateOne {
+	if v != nil {
+		_u.SetClientUserID(*v)
+	}
 	return _u
 }
 
@@ -371,6 +532,11 @@ func (_u *CommentUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *CommentUpdateOne) check() error {
+	if v, ok := _u.mutation.AuthorType(); ok {
+		if err := comment.AuthorTypeValidator(v); err != nil {
+			return &ValidationError{Name: "author_type", err: fmt.Errorf(`ent: validator failed for field "Comment.author_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Body(); ok {
 		if err := comment.BodyValidator(v); err != nil {
 			return &ValidationError{Name: "body", err: fmt.Errorf(`ent: validator failed for field "Comment.body": %w`, err)}
@@ -419,6 +585,24 @@ func (_u *CommentUpdateOne) sqlSave(ctx context.Context) (_node *Comment, err er
 	}
 	if value, ok := _u.mutation.AddedUserID(); ok {
 		_spec.AddField(comment.FieldUserID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ParentID(); ok {
+		_spec.SetField(comment.FieldParentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedParentID(); ok {
+		_spec.AddField(comment.FieldParentID, field.TypeInt, value)
+	}
+	if _u.mutation.ParentIDCleared() {
+		_spec.ClearField(comment.FieldParentID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.AuthorType(); ok {
+		_spec.SetField(comment.FieldAuthorType, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.AuthorName(); ok {
+		_spec.SetField(comment.FieldAuthorName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ClientUserID(); ok {
+		_spec.SetField(comment.FieldClientUserID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Body(); ok {
 		_spec.SetField(comment.FieldBody, field.TypeString, value)

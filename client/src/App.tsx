@@ -21,6 +21,7 @@ import {
   Monitor,
   Moon,
   PackagePlus,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -46,7 +47,7 @@ import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
@@ -91,12 +92,14 @@ type StoreApp = {
   slug: string;
   summary: string;
   description: string;
+  iconUrl?: string;
   status: string;
   category?: string;
   tags: string[];
   visibleGroupIds: number[];
   allowUnreviewedUpdates: boolean;
   commentsEnabled: boolean;
+  emailNotificationsEnabled: boolean;
   installProtected: boolean;
   downloadCount: number;
   latestVersion?: Version;
@@ -105,6 +108,7 @@ type StoreApp = {
   comments?: Comment[];
   favorites?: number;
   outdatedMarks?: number;
+  outdatedMarked?: boolean;
   canManageApp?: boolean;
   canUploadVersion?: boolean;
   updatedAt: string;
@@ -121,8 +125,13 @@ type Screenshot = {
 type Comment = {
   id: number;
   userId: number;
+  parentId?: number;
+  authorType?: 'USER' | 'CLIENT' | string;
+  clientUserId?: string;
   username: string;
   body: string;
+  canDelete?: boolean;
+  replies?: Comment[];
   createdAt: string;
 };
 
@@ -141,6 +150,7 @@ type Review = {
 type Category = {
   id: number;
   name: string;
+  nameI18n?: Record<string, string>;
   slug: string;
   sortOrder?: number;
 };
@@ -148,6 +158,7 @@ type Category = {
 type TagRecord = {
   id: number;
   name: string;
+  nameI18n?: Record<string, string>;
   slug: string;
 };
 
@@ -193,12 +204,21 @@ type APITokenRecord = {
 
 type SourceID = number | string;
 
+type GitHubMirror = {
+  id: string;
+  kind: 'download' | 'raw';
+  name: string;
+  url: string;
+};
+
 type SourceSubscription = {
   id: SourceID;
   name: string;
   url: string;
   password: string;
-  mirror: string;
+  defaultDownloadMirrorId: string;
+  defaultRawMirrorId: string;
+  githubMirrors: GitHubMirror[];
   lastSync?: string;
   lastError?: string;
   lastErrorCode?: SourceErrorCode;
@@ -206,7 +226,22 @@ type SourceSubscription = {
   lastInstallableCount?: number;
 };
 
-type SourceInput = Pick<SourceSubscription, 'name' | 'url' | 'password' | 'mirror'>;
+type SourceInput = Pick<SourceSubscription, 'name' | 'url' | 'password' | 'defaultDownloadMirrorId' | 'defaultRawMirrorId'>;
+
+type ClientSettings = {
+  commentDisplayName: string;
+};
+
+type CommentNotification = {
+  id: number;
+  appId: number;
+  commentId: number;
+  appName: string;
+  actorName: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+};
 
 type SourceVersion = {
   version: string;
@@ -221,6 +256,7 @@ type SourceApp = {
   id: number;
   sourceId?: SourceID;
   sourceName: string;
+  externalId?: string;
   packageId?: string;
   name: string;
   slug: string;
@@ -281,6 +317,12 @@ type InstallPasswordRequest = {
   version?: string;
 };
 
+type InstallOptions = {
+  installPassword?: string;
+  version?: string;
+  mirrorId?: string;
+};
+
 type ClientSourceStats = {
   sourceCount: number;
   syncedSourceCount: number;
@@ -293,6 +335,36 @@ type ClientSourceStats = {
 
 const SOURCE_STALE_MS = 24 * 60 * 60 * 1000;
 const ANNOUNCEMENT_DISMISS_STORAGE_KEY = 'lazycat-appstore-dismissed-announcement';
+
+const RECOMMENDED_DOWNLOAD_MIRRORS = [
+  ['美国 1', 'https://gh.h233.eu.org/https://github.com'],
+  ['美国 2', 'https://rapidgit.jjda.de5.net/https://github.com'],
+  ['美国 3', 'https://gh.ddlc.top/https://github.com'],
+  ['美国 4', 'https://gh-proxy.org/https://github.com'],
+  ['Fastly', 'https://cdn.gh-proxy.org/https://github.com'],
+  ['EdgeOne', 'https://edgeone.gh-proxy.org/https://github.com'],
+  ['洛杉矶 1', 'https://ghproxy.it/https://github.com'],
+  ['洛杉矶 2', 'https://gh.zwy.one/https://github.com'],
+  ['英国伦敦', 'https://ghproxy.net/https://github.com'],
+  ['全球 CDN 1', 'https://ghfast.top/https://github.com'],
+  ['全球 CDN 2', 'https://wget.la/https://github.com'],
+] as const;
+
+const RECOMMENDED_RAW_MIRRORS = [
+  ['GitHub 原生', 'https://raw.githubusercontent.com'],
+  ['香港 1', 'https://wget.la/https://raw.githubusercontent.com'],
+  ['香港 2', 'https://hk.gh-proxy.org/https://raw.githubusercontent.com'],
+  ['香港 3', 'https://hub.glowp.xyz/https://raw.githubusercontent.com'],
+  ['韩国 1', 'https://ghfast.top/https://raw.githubusercontent.com'],
+  ['韩国 2', 'https://gh.catmak.name/https://raw.githubusercontent.com'],
+  ['日本 1', 'https://fastly.jsdelivr.net/gh'],
+  ['日本 2', 'https://cdn.gh-proxy.org/https://raw.githubusercontent.com'],
+  ['日本 3', 'https://g.blfrp.cn/https://raw.githubusercontent.com'],
+] as const;
+
+function mirrorPresetText(items: readonly (readonly [string, string])[]) {
+  return items.map(([name, url]) => `${name}=>${url}`).join('\n');
+}
 const ANNOUNCEMENT_NOTIFY_STORAGE_KEY = 'lazycat-appstore-notified-announcement';
 
 type SourceErrorCode = 'auth' | 'format' | 'http' | 'network';
@@ -413,12 +485,72 @@ function hasInstallableVersion(app: StoreApp | SourceApp) {
   return Boolean(app.latestVersion?.downloadUrl);
 }
 
+function localizedName(record: { name: string; nameI18n?: Record<string, string> }) {
+  const language = (i18n.resolvedLanguage || i18n.language || '').toLowerCase();
+  const candidates = language.startsWith('zh') ? ['zh-CN', 'zh_Hans', 'zh', 'en'] : ['en', 'zh-CN', 'zh_Hans', 'zh'];
+  for (const key of candidates) {
+    const value = record.nameI18n?.[key]?.trim();
+    if (value) return value;
+  }
+  return record.name;
+}
+
 function selectedSourceVersion(app: SourceApp, version?: string) {
   const wanted = version?.trim();
   if (wanted) {
     return app.versions?.find((item) => item.version === wanted) || (app.latestVersion?.version === wanted ? app.latestVersion : undefined);
   }
   return app.latestVersion;
+}
+
+function normalizeVersionParts(value?: string) {
+  const raw = (value || '').trim().replace(/^[vV]/, '');
+  if (!raw) return null;
+  const main = raw.split(/[+-]/)[0];
+  const parts = main.split('.');
+  if (parts.some((part) => !/^\d+$/.test(part))) return null;
+  return parts.map((part) => Number(part));
+}
+
+function compareVersions(a?: string, b?: string) {
+  const aParts = normalizeVersionParts(a);
+  const bParts = normalizeVersionParts(b);
+  if (!aParts || !bParts) {
+    const left = (a || '').trim();
+    const right = (b || '').trim();
+    if (!left || !right) return 0;
+    return left === right ? 0 : left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' });
+  }
+  const length = Math.max(aParts.length, bParts.length);
+  for (let index = 0; index < length; index += 1) {
+    const left = aParts[index] || 0;
+    const right = bParts[index] || 0;
+    if (left !== right) return left > right ? 1 : -1;
+  }
+  return 0;
+}
+
+function sourceInstallAction(app: SourceApp, installedMatch?: InstalledApplication): SourceActionKey {
+  if (!hasInstallableVersion(app)) return 'unavailable';
+  if (!installedMatch?.version) return installedMatch ? 'reinstall' : 'install';
+  const comparison = compareVersions(installedMatch.version, app.latestVersion?.version);
+  if (comparison < 0) return 'update';
+  return 'reinstall';
+}
+
+function isSourceAppUpdateAvailable(app: SourceApp, installedApps: InstalledApplication[]) {
+  const installedMatch = findInstalledApplication(app, installedApps);
+  return sourceInstallAction(app, installedMatch) === 'update';
+}
+
+function sourceActionLabel(t: (key: string, options?: any) => string, action: SourceActionKey) {
+  return action === 'update'
+    ? t('common.update')
+    : action === 'reinstall'
+      ? t('common.reinstall')
+      : action === 'install'
+        ? t('common.install')
+        : t('common.unavailable');
 }
 
 function withInstallPassword(rawUrl: string, password?: string) {
@@ -483,6 +615,44 @@ function findSourceForInstalled(item: InstalledApplication, sourceApps: SourceAp
 
 function belongsToSource(app: SourceApp, source: SourceSubscription) {
   return app.sourceId !== undefined ? String(app.sourceId) === String(source.id) : app.sourceName === source.name;
+}
+
+function sourceForApp(app: SourceApp, sources: SourceSubscription[]) {
+  return sources.find((source) => belongsToSource(app, source));
+}
+
+function githubMirrorKindForURL(rawURL?: string): GitHubMirror['kind'] | '' {
+  const value = (rawURL || '').trim();
+  if (value.includes('raw.githubusercontent.com/')) return 'raw';
+  if (value.includes('github.com/')) return 'download';
+  return '';
+}
+
+function applicableMirrorsForVersion(source: SourceSubscription | undefined, version?: Pick<SourceVersion, 'downloadUrl' | 'upstreamDownloadUrl'>) {
+  if (!source || !version) return [];
+  const kind = githubMirrorKindForURL(version.upstreamDownloadUrl || version.downloadUrl);
+  if (!kind) return [];
+  return arrayOrEmpty(source.githubMirrors).filter((entry) => entry.kind === kind);
+}
+
+function defaultMirrorIDForVersion(source: SourceSubscription | undefined, version?: Pick<SourceVersion, 'downloadUrl' | 'upstreamDownloadUrl'>) {
+  const kind = githubMirrorKindForURL(version?.upstreamDownloadUrl || version?.downloadUrl);
+  if (!source || !kind) return '';
+  return kind === 'raw' ? source.defaultRawMirrorId || '' : source.defaultDownloadMirrorId || '';
+}
+
+function sourceMirrorOptions(source: SourceSubscription | null | undefined, kind: GitHubMirror['kind'], directLabel: string) {
+  return [
+    { value: '', label: directLabel },
+    ...arrayOrEmpty(source?.githubMirrors).filter((entry) => entry.kind === kind).map((entry) => ({ value: entry.id, label: entry.name })),
+  ];
+}
+
+function sourceMirrorSummary(source: SourceSubscription, kind: GitHubMirror['kind'], fallback: string) {
+  const mirrors = arrayOrEmpty(source.githubMirrors).filter((entry) => entry.kind === kind);
+  const defaultID = kind === 'raw' ? source.defaultRawMirrorId : source.defaultDownloadMirrorId;
+  const selected = mirrors.find((entry) => entry.id === defaultID);
+  return selected ? selected.name : fallback;
 }
 
 function isSourceStale(source: SourceSubscription) {
@@ -559,10 +729,11 @@ function ThemeToggle({ mode, onChange }: { mode: ThemeMode; onChange: (mode: The
 }
 
 type SortMode = 'recent' | 'downloads' | 'name';
-type SourceAppFilter = 'all' | 'installable' | 'installed' | 'incomplete';
+type SourceAppFilter = 'all' | 'installable' | 'installed' | 'updates' | 'incomplete';
 type SourceHealth = 'syncing' | 'auth' | 'failed' | 'stale' | 'synced' | 'unsynced';
 type SourceHealthFilter = 'all' | Exclude<SourceHealth, 'syncing'>;
 type CollectionDraft = { name: string; slug: string; kind: string; appIds: number[] };
+type SourceActionKey = 'install' | 'reinstall' | 'update' | 'unavailable';
 
 function verificationTokenFromURL() {
   return new URLSearchParams(window.location.search).get('token') || '';
@@ -594,6 +765,7 @@ export function App() {
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
   const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
+  const [clientSettings, setClientSettings] = useState<ClientSettings>({ commentDisplayName: '' });
   const [installedApps, setInstalledApps] = useState<InstalledApplication[]>([]);
   const [installHistory, setInstallHistory] = useState<InstallHistoryEntry[]>([]);
   const [installedState, setInstalledState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
@@ -769,7 +941,7 @@ export function App() {
       defaultSourceCheckedRef.current = true;
       const created = await clientApi<{ source: SourceSubscription }>('/sources', {
         method: 'POST',
-        body: JSON.stringify({ name: DEFAULT_SOURCE_NAME, url: DEFAULT_SOURCE_URL, password: '', mirror: '' }),
+        body: JSON.stringify({ name: DEFAULT_SOURCE_NAME, url: DEFAULT_SOURCE_URL, password: '', defaultDownloadMirrorId: '', defaultRawMirrorId: '' }),
       });
       setSources([created.source]);
       return [created.source];
@@ -784,6 +956,13 @@ export function App() {
     const nextApps = arrayOrEmpty(data.apps);
     setSourceApps(nextApps);
     return nextApps;
+  }
+
+  async function loadClientSettings() {
+    const data = await clientApi<{ settings: ClientSettings }>('/settings');
+    const nextSettings = data.settings || { commentDisplayName: '' };
+    setClientSettings(nextSettings);
+    return nextSettings;
   }
 
   async function loadInstallHistory() {
@@ -802,7 +981,7 @@ export function App() {
     setReviews([]);
     setUser(null);
     try {
-      await Promise.all([loadClientSources(), loadClientApps(), loadInstallHistory()]);
+      await Promise.all([loadClientSources(), loadClientApps(), loadClientSettings(), loadInstallHistory()]);
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('toast.clientDataLoadFailed')) });
     } finally {
@@ -873,18 +1052,23 @@ export function App() {
     }
   }
 
-  async function installApp(app: StoreApp | SourceApp, options: { installPassword?: string; version?: string } = {}) {
-    if (app.installProtected && !options.installPassword) {
-      setInstallPasswordRequest({ app, version: options.version });
+  async function installApp(app: StoreApp | SourceApp, options: InstallOptions = {}) {
+    const isSourceApp = 'sourceName' in app;
+    const version = isSourceApp ? selectedSourceVersion(app, options.version) : app.latestVersion;
+    if (!version) {
+      setToast({ tone: 'error', message: t('toast.noInstallableVersion') });
+      return;
+    }
+    const source = isSourceApp ? sourceForApp(app, sources) : undefined;
+    const availableMirrors = isSourceApp ? applicableMirrorsForVersion(source, version) : [];
+    const needsPassword = app.installProtected && !options.installPassword;
+    const needsMirrorChoice = isSourceApp && availableMirrors.length > 0 && !Object.prototype.hasOwnProperty.call(options, 'mirrorId');
+    if (needsPassword || needsMirrorChoice) {
+      setInstallPasswordRequest({ app, version: version.version });
       return;
     }
     await runAction(setToast, t('toast.installFailed'), async () => {
-      const version = 'sourceName' in app ? selectedSourceVersion(app, options.version) : app.latestVersion;
-      if (!version) {
-        setToast({ tone: 'error', message: t('toast.noInstallableVersion') });
-        return;
-      }
-      const source = 'sourceName' in app ? app.sourceName : t('search.localStore');
+      const source = isSourceApp ? app.sourceName : t('search.localStore');
       const checksum = version.sha256 ? shortSHA(version.sha256) : t('app.checksumMissing');
       setInstallActivity({
         title: `${app.name} ${version.version}`,
@@ -901,13 +1085,14 @@ export function App() {
           : current,
       );
       const result =
-        'sourceName' in app
+        isSourceApp
           ? await clientApi<ClientInstallResult>('/install', {
               method: 'POST',
               body: JSON.stringify({
                 appId: app.id,
                 version: version.version,
                 installPassword: options.installPassword,
+                mirrorId: options.mirrorId || '',
               }),
             }).then((value) => ({
               mode: value.mode || 'lazycat-go-sdk',
@@ -941,7 +1126,7 @@ export function App() {
         message: t(result.messageKey, result.messageParams),
       });
     });
-    if ('sourceName' in app) void loadInstallHistory();
+    if (isSourceApp) void loadInstallHistory();
   }
 
   async function approveReview(review: Review, approve: boolean) {
@@ -1009,7 +1194,8 @@ export function App() {
         name: source.name,
         url: source.url,
         password: source.password,
-        mirror: source.mirror,
+        defaultDownloadMirrorId: source.defaultDownloadMirrorId || '',
+        defaultRawMirrorId: source.defaultRawMirrorId || '',
       }),
     });
     await refreshClientData({ silent: true });
@@ -1019,6 +1205,14 @@ export function App() {
     await clientApi(`/sources/${source.id}`, { method: 'DELETE' });
     setSelectedSourceApp((current) => (current && belongsToSource(current, source) ? null : current));
     await refreshClientData({ silent: true });
+  }
+
+  async function saveClientSettings(nextSettings: ClientSettings) {
+    const data = await clientApi<{ settings: ClientSettings }>('/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(nextSettings),
+    });
+    setClientSettings(data.settings || nextSettings);
   }
 
   if (HAS_API && setupRequired) {
@@ -1156,6 +1350,7 @@ export function App() {
               <SearchView
                 apps={filteredApps}
                 sourceApps={sourceApps}
+                sources={sources}
                 categories={categories}
                 submitters={submitters}
                 activeCategory={activeCategory}
@@ -1177,7 +1372,6 @@ export function App() {
             {tab === 'sources' && (
               <SourcesView
                 sources={sources}
-                setSources={setSources}
                 sourceApps={sourceApps}
                 onAddSource={addClientSource}
                 onUpdateSource={updateClientSource}
@@ -1188,6 +1382,8 @@ export function App() {
                 onInstall={installApp}
                 installedApps={installedApps}
                 sourceStats={sourceStats}
+                clientSettings={clientSettings}
+                onSaveClientSettings={saveClientSettings}
                 setToast={setToast}
               />
             )}
@@ -1263,18 +1459,28 @@ export function App() {
           onClose={() => setSelectedSourceApp(null)}
           onInstall={installApp}
           onLoadInstalled={loadInstalledApps}
+          onRefreshSourceApp={async () => {
+            const data = await clientApi<{ app: SourceApp }>(`/apps/${selectedSourceApp.id}`);
+            setSelectedSourceApp(data.app);
+          }}
         />
       )}
 
       {installPasswordRequest && (
-        <InstallPasswordDialog
+        <InstallOptionsDialog
           app={installPasswordRequest.app}
+          source={'sourceName' in installPasswordRequest.app ? sourceForApp(installPasswordRequest.app, sources) : undefined}
+          version={
+            'sourceName' in installPasswordRequest.app
+              ? selectedSourceVersion(installPasswordRequest.app, installPasswordRequest.version)
+              : installPasswordRequest.app.latestVersion
+          }
           onCancel={() => setInstallPasswordRequest(null)}
-          onSubmit={(password) => {
+          onSubmit={(options) => {
             const target = installPasswordRequest.app;
             const targetVersion = installPasswordRequest.version;
             setInstallPasswordRequest(null);
-            void installApp(target, { installPassword: password, version: targetVersion });
+            void installApp(target, { ...options, version: targetVersion });
           }}
         />
       )}
@@ -1314,25 +1520,37 @@ export function App() {
   );
 }
 
-function InstallPasswordDialog({
+function InstallOptionsDialog({
   app,
+  source,
+  version,
   onCancel,
   onSubmit,
 }: {
   app: StoreApp | SourceApp;
+  source?: SourceSubscription;
+  version?: Version | SourceVersion;
   onCancel: () => void;
-  onSubmit: (password: string) => void;
+  onSubmit: (options: { installPassword?: string; mirrorId?: string }) => void;
 }) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [password, setPassword] = useState('');
+  const [mirrorId, setMirrorId] = useState(() => defaultMirrorIDForVersion(source, version) || '');
   const [error, setError] = useState('');
   const dialogTitleId = `install-password-title-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
   const dialogBodyId = `install-password-body-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
+  const requiresPassword = app.installProtected;
+  const mirrorOptions = applicableMirrorsForVersion(source, version);
+  const mirrorKind = githubMirrorKindForURL(version && 'upstreamDownloadUrl' in version ? version.upstreamDownloadUrl || version.downloadUrl : version?.downloadUrl);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    if (requiresPassword) inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    setMirrorId(defaultMirrorIDForVersion(source, version) || '');
+  }, [source?.id, version?.version]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -1346,11 +1564,14 @@ function InstallPasswordDialog({
   function submit(event: FormEvent) {
     event.preventDefault();
     const value = password.trim();
-    if (!value) {
+    if (requiresPassword && !value) {
       setError(t('installPassword.required'));
       return;
     }
-    onSubmit(value);
+    onSubmit({
+      installPassword: requiresPassword ? value : undefined,
+      mirrorId: mirrorOptions.length > 0 ? mirrorId : undefined,
+    });
   }
 
   return (
@@ -1369,26 +1590,44 @@ function InstallPasswordDialog({
         </button>
         <div className="install-password-head">
           <span className="install-password-icon">
-            <KeyRound size={21} />
+            {requiresPassword ? <KeyRound size={21} /> : <Download size={21} />}
           </span>
           <div>
-            <h2 id={dialogTitleId}>{t('installPassword.title')}</h2>
-            <p id={dialogBodyId}>{t('installPassword.body', { name: app.name })}</p>
+            <h2 id={dialogTitleId}>{t(mirrorOptions.length > 0 ? 'installOptions.title' : 'installPassword.title')}</h2>
+            <p id={dialogBodyId}>
+              {requiresPassword
+                ? t('installPassword.body', { name: app.name })
+                : t('installOptions.body', { name: app.name })}
+            </p>
           </div>
         </div>
-        <label>
-          <span>{t('installPassword.label')}</span>
-          <input
-            ref={inputRef}
-            type="password"
-            autoComplete="off"
-            value={password}
-            onChange={(event) => {
-              setPassword(event.target.value);
-              if (error) setError('');
-            }}
+        {requiresPassword && (
+          <label>
+            <span>{t('installPassword.label')}</span>
+            <input
+              ref={inputRef}
+              type="password"
+              autoComplete="off"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                if (error) setError('');
+              }}
+            />
+          </label>
+        )}
+        {mirrorOptions.length > 0 && (
+          <XSelector
+            label={t('installOptions.mirror')}
+            description={t(mirrorKind === 'raw' ? 'installOptions.rawMirrorHelp' : 'installOptions.downloadMirrorHelp')}
+            value={mirrorId}
+            options={[
+              { value: '', label: t('installOptions.direct') },
+              ...mirrorOptions.map((entry) => ({ value: entry.id, label: entry.name })),
+            ]}
+            onChange={setMirrorId}
           />
-        </label>
+        )}
         {error && <p className="form-error">{error}</p>}
         <div className="dialog-actions">
           <button type="button" className="secondary-button" onClick={onCancel}>
@@ -1402,6 +1641,44 @@ function InstallPasswordDialog({
         </div>
       </form>
     </div>
+  );
+}
+
+function FileDropField({
+  label,
+  help,
+  fileName,
+  accept,
+  required,
+  inputRef,
+  onChange,
+}: {
+  label: string;
+  help?: string;
+  fileName?: string;
+  accept?: string;
+  required?: boolean;
+  inputRef?: RefObject<HTMLInputElement | null>;
+  onChange: (file: File | null) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <label className="file-drop-field">
+      <span className="file-drop-label">{label}</span>
+      <span className="file-drop-box">
+        <Upload size={19} />
+        <strong>{fileName || t('common.chooseFile')}</strong>
+        {help && <small>{help}</small>}
+      </span>
+      <input
+        ref={inputRef}
+        className="file-drop-input"
+        type="file"
+        accept={accept}
+        required={required}
+        onChange={(event) => onChange(event.target.files?.[0] || null)}
+      />
+    </label>
   );
 }
 
@@ -1424,7 +1701,8 @@ function SetupWizard({
     confirmPassword: '',
     sourcePasswordEnabled: true,
     sourcePassword: '',
-    githubMirror: '',
+    githubDownloadMirrors: '',
+    githubRawMirrors: '',
     requireEmailVerify: false,
   });
   const [submitting, setSubmitting] = useState(false);
@@ -1450,7 +1728,8 @@ function SetupWizard({
           password: form.password,
           sourcePasswordEnabled: form.sourcePasswordEnabled,
           sourcePassword: form.sourcePassword,
-          githubMirror: form.githubMirror,
+          githubDownloadMirrors: form.githubDownloadMirrors,
+          githubRawMirrors: form.githubRawMirrors,
           requireEmailVerify: form.requireEmailVerify,
         }),
       });
@@ -1515,10 +1794,20 @@ function SetupWizard({
               <input type="password" value={form.sourcePassword} onChange={(event) => setForm({ ...form, sourcePassword: event.target.value })} />
             </label>
           )}
-          <label>
-            <span>{t('sources.mirror')}</span>
-            <input type="url" value={form.githubMirror} onChange={(event) => setForm({ ...form, githubMirror: event.target.value })} />
-          </label>
+          <XTextArea
+            label={t('admin.settings.githubDownloadMirrors')}
+            description={t('admin.settingsHelp.githubDownloadMirrors')}
+            value={form.githubDownloadMirrors}
+            rows={3}
+            onChange={(value) => setForm({ ...form, githubDownloadMirrors: value })}
+          />
+          <XTextArea
+            label={t('admin.settings.githubRawMirrors')}
+            description={t('admin.settingsHelp.githubRawMirrors')}
+            value={form.githubRawMirrors}
+            rows={3}
+            onChange={(value) => setForm({ ...form, githubRawMirrors: value })}
+          />
           <label className="toggle-line">
             <input
               type="checkbox"
@@ -1692,6 +1981,7 @@ function HomeView({
 function SearchView({
   apps,
   sourceApps,
+  sources,
   categories,
   submitters,
   activeCategory,
@@ -1711,6 +2001,7 @@ function SearchView({
 }: {
   apps: StoreApp[];
   sourceApps: SourceApp[];
+  sources: SourceSubscription[];
   categories: Category[];
   submitters: string[];
   activeCategory: string;
@@ -1725,7 +2016,7 @@ function SearchView({
   onSortMode: (mode: SortMode) => void;
   onOpen: (app: StoreApp) => void;
   onOpenSource: (app: SourceApp) => void;
-  onInstall: (app: StoreApp | SourceApp) => void;
+  onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
 }) {
   const { t } = useTranslation();
@@ -1739,8 +2030,10 @@ function SearchView({
   });
   const sourceOptions = sourceAppSourceOptions(searchableSourceApps);
   const categoryOptions = sourceAppCategoryOptions(searchableSourceApps, t('common.uncategorized'));
+  const updateSourceApps = searchableSourceApps.filter((app) => isSourceAppUpdateAvailable(app, installedApps));
   const sourceAppFilterItems: Array<{ key: SourceAppFilter; label: string; count: number }> = [
     { key: 'all', label: t('search.sourceFilters.all'), count: searchableSourceApps.length },
+    { key: 'updates', label: t('search.sourceFilters.updates'), count: updateSourceApps.length },
     { key: 'installable', label: t('search.sourceFilters.installable'), count: searchableSourceApps.filter(hasInstallableVersion).length },
     { key: 'installed', label: t('search.sourceFilters.installed'), count: searchableSourceApps.filter((app) => Boolean(findInstalledApplication(app, installedApps))).length },
     {
@@ -1752,11 +2045,19 @@ function SearchView({
   const filteredSourceApps = searchableSourceApps.filter((app) => {
     if (!matchesSourceAppSource(app, selectedSourceFilter)) return false;
     if (!matchesSourceAppCategory(app, selectedCategoryFilter)) return false;
+    if (sourceAppFilter === 'updates') return isSourceAppUpdateAvailable(app, installedApps);
     if (sourceAppFilter === 'installable') return hasInstallableVersion(app);
     if (sourceAppFilter === 'installed') return Boolean(findInstalledApplication(app, installedApps));
     if (sourceAppFilter === 'incomplete') return !hasInstallableVersion(app) || !app.latestVersion?.sha256 || !app.latestVersion?.size;
     return true;
   });
+  async function updateAllSourceApps() {
+    for (const app of updateSourceApps) {
+      const source = sourceForApp(app, sources);
+      const version = selectedSourceVersion(app);
+      await Promise.resolve(onInstall(app, { mirrorId: defaultMirrorIDForVersion(source, version) }));
+    }
+  }
   const sourceEmptyTitle = sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle');
   const sourceEmptyBody =
     sourceApps.length === 0
@@ -1806,26 +2107,37 @@ function SearchView({
           </div>
         </div>
         <section className="panel">
-          <SectionTitle icon={Download} title={t('search.subscribedApps')} />
+          <div className="section-title with-action">
+            <div>
+              <Download size={19} />
+              <h2>{t('search.subscribedApps')}</h2>
+            </div>
+            {updateSourceApps.length > 0 && (
+              <button type="button" className="primary-button compact-button" onClick={() => void updateAllSourceApps()}>
+                <RefreshCw size={17} />
+                <span>{t('search.updateAll')}</span>
+              </button>
+            )}
+          </div>
           <div className="filter-bar">
-            <label>
-              <span>{t('search.sourceFilter')}</span>
-              <select value={selectedSourceFilter} onChange={(event) => setSelectedSourceFilter(event.target.value)}>
-                <option value="all">{t('search.allSources')}</option>
-                {sourceOptions.map((option) => (
-                  <option key={option.key} value={option.key}>{option.label} ({option.count})</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>{t('search.categoryFilter')}</span>
-              <select value={selectedCategoryFilter} onChange={(event) => setSelectedCategoryFilter(event.target.value)}>
-                <option value="all">{t('search.allCategories')}</option>
-                {categoryOptions.map((option) => (
-                  <option key={option.key} value={option.key}>{option.label} ({option.count})</option>
-                ))}
-              </select>
-            </label>
+            <XSelector
+              label={t('search.sourceFilter')}
+              value={selectedSourceFilter}
+              options={[
+                { value: 'all', label: t('search.allSources') },
+                ...sourceOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
+              ]}
+              onChange={setSelectedSourceFilter}
+            />
+            <XSelector
+              label={t('search.categoryFilter')}
+              value={selectedCategoryFilter}
+              options={[
+                { value: 'all', label: t('search.allCategories') },
+                ...categoryOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
+              ]}
+              onChange={setSelectedCategoryFilter}
+            />
           </div>
           <div className="segmented filter-segmented" aria-label={t('search.sourceAppFilter')}>
             {sourceAppFilterItems.map((item) => (
@@ -1943,6 +2255,8 @@ function SourceAppGrid({
         const hasChecksum = Boolean(app.latestVersion?.sha256);
         const hasSize = Boolean(app.latestVersion?.size && app.latestVersion.size > 0);
         const installedMatch = findInstalledApplication(app, installedApps);
+        const installAction = sourceInstallAction(app, installedMatch);
+        const isUpdateAvailable = installAction === 'update';
         return (
           <article className="source-app-card" key={`${app.sourceId || app.sourceName}-${app.id}`}>
             <button type="button" className="app-open" onClick={() => onOpen(app)} aria-label={t('app.open', { name: app.name })}>
@@ -1979,21 +2293,21 @@ function SourceAppGrid({
                 {hasSize ? t('app.sizeReady') : t('app.sizeMissing')}
               </span>
               {installedMatch && (
-                <span className="status-badge synced">
-                  <Check size={13} />
-                  {t('app.installed')}
+                <span className={cx('status-badge', isUpdateAvailable ? 'pending' : 'synced')}>
+                  {isUpdateAvailable ? <RefreshCw size={13} /> : <Check size={13} />}
+                  {isUpdateAvailable ? t('app.updateAvailable') : t('app.installed')}
                 </span>
               )}
             </div>
             <button
               type="button"
-              className="install-button"
+              className={cx('install-button', isUpdateAvailable && 'update-available')}
               disabled={!installable}
               onClick={() => void onInstall(app)}
               aria-label={installable ? t('app.install', { name: app.name }) : t('app.installUnavailable', { name: app.name })}
             >
-              <Download size={17} />
-              <span>{installable ? t('common.install') : t('common.unavailable')}</span>
+              {isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
+              <span>{sourceActionLabel(t, installAction)}</span>
             </button>
           </article>
         );
@@ -2004,7 +2318,6 @@ function SourceAppGrid({
 
 function SourcesView({
   sources,
-  setSources,
   sourceApps,
   onAddSource,
   onUpdateSource,
@@ -2015,10 +2328,11 @@ function SourcesView({
   onInstall,
   installedApps,
   sourceStats,
+  clientSettings,
+  onSaveClientSettings,
   setToast,
 }: {
   sources: SourceSubscription[];
-  setSources: (update: SourceSubscription[] | ((current: SourceSubscription[]) => SourceSubscription[])) => void;
   sourceApps: SourceApp[];
   onAddSource: (input: SourceInput) => Promise<void>;
   onUpdateSource: (source: SourceSubscription) => Promise<void>;
@@ -2029,17 +2343,26 @@ function SourcesView({
   onInstall: (app: SourceApp) => void;
   installedApps: InstalledApplication[];
   sourceStats: ClientSourceStats;
+  clientSettings: ClientSettings;
+  onSaveClientSettings: (settings: ClientSettings) => Promise<void>;
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
-  const emptyDraft = { name: '', url: DEFAULT_SOURCE_URL, password: '', mirror: '' };
+  const emptyDraft: SourceInput = { name: '', url: DEFAULT_SOURCE_URL, password: '', defaultDownloadMirrorId: '', defaultRawMirrorId: '' };
   const [draft, setDraft] = useState(emptyDraft);
   const [syncingID, setSyncingID] = useState<SourceID | null>(null);
   const [confirmDeleteSource, setConfirmDeleteSource] = useState<SourceID | null>(null);
   const [sourceHealthFilter, setSourceHealthFilter] = useState<SourceHealthFilter>('all');
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
+  const [editingSource, setEditingSource] = useState<SourceSubscription | null>(null);
+  const [editDraft, setEditDraft] = useState<SourceInput>(emptyDraft);
   const [selectedSyncedSource, setSelectedSyncedSource] = useState('all');
   const [selectedSyncedCategory, setSelectedSyncedCategory] = useState('all');
+  const [clientSettingsDraft, setClientSettingsDraft] = useState<ClientSettings>(clientSettings);
+
+  useEffect(() => {
+    setClientSettingsDraft(clientSettings);
+  }, [clientSettings.commentDisplayName]);
 
   function normalizedSourceURL(rawURL: string) {
     try {
@@ -2055,7 +2378,6 @@ function SourcesView({
   const sourceNameReady = Boolean(draft.name.trim());
   const sourceURLReady = Boolean(normalizedDraftURL);
   const sourcePasswordReady = Boolean(draft.password.trim());
-  const sourceMirrorReady = Boolean(draft.mirror.trim());
   const canAddSource = sourceNameReady && sourceURLReady;
 
   async function addSource(event: FormEvent) {
@@ -2075,7 +2397,7 @@ function SourcesView({
       return;
     }
     try {
-      await onAddSource({ name, url, password: draft.password, mirror: draft.mirror });
+      await onAddSource({ name, url, password: draft.password, defaultDownloadMirrorId: '', defaultRawMirrorId: '' });
       setDraft(emptyDraft);
       setIsAddSourceOpen(false);
       setToast({ tone: 'success', message: t('sources.addedNext') });
@@ -2084,13 +2406,41 @@ function SourcesView({
     }
   }
 
-  function updateSource(id: SourceID, patch: Partial<SourceSubscription>) {
-    setSources((current) => current.map((source) => (source.id === id ? { ...source, ...patch } : source)));
+  function openEditSource(source: SourceSubscription) {
+    setEditingSource(source);
+    setEditDraft({
+      name: source.name,
+      url: source.url,
+      password: source.password,
+      defaultDownloadMirrorId: source.defaultDownloadMirrorId || '',
+      defaultRawMirrorId: source.defaultRawMirrorId || '',
+    });
   }
 
-  async function saveSource(source: SourceSubscription) {
+  async function saveEditedSource(event: FormEvent) {
+    event.preventDefault();
+    if (!editingSource) return;
+    const name = editDraft.name.trim();
+    const url = normalizedSourceURL(editDraft.url);
+    if (!name) {
+      setToast({ tone: 'error', message: t('sources.nameRequired') });
+      return;
+    }
+    if (!url) {
+      setToast({ tone: 'error', message: t('sources.invalid') });
+      return;
+    }
     try {
-      await onUpdateSource(source);
+      await onUpdateSource({
+        ...editingSource,
+        name,
+        url,
+        password: editDraft.password,
+        defaultDownloadMirrorId: editDraft.defaultDownloadMirrorId || '',
+        defaultRawMirrorId: editDraft.defaultRawMirrorId || '',
+      });
+      setEditingSource(null);
+      setToast({ tone: 'success', message: t('sources.updated') });
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSaveFailed')) });
     }
@@ -2132,6 +2482,16 @@ function SourcesView({
       setToast({ tone: 'success', message: t('sources.deleted') });
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSaveFailed')) });
+    }
+  }
+
+  async function savePrivacySettings(event: FormEvent) {
+    event.preventDefault();
+    try {
+      await onSaveClientSettings({ commentDisplayName: clientSettingsDraft.commentDisplayName.trim() });
+      setToast({ tone: 'success', message: t('sources.privacySaved') });
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('sources.privacySaveFailed')) });
     }
   }
 
@@ -2182,6 +2542,30 @@ function SourcesView({
         </div>
       </div>
 
+      <section className="panel client-privacy-panel">
+        <div className="section-title with-action">
+          <div>
+            <ShieldCheck size={19} />
+            <h2>{t('sources.privacyTitle')}</h2>
+          </div>
+          <span className="status-badge synced">{t('sources.privacyDefaultBadge')}</span>
+        </div>
+        <p className="muted-text">{t('sources.privacyBody')}</p>
+        <form className="privacy-form" onSubmit={savePrivacySettings}>
+          <XTextInput
+            label={t('sources.commentDisplayName')}
+            description={t('sources.commentDisplayNameHelp', { name: t('sources.defaultCommentDisplayName') })}
+            value={clientSettingsDraft.commentDisplayName}
+            placeholder={t('sources.defaultCommentDisplayName')}
+            onChange={(value) => setClientSettingsDraft({ commentDisplayName: value })}
+          />
+          <button type="submit" className="secondary-button compact-button">
+            <Save size={17} />
+            <span>{t('common.save')}</span>
+          </button>
+        </form>
+      </section>
+
       {isAddSourceOpen && (
         <div className="modal-backdrop" role="presentation" onClick={() => setIsAddSourceOpen(false)}>
           <form
@@ -2222,31 +2606,10 @@ function SourcesView({
                 <strong>{t('sources.readinessPassword')}</strong>
                 <small>{sourcePasswordReady ? t('sources.readinessPasswordReady') : t('sources.readinessPasswordOptional')}</small>
               </div>
-              <div className={cx('readiness-step', sourceMirrorReady && 'ready')}>
-                <span className={cx('status-badge', sourceMirrorReady ? 'synced' : 'unsynced')}>
-                  <Link size={14} />
-                  {sourceMirrorReady ? t('sources.filled') : t('sources.optional')}
-                </span>
-                <strong>{t('sources.readinessMirror')}</strong>
-                <small>{sourceMirrorReady ? t('sources.readinessMirrorReady') : t('sources.readinessMirrorOptional')}</small>
-              </div>
             </div>
-            <label>
-              <span>{t('common.name')}</span>
-              <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
-            </label>
-            <label>
-              <span>{t('sources.url')}</span>
-              <input type="url" value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} />
-            </label>
-            <label>
-              <span>{t('sources.password')}</span>
-              <input type="password" value={draft.password} onChange={(event) => setDraft({ ...draft, password: event.target.value })} />
-            </label>
-            <label>
-              <span>{t('sources.mirror')}</span>
-              <input value={draft.mirror} onChange={(event) => setDraft({ ...draft, mirror: event.target.value })} />
-            </label>
+            <XTextInput label={t('common.name')} value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
+            <XTextInput label={t('sources.url')} value={draft.url} onChange={(value) => setDraft({ ...draft, url: value })} />
+            <XTextInput type="password" label={t('sources.password')} value={draft.password} onChange={(value) => setDraft({ ...draft, password: value })} />
             {!canAddSource && <p className="field-help">{t('sources.addBlocked')}</p>}
             <div className="dialog-actions">
               <button type="button" className="secondary-button" onClick={() => setIsAddSourceOpen(false)}>
@@ -2256,6 +2619,52 @@ function SourcesView({
               <button type="submit" className="primary-button" disabled={!canAddSource}>
                 <Cloud size={18} />
                 <span>{t('sources.add')}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editingSource && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setEditingSource(null)}>
+          <form
+            className="modal-panel form-panel source-add-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('sources.editTitle')}
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={saveEditedSource}
+            noValidate
+          >
+            <button type="button" className="icon-button close" aria-label={t('common.close')} onClick={() => setEditingSource(null)}>
+              <X size={17} />
+            </button>
+            <SectionTitle icon={Pencil} title={t('sources.editTitle')} />
+            <XTextInput label={t('common.name')} value={editDraft.name} onChange={(value) => setEditDraft({ ...editDraft, name: value })} />
+            <XTextInput label={t('sources.url')} value={editDraft.url} onChange={(value) => setEditDraft({ ...editDraft, url: value })} />
+            <XTextInput type="password" label={t('sources.password')} value={editDraft.password} onChange={(value) => setEditDraft({ ...editDraft, password: value })} />
+            <XSelector
+              label={t('sources.defaultDownloadMirror')}
+              description={t('sources.defaultDownloadMirrorHelp')}
+              value={editDraft.defaultDownloadMirrorId}
+              options={sourceMirrorOptions(editingSource, 'download', t('sources.directMirror'))}
+              onChange={(value) => setEditDraft({ ...editDraft, defaultDownloadMirrorId: value })}
+            />
+            <XSelector
+              label={t('sources.defaultRawMirror')}
+              description={t('sources.defaultRawMirrorHelp')}
+              value={editDraft.defaultRawMirrorId}
+              options={sourceMirrorOptions(editingSource, 'raw', t('sources.directMirror'))}
+              onChange={(value) => setEditDraft({ ...editDraft, defaultRawMirrorId: value })}
+            />
+            <div className="dialog-actions">
+              <button type="button" className="secondary-button" onClick={() => setEditingSource(null)}>
+                <X size={18} />
+                <span>{t('common.cancel')}</span>
+              </button>
+              <button type="submit" className="primary-button">
+                <Save size={18} />
+                <span>{t('common.save')}</span>
               </button>
             </div>
           </form>
@@ -2324,36 +2733,16 @@ function SourcesView({
                         <span>{healthHint}</span>
                       </p>
                     )}
-                    <div className="source-edit-grid">
-                      <input
-                        aria-label={t('sources.passwordFor', { name: source.name })}
-                        value={source.password}
-                        type="password"
-                        placeholder={t('sources.passwordPlaceholder')}
-                        onChange={(event) => {
-                          updateSource(source.id, {
-                            password: event.target.value,
-                            ...(source.lastErrorCode === 'auth' ? { lastError: undefined, lastErrorCode: undefined } : {}),
-                          });
-                        }}
-                        onBlur={(event) =>
-                          void saveSource({
-                            ...source,
-                            password: event.currentTarget.value,
-                            ...(source.lastErrorCode === 'auth' ? { lastError: undefined, lastErrorCode: undefined } : {}),
-                          })
-                        }
-                      />
-                      <input
-                        aria-label={t('sources.mirrorFor', { name: source.name })}
-                        value={source.mirror}
-                        placeholder={t('sources.mirrorPlaceholder')}
-                        onChange={(event) => updateSource(source.id, { mirror: event.target.value })}
-                        onBlur={(event) => void saveSource({ ...source, mirror: event.currentTarget.value })}
-                      />
+                    <div className="source-facts source-config-facts">
+                      <small>{source.password ? t('sources.passwordConfigured') : t('sources.passwordNotConfigured')}</small>
+                      <small>{t('sources.downloadMirrorConfigured', { name: sourceMirrorSummary(source, 'download', t('sources.directMirror')) })}</small>
+                      <small>{t('sources.rawMirrorConfigured', { name: sourceMirrorSummary(source, 'raw', t('sources.directMirror')) })}</small>
                     </div>
                   </div>
                   <div className="row-actions">
+                    <button type="button" className="icon-button" aria-label={t('sources.editSource', { name: source.name })} onClick={() => openEditSource(source)}>
+                      <Pencil size={17} />
+                    </button>
                     <button
                       type="button"
                       className="icon-button"
@@ -2388,24 +2777,24 @@ function SourcesView({
       <section className="panel">
         <SectionTitle icon={Download} title={t('sources.syncedApps')} />
         <div className="filter-bar">
-          <label>
-            <span>{t('search.sourceFilter')}</span>
-            <select value={selectedSyncedSource} onChange={(event) => setSelectedSyncedSource(event.target.value)}>
-              <option value="all">{t('search.allSources')}</option>
-              {syncedSourceOptions.map((option) => (
-                <option key={option.key} value={option.key}>{option.label} ({option.count})</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>{t('search.categoryFilter')}</span>
-            <select value={selectedSyncedCategory} onChange={(event) => setSelectedSyncedCategory(event.target.value)}>
-              <option value="all">{t('search.allCategories')}</option>
-              {syncedCategoryOptions.map((option) => (
-                <option key={option.key} value={option.key}>{option.label} ({option.count})</option>
-              ))}
-            </select>
-          </label>
+          <XSelector
+            label={t('search.sourceFilter')}
+            value={selectedSyncedSource}
+            options={[
+              { value: 'all', label: t('search.allSources') },
+              ...syncedSourceOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
+            ]}
+            onChange={setSelectedSyncedSource}
+          />
+          <XSelector
+            label={t('search.categoryFilter')}
+            value={selectedSyncedCategory}
+            options={[
+              { value: 'all', label: t('search.allCategories') },
+              ...syncedCategoryOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
+            ]}
+            onChange={setSelectedSyncedCategory}
+          />
         </div>
         <SourceAppGrid
           apps={filteredSyncedSourceApps}
@@ -2429,6 +2818,7 @@ function SourceAppDrawer({
   onClose,
   onInstall,
   onLoadInstalled,
+  onRefreshSourceApp,
 }: {
   app: SourceApp;
   installedMatch?: InstalledApplication;
@@ -2436,13 +2826,21 @@ function SourceAppDrawer({
   onClose: () => void;
   onInstall: (app: SourceApp, options?: { version?: string }) => void;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
+  onRefreshSourceApp: () => Promise<void>;
 }) {
   const { t } = useTranslation();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const drawerTitleId = `source-app-drawer-title-${app.sourceId || app.sourceName}-${app.id}`;
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsState, setCommentsState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+  const [commentText, setCommentText] = useState('');
+  const [replyTarget, setReplyTarget] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState('');
   const latestVersion = app.latestVersion;
   const sourceVersions = app.versions && app.versions.length > 0 ? app.versions : latestVersion ? [latestVersion] : [];
   const installable = hasInstallableVersion(app);
+  const installAction = sourceInstallAction(app, installedMatch);
+  const isUpdateAvailable = installAction === 'update';
   const hasChecksum = Boolean(latestVersion?.sha256);
   const hasSize = Boolean(latestVersion?.size && latestVersion.size > 0);
   const trustState: 'ready' | 'caution' | 'blocked' = !installable ? 'blocked' : hasChecksum && hasSize ? 'ready' : 'caution';
@@ -2467,6 +2865,13 @@ function SourceAppDrawer({
   }, [app.id]);
 
   useEffect(() => {
+    void loadSourceComments();
+    setCommentText('');
+    setReplyTarget(null);
+    setReplyText('');
+  }, [app.id]);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
     }
@@ -2475,10 +2880,50 @@ function SourceAppDrawer({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  async function loadSourceComments() {
+    setCommentsState('loading');
+    try {
+      const data = await clientApi<{ comments: Comment[] }>(`/apps/${app.id}/comments`);
+      setComments(arrayOrEmpty(data.comments));
+      setCommentsState('loaded');
+    } catch {
+      setComments([]);
+      setCommentsState('error');
+    }
+  }
+
+  async function submitSourceComment(event: FormEvent, parentId?: number) {
+    event.preventDefault();
+    const body = (parentId ? replyText : commentText).trim();
+    if (!body) return;
+    try {
+      await clientApi(`/apps/${app.id}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ body, parentId }),
+      });
+      if (parentId) {
+        setReplyText('');
+        setReplyTarget(null);
+      } else {
+        setCommentText('');
+      }
+      await loadSourceComments();
+      await onRefreshSourceApp();
+    } catch (error) {
+      console.error(error);
+      setCommentsState('error');
+    }
+  }
+
+  async function deleteSourceComment(commentId: number) {
+    await clientApi(`/apps/${app.id}/comments/${commentId}`, { method: 'DELETE' });
+    await loadSourceComments();
+  }
+
   return (
-    <div className="drawer-backdrop" onClick={onClose}>
+    <div className="detail-page-backdrop" onClick={onClose}>
       <article
-        className="drawer"
+        className="detail-page"
         role="dialog"
         aria-modal="true"
         aria-labelledby={drawerTitleId}
@@ -2498,9 +2943,9 @@ function SourceAppDrawer({
               <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
               <span><Star size={14} /> {latestVersion?.version || t('app.noPublishedVersion')}</span>
               {installedMatch && (
-                <span className="status-badge synced">
-                  <Check size={13} />
-                  {t('app.installed')}
+                <span className={cx('status-badge', isUpdateAvailable ? 'pending' : 'synced')}>
+                  {isUpdateAvailable ? <RefreshCw size={13} /> : <Check size={13} />}
+                  {isUpdateAvailable ? t('app.updateAvailable') : t('app.installed')}
                 </span>
               )}
             </div>
@@ -2525,9 +2970,9 @@ function SourceAppDrawer({
             ))}
           </div>
           <div className="source-detail-actions">
-            <button type="button" className="install-button" disabled={!installable} onClick={() => void onInstall(app)}>
-              <Download size={17} />
-              <span>{installable ? t('common.install') : t('common.unavailable')}</span>
+            <button type="button" className={cx('install-button', isUpdateAvailable && 'update-available')} disabled={!installable} onClick={() => void onInstall(app)}>
+              {isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
+              <span>{sourceActionLabel(t, installAction)}</span>
             </button>
             <button type="button" className="secondary-button" disabled={installedState === 'loading'} onClick={() => void onLoadInstalled()}>
               <RefreshCw size={17} />
@@ -2622,8 +3067,134 @@ function SourceAppDrawer({
             <code>{latestVersion?.sha256 || '-'}</code>
           </div>
         </section>
+
+        <section className="comment-section">
+          <div className="section-title with-action">
+            <div>
+              <MessageSquare size={19} />
+              <h3>{t('drawer.comments')}</h3>
+            </div>
+            <button type="button" className="secondary-button compact-button" onClick={() => void loadSourceComments()}>
+              <RefreshCw size={17} />
+              <span>{t('common.refresh')}</span>
+            </button>
+          </div>
+          {commentsState === 'error' && <p className="inline-warning"><AlertCircle size={15} /><span>{t('sourceDetail.commentsUnavailable')}</span></p>}
+          <form className="comment-form rich-comment-form" onSubmit={(event) => void submitSourceComment(event)}>
+            <XTextInput
+              label={t('drawer.commentPlaceholder')}
+              isLabelHidden
+              value={commentText}
+              placeholder={t('drawer.commentPlaceholder')}
+              onChange={setCommentText}
+            />
+            <button type="submit" className="icon-button" aria-label={t('drawer.postComment')} disabled={!commentText.trim()}>
+              <MessageSquare size={17} />
+            </button>
+          </form>
+          <CommentList
+            comments={comments}
+            commentsState={commentsState}
+            replyTarget={replyTarget}
+            replyText={replyText}
+            onReplyTarget={setReplyTarget}
+            onReplyText={setReplyText}
+            onReply={(event, parentId) => void submitSourceComment(event, parentId)}
+            onDelete={(commentId) => void deleteSourceComment(commentId)}
+          />
+        </section>
       </article>
     </div>
+  );
+}
+
+function CommentList({
+  comments,
+  commentsState = 'loaded',
+  replyTarget,
+  replyText,
+  onReplyTarget,
+  onReplyText,
+  onReply,
+  onDelete,
+}: {
+  comments: Comment[];
+  commentsState?: 'idle' | 'loading' | 'loaded' | 'error';
+  replyTarget: number | null;
+  replyText: string;
+  onReplyTarget: (id: number | null) => void;
+  onReplyText: (value: string) => void;
+  onReply: (event: FormEvent, parentId: number) => void;
+  onDelete: (id: number) => void;
+}) {
+  const { t } = useTranslation();
+  if (commentsState === 'loading') {
+    return (
+      <div className="comments">
+        <div className="comment skeleton-comment" aria-label={t('common.loading')} />
+      </div>
+    );
+  }
+  if (comments.length === 0) {
+    return <EmptyState icon={MessageSquare} title={t('drawer.noComments')} body={t('drawer.noCommentsBody')} />;
+  }
+  return (
+    <div className="comments">
+      {comments.map((comment) => (
+        <article className="comment" key={comment.id}>
+          <CommentBody comment={comment} onDelete={onDelete} />
+          <div className="comment-actions">
+            <button type="button" className="secondary-button compact-button" onClick={() => onReplyTarget(replyTarget === comment.id ? null : comment.id)}>
+              <MessageSquare size={15} />
+              <span>{t('drawer.reply')}</span>
+            </button>
+          </div>
+          {replyTarget === comment.id && (
+            <form className="comment-form rich-comment-form reply-form" onSubmit={(event) => onReply(event, comment.id)}>
+              <XTextInput
+                label={t('drawer.replyPlaceholder')}
+                isLabelHidden
+                value={replyText}
+                placeholder={t('drawer.replyPlaceholder')}
+                onChange={onReplyText}
+              />
+              <button type="submit" className="icon-button" aria-label={t('drawer.postReply')} disabled={!replyText.trim()}>
+                <MessageSquare size={17} />
+              </button>
+            </form>
+          )}
+          {comment.replies && comment.replies.length > 0 && (
+            <div className="comment-replies">
+              {comment.replies.map((reply) => (
+                <article className="comment reply" key={reply.id}>
+                  <CommentBody comment={reply} onDelete={onDelete} />
+                </article>
+              ))}
+            </div>
+          )}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function CommentBody({ comment, onDelete }: { comment: Comment; onDelete: (id: number) => void }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <div className="comment-head">
+        <div>
+          <strong>{comment.username}</strong>
+          <span>{formatDate(comment.createdAt)}</span>
+        </div>
+        {comment.canDelete && (
+          <button type="button" className="icon-button danger" aria-label={t('drawer.deleteComment')} onClick={() => onDelete(comment.id)}>
+            <Trash2 size={15} />
+          </button>
+        )}
+      </div>
+      <p>{comment.body}</p>
+    </>
   );
 }
 
@@ -2777,6 +3348,7 @@ function ProfileView({
     categoryId: '',
     tags: '',
     allowUnreviewedUpdates: false,
+    emailNotificationsEnabled: true,
     sourceType: 'GITHUB',
     downloadUrl: '',
     sha256: '',
@@ -2789,6 +3361,7 @@ function ProfileView({
   const [tokens, setTokens] = useState<APITokenRecord[]>([]);
   const [newToken, setNewToken] = useState('');
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
+  const [commentNotifications, setCommentNotifications] = useState<CommentNotification[]>([]);
   const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
   const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
   const authHint = mode === 'login' ? t('auth.loginHint') : mode === 'register' ? t('auth.registerHint') : t('auth.verifyHint');
@@ -2880,6 +3453,7 @@ function ProfileView({
   useEffect(() => {
     if (!user) return;
     void api<{ tokens: APITokenRecord[] }>('/api/v1/me/tokens').then((data) => setTokens(data.tokens)).catch(() => setTokens([]));
+    void loadCommentNotifications();
     void loadFavorites();
   }, [user]);
 
@@ -2966,6 +3540,7 @@ function ProfileView({
             categoryId: uploadForm.categoryId ? Number(uploadForm.categoryId) : undefined,
             tags: uploadForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
             allowUnreviewedUpdates: uploadForm.allowUnreviewedUpdates,
+            emailNotificationsEnabled: uploadForm.emailNotificationsEnabled,
             sourceType: uploadForm.sourceType,
             downloadUrl: uploadForm.downloadUrl.trim(),
             sha256: uploadForm.sha256.trim(),
@@ -2975,7 +3550,7 @@ function ProfileView({
       }
       setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
       setToast({ tone: 'success', message: t('submitApp.submitted') });
-      setUploadForm({ name: '', version: '', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, sourceType: 'GITHUB', downloadUrl: '', sha256: '', installPassword: '' });
+      setUploadForm({ name: '', version: '', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, emailNotificationsEnabled: true, sourceType: 'GITHUB', downloadUrl: '', sha256: '', installPassword: '' });
       setArtifactMode('local');
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -2998,6 +3573,22 @@ function ProfileView({
     await runAction(setToast, t('favorites.loadFailed'), async () => {
       const data = await api<FavoriteData>('/api/v1/me/favorites');
       setFavorites({ apps: data.apps || [], submitters: data.submitters || [] });
+    });
+  }
+
+  async function loadCommentNotifications() {
+    if (!HAS_API || !user) return;
+    await runAction(setToast, t('profile.notificationsLoadFailed'), async () => {
+      const data = await api<{ notifications: CommentNotification[] }>('/api/v1/me/comment-notifications');
+      setCommentNotifications(arrayOrEmpty(data.notifications));
+    });
+  }
+
+  async function markAllCommentNotificationsRead() {
+    await runAction(setToast, t('profile.notificationsReadFailed'), async () => {
+      await api('/api/v1/me/comment-notifications/read', { method: 'POST' });
+      await loadCommentNotifications();
+      setToast({ tone: 'success', message: t('profile.notificationsRead') });
     });
   }
 
@@ -3450,35 +4041,20 @@ function ProfileView({
               </span>
             </p>
           )}
-          <label>
-            <span>{t('submitApp.appName')}</span>
-            <input value={uploadForm.name} onChange={(event) => setUploadForm({ ...uploadForm, name: event.target.value })} />
-          </label>
-          <label>
-            <span>{t('common.version')}</span>
-            <input value={uploadForm.version} onChange={(event) => setUploadForm({ ...uploadForm, version: event.target.value })} />
-          </label>
-          <label>
-            <span>{t('common.summary')}</span>
-            <input value={uploadForm.summary} onChange={(event) => setUploadForm({ ...uploadForm, summary: event.target.value })} />
-          </label>
-          <label>
-            <span>{t('common.description')}</span>
-            <textarea value={uploadForm.description} onChange={(event) => setUploadForm({ ...uploadForm, description: event.target.value })} />
-          </label>
-          <label>
-            <span>{t('common.category')}</span>
-            <select value={uploadForm.categoryId} onChange={(event) => setUploadForm({ ...uploadForm, categoryId: event.target.value })}>
-              <option value="">{t('common.uncategorized')}</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>{t('common.tags')}</span>
-            <input value={uploadForm.tags} onChange={(event) => setUploadForm({ ...uploadForm, tags: event.target.value })} />
-          </label>
+          <XTextInput label={t('submitApp.appName')} value={uploadForm.name} onChange={(value) => setUploadForm({ ...uploadForm, name: value })} />
+          <XTextInput label={t('common.version')} value={uploadForm.version} onChange={(value) => setUploadForm({ ...uploadForm, version: value })} />
+          <XTextInput label={t('common.summary')} value={uploadForm.summary} onChange={(value) => setUploadForm({ ...uploadForm, summary: value })} />
+          <XTextArea label={t('common.description')} value={uploadForm.description} rows={4} onChange={(value) => setUploadForm({ ...uploadForm, description: value })} />
+          <XSelector
+            label={t('common.category')}
+            value={uploadForm.categoryId}
+            options={[
+              { value: '', label: t('common.uncategorized') },
+              ...categories.map((category) => ({ value: String(category.id), label: localizedName(category) })),
+            ]}
+            onChange={(value) => setUploadForm({ ...uploadForm, categoryId: value })}
+          />
+          <XTextInput label={t('common.tags')} value={uploadForm.tags} onChange={(value) => setUploadForm({ ...uploadForm, tags: value })} />
           <div className="artifact-section">
             <div className="artifact-section-head">
               <strong>{t('submitApp.artifactMode')}</strong>
@@ -3501,60 +4077,57 @@ function ProfileView({
               </button>
             </div>
             {artifactMode === 'local' ? (
-              <label>
-                <span>{t('common.lpkFile')}</span>
-                <input ref={fileInputRef} type="file" accept=".lpk" required onChange={(event) => setFile(event.target.files?.[0] || null)} />
-                <small className="field-help">{t('submitApp.localFileHelp')}</small>
-              </label>
+              <FileDropField
+                label={t('common.lpkFile')}
+                help={t('submitApp.localFileHelp')}
+                fileName={file?.name}
+                inputRef={fileInputRef}
+                accept=".lpk"
+                required
+                onChange={(nextFile) => setFile(nextFile)}
+              />
             ) : (
               <div className="artifact-fields">
                 <p className="field-help">{t('submitApp.externalFieldsHelp')}</p>
-                <label>
-                  <span>{t('submitApp.externalSource')}</span>
-                  <select value={uploadForm.sourceType} onChange={(event) => setUploadForm({ ...uploadForm, sourceType: event.target.value })}>
-                    <option value="GITHUB">GitHub Release</option>
-                    <option value="WEBDAV">WebDAV URL</option>
-                    <option value="S3">S3 URL</option>
-                  </select>
-                </label>
-                <label>
-                  <span>{t('submitApp.externalDownloadUrl')}</span>
-                  <input
-                    type="url"
-                    required
-                    value={uploadForm.downloadUrl}
-                    onChange={(event) => setUploadForm({ ...uploadForm, downloadUrl: event.target.value })}
-                  />
-                  <small className="field-help">{t('submitApp.externalDownloadHelp')}</small>
-                </label>
-                <label>
-                  <span>{t('common.sha256')}</span>
-                  <input
-                    maxLength={64}
-                    pattern="[a-fA-F0-9]{64}"
-                    title={t('submitApp.sha256Pattern')}
-                    autoCapitalize="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    value={uploadForm.sha256}
-                    onChange={(event) => setUploadForm({ ...uploadForm, sha256: event.target.value })}
-                  />
-                  <small className="field-help">{t('submitApp.sha256Help')}</small>
-                </label>
+                <XSelector
+                  label={t('submitApp.externalSource')}
+                  value={uploadForm.sourceType}
+                  options={[
+                    { value: 'GITHUB', label: 'GitHub Release' },
+                    { value: 'WEBDAV', label: 'WebDAV URL' },
+                    { value: 'S3', label: 'S3 URL' },
+                  ]}
+                  onChange={(value) => setUploadForm({ ...uploadForm, sourceType: value })}
+                />
+                <XTextInput
+                  label={t('submitApp.externalDownloadUrl')}
+                  description={t('submitApp.externalDownloadHelp')}
+                  value={uploadForm.downloadUrl}
+                  onChange={(value) => setUploadForm({ ...uploadForm, downloadUrl: value })}
+                />
+                <XTextInput
+                  label={t('common.sha256')}
+                  description={t('submitApp.sha256Help')}
+                  value={uploadForm.sha256}
+                  onChange={(value) => setUploadForm({ ...uploadForm, sha256: value })}
+                />
               </div>
             )}
           </div>
-          <label>
-            <span>{t('submitApp.installPassword')}</span>
+          <XTextInput
+            type="password"
+            label={t('submitApp.installPassword')}
+            description={t('submitApp.installPasswordHelp')}
+            value={uploadForm.installPassword}
+            onChange={(value) => setUploadForm({ ...uploadForm, installPassword: value })}
+          />
+          <label className="toggle-line">
             <input
-              type="password"
-              autoComplete="new-password"
-              minLength={4}
-              maxLength={256}
-              value={uploadForm.installPassword}
-              onChange={(event) => setUploadForm({ ...uploadForm, installPassword: event.target.value })}
+              type="checkbox"
+              checked={uploadForm.emailNotificationsEnabled}
+              onChange={(event) => setUploadForm({ ...uploadForm, emailNotificationsEnabled: event.target.checked })}
             />
-            <small className="field-help">{t('submitApp.installPasswordHelp')}</small>
+            <span>{t('submitApp.emailNotificationsEnabled')}</span>
           </label>
           <label className="toggle-line">
             <input
@@ -3749,6 +4322,7 @@ function AdminPanel({
   const [tagDrafts, setTagDrafts] = useState<Record<number, { name: string; slug: string }>>({});
   const [collectionDrafts, setCollectionDrafts] = useState<Record<number, CollectionDraft>>({});
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [testEmailTo, setTestEmailTo] = useState(user.email || '');
   const isSiteAdmin = user.role === 'SITE_ADMIN';
   const adminTabs = [
     { key: 'reviews', label: t('admin.tabs.reviews'), icon: ShieldCheck },
@@ -3796,8 +4370,16 @@ function AdminPanel({
     { key: 'max_versions', label: t('admin.settings.maxVersions'), help: t('admin.settingsHelp.maxVersions'), inputMode: 'numeric' },
     { key: 'source_password', label: t('admin.settings.sourcePassword'), help: t('admin.settingsHelp.sourcePassword'), type: 'password' },
     { key: 'source_password_rotation', label: t('admin.settings.sourcePasswordRotation'), help: t('admin.settingsHelp.sourcePasswordRotation'), inputMode: 'numeric' },
-    { key: 'github_mirror', label: t('admin.settings.githubMirror'), help: t('admin.settingsHelp.githubMirror'), type: 'url' },
+    { key: 'github_download_mirrors', label: t('admin.settings.githubDownloadMirrors'), help: t('admin.settingsHelp.githubDownloadMirrors'), type: 'textarea' },
+    { key: 'github_raw_mirrors', label: t('admin.settings.githubRawMirrors'), help: t('admin.settingsHelp.githubRawMirrors'), type: 'textarea' },
     { key: 'require_email_verify', label: t('admin.settings.requireEmailVerify'), help: t('admin.settingsHelp.requireEmailVerify'), type: 'boolean' },
+  ];
+  const smtpSettingFields = [
+    { key: 'smtp_host', label: t('admin.settings.smtpHost'), help: t('admin.settingsHelp.smtpHost') },
+    { key: 'smtp_port', label: t('admin.settings.smtpPort'), help: t('admin.settingsHelp.smtpPort') },
+    { key: 'smtp_user', label: t('admin.settings.smtpUser'), help: t('admin.settingsHelp.smtpUser') },
+    { key: 'smtp_pass', label: t('admin.settings.smtpPass'), help: t('admin.settingsHelp.smtpPass'), type: 'password' },
+    { key: 'smtp_from', label: t('admin.settings.smtpFrom'), help: t('admin.settingsHelp.smtpFrom') },
   ];
   const reviewSummary = useMemo(() => {
     return {
@@ -3904,8 +4486,27 @@ function AdminPanel({
     });
   }
 
+  async function sendTestEmail() {
+    await runAction(setToast, t('admin.testEmailFailed'), async () => {
+      await api('/api/v1/admin/settings/test-email', {
+        method: 'POST',
+        body: JSON.stringify({
+          to: testEmailTo,
+          settings,
+        }),
+      });
+      setToast({ tone: 'success', message: t('admin.testEmailSent') });
+    });
+  }
+
   function updateSetting(key: string, value: string) {
     setSettings((current) => ({ ...current, [key]: value }));
+  }
+
+  function recommendedMirrorsForSetting(key: string) {
+    if (key === 'github_download_mirrors') return mirrorPresetText(RECOMMENDED_DOWNLOAD_MIRRORS);
+    if (key === 'github_raw_mirrors') return mirrorPresetText(RECOMMENDED_RAW_MIRRORS);
+    return '';
   }
 
   function renderSettingField(field: {
@@ -3944,6 +4545,24 @@ function AdminPanel({
       );
     }
     if (field.type === 'textarea') {
+      const preset = recommendedMirrorsForSetting(field.key);
+      if (preset) {
+        return (
+          <div className="settings-mirror-field" key={field.key}>
+            <XTextArea
+              label={field.label}
+              description={field.help}
+              value={settings[field.key] || ''}
+              rows={5}
+              onChange={(value) => updateSetting(field.key, value)}
+            />
+            <button type="button" className="secondary-button compact-button" onClick={() => updateSetting(field.key, preset)}>
+              <Download size={16} />
+              <span>{t('admin.useRecommendedMirrors')}</span>
+            </button>
+          </div>
+        );
+      }
       return (
         <XTextArea
           key={field.key}
@@ -4300,6 +4919,28 @@ function AdminPanel({
                 {policySettingFields.map(renderSettingField)}
               </XFormLayout>
             </div>
+            <div className="settings-section">
+              <div className="settings-section-head">
+                <strong>{t('admin.smtpSettings')}</strong>
+                <span>{t('admin.smtpSettingsBody')}</span>
+              </div>
+              <XFormLayout direction="horizontal">
+                {smtpSettingFields.map(renderSettingField)}
+              </XFormLayout>
+              <div className="test-email-form">
+                <XTextInput
+                  type="email"
+                  label={t('admin.testEmailTo')}
+                  description={t('admin.testEmailHelp')}
+                  value={testEmailTo}
+                  onChange={setTestEmailTo}
+                />
+                <button type="button" className="secondary-button compact-button" onClick={() => void sendTestEmail()}>
+                  <MessageSquare size={17} />
+                  <span>{t('admin.sendTestEmail')}</span>
+                </button>
+              </div>
+            </div>
             <XButton type="submit" variant="primary" label={t('admin.saveSettings')} icon={<Settings size={18} />} />
           </form>
           <section className="panel site-preview-panel">
@@ -4517,6 +5158,8 @@ function AppDrawer({
 }) {
   const { t } = useTranslation();
   const [commentText, setCommentText] = useState('');
+  const [replyTarget, setReplyTarget] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState('');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotCaption, setScreenshotCaption] = useState('');
   const [versionForm, setVersionForm] = useState({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
@@ -4532,6 +5175,7 @@ function AppDrawer({
     tags: (app.tags || []).join(', '),
     allowUnreviewedUpdates: app.allowUnreviewedUpdates,
     commentsEnabled: app.commentsEnabled,
+    emailNotificationsEnabled: app.emailNotificationsEnabled,
     installPassword: '',
     clearInstallPassword: false,
   });
@@ -4580,11 +5224,15 @@ function AppDrawer({
       tags: (app.tags || []).join(', '),
       allowUnreviewedUpdates: app.allowUnreviewedUpdates,
       commentsEnabled: app.commentsEnabled,
+      emailNotificationsEnabled: app.emailNotificationsEnabled,
       installPassword: '',
       clearInstallPassword: false,
     });
     setVisibility(app.visibleGroupIds || []);
     setConfirmAction(null);
+    setCommentText('');
+    setReplyTarget(null);
+    setReplyText('');
     setVersionArtifactMode('local');
     setVersionFile(null);
     if (versionFileInputRef.current) versionFileInputRef.current.value = '';
@@ -4615,12 +5263,18 @@ function AppDrawer({
     });
   }
 
-  async function submitComment(event: FormEvent) {
+  async function submitComment(event: FormEvent, parentId?: number) {
     event.preventDefault();
-    if (!commentText.trim()) return;
+    const body = (parentId ? replyText : commentText).trim();
+    if (!body) return;
     await runAction(setToast, t('drawer.commentPostFailed'), async () => {
-      await api(`/api/v1/apps/${app.id}/comments`, { method: 'POST', body: JSON.stringify({ body: commentText }) });
-      setCommentText('');
+      await api(`/api/v1/apps/${app.id}/comments`, { method: 'POST', body: JSON.stringify({ body, parentId }) });
+      if (parentId) {
+        setReplyText('');
+        setReplyTarget(null);
+      } else {
+        setCommentText('');
+      }
       setToast({ tone: 'success', message: t('drawer.commentPosted') });
       await onRefresh();
     });
@@ -4656,6 +5310,7 @@ function AppDrawer({
           tags: appForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
           allowUnreviewedUpdates: appForm.allowUnreviewedUpdates,
           commentsEnabled: appForm.commentsEnabled,
+          emailNotificationsEnabled: appForm.emailNotificationsEnabled,
           ...(installPassword || appForm.clearInstallPassword ? { installPassword } : {}),
         }),
       });
@@ -4950,43 +5605,26 @@ function AppDrawer({
             {canMaintain && (
               <form className="panel form-panel nested-panel" onSubmit={submitAppInfo}>
                 <SectionTitle icon={Settings} title={t('drawer.appInfo')} />
-                <label>
-                  <span>{t('common.name')}</span>
-                  <input value={appForm.name} onChange={(event) => setAppForm({ ...appForm, name: event.target.value })} />
-                </label>
-                <label>
-                  <span>{t('common.summary')}</span>
-                  <input value={appForm.summary} onChange={(event) => setAppForm({ ...appForm, summary: event.target.value })} />
-                </label>
-                <label>
-                  <span>{t('common.description')}</span>
-                  <textarea value={appForm.description} onChange={(event) => setAppForm({ ...appForm, description: event.target.value })} />
-                </label>
-                <label>
-                  <span>{t('common.category')}</span>
-                  <select value={appForm.categoryId} onChange={(event) => setAppForm({ ...appForm, categoryId: event.target.value })}>
-                    <option value="">{t('common.uncategorized')}</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>{category.name}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>{t('common.tags')}</span>
-                  <input value={appForm.tags} onChange={(event) => setAppForm({ ...appForm, tags: event.target.value })} />
-                </label>
-                <label>
-                  <span>{t('drawer.installPassword')}</span>
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={4}
-                    maxLength={256}
-                    value={appForm.installPassword}
-                    onChange={(event) => setAppForm({ ...appForm, installPassword: event.target.value, clearInstallPassword: false })}
-                  />
-                  <small className="field-help">{app.installProtected ? t('drawer.installPasswordUpdateHelp') : t('drawer.installPasswordHelp')}</small>
-                </label>
+                <XTextInput label={t('common.name')} value={appForm.name} onChange={(value) => setAppForm({ ...appForm, name: value })} />
+                <XTextInput label={t('common.summary')} value={appForm.summary} onChange={(value) => setAppForm({ ...appForm, summary: value })} />
+                <XTextArea label={t('common.description')} value={appForm.description} rows={4} onChange={(value) => setAppForm({ ...appForm, description: value })} />
+                <XSelector
+                  label={t('common.category')}
+                  value={appForm.categoryId}
+                  options={[
+                    { value: '', label: t('common.uncategorized') },
+                    ...categories.map((category) => ({ value: String(category.id), label: localizedName(category) })),
+                  ]}
+                  onChange={(value) => setAppForm({ ...appForm, categoryId: value })}
+                />
+                <XTextInput label={t('common.tags')} value={appForm.tags} onChange={(value) => setAppForm({ ...appForm, tags: value })} />
+                <XTextInput
+                  type="password"
+                  label={t('drawer.installPassword')}
+                  description={app.installProtected ? t('drawer.installPasswordUpdateHelp') : t('drawer.installPasswordHelp')}
+                  value={appForm.installPassword}
+                  onChange={(value) => setAppForm({ ...appForm, installPassword: value, clearInstallPassword: false })}
+                />
                 {app.installProtected && (
                   <label className="toggle-line">
                     <input
@@ -5004,6 +5642,14 @@ function AppDrawer({
                     onChange={(event) => setAppForm({ ...appForm, commentsEnabled: event.target.checked })}
                   />
                   <span>{t('drawer.commentsEnabled')}</span>
+                </label>
+                <label className="toggle-line">
+                  <input
+                    type="checkbox"
+                    checked={appForm.emailNotificationsEnabled}
+                    onChange={(event) => setAppForm({ ...appForm, emailNotificationsEnabled: event.target.checked })}
+                  />
+                  <span>{t('drawer.emailNotificationsEnabled')}</span>
                 </label>
                 <label className="toggle-line">
                   <input
@@ -5101,46 +5747,40 @@ function AppDrawer({
                     </button>
                   </div>
                   {versionArtifactMode === 'local' ? (
-                    <label>
-                      <span>{t('common.lpkFile')}</span>
-                      <input ref={versionFileInputRef} type="file" accept=".lpk" required onChange={(event) => setVersionFile(event.target.files?.[0] || null)} />
-                      <small className="field-help">{t('drawer.versionLocalFileHelp')}</small>
-                    </label>
+                    <FileDropField
+                      label={t('common.lpkFile')}
+                      help={t('drawer.versionLocalFileHelp')}
+                      fileName={versionFile?.name}
+                      inputRef={versionFileInputRef}
+                      accept=".lpk"
+                      required
+                      onChange={(nextFile) => setVersionFile(nextFile)}
+                    />
                   ) : (
                     <div className="artifact-fields">
                       <p className="field-help">{t('submitApp.externalFieldsHelp')}</p>
-                      <label>
-                        <span>{t('submitApp.externalSource')}</span>
-                        <select value={versionForm.sourceType} onChange={(event) => setVersionForm({ ...versionForm, sourceType: event.target.value })}>
-                          <option value="GITHUB">GitHub Release</option>
-                          <option value="WEBDAV">WebDAV URL</option>
-                          <option value="S3">S3 URL</option>
-                        </select>
-                      </label>
-                      <label>
-                        <span>{t('submitApp.externalDownloadUrl')}</span>
-                        <input
-                          type="url"
-                          required
-                          value={versionForm.downloadUrl}
-                          onChange={(event) => setVersionForm({ ...versionForm, downloadUrl: event.target.value })}
-                        />
-                        <small className="field-help">{t('submitApp.externalDownloadHelp')}</small>
-                      </label>
-                      <label>
-                        <span>{t('common.sha256')}</span>
-                        <input
-                          maxLength={64}
-                          pattern="[a-fA-F0-9]{64}"
-                          title={t('submitApp.sha256Pattern')}
-                          autoCapitalize="off"
-                          autoCorrect="off"
-                          spellCheck={false}
-                          value={versionForm.sha256}
-                          onChange={(event) => setVersionForm({ ...versionForm, sha256: event.target.value })}
-                        />
-                        <small className="field-help">{t('submitApp.sha256Help')}</small>
-                      </label>
+                      <XSelector
+                        label={t('submitApp.externalSource')}
+                        value={versionForm.sourceType}
+                        options={[
+                          { value: 'GITHUB', label: 'GitHub Release' },
+                          { value: 'WEBDAV', label: 'WebDAV URL' },
+                          { value: 'S3', label: 'S3 URL' },
+                        ]}
+                        onChange={(value) => setVersionForm({ ...versionForm, sourceType: value })}
+                      />
+                      <XTextInput
+                        label={t('submitApp.externalDownloadUrl')}
+                        description={t('submitApp.externalDownloadHelp')}
+                        value={versionForm.downloadUrl}
+                        onChange={(value) => setVersionForm({ ...versionForm, downloadUrl: value })}
+                      />
+                      <XTextInput
+                        label={t('common.sha256')}
+                        description={t('submitApp.sha256Help')}
+                        value={versionForm.sha256}
+                        onChange={(value) => setVersionForm({ ...versionForm, sha256: value })}
+                      />
                     </div>
                   )}
                 </div>
@@ -5250,8 +5890,13 @@ function AppDrawer({
           )}
           {canMaintain && (
             <form className="comment-form screenshot-form" onSubmit={uploadScreenshot}>
-              <input value={screenshotCaption} onChange={(event) => setScreenshotCaption(event.target.value)} placeholder={t('drawer.screenshotCaption')} />
-              <input type="file" accept=".png,.jpg,.jpeg,.webp" onChange={(event) => setScreenshotFile(event.target.files?.[0] || null)} />
+              <XTextInput label={t('drawer.screenshotCaption')} isLabelHidden value={screenshotCaption} placeholder={t('drawer.screenshotCaption')} onChange={setScreenshotCaption} />
+              <FileDropField
+                label={t('drawer.uploadScreenshot')}
+                fileName={screenshotFile?.name}
+                accept=".png,.jpg,.jpeg,.webp"
+                onChange={(nextFile) => setScreenshotFile(nextFile)}
+              />
               <button type="submit" className="icon-button" aria-label={t('drawer.uploadScreenshot')}><Upload size={17} /></button>
             </form>
           )}
@@ -5277,27 +5922,29 @@ function AppDrawer({
         <section>
           <h3>{t('drawer.comments')}</h3>
           {user && app.commentsEnabled && (
-            <form className="comment-form" onSubmit={submitComment}>
-              <input value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder={t('drawer.commentPlaceholder')} />
-              <button type="submit" className="icon-button" aria-label={t('drawer.postComment')}><MessageSquare size={17} /></button>
+            <form className="comment-form rich-comment-form" onSubmit={(event) => void submitComment(event)}>
+              <XTextInput
+                label={t('drawer.commentPlaceholder')}
+                isLabelHidden
+                value={commentText}
+                placeholder={t('drawer.commentPlaceholder')}
+                onChange={setCommentText}
+              />
+              <button type="submit" className="icon-button" aria-label={t('drawer.postComment')} disabled={!commentText.trim()}>
+                <MessageSquare size={17} />
+              </button>
             </form>
           )}
           {!app.commentsEnabled && <p className="inline-note">{t('drawer.commentsDisabled')}</p>}
-          <div className="comments">
-            {(app.comments || []).map((comment) => (
-              <div className="comment" key={comment.id}>
-                <div className="comment-head">
-                  <strong>{comment.username}</strong>
-                  {(canMaintain || user?.id === comment.userId) && (
-                    <button type="button" className="icon-button danger" aria-label={t('drawer.deleteComment')} onClick={() => void deleteComment(comment.id)}>
-                      <Trash2 size={15} />
-                    </button>
-                  )}
-                </div>
-                <p>{comment.body}</p>
-              </div>
-            ))}
-          </div>
+          <CommentList
+            comments={app.comments || []}
+            replyTarget={replyTarget}
+            replyText={replyText}
+            onReplyTarget={setReplyTarget}
+            onReplyText={setReplyText}
+            onReply={(event, parentId) => void submitComment(event, parentId)}
+            onDelete={(commentID) => void deleteComment(commentID)}
+          />
         </section>
       </article>
     </div>

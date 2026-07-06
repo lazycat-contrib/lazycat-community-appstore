@@ -104,6 +104,11 @@ func CommentsEnabled(v bool) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldCommentsEnabled, v))
 }
 
+// EmailNotificationsEnabled applies equality check predicate on the "email_notifications_enabled" field. It's identical to EmailNotificationsEnabledEQ.
+func EmailNotificationsEnabled(v bool) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldEmailNotificationsEnabled, v))
+}
+
 // InstallPasswordHash applies equality check predicate on the "install_password_hash" field. It's identical to InstallPasswordHashEQ.
 func InstallPasswordHash(v string) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldInstallPasswordHash, v))
@@ -652,6 +657,16 @@ func CommentsEnabledEQ(v bool) predicate.App {
 // CommentsEnabledNEQ applies the NEQ predicate on the "comments_enabled" field.
 func CommentsEnabledNEQ(v bool) predicate.App {
 	return predicate.App(sql.FieldNEQ(FieldCommentsEnabled, v))
+}
+
+// EmailNotificationsEnabledEQ applies the EQ predicate on the "email_notifications_enabled" field.
+func EmailNotificationsEnabledEQ(v bool) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldEmailNotificationsEnabled, v))
+}
+
+// EmailNotificationsEnabledNEQ applies the NEQ predicate on the "email_notifications_enabled" field.
+func EmailNotificationsEnabledNEQ(v bool) predicate.App {
+	return predicate.App(sql.FieldNEQ(FieldEmailNotificationsEnabled, v))
 }
 
 // InstallPasswordHashEQ applies the EQ predicate on the "install_password_hash" field.

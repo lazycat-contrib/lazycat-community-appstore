@@ -24,7 +24,7 @@ const path = require('node:path');
 const config = {
   apiBaseURL: process.env.CLIENT_API_BASE_URL || '',
   defaultSourceURL: process.env.CLIENT_DEFAULT_SOURCE_URL || '',
-  defaultSourceName: process.env.CLIENT_DEFAULT_SOURCE_NAME || 'Community Store',
+  defaultSourceName: process.env.CLIENT_DEFAULT_SOURCE_NAME || '懒猫私有商店',
 };
 
 fs.writeFileSync(

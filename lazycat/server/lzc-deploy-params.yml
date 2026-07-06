@@ -16,10 +16,15 @@ params:
     name: "Source Password"
     description: "Optional password for /source/v1/index.json"
     optional: true
-  - id: github_mirror
+  - id: github_download_mirrors
     type: string
-    name: "GitHub Mirror"
-    description: "Optional GitHub download mirror base URL"
+    name: "GitHub Download Mirrors"
+    description: "Optional GitHub Release/Code ZIP mirrors, one per line as name=>url"
+    optional: true
+  - id: github_raw_mirrors
+    type: string
+    name: "GitHub Raw Mirrors"
+    description: "Optional GitHub raw.githubusercontent.com mirrors, one per line as name=>url"
     optional: true
 
 locales:
@@ -33,6 +38,9 @@ locales:
     source_password:
       name: "软件源密码"
       description: "可选的 /source/v1/index.json 访问密码"
-    github_mirror:
-      name: "GitHub 镜像"
-      description: "可选的 GitHub 下载镜像基础 URL"
+    github_download_mirrors:
+      name: "GitHub 下载镜像"
+      description: "可选的 GitHub Release/Code ZIP 下载镜像，一行一个，格式：名称=>地址"
+    github_raw_mirrors:
+      name: "GitHub Raw 镜像"
+      description: "可选的 raw.githubusercontent.com 加速源，一行一个，格式：名称=>地址"
