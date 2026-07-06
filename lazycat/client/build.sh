@@ -34,4 +34,4 @@ fs.writeFileSync(
 NODE
 
 cd "$ROOT_DIR"
-CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o "$CONTENT_DIR/store-client" ./cmd/store-client
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$CONTENT_DIR/store-client" ./cmd/store-client

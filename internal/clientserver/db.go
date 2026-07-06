@@ -8,7 +8,7 @@ import (
 
 	"lazycat.community/appstore/ent"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib-x/entsqlite"
 )
 
 func openDB(cfg Config) (*ent.Client, error) {
@@ -28,9 +28,20 @@ func openDB(cfg Config) (*ent.Client, error) {
 
 func sqliteDSN(dsn string) string {
 	if strings.HasPrefix(dsn, "file:") || strings.Contains(dsn, "?") {
+		return ensureForeignKeysPragma(dsn)
+	}
+	return "file:" + dsn + "?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)"
+}
+
+func ensureForeignKeysPragma(dsn string) string {
+	if strings.Contains(dsn, "_pragma=foreign_keys") {
 		return dsn
 	}
-	return "file:" + dsn + "?cache=shared&_fk=1&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)"
+	separator := "?"
+	if strings.Contains(dsn, "?") {
+		separator = "&"
+	}
+	return dsn + separator + "_pragma=foreign_keys(1)"
 }
 
 func ensureSQLiteDir(dsn string) error {

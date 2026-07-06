@@ -15,7 +15,7 @@ func TestSQLiteDSNAddsPragmas(t *testing.T) {
 	dsn := sqliteDSN("./tmp/client.db")
 	for _, part := range []string{
 		"cache=shared",
-		"_fk=1",
+		"_pragma=foreign_keys(1)",
 		"_pragma=journal_mode(WAL)",
 		"_pragma=synchronous(NORMAL)",
 		"_pragma=busy_timeout(10000)",
@@ -248,7 +248,7 @@ func (a *clientTestServer) request(method, target, body, userID string) *httptes
 func testClient(t *testing.T) *ent.Client {
 	t.Helper()
 	name := strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
-	client, err := ent.Open("sqlite3", "file:"+name+"?mode=memory&cache=shared&_fk=1")
+	client, err := ent.Open("sqlite3", "file:"+name+"?mode=memory&cache=shared&_pragma=foreign_keys(1)")
 	if err != nil {
 		t.Fatal(err)
 	}

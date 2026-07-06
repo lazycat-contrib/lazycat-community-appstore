@@ -6,8 +6,8 @@ require (
 	entgo.io/ent v0.14.6
 	gitee.com/linakesi/lzc-sdk v0.1.0
 	github.com/go-sql-driver/mysql v1.10.0
+	github.com/lib-x/entsqlite v0.2.3
 	github.com/lib/pq v1.12.3
-	github.com/mattn/go-sqlite3 v1.14.47
 	github.com/minio/minio-go/v7 v7.2.1
 	golang.org/x/crypto v0.53.0
 	google.golang.org/grpc v1.63.2
@@ -31,10 +31,14 @@ require (
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-sqlite3 v1.14.47 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
+	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/tinylib/msgp v1.6.1 // indirect
 	github.com/zclconf/go-cty v1.14.4 // indirect
@@ -49,4 +53,8 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/ini.v1 v1.67.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	modernc.org/libc v1.72.3 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.11.0 // indirect
+	modernc.org/sqlite v1.52.0 // indirect
 )

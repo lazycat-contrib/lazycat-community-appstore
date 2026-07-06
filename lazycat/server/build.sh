@@ -24,4 +24,4 @@ server binary. The Go `web` package embeds the generated Vite assets from here.
 EOF
 
 cd "$ROOT_DIR"
-CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o "$CONTENT_DIR/store-server" ./cmd/store-server
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$CONTENT_DIR/store-server" ./cmd/store-server

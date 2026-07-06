@@ -22,8 +22,8 @@ import (
 	"lazycat.community/appstore/web"
 
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib-x/entsqlite"
 	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type Server struct {
@@ -122,14 +122,14 @@ func openEnt(cfg config.Config) (*ent.Client, error) {
 }
 
 func sqliteDSN(dsn string) string {
-	if strings.Contains(dsn, "_fk=") {
+	if strings.Contains(dsn, "_pragma=foreign_keys") {
 		return dsn
 	}
 	separator := "?"
 	if strings.Contains(dsn, "?") {
 		separator = "&"
 	}
-	return dsn + separator + "_fk=1"
+	return dsn + separator + "_pragma=foreign_keys(1)"
 }
 
 func ensureSQLiteDir(cfg config.Config) error {
