@@ -1,4 +1,4 @@
-package: community.lazycat.app.lazycat-community-appstore-client
+package: community.lazycat.app-store
 version: 0.1.0
 name: LazyCat Community App Store Client
 description: Standalone LazyCat LPK source browser and installer client.

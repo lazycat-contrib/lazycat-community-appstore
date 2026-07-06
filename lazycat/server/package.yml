@@ -1,4 +1,4 @@
-package: community.lazycat.app.lazycat-community-appstore-server
+package: community.lazycat.app-store-server
 version: 0.1.0
 name: LazyCat Community App Store Server
 description: Self-hosted LazyCat LPK app store server with embedded web console.
