@@ -1,5 +1,7 @@
 import { Copy, Download, History, Layers3, LogIn, PackagePlus, Search, Tag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Button as XButton } from '@astryxdesign/core/Button';
+import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { API_BASE } from '../../config';
 import { AppIcon } from '../../components/AppIcon';
 import { SectionTitle } from '../../shared/components/Feedback';
@@ -55,34 +57,28 @@ export function StorefrontHome({
           <h1>{siteProfile.title || t('home.title')}</h1>
           <p>{t('home.body')}</p>
           <div className="hero-actions">
-            <button type="button" className="primary-button" onClick={() => onNavigate('search')}>
-              <Search size={18} />
-              <span>{t('nav.discover')}</span>
-            </button>
-            <button type="button" className="secondary-button" onClick={() => onNavigate('profile')}>
-              <BackstageIcon size={18} />
-              <span>{backstageLabel}</span>
-            </button>
+            <XButton type="button" variant="primary" label={t('nav.discover')} icon={<Search size={18} />} onClick={() => onNavigate('search')} />
+            <XButton type="button" variant="primary" label={backstageLabel} icon={<BackstageIcon size={18} />} onClick={() => onNavigate('profile')} />
           </div>
         </div>
         {latest.length > 0 && (
           <div className="hero-app-shelf" aria-label={t('home.featuredApps')}>
             {latest.slice(0, 4).map((app) => (
-              <button type="button" className="featured-app-tile" key={app.id} onClick={() => void onOpen(app)} aria-label={t('app.open', { name: app.name })}>
+              <XClickableCard className="featured-app-tile" key={app.id} label={t('app.open', { name: app.name })} onClick={() => void onOpen(app)} padding={3}>
                 <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={app.name} size={52} />
                 <span>
                   <strong>{app.name}</strong>
                   <small>{app.category || t('common.uncategorized')}</small>
                 </span>
-              </button>
+              </XClickableCard>
             ))}
-            <button type="button" className="featured-app-tile browse-tile" onClick={() => onNavigate('search')}>
+            <XClickableCard className="featured-app-tile browse-tile" label={t('home.browseInstallable')} onClick={() => onNavigate('search')} padding={3}>
               <Search size={24} />
               <span>
                 <strong>{t('home.browseInstallable')}</strong>
                 <small>{t('home.featuredHint')}</small>
               </span>
-            </button>
+            </XClickableCard>
           </div>
         )}
       </div>
@@ -103,14 +99,8 @@ export function StorefrontHome({
           <strong>{sourceFeedURL}</strong>
           <small>{t('home.openSourceFeed')}</small>
           <div className="source-feed-actions">
-            <button type="button" className="secondary-button compact-button" onClick={() => void copySourceFeed()}>
-              <Copy size={16} />
-              <span>{t('home.copySourceFeed')}</span>
-            </button>
-            <button type="button" className="secondary-button compact-button" onClick={() => onNavigate('search')}>
-              <Download size={16} />
-              <span>{t('home.browseInstallable')}</span>
-            </button>
+            <XButton type="button" variant="secondary" size="sm" label={t('home.copySourceFeed')} icon={<Copy size={16} />} onClick={() => void copySourceFeed()} />
+            <XButton type="button" variant="secondary" size="sm" label={t('home.browseInstallable')} icon={<Download size={16} />} onClick={() => onNavigate('search')} />
           </div>
         </div>
       </section>
@@ -119,15 +109,9 @@ export function StorefrontHome({
         <section className="panel category-rail-panel">
           <SectionTitle icon={Tag} title={t('home.categories')} />
           <div className="category-rail" aria-label={t('home.categories')}>
-            <button type="button" className="secondary-button compact-button" onClick={() => onCategory('all')}>
-              <Layers3 size={16} />
-              <span>{t('common.all')}</span>
-            </button>
+            <XButton type="button" variant="secondary" size="sm" label={t('common.all')} icon={<Layers3 size={16} />} onClick={() => onCategory('all')} />
             {categories.map((category) => (
-              <button type="button" className="secondary-button compact-button" key={category.id} onClick={() => onCategory(category.name)}>
-                <Tag size={16} />
-                <span>{category.name}</span>
-              </button>
+              <XButton type="button" variant="secondary" size="sm" key={category.id} label={category.name} icon={<Tag size={16} />} onClick={() => onCategory(category.name)} />
             ))}
           </div>
         </section>

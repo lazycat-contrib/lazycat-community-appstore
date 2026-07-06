@@ -13,8 +13,11 @@ import {
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button as XButton } from '@astryxdesign/core/Button';
+import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
+import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { DEFAULT_SOURCE_URL } from '../../config';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import type {
@@ -215,14 +218,8 @@ export function SourcesView({
           <p>{t('sources.subtitle')}</p>
         </div>
         <div className="row-actions">
-          <button type="button" className="primary-button" onClick={() => setIsAddSourceOpen(true)}>
-            <Plus size={18} />
-            <span>{t('sources.add')}</span>
-          </button>
-          <button type="button" className="secondary-button" onClick={() => void onSyncAll()}>
-            <RefreshCw size={18} />
-            <span>{t('sources.syncAll')}</span>
-          </button>
+          <XButton type="button" variant="primary" label={t('sources.add')} icon={<Plus size={18} />} onClick={() => setIsAddSourceOpen(true)} />
+          <XButton type="button" variant="secondary" label={t('sources.syncAll')} icon={<RefreshCw size={18} />} onClick={() => void onSyncAll()} />
         </div>
       </div>
 
@@ -264,9 +261,7 @@ export function SourcesView({
             onSubmit={addSource}
             noValidate
           >
-            <button type="button" className="icon-button close" aria-label={t('common.close')} onClick={() => setIsAddSourceOpen(false)}>
-              <X size={17} />
-            </button>
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setIsAddSourceOpen(false)} />
             <SectionTitle icon={Cloud} title={t('sources.addTitle')} />
             <div className="source-readiness" aria-label={t('sources.addReadiness')}>
               <div className={cx('readiness-step', sourceNameReady && 'ready')}>
@@ -299,14 +294,8 @@ export function SourcesView({
             <XTextInput type="password" label={t('sources.password')} value={draft.password} onChange={(value) => setDraft({ ...draft, password: value })} />
             {!canAddSource && <p className="field-help">{t('sources.addBlocked')}</p>}
             <div className="dialog-actions">
-              <button type="button" className="secondary-button" onClick={() => setIsAddSourceOpen(false)}>
-                <X size={18} />
-                <span>{t('common.cancel')}</span>
-              </button>
-              <button type="submit" className="primary-button" disabled={!canAddSource}>
-                <Cloud size={18} />
-                <span>{t('sources.add')}</span>
-              </button>
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={() => setIsAddSourceOpen(false)} />
+              <XButton type="submit" variant="primary" label={t('sources.add')} icon={<Cloud size={18} />} isDisabled={!canAddSource} />
             </div>
           </form>
         </div>
@@ -323,9 +312,7 @@ export function SourcesView({
             onSubmit={saveEditedSource}
             noValidate
           >
-            <button type="button" className="icon-button close" aria-label={t('common.close')} onClick={() => setEditingSource(null)}>
-              <X size={17} />
-            </button>
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setEditingSource(null)} />
             <SectionTitle icon={Pencil} title={t('sources.editTitle')} />
             <XTextInput label={t('common.name')} value={editDraft.name} onChange={(value) => setEditDraft({ ...editDraft, name: value })} />
             <XTextInput label={t('sources.url')} value={editDraft.url} onChange={(value) => setEditDraft({ ...editDraft, url: value })} />
@@ -345,14 +332,8 @@ export function SourcesView({
               onChange={(value) => setEditDraft({ ...editDraft, defaultRawMirrorId: value })}
             />
             <div className="dialog-actions">
-              <button type="button" className="secondary-button" onClick={() => setEditingSource(null)}>
-                <X size={18} />
-                <span>{t('common.cancel')}</span>
-              </button>
-              <button type="submit" className="primary-button">
-                <Save size={18} />
-                <span>{t('common.save')}</span>
-              </button>
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={() => setEditingSource(null)} />
+              <XButton type="submit" variant="primary" label={t('common.save')} icon={<Save size={18} />} />
             </div>
           </form>
         </div>
@@ -360,18 +341,15 @@ export function SourcesView({
 
       <section className="panel">
         <SectionTitle icon={Server} title={t('sources.subscriptions')} />
-        <div className="segmented filter-segmented" aria-label={t('sources.statusFilter')}>
+        <XToggleButtonGroup value={sourceHealthFilter} onChange={(value) => setSourceHealthFilter((value || 'all') as SourceHealthFilter)} label={t('sources.statusFilter')} size="sm">
           {sourceHealthFilterItems.map((item) => (
-            <button
-              type="button"
+            <XToggleButton
               key={item.key}
-              className={cx(sourceHealthFilter === item.key && 'active')}
-              onClick={() => setSourceHealthFilter(item.key)}
-            >
-              {item.label} {item.count}
-            </button>
+              value={item.key}
+              label={`${item.label} ${item.count}`}
+            />
           ))}
-        </div>
+        </XToggleButtonGroup>
         <div className="source-list">
           {sources.length === 0 ? (
             <EmptyState icon={Cloud} title={t('sources.empty')} />
@@ -427,14 +405,12 @@ export function SourcesView({
                     </div>
                   </div>
                   <div className="row-actions">
-                    <button type="button" className="icon-button" aria-label={t('sources.editSource', { name: source.name })} onClick={() => openEditSource(source)}>
-                      <Pencil size={17} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={t('sources.syncSource', { name: source.name })}
-                      disabled={syncingID === source.id}
+                    <XIconButton label={t('sources.editSource', { name: source.name })} variant="ghost" icon={<Pencil size={17} />} onClick={() => openEditSource(source)} />
+                    <XIconButton
+                      label={t('sources.syncSource', { name: source.name })}
+                      variant="ghost"
+                      icon={<RefreshCw size={17} />}
+                      isDisabled={syncingID === source.id}
                       onClick={() =>
                         void (async () => {
                           setSyncingID(source.id);
@@ -447,12 +423,8 @@ export function SourcesView({
                           }
                         })()
                       }
-                    >
-                      <RefreshCw size={17} />
-                    </button>
-                    <button type="button" className="icon-button danger" aria-label={t('sources.deleteSource', { name: source.name })} onClick={() => deleteSource(source)}>
-                      <X size={17} />
-                    </button>
+                    />
+                    <XIconButton label={t('sources.deleteSource', { name: source.name })} variant="destructive" icon={<X size={17} />} onClick={() => deleteSource(source)} />
                   </div>
                 </div>
               );

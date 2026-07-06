@@ -1,7 +1,9 @@
 import { Clock3, RefreshCw, Save, Settings, ShieldCheck, Sparkles } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button as XButton } from '@astryxdesign/core/Button';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import type { ClientSettings, ClientSourceStats, Toast } from '../../shared/types';
 import { cx, errorMessage, formatDate } from '../../shared/utils';
@@ -79,10 +81,14 @@ export function ClientSettingsView({
           <h1>{t('clientSettings.title')}</h1>
           <p>{t('clientSettings.subtitle')}</p>
         </div>
-        <button type="button" className="primary-button" disabled={saving} onClick={() => void saveSettings()}>
-          {saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
-          <span>{saving ? t('clientSettings.saving') : t('common.save')}</span>
-        </button>
+        <XButton
+          type="button"
+          variant="primary"
+          label={saving ? t('clientSettings.saving') : t('common.save')}
+          icon={saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
+          isDisabled={saving}
+          onClick={() => void saveSettings()}
+        />
       </div>
 
       <div className="settings-overview-grid" aria-label={t('clientSettings.overview')}>
@@ -123,20 +129,14 @@ export function ClientSettingsView({
           </div>
           <p className="muted-text">{t('clientSettings.syncBody')}</p>
 
-          <div className="settings-toggle-row">
-            <div>
-              <strong>{t('clientSettings.autoSync')}</strong>
-              <span>{t('clientSettings.autoSyncHelp')}</span>
-            </div>
-            <div className="segmented compact-segmented" aria-label={t('clientSettings.autoSync')}>
-              <button type="button" className={cx(draft.autoSyncEnabled && 'active')} onClick={() => setDraft({ ...draft, autoSyncEnabled: true })}>
-                {t('common.on')}
-              </button>
-              <button type="button" className={cx(!draft.autoSyncEnabled && 'active')} onClick={() => setDraft({ ...draft, autoSyncEnabled: false })}>
-                {t('common.off')}
-              </button>
-            </div>
-          </div>
+          <XSwitch
+            label={t('clientSettings.autoSync')}
+            description={t('clientSettings.autoSyncHelp')}
+            value={draft.autoSyncEnabled}
+            labelSpacing="spread"
+            width="100%"
+            onChange={(checked) => setDraft({ ...draft, autoSyncEnabled: checked })}
+          />
 
           <XSelector
             label={t('clientSettings.interval')}
@@ -146,20 +146,14 @@ export function ClientSettingsView({
             onChange={(value) => setDraft({ ...draft, autoSyncIntervalMinutes: Number(value) || 60 })}
           />
 
-          <div className="settings-toggle-row">
-            <div>
-              <strong>{t('clientSettings.syncOnStartup')}</strong>
-              <span>{t('clientSettings.syncOnStartupHelp')}</span>
-            </div>
-            <div className="segmented compact-segmented" aria-label={t('clientSettings.syncOnStartup')}>
-              <button type="button" className={cx(draft.syncOnStartup && 'active')} onClick={() => setDraft({ ...draft, syncOnStartup: true })}>
-                {t('common.on')}
-              </button>
-              <button type="button" className={cx(!draft.syncOnStartup && 'active')} onClick={() => setDraft({ ...draft, syncOnStartup: false })}>
-                {t('common.off')}
-              </button>
-            </div>
-          </div>
+          <XSwitch
+            label={t('clientSettings.syncOnStartup')}
+            description={t('clientSettings.syncOnStartupHelp')}
+            value={draft.syncOnStartup}
+            labelSpacing="spread"
+            width="100%"
+            onChange={(checked) => setDraft({ ...draft, syncOnStartup: checked })}
+          />
         </section>
 
         <section className="panel settings-card-panel">
@@ -181,10 +175,13 @@ export function ClientSettingsView({
         </section>
 
         <div className="settings-form-actions">
-          <button type="submit" className="primary-button" disabled={saving}>
-            {saving ? <RefreshCw size={18} className="spin" /> : <Settings size={18} />}
-            <span>{saving ? t('clientSettings.saving') : t('clientSettings.saveSettings')}</span>
-          </button>
+          <XButton
+            type="submit"
+            variant="primary"
+            label={saving ? t('clientSettings.saving') : t('clientSettings.saveSettings')}
+            icon={saving ? <RefreshCw size={18} className="spin" /> : <Settings size={18} />}
+            isDisabled={saving}
+          />
         </div>
       </form>
     </section>

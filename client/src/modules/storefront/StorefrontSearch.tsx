@@ -1,9 +1,9 @@
 import { Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { Category, InstallOptions, SortMode, SourceApp, StoreApp } from '../../shared/types';
-import { cx } from '../../shared/utils';
 import { AppGrid } from './AppGrid';
 
 export function StorefrontSearch({
@@ -41,14 +41,12 @@ export function StorefrontSearch({
       <section className="panel">
         <SectionTitle icon={Search} title={t('search.localStore')} />
         {categories.length > 0 && (
-          <div className="segmented filter-segmented" aria-label={t('search.categoryFilter')}>
-            <button type="button" className={cx(activeCategory === 'all' && 'active')} onClick={() => onCategory('all')}>{t('common.all')}</button>
+          <XToggleButtonGroup value={activeCategory} onChange={(value) => onCategory(value || 'all')} label={t('search.categoryFilter')} size="sm">
+            <XToggleButton value="all" label={t('common.all')} />
             {categories.map((category) => (
-              <button type="button" key={category.id} className={cx(activeCategory === category.name && 'active')} onClick={() => onCategory(category.name)}>
-                {category.name}
-              </button>
+              <XToggleButton key={category.id} value={category.name} label={category.name} />
             ))}
-          </div>
+          </XToggleButtonGroup>
         )}
         <div className="filter-bar">
           <XSelector

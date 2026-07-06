@@ -1,6 +1,7 @@
 import { AlertCircle, Check, ChevronRight, History, RefreshCw } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button as XButton } from '@astryxdesign/core/Button';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import type { InstallHistoryEntry, SourceApp } from '../../shared/types';
 import { cx, formatDate, normalizeAppIdentity, shortSHA } from '../../shared/utils';
@@ -36,10 +37,7 @@ export function ClientHistoryView({
           <h1>{t('history.title')}</h1>
           <p>{t('history.body')}</p>
         </div>
-        <button type="button" className="primary-button" onClick={onRefresh}>
-          <RefreshCw size={18} />
-          <span>{t('common.refresh')}</span>
-        </button>
+        <XButton type="button" variant="primary" label={t('common.refresh')} icon={<RefreshCw size={18} />} onClick={onRefresh} />
       </div>
       <div className="client-summary-grid" aria-label={t('history.summary')}>
         <div>
@@ -89,10 +87,14 @@ export function ClientHistoryView({
                       {item.result === 'SUCCESS' ? t('history.success') : t('history.failed')}
                     </span>
                     {matched && (
-                      <button type="button" className="secondary-button compact-button" onClick={() => onOpenSource(matched)}>
-                        <ChevronRight size={17} />
-                        <span>{t('history.openApp')}</span>
-                      </button>
+                      <XButton
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        label={t('history.openApp')}
+                        icon={<ChevronRight size={17} />}
+                        onClick={() => onOpenSource(matched)}
+                      />
                     )}
                   </div>
                 </article>

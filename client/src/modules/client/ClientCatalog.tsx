@@ -1,7 +1,9 @@
 import { Cloud, Download, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button as XButton } from '@astryxdesign/core/Button';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { SourceAppGrid } from './SourceAppGrid';
 import type {
   ClientSourceStats,
@@ -108,10 +110,7 @@ export function ClientCatalog({
           <h1>{t('search.clientTitle')}</h1>
           <p>{t('search.clientDescription')}</p>
         </div>
-        <button type="button" className="secondary-button" onClick={onGoSources}>
-          <Cloud size={18} />
-          <span>{t('search.noSyncedAppsAction')}</span>
-        </button>
+        <XButton type="button" variant="secondary" label={t('search.noSyncedAppsAction')} icon={<Cloud size={18} />} onClick={onGoSources} />
       </div>
       <div className="client-summary-grid" aria-label={t('search.installReadiness')}>
         <div>
@@ -146,10 +145,7 @@ export function ClientCatalog({
             <h2>{t('search.subscribedApps')}</h2>
           </div>
           {updateSourceApps.length > 0 && (
-            <button type="button" className="primary-button compact-button" onClick={() => void updateAllSourceApps()}>
-              <RefreshCw size={17} />
-              <span>{t('search.updateAll')}</span>
-            </button>
+            <XButton type="button" variant="primary" size="sm" label={t('search.updateAll')} icon={<RefreshCw size={17} />} onClick={() => void updateAllSourceApps()} />
           )}
         </div>
         <div className="filter-bar">
@@ -172,18 +168,15 @@ export function ClientCatalog({
             onChange={setSelectedCategoryFilter}
           />
         </div>
-        <div className="segmented filter-segmented" aria-label={t('search.sourceAppFilter')}>
+        <XToggleButtonGroup value={effectiveSourceAppFilter} onChange={(value) => setSourceAppFilter((value || 'all') as SourceAppFilter)} label={t('search.sourceAppFilter')} size="sm">
           {visibleSourceAppFilterItems.map((item) => (
-            <button
-              type="button"
+            <XToggleButton
               key={item.key}
-              className={cx(effectiveSourceAppFilter === item.key && 'active')}
-              onClick={() => setSourceAppFilter(item.key)}
-            >
-              {item.label} {item.count}
-            </button>
+              value={item.key}
+              label={`${item.label} ${item.count}`}
+            />
           ))}
-        </div>
+        </XToggleButtonGroup>
         <SourceAppGrid
           apps={filteredSourceApps}
           installedApps={installedApps}

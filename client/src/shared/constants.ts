@@ -2,6 +2,7 @@ export const SOURCE_STALE_MS = 24 * 60 * 60 * 1000;
 export const ANNOUNCEMENT_DISMISS_STORAGE_KEY = 'lazycat-appstore-dismissed-announcement';
 export const ANNOUNCEMENT_NOTIFY_STORAGE_KEY = 'lazycat-appstore-notified-announcement';
 export const THEME_STORAGE_KEY = 'lazycat.theme';
+export const ASTRYX_THEME_STORAGE_KEY = 'lazycat.astryxTheme';
 
 export const RECOMMENDED_DOWNLOAD_MIRRORS = [
   ['美国 1', 'https://gh.h233.eu.org/https://github.com'],

@@ -1,6 +1,8 @@
 import { Check, ChevronRight, Download, KeyRound, Link, PackagePlus, ShieldCheck, Star, Tag } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Button as XButton } from '@astryxdesign/core/Button';
+import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { AppIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
 import type { StoreApp } from '../../shared/types';
@@ -27,15 +29,15 @@ export function AppGrid({
         const installable = hasInstallableVersion(app);
         const hasChecksum = Boolean(app.latestVersion?.sha256);
         return (
-          <article className="app-card" key={app.id}>
-            <button type="button" className="app-open" onClick={() => void onOpen(app)} aria-label={t('app.open', { name: app.name })}>
+          <XClickableCard className="app-card" key={app.id} label={t('app.open', { name: app.name })} onClick={() => void onOpen(app)} padding={3}>
+            <div className="app-open">
               <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={app.name} />
               <div>
                 <h3>{app.name}</h3>
                 <p>{app.summary || app.description || t('common.lpkApp')}</p>
               </div>
               <ChevronRight size={18} />
-            </button>
+            </div>
             <div className="app-meta">
               <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
@@ -64,17 +66,16 @@ export function AppGrid({
                 </span>
               )}
             </div>
-            <button
+            <XButton
               type="button"
-              className="install-button"
-              disabled={!installable}
+              variant="primary"
+              label={installable ? t('common.download') : t('common.unavailable')}
+              icon={<Download size={17} />}
+              isDisabled={!installable}
               onClick={() => void onInstall(app)}
               aria-label={installable ? `${t('common.download')} ${app.name}` : t('app.installUnavailable', { name: app.name })}
-            >
-              <Download size={17} />
-              <span>{installable ? t('common.download') : t('common.unavailable')}</span>
-            </button>
-          </article>
+            />
+          </XClickableCard>
         );
       })}
     </div>

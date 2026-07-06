@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import { Button as XButton } from '@astryxdesign/core/Button';
 
 export function SectionTitle({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
   return (
@@ -27,10 +28,7 @@ export function EmptyState({
       <strong>{title}</strong>
       {body && <p>{body}</p>}
       {action && (
-        <button type="button" className="secondary-button" onClick={action.onClick}>
-          {ActionIcon && <ActionIcon size={18} />}
-          <span>{action.label}</span>
-        </button>
+        <XButton type="button" variant="secondary" label={action.label} icon={ActionIcon ? <ActionIcon size={18} /> : undefined} onClick={action.onClick} />
       )}
     </div>
   );

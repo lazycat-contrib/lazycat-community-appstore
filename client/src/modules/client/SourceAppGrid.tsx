@@ -1,5 +1,7 @@
 import { Archive, Check, ChevronRight, Cloud, Download, KeyRound, Link, Plus, RefreshCw, ShieldCheck, Star, Tag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Button as XButton } from '@astryxdesign/core/Button';
+import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { AppIcon } from '../../components/AppIcon';
 import type { InstalledApplication, SourceApp } from '../../shared/types';
 import {
@@ -37,10 +39,7 @@ export function SourceAppGrid({
         <strong>{emptyTitle || t('search.noSyncedApps')}</strong>
         {emptyBody && <p>{emptyBody}</p>}
         {showEmptyAction && (
-          <button type="button" className="secondary-button" onClick={onGoSources}>
-            <Plus size={18} />
-            <span>{t('search.noSyncedAppsAction')}</span>
-          </button>
+          <XButton type="button" variant="secondary" label={t('search.noSyncedAppsAction')} icon={<Plus size={18} />} onClick={onGoSources} />
         )}
       </div>
     );
@@ -55,15 +54,21 @@ export function SourceAppGrid({
         const installAction = sourceInstallAction(app, installedMatch);
         const isUpdateAvailable = installAction === 'update';
         return (
-          <article className="source-app-card" key={`${app.sourceId || app.sourceName}-${app.id}`}>
-            <button type="button" className="app-open" onClick={() => onOpen(app)} aria-label={t('app.open', { name: app.name })}>
+          <XClickableCard
+            className="source-app-card"
+            key={`${app.sourceId || app.sourceName}-${app.id}`}
+            label={t('app.open', { name: app.name })}
+            onClick={() => onOpen(app)}
+            padding={3}
+          >
+            <div className="app-open">
               <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} />
               <div>
                 <h3>{app.name}</h3>
                 <p>{app.summary || t('common.lpkApp')}</p>
               </div>
               <ChevronRight size={18} />
-            </button>
+            </div>
             <div className="app-meta">
               <span><Cloud size={14} /> {app.sourceName}</span>
               <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
@@ -96,17 +101,16 @@ export function SourceAppGrid({
                 </span>
               )}
             </div>
-            <button
+            <XButton
               type="button"
-              className={cx('install-button', isUpdateAvailable && 'update-available')}
-              disabled={!installable}
+              variant="primary"
+              label={sourceActionLabel(t, installAction)}
+              icon={isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
+              isDisabled={!installable}
               onClick={() => void onInstall(app)}
               aria-label={installable ? t('app.install', { name: app.name }) : t('app.installUnavailable', { name: app.name })}
-            >
-              {isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
-              <span>{sourceActionLabel(t, installAction)}</span>
-            </button>
-          </article>
+            />
+          </XClickableCard>
         );
       })}
     </div>

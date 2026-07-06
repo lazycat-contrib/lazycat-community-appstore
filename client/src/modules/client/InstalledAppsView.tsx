@@ -1,6 +1,7 @@
 import { AlertCircle, Download, RefreshCw } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button as XButton } from '@astryxdesign/core/Button';
 import { AvatarIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
 import type { InstalledApplication, SourceApp } from '../../shared/types';
@@ -49,10 +50,14 @@ export function InstalledAppsView({
             </span>
             <small>{installedReadinessBody}</small>
           </div>
-          <button type="button" className="primary-button" disabled={installedState === 'loading'} onClick={() => void onLoadInstalled()}>
-            <RefreshCw size={18} />
-            <span>{installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}</span>
-          </button>
+          <XButton
+            type="button"
+            variant="primary"
+            label={installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}
+            icon={<RefreshCw size={18} />}
+            isDisabled={installedState === 'loading'}
+            onClick={() => void onLoadInstalled()}
+          />
         </div>
       </div>
       <div className="install-center-metrics" aria-label={t('profile.clientInstalledTitle')}>

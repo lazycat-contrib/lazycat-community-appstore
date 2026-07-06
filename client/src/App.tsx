@@ -2,6 +2,7 @@ import {
   AlertCircle,
   Archive,
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   Check,
   ChevronRight,
@@ -38,16 +39,22 @@ import {
   X,
 } from 'lucide-react';
 import { Theme } from '@astryxdesign/core/theme';
-import { neutralTheme } from '@astryxdesign/theme-neutral/built';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
+import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
+import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { SelectableCard as XSelectableCard } from '@astryxdesign/core/SelectableCard';
+import { HStack as XHStack, VStack as XVStack } from '@astryxdesign/core/Stack';
+import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
+import { Text as XText } from '@astryxdesign/core/Text';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
@@ -55,12 +62,14 @@ import { api, clientApi } from './shared/api';
 import {
   ANNOUNCEMENT_DISMISS_STORAGE_KEY,
   ANNOUNCEMENT_NOTIFY_STORAGE_KEY,
+  ASTRYX_THEME_STORAGE_KEY,
   RECOMMENDED_DOWNLOAD_MIRRORS,
   RECOMMENDED_RAW_MIRRORS,
   THEME_STORAGE_KEY,
   mirrorPresetText,
 } from './shared/constants';
-import { readSystemTheme, readThemeMode, ThemeToggle } from './shared/theme';
+import { getAstryxTheme, type AstryxThemeName } from './shared/astryxThemes';
+import { AstryxThemeSelector, LanguageSelector, readAstryxThemeName, readSystemTheme, readThemeMode, ThemeToggle } from './shared/theme';
 import {
   applicableMirrorsForVersion,
   arrayOrEmpty,
@@ -457,6 +466,7 @@ function verificationTokenFromURL() {
 export function App() {
   const { t } = useTranslation();
   const [themeMode, setThemeMode] = useState<ThemeMode>(readThemeMode);
+  const [astryxThemeName, setAstryxThemeName] = useState(readAstryxThemeName);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(readSystemTheme);
   const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'sources'));
   const [apps, setApps] = useState<StoreApp[]>([]);
@@ -501,8 +511,9 @@ export function App() {
   const navItems = HAS_API ? serverNavItems : clientTabs;
   const siteTitle = HAS_API ? siteProfile.title : t('appName');
   const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
-  const drawerOpen = Boolean(selectedApp || (!HAS_API && selectedSourceApp));
+  const drawerOpen = Boolean(selectedApp);
   const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
+  const selectedAstryxTheme = useMemo(() => getAstryxTheme(astryxThemeName), [astryxThemeName]);
   const announcementKey =
     siteProfile.announcement.updatedAt ||
     `${siteProfile.announcement.level}:${siteProfile.announcement.title || ''}:${siteProfile.announcement.body || ''}`;
@@ -575,6 +586,14 @@ export function App() {
   }, [themeMode]);
 
   useEffect(() => {
+    try {
+      localStorage.setItem(ASTRYX_THEME_STORAGE_KEY, astryxThemeName);
+    } catch {
+      // Storage can be blocked by privacy settings; the active theme still applies for this session.
+    }
+  }, [astryxThemeName]);
+
+  useEffect(() => {
     const media = window.matchMedia?.('(prefers-color-scheme: dark)');
     if (!media) return;
     const updateSystemTheme = () => setSystemTheme(media.matches ? 'dark' : 'light');
@@ -584,13 +603,14 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.dataset.appTheme = resolvedTheme;
     document.documentElement.dataset.themePreference = themeMode;
-    document.documentElement.style.colorScheme = resolvedTheme;
   }, [resolvedTheme, themeMode]);
 
   useEffect(() => {
-    void (HAS_API ? refreshAll() : refreshClientData());
+    void runAction(setToast, t('toast.refreshFailed'), async () => {
+      await (HAS_API ? refreshAll({ silent: true }) : refreshClientData({ silent: true }));
+    });
   }, []);
 
   useEffect(() => {
@@ -929,7 +949,7 @@ export function App() {
 
   if (HAS_API && setupRequired) {
     return (
-      <Theme theme={neutralTheme} mode={resolvedTheme}>
+      <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
         <SetupWizard
           onComplete={async (nextUser) => {
             setUser(nextUser);
@@ -940,6 +960,8 @@ export function App() {
           setToast={setToast}
           themeMode={themeMode}
           onThemeModeChange={setThemeMode}
+          astryxThemeName={astryxThemeName}
+          onAstryxThemeChange={setAstryxThemeName}
         />
         {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
       </Theme>
@@ -947,7 +969,7 @@ export function App() {
   }
 
   return (
-    <Theme theme={neutralTheme} mode={resolvedTheme}>
+    <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
     <div className="shell">
       <a className="skip-link" href="#main-content" inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>{t('common.skipToMain')}</a>
       <aside className="sidebar" inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>
@@ -959,62 +981,54 @@ export function App() {
             <strong>{siteTitle}</strong>
           </div>
         </div>
-        <nav className="nav">
+        <XTabList className="nav" value={tab} onChange={(value) => setTab(value as TabKey)} orientation="vertical" aria-label={t('common.navigation')}>
           {navItems.map((item) => {
             const Icon = item.icon;
-            return (
-              <button type="button" key={item.key} className={cx('nav-item', tab === item.key && 'active')} onClick={() => setTab(item.key)}>
-                <Icon size={19} />
-                <span>{t(item.labelKey)}</span>
-              </button>
-            );
+            return <XTab key={item.key} value={item.key} label={t(item.labelKey)} icon={<Icon size={19} />} />;
           })}
-        </nav>
+        </XTabList>
       </aside>
 
       <main className="main" id="main-content" tabIndex={-1} inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>
         <header className="topbar">
-          <div className="searchbox">
-            <Search size={18} />
-            <input
+          <div className="topbar-search">
+            <XTextInput
+              label={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
+              isLabelHidden
+              startIcon={<Search size={16} />}
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={setQuery}
               placeholder={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
-              aria-label={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
+              hasClear
+              width="100%"
             />
           </div>
           <div className="top-actions">
-            <label className="language-select">
-              <span>{t('language.label')}</span>
-              <select aria-label={t('language.label')} value={currentLanguage} onChange={(event) => void i18n.changeLanguage(event.target.value)}>
-                <option value="zh">{t('language.zh')}</option>
-                <option value="en">{t('language.en')}</option>
-              </select>
-            </label>
+            <LanguageSelector value={currentLanguage} onChange={(language) => void i18n.changeLanguage(language)} />
             <ThemeToggle mode={themeMode} onChange={setThemeMode} />
-            <button type="button" className="icon-button" aria-label={HAS_API ? t('topbar.refreshStore') : t('topbar.syncAllSources')} onClick={() => void (HAS_API ? refreshAll() : syncAllSources())}>
-              <RefreshCw size={18} />
-            </button>
+            <AstryxThemeSelector value={astryxThemeName} onChange={setAstryxThemeName} />
+            <XIconButton
+              type="button"
+              variant="ghost"
+              label={HAS_API ? t('topbar.refreshStore') : t('topbar.syncAllSources')}
+              icon={<RefreshCw size={18} />}
+              onClick={() => void (HAS_API ? refreshAll() : syncAllSources())}
+            />
             {HAS_API && user ? (
-              <button
+              <XButton
                 type="button"
-                className="user-pill"
-                aria-label={user.username}
+                variant="secondary"
+                label={user.username}
+                icon={<LogOut size={16} />}
                 onClick={() =>
                   void runAction(setToast, t('toast.logoutFailed'), async () => {
                     await api('/api/v1/auth/logout', { method: 'POST' });
                     setUser(null);
                   })
                 }
-              >
-                <LogOut size={16} />
-                <span>{user.username}</span>
-              </button>
+              />
             ) : HAS_API ? (
-              <button type="button" className="user-pill" aria-label={t('topbar.login')} onClick={() => setTab('profile')}>
-                <LogIn size={16} />
-                <span>{t('topbar.login')}</span>
-              </button>
+              <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => setTab('profile')} />
             ) : null}
           </div>
         </header>
@@ -1042,6 +1056,21 @@ export function App() {
                 }}
               />
             )}
+            {!HAS_API && selectedSourceApp ? (
+              <SourceAppDetailPage
+                app={selectedSourceApp}
+                installedMatch={findInstalledApplication(selectedSourceApp, installedApps)}
+                installedState={installedState}
+                onClose={() => setSelectedSourceApp(null)}
+                onInstall={installApp}
+                onLoadInstalled={loadInstalledApps}
+                onRefreshSourceApp={async () => {
+                  const data = await clientApi<{ app: SourceApp }>(`/apps/${selectedSourceApp.id}`);
+                  setSelectedSourceApp(data.app);
+                }}
+              />
+            ) : (
+            <>
             {tab === 'home' && (
               <StorefrontHome
                 apps={filteredApps}
@@ -1147,6 +1176,8 @@ export function App() {
                 />
               )
             )}
+            </>
+            )}
           </>
         )}
       </main>
@@ -1167,21 +1198,6 @@ export function App() {
           }}
           onListRefresh={refreshAll}
           setToast={setToast}
-        />
-      )}
-
-      {!HAS_API && selectedSourceApp && (
-        <SourceAppDrawer
-          app={selectedSourceApp}
-          installedMatch={findInstalledApplication(selectedSourceApp, installedApps)}
-          installedState={installedState}
-          onClose={() => setSelectedSourceApp(null)}
-          onInstall={installApp}
-          onLoadInstalled={loadInstalledApps}
-          onRefreshSourceApp={async () => {
-            const data = await clientApi<{ app: SourceApp }>(`/apps/${selectedSourceApp.id}`);
-            setSelectedSourceApp(data.app);
-          }}
         />
       )}
 
@@ -1227,9 +1243,7 @@ export function App() {
             </div>
             {installActivity.messageKey && <p>{t(installActivity.messageKey, installActivity.messageParams)}</p>}
           </div>
-          <button type="button" className="icon-button" aria-label={t('installActivity.dismiss')} onClick={() => setInstallActivity(null)}>
-            <X size={17} />
-          </button>
+          <XIconButton type="button" variant="ghost" label={t('installActivity.dismiss')} icon={<X size={17} />} onClick={() => setInstallActivity(null)} />
         </aside>
       )}
 
@@ -1299,9 +1313,7 @@ function InstallOptionsDialog({
         onSubmit={submit}
         onClick={(event) => event.stopPropagation()}
       >
-        <button type="button" className="icon-button close" aria-label={t('common.close')} onClick={onCancel}>
-          <X size={17} />
-        </button>
+        <XIconButton type="button" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onCancel} />
         <div className="install-password-head">
           <span className="install-password-icon">
             {requiresPassword ? <KeyRound size={21} /> : <Download size={21} />}
@@ -1341,14 +1353,8 @@ function InstallOptionsDialog({
         )}
         {error && <p className="form-error">{error}</p>}
         <div className="dialog-actions">
-          <button type="button" className="secondary-button" onClick={onCancel}>
-            <X size={17} />
-            <span>{t('common.cancel')}</span>
-          </button>
-          <button type="submit" className="primary-button">
-            <Download size={17} />
-            <span>{t('installPassword.confirm')}</span>
-          </button>
+          <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={onCancel} />
+          <XButton type="submit" variant="primary" label={t('installPassword.confirm')} icon={<Download size={17} />} />
         </div>
       </form>
     </div>
@@ -1360,11 +1366,15 @@ function SetupWizard({
   setToast,
   themeMode,
   onThemeModeChange,
+  astryxThemeName,
+  onAstryxThemeChange,
 }: {
   onComplete: (user: User) => Promise<void>;
   setToast: (toast: Toast) => void;
   themeMode: ThemeMode;
   onThemeModeChange: (mode: ThemeMode) => void;
+  astryxThemeName: AstryxThemeName;
+  onAstryxThemeChange: (theme: AstryxThemeName) => void;
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState({
@@ -1428,27 +1438,21 @@ function SetupWizard({
         <form className="panel form-panel setup-form" onSubmit={submitSetup}>
           <div className="form-topline">
             <SectionTitle icon={KeyRound} title={t('setup.formTitle')} />
-            <label className="language-select">
-              <span>{t('language.label')}</span>
-              <select aria-label={t('language.label')} value={currentLanguage} onChange={(event) => void i18n.changeLanguage(event.target.value)}>
-                <option value="zh">{t('language.zh')}</option>
-                <option value="en">{t('language.en')}</option>
-              </select>
-            </label>
+            <LanguageSelector value={currentLanguage} onChange={(language) => void i18n.changeLanguage(language)} />
             <ThemeToggle mode={themeMode} onChange={onThemeModeChange} />
+            <AstryxThemeSelector value={astryxThemeName} onChange={onAstryxThemeChange} />
           </div>
           <XTextInput label={t('common.username')} value={form.username} onChange={(value) => setForm({ ...form, username: value })} />
           <XTextInput type="email" label={t('common.email')} value={form.email} onChange={(value) => setForm({ ...form, email: value })} />
           <XTextInput type="password" label={t('common.password')} value={form.password} onChange={(value) => setForm({ ...form, password: value })} />
           <XTextInput type="password" label={t('setup.confirmPassword')} value={form.confirmPassword} onChange={(value) => setForm({ ...form, confirmPassword: value })} />
-          <label className="toggle-line">
-            <input
-              type="checkbox"
-              checked={form.sourcePasswordEnabled}
-              onChange={(event) => setForm({ ...form, sourcePasswordEnabled: event.target.checked })}
-            />
-            <span>{t('setup.protectSource')}</span>
-          </label>
+          <XSwitch
+            label={t('setup.protectSource')}
+            value={form.sourcePasswordEnabled}
+            labelSpacing="spread"
+            width="100%"
+            onChange={(checked) => setForm({ ...form, sourcePasswordEnabled: checked })}
+          />
           {form.sourcePasswordEnabled && (
             <XTextInput type="password" label={t('sources.password')} value={form.sourcePassword} onChange={(value) => setForm({ ...form, sourcePassword: value })} />
           )}
@@ -1466,18 +1470,20 @@ function SetupWizard({
             rows={3}
             onChange={(value) => setForm({ ...form, githubRawMirrors: value })}
           />
-          <label className="toggle-line">
-            <input
-              type="checkbox"
-              checked={form.requireEmailVerify}
-              onChange={(event) => setForm({ ...form, requireEmailVerify: event.target.checked })}
-            />
-            <span>{t('setup.requireEmailVerify')}</span>
-          </label>
-          <button type="submit" className="primary-button" disabled={submitting}>
-            <ShieldCheck size={18} />
-            <span>{submitting ? t('setup.submitting') : t('setup.finish')}</span>
-          </button>
+          <XSwitch
+            label={t('setup.requireEmailVerify')}
+            value={form.requireEmailVerify}
+            labelSpacing="spread"
+            width="100%"
+            onChange={(checked) => setForm({ ...form, requireEmailVerify: checked })}
+          />
+          <XButton
+            type="submit"
+            variant="primary"
+            label={submitting ? t('setup.submitting') : t('setup.finish')}
+            icon={<ShieldCheck size={18} />}
+            isDisabled={submitting}
+          />
         </form>
       </div>
     </main>
@@ -1496,15 +1502,18 @@ function AnnouncementBanner({ announcement, onDismiss }: { announcement: SiteAnn
       </div>
       <div className="announcement-actions">
         {announcement.linkUrl && (
-          <a className="secondary-button compact-button" href={announcement.linkUrl} target="_blank" rel="noreferrer">
-            <Link size={16} />
-            <span>{announcement.linkLabel || t('site.announcementLink')}</span>
-          </a>
+          <XButton
+            variant="secondary"
+            size="sm"
+            label={announcement.linkLabel || t('site.announcementLink')}
+            icon={<Link size={16} />}
+            href={announcement.linkUrl}
+            target="_blank"
+            rel="noreferrer"
+          />
         )}
         {onDismiss && (
-          <button type="button" className="icon-button" aria-label={t('site.dismissAnnouncement')} onClick={onDismiss}>
-            <X size={17} />
-          </button>
+          <XIconButton type="button" variant="ghost" label={t('site.dismissAnnouncement')} icon={<X size={17} />} onClick={onDismiss} />
         )}
       </div>
     </section>
@@ -1587,7 +1596,7 @@ function SearchView({
 }
 
 
-function SourceAppDrawer({
+function SourceAppDetailPage({
   app,
   installedMatch,
   installedState,
@@ -1605,8 +1614,8 @@ function SourceAppDrawer({
   onRefreshSourceApp: () => Promise<void>;
 }) {
   const { t } = useTranslation();
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const drawerTitleId = `source-app-drawer-title-${app.sourceId || app.sourceName}-${app.id}`;
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const detailTitleId = `source-app-detail-title-${app.sourceId || app.sourceName}-${app.id}`;
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsState, setCommentsState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [commentText, setCommentText] = useState('');
@@ -1637,7 +1646,7 @@ function SourceAppDrawer({
   ];
 
   useEffect(() => {
-    closeButtonRef.current?.focus();
+    backButtonRef.current?.focus();
   }, [app.id]);
 
   useEffect(() => {
@@ -1646,15 +1655,6 @@ function SourceAppDrawer({
     setReplyTarget(null);
     setReplyText('');
   }, [app.id]);
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   async function loadSourceComments() {
     setCommentsState('loading');
@@ -1697,22 +1697,14 @@ function SourceAppDrawer({
   }
 
   return (
-    <div className="detail-page-backdrop" onClick={onClose}>
-      <article
-        className="detail-page"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={drawerTitleId}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button ref={closeButtonRef} type="button" className="icon-button close" aria-label={t('common.close')} onClick={onClose}>
-          <X size={17} />
-        </button>
+    <section className="detail-page-shell">
+      <article className="detail-page" aria-labelledby={detailTitleId}>
+        <XButton ref={backButtonRef} type="button" variant="secondary" size="sm" label={t('common.back')} icon={<ArrowLeft size={17} />} onClick={onClose} />
         <header className="detail-head">
           <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} className="detail-avatar" />
           <div>
             <span className="eyebrow subtle">{t('sourceDetail.eyebrow')}</span>
-            <h2 id={drawerTitleId}>{app.name}</h2>
+            <h2 id={detailTitleId}>{app.name}</h2>
             <p>{app.summary || t('common.lpkApp')}</p>
             <div className="app-meta">
               <span><Cloud size={14} /> {app.sourceName}</span>
@@ -1746,14 +1738,22 @@ function SourceAppDrawer({
             ))}
           </div>
           <div className="source-detail-actions">
-            <button type="button" className={cx('install-button', isUpdateAvailable && 'update-available')} disabled={!installable} onClick={() => void onInstall(app)}>
-              {isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
-              <span>{sourceActionLabel(t, installAction)}</span>
-            </button>
-            <button type="button" className="secondary-button" disabled={installedState === 'loading'} onClick={() => void onLoadInstalled()}>
-              <RefreshCw size={17} />
-              <span>{installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}</span>
-            </button>
+            <XButton
+              type="button"
+              variant="primary"
+              label={sourceActionLabel(t, installAction)}
+              icon={isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
+              isDisabled={!installable}
+              onClick={() => void onInstall(app)}
+            />
+            <XButton
+              type="button"
+              variant="secondary"
+              label={installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}
+              icon={<RefreshCw size={17} />}
+              isDisabled={installedState === 'loading'}
+              onClick={() => void onLoadInstalled()}
+            />
           </div>
         </section>
 
@@ -1809,15 +1809,15 @@ function SourceAppDrawer({
                       <span className={cx('status-badge', isLatest ? 'approved' : 'pending')}>
                         {isLatest ? t('sourceDetail.latest') : t('sourceDetail.rollbackCandidate')}
                       </span>
-                      <button
+                      <XButton
                         type="button"
-                        className="secondary-button compact-button"
-                        disabled={!canInstallVersion}
+                        variant="secondary"
+                        size="sm"
+                        label={isLatest ? t('common.install') : t('sourceDetail.rollback')}
+                        icon={<Download size={17} />}
+                        isDisabled={!canInstallVersion}
                         onClick={() => void onInstall(app, { version: version.version })}
-                      >
-                        <Download size={17} />
-                        <span>{isLatest ? t('common.install') : t('sourceDetail.rollback')}</span>
-                      </button>
+                      />
                     </div>
                   </div>
                 );
@@ -1850,10 +1850,7 @@ function SourceAppDrawer({
               <MessageSquare size={19} />
               <h3>{t('drawer.comments')}</h3>
             </div>
-            <button type="button" className="secondary-button compact-button" onClick={() => void loadSourceComments()}>
-              <RefreshCw size={17} />
-              <span>{t('common.refresh')}</span>
-            </button>
+            <XButton type="button" variant="secondary" size="sm" label={t('common.refresh')} icon={<RefreshCw size={17} />} onClick={() => void loadSourceComments()} />
           </div>
           {commentsState === 'error' && <p className="inline-warning"><AlertCircle size={15} /><span>{t('sourceDetail.commentsUnavailable')}</span></p>}
           <form className="comment-form rich-comment-form" onSubmit={(event) => void submitSourceComment(event)}>
@@ -1864,9 +1861,7 @@ function SourceAppDrawer({
               placeholder={t('drawer.commentPlaceholder')}
               onChange={setCommentText}
             />
-            <button type="submit" className="icon-button" aria-label={t('drawer.postComment')} disabled={!commentText.trim()}>
-              <MessageSquare size={17} />
-            </button>
+            <XIconButton type="submit" variant="ghost" label={t('drawer.postComment')} icon={<MessageSquare size={17} />} isDisabled={!commentText.trim()} />
           </form>
           <CommentList
             comments={comments}
@@ -1880,7 +1875,7 @@ function SourceAppDrawer({
           />
         </section>
       </article>
-    </div>
+    </section>
   );
 }
 
@@ -1920,10 +1915,7 @@ function CommentList({
         <article className="comment" key={comment.id}>
           <CommentBody comment={comment} onDelete={onDelete} />
           <div className="comment-actions">
-            <button type="button" className="secondary-button compact-button" onClick={() => onReplyTarget(replyTarget === comment.id ? null : comment.id)}>
-              <MessageSquare size={15} />
-              <span>{t('drawer.reply')}</span>
-            </button>
+            <XButton type="button" variant="secondary" size="sm" label={t('drawer.reply')} icon={<MessageSquare size={15} />} onClick={() => onReplyTarget(replyTarget === comment.id ? null : comment.id)} />
           </div>
           {replyTarget === comment.id && (
             <form className="comment-form rich-comment-form reply-form" onSubmit={(event) => onReply(event, comment.id)}>
@@ -1934,9 +1926,7 @@ function CommentList({
                 placeholder={t('drawer.replyPlaceholder')}
                 onChange={onReplyText}
               />
-              <button type="submit" className="icon-button" aria-label={t('drawer.postReply')} disabled={!replyText.trim()}>
-                <MessageSquare size={17} />
-              </button>
+              <XIconButton type="submit" variant="ghost" label={t('drawer.postReply')} icon={<MessageSquare size={17} />} isDisabled={!replyText.trim()} />
             </form>
           )}
           {comment.replies && comment.replies.length > 0 && (
@@ -1964,9 +1954,7 @@ function CommentBody({ comment, onDelete }: { comment: Comment; onDelete: (id: n
           <span>{formatDate(comment.createdAt)}</span>
         </div>
         {comment.canDelete && (
-          <button type="button" className="icon-button danger" aria-label={t('drawer.deleteComment')} onClick={() => onDelete(comment.id)}>
-            <Trash2 size={15} />
-          </button>
+          <XIconButton type="button" variant="destructive" label={t('drawer.deleteComment')} icon={<Trash2 size={15} />} onClick={() => onDelete(comment.id)} />
         )}
       </div>
       <p>{comment.body}</p>
@@ -2013,7 +2001,8 @@ function ProfileView({
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
-  const [workspaceTab, setWorkspaceTab] = useState<'overview' | 'apps' | 'submit' | 'tokens' | 'groups' | 'favorites'>('overview');
+  const [workspaceTab, setWorkspaceTab] = useState<'overview' | 'apps' | 'tokens' | 'groups' | 'favorites'>('overview');
+  const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [authForm, setAuthForm] = useState({ username: '', password: '', email: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
   const [uploadForm, setUploadForm] = useState({
@@ -2045,7 +2034,6 @@ function ProfileView({
   const workspaceTabs = [
     { key: 'overview', label: t('profile.tabs.overview'), icon: Gauge },
     { key: 'apps', label: t('profile.tabs.apps'), icon: PackagePlus },
-    { key: 'submit', label: t('profile.tabs.submit'), icon: Upload },
     { key: 'tokens', label: t('profile.tabs.tokens'), icon: KeyRound },
     { key: 'groups', label: t('profile.tabs.groups'), icon: Users },
     { key: 'favorites', label: t('profile.tabs.favorites'), icon: Heart },
@@ -2230,6 +2218,8 @@ function ProfileView({
       setArtifactMode('local');
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
+      setIsSubmitOpen(false);
+      setWorkspaceTab('apps');
       await refreshAll({ silent: true });
     });
   }
@@ -2288,14 +2278,8 @@ function ProfileView({
             <p>{t('profile.clientBody')}</p>
           </div>
           <div className="row-actions">
-            <button type="button" className="primary-button" onClick={() => onNavigate('sources')}>
-              <Cloud size={18} />
-              <span>{t('profile.openSources')}</span>
-            </button>
-            <button type="button" className="secondary-button" onClick={() => onNavigate('search')}>
-              <Search size={18} />
-              <span>{t('profile.browseInstallable')}</span>
-            </button>
+            <XButton type="button" variant="primary" label={t('profile.openSources')} icon={<Cloud size={18} />} onClick={() => onNavigate('sources')} />
+            <XButton type="button" variant="secondary" label={t('profile.browseInstallable')} icon={<Search size={18} />} onClick={() => onNavigate('search')} />
           </div>
         </div>
         <section className="panel">
@@ -2351,11 +2335,11 @@ function ProfileView({
           <form className="panel form-panel profile-panel auth-panel" onSubmit={submitAuth}>
             <SectionTitle icon={KeyRound} title={mode === 'verify' ? t('auth.verifyEmail') : authModeLabel} />
             <p className="inline-note">{authHint}</p>
-            <div className="segmented compact" aria-label={t('auth.modeSwitch')}>
-              <button type="button" className={cx(mode === 'login' && 'active')} onClick={() => setMode('login')}>{t('auth.login')}</button>
-              <button type="button" className={cx(mode === 'register' && 'active')} onClick={() => setMode('register')}>{t('auth.register')}</button>
-              <button type="button" className={cx(mode === 'verify' && 'active')} onClick={() => setMode('verify')}>{t('auth.verify')}</button>
-            </div>
+            <XToggleButtonGroup value={mode} onChange={(value) => value && setMode(value as typeof mode)} label={t('auth.modeSwitch')} size="sm">
+              <XToggleButton value="login" label={t('auth.login')} />
+              <XToggleButton value="register" label={t('auth.register')} />
+              <XToggleButton value="verify" label={t('auth.verify')} />
+            </XToggleButtonGroup>
             {mode === 'verify' ? (
               <XTextInput label={t('auth.verifyToken')} value={verifyToken} isRequired onChange={setVerifyToken} />
             ) : (
@@ -2374,10 +2358,7 @@ function ProfileView({
                 />
               </>
             )}
-            <button type="submit" className="primary-button" aria-label={authSubmitLabel}>
-              <AuthSubmitIcon size={18} />
-              <span>{authSubmitLabel}</span>
-            </button>
+            <XButton type="submit" variant="primary" label={authSubmitLabel} icon={<AuthSubmitIcon size={18} />} />
           </form>
 
           <section className="panel auth-path-panel">
@@ -2389,10 +2370,7 @@ function ProfileView({
                   <strong>{t('auth.pathBrowseTitle')}</strong>
                   <span>{t('auth.pathBrowseBody')}</span>
                 </div>
-                <button type="button" className="secondary-button compact-button" onClick={() => onNavigate('home')}>
-                  <Home size={17} />
-                  <span>{t('auth.pathBrowseAction')}</span>
-                </button>
+                <XButton type="button" variant="secondary" size="sm" label={t('auth.pathBrowseAction')} icon={<Home size={17} />} onClick={() => onNavigate('home')} />
               </div>
               <div className="auth-path-row">
                 <PackagePlus size={19} />
@@ -2400,10 +2378,7 @@ function ProfileView({
                   <strong>{t('auth.pathSubmitTitle')}</strong>
                   <span>{t('auth.pathSubmitBody')}</span>
                 </div>
-                <button type="button" className="secondary-button compact-button" onClick={() => setMode('register')}>
-                  <Plus size={17} />
-                  <span>{t('auth.pathSubmitAction')}</span>
-                </button>
+                <XButton type="button" variant="secondary" size="sm" label={t('auth.pathSubmitAction')} icon={<Plus size={17} />} onClick={() => setMode('register')} />
               </div>
               <div className="auth-path-row">
                 <ShieldCheck size={19} />
@@ -2411,10 +2386,7 @@ function ProfileView({
                   <strong>{t('auth.pathAdminTitle')}</strong>
                   <span>{t('auth.pathAdminBody')}</span>
                 </div>
-                <button type="button" className="secondary-button compact-button" onClick={() => setMode('login')}>
-                  <LogIn size={17} />
-                  <span>{t('auth.pathAdminAction')}</span>
-                </button>
+                <XButton type="button" variant="secondary" size="sm" label={t('auth.pathAdminAction')} icon={<LogIn size={17} />} onClick={() => setMode('login')} />
               </div>
             </div>
           </section>
@@ -2431,28 +2403,24 @@ function ProfileView({
             <AvatarIcon seed={user.email || user.username} title={user.username} size={74} className="avatar-large" />
             <h2>{user.username}</h2>
             <p>{t('auth.emailPending')}</p>
-            <button
+            <XButton
               type="button"
-              className="secondary-button"
+              variant="secondary"
+              label={t('auth.logout')}
+              icon={<LogOut size={18} />}
               onClick={() =>
                 void runAction(setToast, t('toast.logoutFailed'), async () => {
                   await api('/api/v1/auth/logout', { method: 'POST' });
                   setUser(null);
                 })
               }
-            >
-              <LogOut size={18} />
-              <span>{t('auth.logout')}</span>
-            </button>
+            />
           </div>
           <form className="panel form-panel" onSubmit={submitVerification}>
             <SectionTitle icon={AlertCircle} title={t('auth.verifyEmail')} />
             <p className="inline-note">{t('auth.verificationHelp')}</p>
             <XTextInput label={t('auth.verifyToken')} value={verifyToken} onChange={setVerifyToken} />
-            <button type="submit" className="primary-button">
-              <Check size={18} />
-              <span>{t('auth.completeVerification')}</span>
-            </button>
+            <XButton type="submit" variant="primary" label={t('auth.completeVerification')} icon={<Check size={18} />} />
           </form>
         </div>
       </section>
@@ -2466,41 +2434,37 @@ function ProfileView({
         <h1>{t('profile.serverTitle')}</h1>
         <p>{t('profile.serverBody')}</p>
       </div>
-      <div className="segmented workspace-tabs" aria-label={t('profile.tabs.label')}>
+      <XToggleButtonGroup value={workspaceTab} onChange={(value) => value && setWorkspaceTab(value as typeof workspaceTab)} label={t('profile.tabs.label')} size="sm">
         {workspaceTabs.map((item) => {
           const Icon = item.icon;
           return (
-            <button
-              type="button"
+            <XToggleButton
               key={item.key}
-              className={cx(workspaceTab === item.key && 'active')}
-              onClick={() => setWorkspaceTab(item.key)}
-            >
-              <Icon size={17} />
-              <span>{item.label}</span>
-            </button>
+              value={item.key}
+              label={item.label}
+              icon={<Icon size={17} />}
+            />
           );
         })}
-      </div>
+      </XToggleButtonGroup>
       {workspaceTab === 'overview' && (
       <div className="split">
         <div className="panel profile-card">
           <AvatarIcon seed={user.email || user.username} title={user.username} size={74} className="avatar-large" />
           <h2>{user.username}</h2>
           <p>{t(`admin.roles.${user.role === 'SITE_ADMIN' ? 'siteAdmin' : user.role === 'SOFTWARE_ADMIN' ? 'softwareAdmin' : 'user'}`)}</p>
-          <button
+          <XButton
             type="button"
-            className="secondary-button"
+            variant="secondary"
+            label={t('auth.logout')}
+            icon={<LogOut size={18} />}
             onClick={() =>
               void runAction(setToast, t('toast.logoutFailed'), async () => {
                 await api('/api/v1/auth/logout', { method: 'POST' });
                 setUser(null);
               })
             }
-          >
-            <LogOut size={18} />
-            <span>{t('auth.logout')}</span>
-          </button>
+          />
         </div>
 
         <section className="panel">
@@ -2539,7 +2503,20 @@ function ProfileView({
 
       {workspaceTab === 'apps' && (
       <section className="panel">
-        <SectionTitle icon={PackagePlus} title={t('profile.mySubmissions')} />
+        <div className="section-title with-action">
+          <div>
+            <PackagePlus size={19} />
+            <h2>{t('profile.mySubmissions')}</h2>
+          </div>
+          <XButton
+            type="button"
+            variant="primary"
+            size="sm"
+            label={isSubmitOpen ? t('common.close') : t('submitApp.title')}
+            icon={isSubmitOpen ? <X size={17} /> : <Upload size={17} />}
+            onClick={() => setIsSubmitOpen((open) => !open)}
+          />
+        </div>
         <div className="review-list">
           {ownedApps.length === 0 ? (
             <EmptyState icon={PackagePlus} title={t('profile.mySubmissionsEmpty')} body={t('profile.mySubmissionsEmptyBody')} />
@@ -2553,10 +2530,7 @@ function ProfileView({
                 </div>
                 <div className="row-actions">
                   <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
-                  <button type="button" className="secondary-button compact-button" onClick={() => void onOpen(item)}>
-                    <ChevronRight size={17} />
-                    <span>{t('profile.openSubmission')}</span>
-                  </button>
+                  <XButton type="button" variant="secondary" size="sm" label={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
                 </div>
               </div>
             ))
@@ -2565,10 +2539,16 @@ function ProfileView({
       </section>
       )}
 
-      {workspaceTab === 'submit' && (
+      {workspaceTab === 'apps' && isSubmitOpen && (
       <section className="workspace-pane">
         <form className="panel form-panel" onSubmit={submitUpload}>
-          <SectionTitle icon={Upload} title={t('submitApp.title')} />
+          <div className="section-title with-action">
+            <div>
+              <Upload size={19} />
+              <h2>{t('submitApp.title')}</h2>
+            </div>
+            <XButton type="button" variant="secondary" size="sm" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setIsSubmitOpen(false)} />
+          </div>
           <div className="workflow-strip">
             <div>
               <strong>{t('submitApp.publishPath')}</strong>
@@ -2654,26 +2634,26 @@ function ProfileView({
               <span>{artifactMode === 'local' ? t('submitApp.localArtifactHint') : t('submitApp.externalArtifactHint')}</span>
             </div>
             <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
-              <button type="button" className={cx(artifactMode === 'local' && 'active')} onClick={() => selectArtifactMode('local')}>
-                <Upload size={17} />
-                <span>
-                  <strong>{t('submitApp.localArtifact')}</strong>
-                  <small>{t('submitApp.localArtifactHint')}</small>
-                </span>
-              </button>
-              <button type="button" className={cx(artifactMode === 'external' && 'active')} onClick={() => selectArtifactMode('external')}>
-                <Link size={17} />
-                <span>
-                  <strong>{t('submitApp.externalArtifact')}</strong>
-                  <small>{t('submitApp.externalArtifactHint')}</small>
-                </span>
-              </button>
+              <ArtifactModeOption
+                icon={<Upload size={17} />}
+                title={t('submitApp.localArtifact')}
+                hint={t('submitApp.localArtifactHint')}
+                isSelected={artifactMode === 'local'}
+                onSelect={() => selectArtifactMode('local')}
+              />
+              <ArtifactModeOption
+                icon={<Link size={17} />}
+                title={t('submitApp.externalArtifact')}
+                hint={t('submitApp.externalArtifactHint')}
+                isSelected={artifactMode === 'external'}
+                onSelect={() => selectArtifactMode('external')}
+              />
             </div>
             {artifactMode === 'local' ? (
               <FilePicker
                 label={t('common.lpkFile')}
                 help={t('submitApp.localFileHelp')}
-                fileName={file?.name}
+                value={file}
                 inputRef={fileInputRef}
                 accept=".lpk"
                 required
@@ -2714,27 +2694,22 @@ function ProfileView({
             value={uploadForm.installPassword}
             onChange={(value) => setUploadForm({ ...uploadForm, installPassword: value })}
           />
-          <label className="toggle-line">
-            <input
-              type="checkbox"
-              checked={uploadForm.emailNotificationsEnabled}
-              onChange={(event) => setUploadForm({ ...uploadForm, emailNotificationsEnabled: event.target.checked })}
-            />
-            <span>{t('submitApp.emailNotificationsEnabled')}</span>
-          </label>
-          <label className="toggle-line">
-            <input
-              type="checkbox"
-              checked={uploadForm.allowUnreviewedUpdates}
-              onChange={(event) => setUploadForm({ ...uploadForm, allowUnreviewedUpdates: event.target.checked })}
-            />
-            <span>{t('submitApp.allowUnreviewedUpdates')}</span>
-          </label>
+          <XSwitch
+            label={t('submitApp.emailNotificationsEnabled')}
+            value={uploadForm.emailNotificationsEnabled}
+            labelSpacing="spread"
+            width="100%"
+            onChange={(checked) => setUploadForm({ ...uploadForm, emailNotificationsEnabled: checked })}
+          />
+          <XSwitch
+            label={t('submitApp.allowUnreviewedUpdates')}
+            value={uploadForm.allowUnreviewedUpdates}
+            labelSpacing="spread"
+            width="100%"
+            onChange={(checked) => setUploadForm({ ...uploadForm, allowUnreviewedUpdates: checked })}
+          />
           {!canSubmitUpload && <p className="field-help">{t('submitApp.submitBlocked')}</p>}
-          <button type="submit" className="primary-button" disabled={!canSubmitUpload}>
-            <Upload size={18} />
-            <span>{t('common.submit')}</span>
-          </button>
+          <XButton type="submit" variant="primary" label={t('common.submit')} icon={<Upload size={18} />} isDisabled={!canSubmitUpload} />
         </form>
       </section>
       )}
@@ -2753,10 +2728,7 @@ function ProfileView({
             ))}
           </div>
           {newToken && <code className="token-output">{newToken}</code>}
-          <button type="button" className="secondary-button" onClick={() => void createToken()}>
-            <KeyRound size={18} />
-            <span>{t('token.generate')}</span>
-          </button>
+          <XButton type="button" variant="secondary" label={t('token.generate')} icon={<KeyRound size={18} />} onClick={() => void createToken()} />
         </section>
       </section>
       )}
@@ -2794,10 +2766,7 @@ function ProfileView({
               </>
             )}
           </div>
-          <button type="button" className="secondary-button" onClick={() => void loadFavorites()}>
-            <RefreshCw size={18} />
-            <span>{t('favorites.refresh')}</span>
-          </button>
+          <XButton type="button" variant="secondary" label={t('favorites.refresh')} icon={<RefreshCw size={18} />} onClick={() => void loadFavorites()} />
         </section>
       </section>
       )}
@@ -2860,7 +2829,7 @@ function GroupPanel({
       <SectionTitle icon={Users} title={t('groups.title')} />
       <form className="inline-form" onSubmit={createGroup}>
         <XTextInput label={t('groups.name')} isLabelHidden placeholder={t('groups.name')} value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-        <button type="submit" className="icon-button" aria-label={t('groups.create')}><Plus size={17} /></button>
+        <XIconButton type="submit" variant="secondary" label={t('groups.create')} icon={<Plus size={17} />} />
       </form>
       <div className="review-list">
         {groups.length === 0 ? <EmptyState icon={Users} title={t('groups.empty')} /> : groups.map((group) => (
@@ -2877,8 +2846,8 @@ function GroupPanel({
                 value={memberDrafts[group.id] || ''}
                 onChange={(value) => setMemberDrafts((current) => ({ ...current, [group.id]: value }))}
               />
-              <button type="button" className="icon-button" aria-label={t('groups.addMember')} onClick={() => void addMember(group.id)}><Plus size={17} /></button>
-              <button type="button" className="icon-button danger" aria-label={t('groups.removeMember')} onClick={() => void removeMember(group.id)}><Trash2 size={17} /></button>
+              <XIconButton type="button" variant="secondary" label={t('groups.addMember')} icon={<Plus size={17} />} onClick={() => void addMember(group.id)} />
+              <XIconButton type="button" variant="destructive" label={t('groups.removeMember')} icon={<Trash2 size={17} />} onClick={() => void removeMember(group.id)} />
             </div>
           </div>
         ))}
@@ -3150,10 +3119,14 @@ function AdminPanel({
               rows={5}
               onChange={(value) => updateSetting(field.key, value)}
             />
-            <button type="button" className="secondary-button compact-button" onClick={() => updateSetting(field.key, preset)}>
-              <Download size={16} />
-              <span>{t('admin.useRecommendedMirrors')}</span>
-            </button>
+            <XButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              label={t('admin.useRecommendedMirrors')}
+              icon={<Download size={16} />}
+              onClick={() => updateSetting(field.key, preset)}
+            />
           </div>
         );
       }
@@ -3491,7 +3464,7 @@ function AdminPanel({
                 <strong>{t('admin.siteIdentity')}</strong>
                 <span>{t('admin.siteIdentityBody')}</span>
               </div>
-              <XFormLayout direction="horizontal">
+              <XFormLayout>
                 {siteIdentityFields.map(renderSettingField)}
               </XFormLayout>
             </div>
@@ -3509,7 +3482,7 @@ function AdminPanel({
                 <strong>{t('admin.policySettings')}</strong>
                 <span>{t('admin.policySettingsBody')}</span>
               </div>
-              <XFormLayout direction="horizontal">
+              <XFormLayout>
                 {policySettingFields.map(renderSettingField)}
               </XFormLayout>
             </div>
@@ -3518,7 +3491,7 @@ function AdminPanel({
                 <strong>{t('admin.smtpSettings')}</strong>
                 <span>{t('admin.smtpSettingsBody')}</span>
               </div>
-              <XFormLayout direction="horizontal">
+              <XFormLayout>
                 {smtpSettingFields.map(renderSettingField)}
               </XFormLayout>
               <div className="test-email-form">
@@ -3529,10 +3502,7 @@ function AdminPanel({
                   value={testEmailTo}
                   onChange={setTestEmailTo}
                 />
-                <button type="button" className="secondary-button compact-button" onClick={() => void sendTestEmail()}>
-                  <MessageSquare size={17} />
-                  <span>{t('admin.sendTestEmail')}</span>
-                </button>
+                <XButton type="button" variant="secondary" size="sm" label={t('admin.sendTestEmail')} icon={<MessageSquare size={17} />} onClick={() => void sendTestEmail()} />
               </div>
             </div>
             <XButton type="submit" variant="primary" label={t('admin.saveSettings')} icon={<Settings size={18} />} />
@@ -3551,10 +3521,7 @@ function AdminPanel({
             <div className="source-url-preview">
               <span>{t('admin.subscriptionURL')}</span>
               <code>{adminSourceURL}</code>
-              <button type="button" className="secondary-button compact-button" onClick={() => void copyAdminSourceURL()}>
-                <Copy size={16} />
-                <span>{t('home.copySourceFeed')}</span>
-              </button>
+              <XButton type="button" variant="secondary" size="sm" label={t('home.copySourceFeed')} icon={<Copy size={16} />} onClick={() => void copyAdminSourceURL()} />
             </div>
             {announcementPreview.enabled ? (
               <AnnouncementBanner announcement={announcementPreview} />
@@ -3617,8 +3584,8 @@ function AdminPanel({
                   <XTextInput label={t('admin.categoryNameFor', { name: item.name })} isLabelHidden value={draft.name} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, name: value } }))} />
                   <XTextInput label={t('admin.categorySlugFor', { name: item.name })} isLabelHidden value={draft.slug} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: value } }))} />
                   <div className="row-actions">
-                    <button type="button" className="icon-button" aria-label={t('admin.saveCategoryNamed', { name: item.name })} onClick={() => void updateCategory(item)}><Save size={16} /></button>
-                    <button type="button" className="icon-button danger" aria-label={t('admin.deleteCategoryNamed', { name: item.name })} onClick={() => void deleteCategory(item)}><Trash2 size={16} /></button>
+                    <XIconButton type="button" variant="ghost" label={t('admin.saveCategoryNamed', { name: item.name })} icon={<Save size={16} />} onClick={() => void updateCategory(item)} />
+                    <XIconButton type="button" variant="destructive" label={t('admin.deleteCategoryNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteCategory(item)} />
                   </div>
                 </div>
               );
@@ -3633,8 +3600,8 @@ function AdminPanel({
                   <XTextInput label={t('admin.tagNameFor', { name: item.name })} isLabelHidden value={draft.name} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, name: value } }))} />
                   <XTextInput label={t('admin.tagSlugFor', { name: item.name })} isLabelHidden value={draft.slug} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: value } }))} />
                   <div className="row-actions">
-                    <button type="button" className="icon-button" aria-label={t('admin.saveTagNamed', { name: item.name })} onClick={() => void updateTag(item)}><Save size={16} /></button>
-                    <button type="button" className="icon-button danger" aria-label={t('admin.deleteTagNamed', { name: item.name })} onClick={() => void deleteTag(item)}><Trash2 size={16} /></button>
+                    <XIconButton type="button" variant="ghost" label={t('admin.saveTagNamed', { name: item.name })} icon={<Save size={16} />} onClick={() => void updateTag(item)} />
+                    <XIconButton type="button" variant="destructive" label={t('admin.deleteTagNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteTag(item)} />
                   </div>
                 </div>
               );
@@ -3700,8 +3667,8 @@ function AdminPanel({
                     onChange={(appIds) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, appIds } }))}
                   />
                   <div className="row-actions">
-                    <button type="button" className="icon-button" aria-label={t('admin.saveCollectionNamed', { name: item.name })} onClick={() => void updateCollection(item)}><Save size={16} /></button>
-                    <button type="button" className="icon-button danger" aria-label={t('admin.deleteCollectionNamed', { name: item.name })} onClick={() => void deleteCollection(item)}><Trash2 size={16} /></button>
+                    <XIconButton type="button" variant="ghost" label={t('admin.saveCollectionNamed', { name: item.name })} icon={<Save size={16} />} onClick={() => void updateCollection(item)} />
+                    <XIconButton type="button" variant="destructive" label={t('admin.deleteCollectionNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteCollection(item)} />
                   </div>
                 </div>
               );
@@ -4093,7 +4060,7 @@ function AppDrawer({
         aria-labelledby={drawerTitleId}
         onClick={(event) => event.stopPropagation()}
       >
-        <button ref={closeButtonRef} type="button" className="icon-button close" aria-label={t('common.close')} onClick={onClose}><X size={18} /></button>
+        <XIconButton ref={closeButtonRef} type="button" variant="ghost" label={t('common.close')} icon={<X size={18} />} className="close" onClick={onClose} />
         <div className="detail-head">
           <AvatarIcon seed={app.slug || app.name} title={app.name} size={58} className="detail-avatar" />
           <div>
@@ -4107,52 +4074,30 @@ function AppDrawer({
           </div>
         </div>
         <div className="detail-actions">
-          <button
+          <XButton
             type="button"
-            className="primary-button"
-            disabled={!installable}
+            variant="primary"
+            label={installable ? t('common.download') : t('common.unavailable')}
+            icon={<Download size={18} />}
+            isDisabled={!installable}
             onClick={() => onInstall(app)}
             aria-label={installable ? `${t('common.download')} ${app.name}` : t('app.installUnavailable', { name: app.name })}
-          >
-            <Download size={18} />
-            <span>{installable ? t('common.download') : t('common.unavailable')}</span>
-          </button>
+          />
           {user && (
             <>
-              <button type="button" className="secondary-button" onClick={() => void toggleAppFavorite()}>
-                <Heart size={18} />
-                <span>{t('drawer.favorite')}</span>
-              </button>
-              <button type="button" className="secondary-button" onClick={() => void toggleSubmitterFavorite()}>
-                <Star size={18} />
-                <span>{t('drawer.submitter')}</span>
-              </button>
-              <button type="button" className="secondary-button" onClick={() => void markOutdated()}>
-                <AlertCircle size={18} />
-                <span>{t('drawer.outdated')}</span>
-              </button>
-              <button type="button" className="secondary-button" onClick={() => void clearOutdated()}>
-                <Check size={18} />
-                <span>{t('drawer.clearOutdated')}</span>
-              </button>
+              <XButton type="button" variant="secondary" label={t('drawer.favorite')} icon={<Heart size={18} />} onClick={() => void toggleAppFavorite()} />
+              <XButton type="button" variant="secondary" label={t('drawer.submitter')} icon={<Star size={18} />} onClick={() => void toggleSubmitterFavorite()} />
+              <XButton type="button" variant="secondary" label={t('drawer.outdated')} icon={<AlertCircle size={18} />} onClick={() => void markOutdated()} />
+              <XButton type="button" variant="secondary" label={t('drawer.clearOutdated')} icon={<Check size={18} />} onClick={() => void clearOutdated()} />
             </>
           )}
           {user && user.id !== app.ownerId && (
-            <button type="button" className="secondary-button" onClick={() => void requestCollaborator()}>
-              <Users size={18} />
-              <span>{t('drawer.collaborate')}</span>
-            </button>
+            <XButton type="button" variant="secondary" label={t('drawer.collaborate')} icon={<Users size={18} />} onClick={() => void requestCollaborator()} />
           )}
           {canMaintain && (
             <>
-              <button type="button" className="secondary-button" onClick={() => void unlistApp()}>
-                <Archive size={18} />
-                <span>{t('drawer.unlist')}</span>
-              </button>
-              <button type="button" className="secondary-button danger-button" onClick={() => void deleteApp()}>
-                <Trash2 size={18} />
-                <span>{t('common.delete')}</span>
-              </button>
+              <XButton type="button" variant="secondary" label={t('drawer.unlist')} icon={<Archive size={18} />} onClick={() => void unlistApp()} />
+              <XButton type="button" variant="destructive" label={t('common.delete')} icon={<Trash2 size={18} />} onClick={() => void deleteApp()} />
             </>
           )}
         </div>
@@ -4222,43 +4167,36 @@ function AppDrawer({
                   onChange={(value) => setAppForm({ ...appForm, installPassword: value, clearInstallPassword: false })}
                 />
                 {app.installProtected && (
-                  <label className="toggle-line">
-                    <input
-                      type="checkbox"
-                      checked={appForm.clearInstallPassword}
-                      onChange={(event) => setAppForm({ ...appForm, clearInstallPassword: event.target.checked, installPassword: event.target.checked ? '' : appForm.installPassword })}
-                    />
-                    <span>{t('drawer.clearInstallPassword')}</span>
-                  </label>
+                  <XSwitch
+                    label={t('drawer.clearInstallPassword')}
+                    value={appForm.clearInstallPassword}
+                    labelSpacing="spread"
+                    width="100%"
+                    onChange={(checked) => setAppForm({ ...appForm, clearInstallPassword: checked, installPassword: checked ? '' : appForm.installPassword })}
+                  />
                 )}
-                <label className="toggle-line">
-                  <input
-                    type="checkbox"
-                    checked={appForm.commentsEnabled}
-                    onChange={(event) => setAppForm({ ...appForm, commentsEnabled: event.target.checked })}
-                  />
-                  <span>{t('drawer.commentsEnabled')}</span>
-                </label>
-                <label className="toggle-line">
-                  <input
-                    type="checkbox"
-                    checked={appForm.emailNotificationsEnabled}
-                    onChange={(event) => setAppForm({ ...appForm, emailNotificationsEnabled: event.target.checked })}
-                  />
-                  <span>{t('drawer.emailNotificationsEnabled')}</span>
-                </label>
-                <label className="toggle-line">
-                  <input
-                    type="checkbox"
-                    checked={appForm.allowUnreviewedUpdates}
-                    onChange={(event) => setAppForm({ ...appForm, allowUnreviewedUpdates: event.target.checked })}
-                  />
-                  <span>{t('submitApp.allowUnreviewedUpdates')}</span>
-                </label>
-                <button type="submit" className="secondary-button">
-                  <Save size={18} />
-                  <span>{t('drawer.saveInfo')}</span>
-                </button>
+                <XSwitch
+                  label={t('drawer.commentsEnabled')}
+                  value={appForm.commentsEnabled}
+                  labelSpacing="spread"
+                  width="100%"
+                  onChange={(checked) => setAppForm({ ...appForm, commentsEnabled: checked })}
+                />
+                <XSwitch
+                  label={t('drawer.emailNotificationsEnabled')}
+                  value={appForm.emailNotificationsEnabled}
+                  labelSpacing="spread"
+                  width="100%"
+                  onChange={(checked) => setAppForm({ ...appForm, emailNotificationsEnabled: checked })}
+                />
+                <XSwitch
+                  label={t('submitApp.allowUnreviewedUpdates')}
+                  value={appForm.allowUnreviewedUpdates}
+                  labelSpacing="spread"
+                  width="100%"
+                  onChange={(checked) => setAppForm({ ...appForm, allowUnreviewedUpdates: checked })}
+                />
+                <XButton type="submit" variant="secondary" label={t('drawer.saveInfo')} icon={<Save size={18} />} />
               </form>
             )}
             {canUploadVersion && (
@@ -4321,26 +4259,26 @@ function AppDrawer({
                     <span>{versionArtifactMode === 'local' ? t('drawer.versionLocalArtifactHint') : t('drawer.versionExternalArtifactHint')}</span>
                   </div>
                   <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
-                    <button type="button" className={cx(versionArtifactMode === 'local' && 'active')} onClick={() => selectVersionArtifactMode('local')}>
-                      <Upload size={17} />
-                      <span>
-                        <strong>{t('submitApp.localArtifact')}</strong>
-                        <small>{t('drawer.versionLocalArtifactHint')}</small>
-                      </span>
-                    </button>
-                    <button type="button" className={cx(versionArtifactMode === 'external' && 'active')} onClick={() => selectVersionArtifactMode('external')}>
-                      <Link size={17} />
-                      <span>
-                        <strong>{t('submitApp.externalArtifact')}</strong>
-                        <small>{t('drawer.versionExternalArtifactHint')}</small>
-                      </span>
-                    </button>
+                    <ArtifactModeOption
+                      icon={<Upload size={17} />}
+                      title={t('submitApp.localArtifact')}
+                      hint={t('drawer.versionLocalArtifactHint')}
+                      isSelected={versionArtifactMode === 'local'}
+                      onSelect={() => selectVersionArtifactMode('local')}
+                    />
+                    <ArtifactModeOption
+                      icon={<Link size={17} />}
+                      title={t('submitApp.externalArtifact')}
+                      hint={t('drawer.versionExternalArtifactHint')}
+                      isSelected={versionArtifactMode === 'external'}
+                      onSelect={() => selectVersionArtifactMode('external')}
+                    />
                   </div>
                   {versionArtifactMode === 'local' ? (
                     <FilePicker
                       label={t('common.lpkFile')}
                       help={t('drawer.versionLocalFileHelp')}
-                      fileName={versionFile?.name}
+                      value={versionFile}
                       inputRef={versionFileInputRef}
                       accept=".lpk"
                       required
@@ -4375,10 +4313,7 @@ function AppDrawer({
                   )}
                 </div>
                 {!canSubmitVersion && <p className="field-help">{t('drawer.versionSubmitBlocked')}</p>}
-                <button type="submit" className="secondary-button" disabled={!canSubmitVersion}>
-                  <Upload size={18} />
-                  <span>{t('drawer.publishVersion')}</span>
-                </button>
+                <XButton type="submit" variant="secondary" label={t('drawer.publishVersion')} icon={<Upload size={18} />} isDisabled={!canSubmitVersion} />
               </form>
             )}
             {canMaintain && (
@@ -4389,25 +4324,18 @@ function AppDrawer({
                     <span className="muted-text">{t('drawer.noGroupsPublic')}</span>
                   ) : (
                     groups.map((group) => (
-                      <label className="toggle-line" key={group.id}>
-                        <input
-                          type="checkbox"
-                          checked={visibility.includes(group.id)}
-                          onChange={(event) =>
-                            setVisibility((current) =>
-                              event.target.checked ? [...current, group.id] : current.filter((id) => id !== group.id),
-                            )
-                          }
-                        />
-                        <span>{group.name}</span>
-                      </label>
+                      <XCheckboxInput
+                        key={group.id}
+                        label={group.name}
+                        value={visibility.includes(group.id)}
+                        onChange={(checked) =>
+                          setVisibility((current) => (checked ? [...current, group.id] : current.filter((id) => id !== group.id)))
+                        }
+                      />
                     ))
                   )}
                 </div>
-                <button type="button" className="secondary-button" onClick={() => void saveVisibility()}>
-                  <Users size={18} />
-                  <span>{t('drawer.saveVisibility')}</span>
-                </button>
+                <XButton type="button" variant="secondary" label={t('drawer.saveVisibility')} icon={<Users size={18} />} onClick={() => void saveVisibility()} />
               </section>
             )}
             {canMaintain && (
@@ -4425,22 +4353,20 @@ function AppDrawer({
                         </div>
                         {request.status === 'PENDING' && (
                           <div className="row-actions">
-                            <button
+                            <XIconButton
                               type="button"
-                              className="icon-button ok"
-                              aria-label={t('drawer.approveCollaboratorFor', { name: request.username || request.email || request.id })}
+                              variant="ghost"
+                              label={t('drawer.approveCollaboratorFor', { name: request.username || request.email || request.id })}
+                              icon={<Check size={17} />}
                               onClick={() => void decideCollaboratorRequest(request.id, true)}
-                            >
-                              <Check size={17} />
-                            </button>
-                            <button
+                            />
+                            <XIconButton
                               type="button"
-                              className="icon-button danger"
-                              aria-label={t('drawer.rejectCollaboratorFor', { name: request.username || request.email || request.id })}
+                              variant="destructive"
+                              label={t('drawer.rejectCollaboratorFor', { name: request.username || request.email || request.id })}
+                              icon={<X size={17} />}
                               onClick={() => void decideCollaboratorRequest(request.id, false)}
-                            >
-                              <X size={17} />
-                            </button>
+                            />
                           </div>
                         )}
                       </div>
@@ -4461,15 +4387,9 @@ function AppDrawer({
                   {shot.caption && <figcaption>{shot.caption}</figcaption>}
                   {canMaintain && (
                     <div className="screenshot-actions">
-                      <button type="button" className="icon-button" aria-label={t('drawer.moveScreenshotUp')} disabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)}>
-                        <ArrowUp size={15} />
-                      </button>
-                      <button type="button" className="icon-button" aria-label={t('drawer.moveScreenshotDown')} disabled={index === shots.length - 1} onClick={() => void moveScreenshot(shot.id, 1)}>
-                        <ArrowDown size={15} />
-                      </button>
-                      <button type="button" className="icon-button danger" aria-label={t('drawer.deleteScreenshot')} onClick={() => void deleteScreenshot(shot.id)}>
-                        <Trash2 size={15} />
-                      </button>
+                      <XIconButton type="button" variant="ghost" label={t('drawer.moveScreenshotUp')} icon={<ArrowUp size={15} />} isDisabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)} />
+                      <XIconButton type="button" variant="ghost" label={t('drawer.moveScreenshotDown')} icon={<ArrowDown size={15} />} isDisabled={index === shots.length - 1} onClick={() => void moveScreenshot(shot.id, 1)} />
+                      <XIconButton type="button" variant="destructive" label={t('drawer.deleteScreenshot')} icon={<Trash2 size={15} />} onClick={() => void deleteScreenshot(shot.id)} />
                     </div>
                   )}
                 </figure>
@@ -4483,11 +4403,11 @@ function AppDrawer({
               <XTextInput label={t('drawer.screenshotCaption')} isLabelHidden value={screenshotCaption} placeholder={t('drawer.screenshotCaption')} onChange={setScreenshotCaption} />
               <FilePicker
                 label={t('drawer.uploadScreenshot')}
-                fileName={screenshotFile?.name}
+                value={screenshotFile}
                 accept=".png,.jpg,.jpeg,.webp"
                 onChange={(nextFile) => setScreenshotFile(nextFile)}
               />
-              <button type="submit" className="icon-button" aria-label={t('drawer.uploadScreenshot')}><Upload size={17} /></button>
+              <XIconButton type="submit" variant="ghost" label={t('drawer.uploadScreenshot')} icon={<Upload size={17} />} />
             </form>
           )}
         </section>
@@ -4520,9 +4440,7 @@ function AppDrawer({
                 placeholder={t('drawer.commentPlaceholder')}
                 onChange={setCommentText}
               />
-              <button type="submit" className="icon-button" aria-label={t('drawer.postComment')} disabled={!commentText.trim()}>
-                <MessageSquare size={17} />
-              </button>
+              <XIconButton type="submit" variant="ghost" label={t('drawer.postComment')} icon={<MessageSquare size={17} />} isDisabled={!commentText.trim()} />
             </form>
           )}
           {!app.commentsEnabled && <p className="inline-note">{t('drawer.commentsDisabled')}</p>}
@@ -4550,6 +4468,36 @@ function SectionTitle({ icon: Icon, title }: { icon: typeof Home; title: string 
   );
 }
 
+function ArtifactModeOption({
+  icon,
+  title,
+  hint,
+  isSelected,
+  onSelect,
+}: {
+  icon: ReactNode;
+  title: string;
+  hint: string;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <XSelectableCard label={title} isSelected={isSelected} onChange={onSelect} padding={3} height="100%">
+      <XHStack gap={2} align="start">
+        {icon}
+        <XVStack gap={1}>
+          <XText type="body" weight="semibold" display="block" wordBreak="break-word">
+            {title}
+          </XText>
+          <XText type="supporting" color="secondary" display="block" wordBreak="break-word">
+            {hint}
+          </XText>
+        </XVStack>
+      </XHStack>
+    </XSelectableCard>
+  );
+}
+
 function EmptyState({
   icon: Icon,
   title,
@@ -4568,10 +4516,7 @@ function EmptyState({
       <strong>{title}</strong>
       {body && <p>{body}</p>}
       {action && (
-        <button type="button" className="secondary-button" onClick={action.onClick}>
-          {ActionIcon && <ActionIcon size={18} />}
-          <span>{action.label}</span>
-        </button>
+        <XButton type="button" variant="secondary" label={action.label} icon={ActionIcon ? <ActionIcon size={18} /> : undefined} onClick={action.onClick} />
       )}
     </div>
   );
@@ -4580,16 +4525,20 @@ function EmptyState({
 function MobileTabs({ tab, setTab, items, inert }: { tab: TabKey; setTab: (tab: TabKey) => void; items: readonly NavItem[]; inert?: boolean }) {
   const { t } = useTranslation();
   return (
-    <nav className="mobile-tabs" inert={inert} aria-hidden={inert ? true : undefined} style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+    <XTabList
+      className="mobile-tab-list"
+      value={tab}
+      onChange={(value) => setTab(value as TabKey)}
+      layout="fill"
+      size="sm"
+      inert={inert}
+      aria-hidden={inert ? true : undefined}
+      aria-label={t('common.navigation')}
+    >
       {items.map((item) => {
         const Icon = item.icon;
-        return (
-          <button type="button" key={item.key} className={cx(tab === item.key && 'active')} onClick={() => setTab(item.key)} aria-label={t(item.labelKey)}>
-            <Icon size={20} />
-            <span>{t(item.labelKey)}</span>
-          </button>
-        );
+        return <XTab key={item.key} value={item.key} label={t(item.labelKey)} icon={<Icon size={18} />} />;
       })}
-    </nav>
+    </XTabList>
   );
 }

@@ -1,3 +1,5 @@
+import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
+
 type CollectionAppOption = {
   id: number;
   name: string;
@@ -38,15 +40,13 @@ export function CollectionAppPicker({
       ) : (
         <div className="collection-app-options">
           {apps.map((app) => (
-            <label className="toggle-line" key={app.id}>
-              <input
-                type="checkbox"
-                checked={appIds.includes(app.id)}
-                onChange={(event) => onChange(toggleAppSelection(appIds, app.id, event.target.checked))}
-              />
-              <span>{app.name}</span>
-              <small>{app.packageId || app.slug}</small>
-            </label>
+            <XCheckboxInput
+              key={app.id}
+              label={app.name}
+              description={app.packageId || app.slug}
+              value={appIds.includes(app.id)}
+              onChange={(checked) => onChange(toggleAppSelection(appIds, app.id, checked))}
+            />
           ))}
         </div>
       )}

@@ -28,12 +28,6 @@
   -webkit-text-fill-color: var(--hero-muted);
 }
 
-.storefront-hero .hero-actions .secondary-button {
-  color: var(--hero-ink);
-  background: var(--hero-glass);
-  border-color: color-mix(in srgb, var(--hero-ink) 18%, transparent);
-}
-
 .hero-app-shelf {
   width: min(360px, 38%);
   align-self: stretch;
@@ -121,17 +115,20 @@
   scrollbar-width: thin;
 }
 
-.storefront-page .category-rail button {
+.storefront-page .category-rail > * {
   flex: 0 0 auto;
 }
 
 .storefront-page .app-grid {
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), var(--catalog-card-max-width)));
+  justify-content: start;
   gap: 14px;
 }
 
 .storefront-page .app-card {
   min-height: 280px;
+  max-width: var(--catalog-card-max-width);
+  max-height: var(--catalog-card-max-height);
   background: var(--surface);
   transition:
     transform 180ms var(--ease-out),
@@ -170,10 +167,6 @@
 
 .storefront-page .app-readiness {
   margin-top: auto;
-}
-
-.storefront-page .install-button {
-  justify-content: center;
 }
 
 @media (hover: hover) and (pointer: fine) {
