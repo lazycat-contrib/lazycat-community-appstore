@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"lazycat.community/appstore/internal/catalogmeta"
 	mirrorutil "lazycat.community/appstore/internal/mirror"
 )
 
@@ -34,19 +35,21 @@ type AnnouncementMeta struct {
 }
 
 type AppInput struct {
-	ID               int            `json:"id"`
-	PackageID        string         `json:"packageId"`
-	Name             string         `json:"name"`
-	Slug             string         `json:"slug"`
-	Summary          string         `json:"summary"`
-	Description      string         `json:"description"`
-	IconURL          string         `json:"iconUrl,omitempty"`
-	Category         string         `json:"category,omitempty"`
-	Tags             []string       `json:"tags,omitempty"`
-	Submitter        string         `json:"submitter,omitempty"`
-	InstallProtected bool           `json:"installProtected"`
-	UpdatedAt        time.Time      `json:"updatedAt"`
-	Versions         []VersionInput `json:"versions"`
+	ID               int                      `json:"id"`
+	PackageID        string                   `json:"packageId"`
+	Name             string                   `json:"name"`
+	Slug             string                   `json:"slug"`
+	Summary          string                   `json:"summary"`
+	Description      string                   `json:"description"`
+	IconURL          string                   `json:"iconUrl,omitempty"`
+	Category         string                   `json:"category,omitempty"`
+	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`
+	Screenshots      []catalogmeta.Screenshot `json:"screenshots,omitempty"`
+	Tags             []string                 `json:"tags,omitempty"`
+	Submitter        string                   `json:"submitter,omitempty"`
+	InstallProtected bool                     `json:"installProtected"`
+	UpdatedAt        time.Time                `json:"updatedAt"`
+	Versions         []VersionInput           `json:"versions"`
 }
 
 type VersionInput struct {
@@ -72,20 +75,22 @@ type Index struct {
 }
 
 type App struct {
-	ID               int       `json:"id"`
-	PackageID        string    `json:"packageId"`
-	Name             string    `json:"name"`
-	Slug             string    `json:"slug"`
-	Summary          string    `json:"summary"`
-	Description      string    `json:"description"`
-	IconURL          string    `json:"iconUrl,omitempty"`
-	Category         string    `json:"category,omitempty"`
-	Tags             []string  `json:"tags,omitempty"`
-	Submitter        string    `json:"submitter,omitempty"`
-	InstallProtected bool      `json:"installProtected"`
-	UpdatedAt        time.Time `json:"updatedAt"`
-	LatestVersion    Version   `json:"latestVersion"`
-	Versions         []Version `json:"versions"`
+	ID               int                      `json:"id"`
+	PackageID        string                   `json:"packageId"`
+	Name             string                   `json:"name"`
+	Slug             string                   `json:"slug"`
+	Summary          string                   `json:"summary"`
+	Description      string                   `json:"description"`
+	IconURL          string                   `json:"iconUrl,omitempty"`
+	Category         string                   `json:"category,omitempty"`
+	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`
+	Screenshots      []catalogmeta.Screenshot `json:"screenshots,omitempty"`
+	Tags             []string                 `json:"tags,omitempty"`
+	Submitter        string                   `json:"submitter,omitempty"`
+	InstallProtected bool                     `json:"installProtected"`
+	UpdatedAt        time.Time                `json:"updatedAt"`
+	LatestVersion    Version                  `json:"latestVersion"`
+	Versions         []Version                `json:"versions"`
 }
 
 type Version struct {
@@ -135,6 +140,8 @@ func BuildIndex(input Input) Index {
 			Description:      inApp.Description,
 			IconURL:          inApp.IconURL,
 			Category:         inApp.Category,
+			CategoryI18n:     inApp.CategoryI18n,
+			Screenshots:      inApp.Screenshots,
 			Tags:             inApp.Tags,
 			Submitter:        inApp.Submitter,
 			InstallProtected: inApp.InstallProtected,

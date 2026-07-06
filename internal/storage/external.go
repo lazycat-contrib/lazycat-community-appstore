@@ -35,3 +35,12 @@ func (b *ExternalLinkBackend) Delete(ctx context.Context, path string) error {
 func (b *ExternalLinkBackend) PublicURL(path string) string {
 	return path
 }
+
+func (b *ExternalLinkBackend) Open(ctx context.Context, path string) (Reader, error) {
+	select {
+	case <-ctx.Done():
+		return Reader{}, ctx.Err()
+	default:
+	}
+	return Reader{}, fmt.Errorf("%s storage cannot proxy external download URLs", b.name)
+}

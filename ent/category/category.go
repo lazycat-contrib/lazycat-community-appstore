@@ -15,6 +15,8 @@ const (
 	FieldID = "id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldNameI18n holds the string denoting the name_i18n field in the database.
+	FieldNameI18n = "name_i18n"
 	// FieldSlug holds the string denoting the slug field in the database.
 	FieldSlug = "slug"
 	// FieldParentID holds the string denoting the parent_id field in the database.
@@ -33,6 +35,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldName,
+	FieldNameI18n,
 	FieldSlug,
 	FieldParentID,
 	FieldSortOrder,
@@ -53,6 +56,8 @@ func ValidColumn(column string) bool {
 var (
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultNameI18n holds the default value on creation for the "name_i18n" field.
+	DefaultNameI18n string
 	// SlugValidator is a validator for the "slug" field. It is called by the builders before save.
 	SlugValidator func(string) error
 	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
@@ -76,6 +81,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByNameI18n orders the results by the name_i18n field.
+func ByNameI18n(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNameI18n, opts...).ToFunc()
 }
 
 // BySlug orders the results by the slug field.

@@ -15,6 +15,7 @@ type Category struct {
 func (Category) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name").NotEmpty(),
+		field.Text("name_i18n").Default("{}"),
 		field.String("slug").NotEmpty().Unique(),
 		field.Int("parent_id").Optional().Nillable(),
 		field.Int("sort_order").Default(0),

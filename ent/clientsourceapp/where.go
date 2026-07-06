@@ -90,6 +90,11 @@ func Category(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldCategory, v))
 }
 
+// CategoryI18nJSON applies equality check predicate on the "category_i18n_json" field. It's identical to CategoryI18nJSONEQ.
+func CategoryI18nJSON(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldCategoryI18nJSON, v))
+}
+
 // IconURL applies equality check predicate on the "icon_url" field. It's identical to IconURLEQ.
 func IconURL(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldIconURL, v))
@@ -98,6 +103,11 @@ func IconURL(v string) predicate.ClientSourceApp {
 // InstallProtected applies equality check predicate on the "install_protected" field. It's identical to InstallProtectedEQ.
 func InstallProtected(v bool) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldInstallProtected, v))
+}
+
+// ScreenshotsJSON applies equality check predicate on the "screenshots_json" field. It's identical to ScreenshotsJSONEQ.
+func ScreenshotsJSON(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldScreenshotsJSON, v))
 }
 
 // LatestVersionJSON applies equality check predicate on the "latest_version_json" field. It's identical to LatestVersionJSONEQ.
@@ -530,6 +540,71 @@ func CategoryContainsFold(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldCategory, v))
 }
 
+// CategoryI18nJSONEQ applies the EQ predicate on the "category_i18n_json" field.
+func CategoryI18nJSONEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldCategoryI18nJSON, v))
+}
+
+// CategoryI18nJSONNEQ applies the NEQ predicate on the "category_i18n_json" field.
+func CategoryI18nJSONNEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldCategoryI18nJSON, v))
+}
+
+// CategoryI18nJSONIn applies the In predicate on the "category_i18n_json" field.
+func CategoryI18nJSONIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldCategoryI18nJSON, vs...))
+}
+
+// CategoryI18nJSONNotIn applies the NotIn predicate on the "category_i18n_json" field.
+func CategoryI18nJSONNotIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldCategoryI18nJSON, vs...))
+}
+
+// CategoryI18nJSONGT applies the GT predicate on the "category_i18n_json" field.
+func CategoryI18nJSONGT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldCategoryI18nJSON, v))
+}
+
+// CategoryI18nJSONGTE applies the GTE predicate on the "category_i18n_json" field.
+func CategoryI18nJSONGTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldCategoryI18nJSON, v))
+}
+
+// CategoryI18nJSONLT applies the LT predicate on the "category_i18n_json" field.
+func CategoryI18nJSONLT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldCategoryI18nJSON, v))
+}
+
+// CategoryI18nJSONLTE applies the LTE predicate on the "category_i18n_json" field.
+func CategoryI18nJSONLTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldCategoryI18nJSON, v))
+}
+
+// CategoryI18nJSONContains applies the Contains predicate on the "category_i18n_json" field.
+func CategoryI18nJSONContains(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContains(FieldCategoryI18nJSON, v))
+}
+
+// CategoryI18nJSONHasPrefix applies the HasPrefix predicate on the "category_i18n_json" field.
+func CategoryI18nJSONHasPrefix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasPrefix(FieldCategoryI18nJSON, v))
+}
+
+// CategoryI18nJSONHasSuffix applies the HasSuffix predicate on the "category_i18n_json" field.
+func CategoryI18nJSONHasSuffix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasSuffix(FieldCategoryI18nJSON, v))
+}
+
+// CategoryI18nJSONEqualFold applies the EqualFold predicate on the "category_i18n_json" field.
+func CategoryI18nJSONEqualFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEqualFold(FieldCategoryI18nJSON, v))
+}
+
+// CategoryI18nJSONContainsFold applies the ContainsFold predicate on the "category_i18n_json" field.
+func CategoryI18nJSONContainsFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldCategoryI18nJSON, v))
+}
+
 // IconURLEQ applies the EQ predicate on the "icon_url" field.
 func IconURLEQ(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldIconURL, v))
@@ -603,6 +678,71 @@ func InstallProtectedEQ(v bool) predicate.ClientSourceApp {
 // InstallProtectedNEQ applies the NEQ predicate on the "install_protected" field.
 func InstallProtectedNEQ(v bool) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldNEQ(FieldInstallProtected, v))
+}
+
+// ScreenshotsJSONEQ applies the EQ predicate on the "screenshots_json" field.
+func ScreenshotsJSONEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldScreenshotsJSON, v))
+}
+
+// ScreenshotsJSONNEQ applies the NEQ predicate on the "screenshots_json" field.
+func ScreenshotsJSONNEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldScreenshotsJSON, v))
+}
+
+// ScreenshotsJSONIn applies the In predicate on the "screenshots_json" field.
+func ScreenshotsJSONIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldScreenshotsJSON, vs...))
+}
+
+// ScreenshotsJSONNotIn applies the NotIn predicate on the "screenshots_json" field.
+func ScreenshotsJSONNotIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldScreenshotsJSON, vs...))
+}
+
+// ScreenshotsJSONGT applies the GT predicate on the "screenshots_json" field.
+func ScreenshotsJSONGT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldScreenshotsJSON, v))
+}
+
+// ScreenshotsJSONGTE applies the GTE predicate on the "screenshots_json" field.
+func ScreenshotsJSONGTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldScreenshotsJSON, v))
+}
+
+// ScreenshotsJSONLT applies the LT predicate on the "screenshots_json" field.
+func ScreenshotsJSONLT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldScreenshotsJSON, v))
+}
+
+// ScreenshotsJSONLTE applies the LTE predicate on the "screenshots_json" field.
+func ScreenshotsJSONLTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldScreenshotsJSON, v))
+}
+
+// ScreenshotsJSONContains applies the Contains predicate on the "screenshots_json" field.
+func ScreenshotsJSONContains(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContains(FieldScreenshotsJSON, v))
+}
+
+// ScreenshotsJSONHasPrefix applies the HasPrefix predicate on the "screenshots_json" field.
+func ScreenshotsJSONHasPrefix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasPrefix(FieldScreenshotsJSON, v))
+}
+
+// ScreenshotsJSONHasSuffix applies the HasSuffix predicate on the "screenshots_json" field.
+func ScreenshotsJSONHasSuffix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasSuffix(FieldScreenshotsJSON, v))
+}
+
+// ScreenshotsJSONEqualFold applies the EqualFold predicate on the "screenshots_json" field.
+func ScreenshotsJSONEqualFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEqualFold(FieldScreenshotsJSON, v))
+}
+
+// ScreenshotsJSONContainsFold applies the ContainsFold predicate on the "screenshots_json" field.
+func ScreenshotsJSONContainsFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldScreenshotsJSON, v))
 }
 
 // LatestVersionJSONEQ applies the EQ predicate on the "latest_version_json" field.

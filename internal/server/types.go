@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/internal/catalogmeta"
 )
 
 type publicUser struct {
@@ -45,28 +46,49 @@ type siteAnnouncement struct {
 }
 
 type appSummary struct {
-	ID                        int       `json:"id"`
-	OwnerID                   int       `json:"ownerId"`
-	Owner                     string    `json:"owner"`
-	CategoryID                *int      `json:"categoryId,omitempty"`
-	Category                  string    `json:"category,omitempty"`
-	PackageID                 string    `json:"packageId"`
-	Name                      string    `json:"name"`
-	Slug                      string    `json:"slug"`
-	Summary                   string    `json:"summary"`
-	Description               string    `json:"description"`
-	IconURL                   *string   `json:"iconUrl,omitempty"`
-	Status                    string    `json:"status"`
-	AllowUnreviewedUpdates    bool      `json:"allowUnreviewedUpdates"`
-	CommentsEnabled           bool      `json:"commentsEnabled"`
-	EmailNotificationsEnabled bool      `json:"emailNotificationsEnabled"`
-	InstallProtected          bool      `json:"installProtected"`
-	DownloadCount             int       `json:"downloadCount"`
-	Tags                      []string  `json:"tags"`
-	VisibleGroupIDs           []int     `json:"visibleGroupIds"`
-	LatestVersion             *version  `json:"latestVersion,omitempty"`
-	CreatedAt                 time.Time `json:"createdAt"`
-	UpdatedAt                 time.Time `json:"updatedAt"`
+	ID                        int               `json:"id"`
+	OwnerID                   int               `json:"ownerId"`
+	Owner                     string            `json:"owner"`
+	CategoryID                *int              `json:"categoryId,omitempty"`
+	Category                  string            `json:"category,omitempty"`
+	CategoryI18n              map[string]string `json:"categoryI18n,omitempty"`
+	PackageID                 string            `json:"packageId"`
+	Name                      string            `json:"name"`
+	Slug                      string            `json:"slug"`
+	Summary                   string            `json:"summary"`
+	Description               string            `json:"description"`
+	IconURL                   *string           `json:"iconUrl,omitempty"`
+	Status                    string            `json:"status"`
+	AllowUnreviewedUpdates    bool              `json:"allowUnreviewedUpdates"`
+	CommentsEnabled           bool              `json:"commentsEnabled"`
+	EmailNotificationsEnabled bool              `json:"emailNotificationsEnabled"`
+	InstallProtected          bool              `json:"installProtected"`
+	DownloadCount             int               `json:"downloadCount"`
+	Tags                      []string          `json:"tags"`
+	VisibleGroupIDs           []int             `json:"visibleGroupIds"`
+	LatestVersion             *version          `json:"latestVersion,omitempty"`
+	CreatedAt                 time.Time         `json:"createdAt"`
+	UpdatedAt                 time.Time         `json:"updatedAt"`
+}
+
+type categoryDTO struct {
+	ID        int                       `json:"id"`
+	Name      string                    `json:"name"`
+	NameI18n  catalogmeta.LocalizedText `json:"nameI18n,omitempty"`
+	Slug      string                    `json:"slug"`
+	ParentID  *int                      `json:"parentId,omitempty"`
+	SortOrder int                       `json:"sortOrder"`
+	CreatedAt time.Time                 `json:"createdAt"`
+	UpdatedAt time.Time                 `json:"updatedAt"`
+}
+
+type tagDTO struct {
+	ID        int                       `json:"id"`
+	Name      string                    `json:"name"`
+	NameI18n  catalogmeta.LocalizedText `json:"nameI18n,omitempty"`
+	Slug      string                    `json:"slug"`
+	CreatedAt time.Time                 `json:"createdAt"`
+	UpdatedAt time.Time                 `json:"updatedAt"`
 }
 
 type appDetail struct {
@@ -81,12 +103,13 @@ type appDetail struct {
 }
 
 type screenshot struct {
-	ID        int       `json:"id"`
-	AppID     int       `json:"appId"`
-	ImageURL  string    `json:"imageUrl"`
-	Caption   string    `json:"caption"`
-	SortOrder int       `json:"sortOrder"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID         int       `json:"id"`
+	AppID      int       `json:"appId"`
+	ImageURL   string    `json:"imageUrl"`
+	Caption    string    `json:"caption"`
+	DeviceType string    `json:"deviceType"`
+	SortOrder  int       `json:"sortOrder"`
+	CreatedAt  time.Time `json:"createdAt"`
 }
 
 type collectionDTO struct {

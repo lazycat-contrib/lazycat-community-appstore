@@ -8,6 +8,7 @@ import (
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/appversion"
+	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/feed"
 )
 
@@ -72,12 +73,26 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 		if record.IconURL != nil {
 			appInput.IconURL = *record.IconURL
 		}
+		if screenshots, err := s.loadScreenshots(r, record.ID); err == nil {
+			for _, shot := range screenshots {
+				appInput.Screenshots = append(appInput.Screenshots, catalogmeta.Screenshot{
+					ID:         shot.ID,
+					AppID:      shot.AppID,
+					ImageURL:   shot.ImageURL,
+					Caption:    shot.Caption,
+					DeviceType: shot.DeviceType,
+					SortOrder:  shot.SortOrder,
+					CreatedAt:  shot.CreatedAt,
+				})
+			}
+		}
 		if owner, err := s.db.User.Get(r.Context(), record.OwnerID); err == nil {
 			appInput.Submitter = owner.Username
 		}
 		if record.CategoryID != nil {
 			if category, err := s.db.Category.Get(r.Context(), *record.CategoryID); err == nil {
 				appInput.Category = category.Name
+				appInput.CategoryI18n = catalogmeta.DecodeLocalizedText(category.NameI18n)
 			}
 		}
 		versions, _ := s.db.AppVersion.Query().

@@ -35,6 +35,7 @@ import (
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/sitesetting"
+	"lazycat.community/appstore/ent/storageconfig"
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/ent/usergroup"
@@ -121,6 +122,7 @@ func checkColumn(t, c string) error {
 			outdatedmark.Table:         outdatedmark.ValidColumn,
 			reviewrequest.Table:        reviewrequest.ValidColumn,
 			sitesetting.Table:          sitesetting.ValidColumn,
+			storageconfig.Table:        storageconfig.ValidColumn,
 			tag.Table:                  tag.ValidColumn,
 			user.Table:                 user.ValidColumn,
 			usergroup.Table:            usergroup.ValidColumn,

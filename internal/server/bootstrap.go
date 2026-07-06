@@ -7,6 +7,7 @@ import (
 	"lazycat.community/appstore/ent/category"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/auth"
+	"lazycat.community/appstore/internal/catalogmeta"
 )
 
 var (
@@ -35,13 +36,14 @@ func (s *Server) bootstrap(ctx context.Context) error {
 	}
 
 	defaultCategories := []struct {
-		name string
-		slug string
+		name     string
+		slug     string
+		nameI18n catalogmeta.LocalizedText
 	}{
-		{name: "Productivity", slug: "productivity"},
-		{name: "Developer Tools", slug: "developer-tools"},
-		{name: "Media", slug: "media"},
-		{name: "Utilities", slug: "utilities"},
+		{name: "Productivity", slug: "productivity", nameI18n: catalogmeta.LocalizedText{"en": "Productivity", "zh-CN": "效率"}},
+		{name: "Developer Tools", slug: "developer-tools", nameI18n: catalogmeta.LocalizedText{"en": "Developer Tools", "zh-CN": "开发工具"}},
+		{name: "Media", slug: "media", nameI18n: catalogmeta.LocalizedText{"en": "Media", "zh-CN": "媒体"}},
+		{name: "Utilities", slug: "utilities", nameI18n: catalogmeta.LocalizedText{"en": "Utilities", "zh-CN": "工具"}},
 	}
 	for _, item := range defaultCategories {
 		exists, err := s.db.Category.Query().Where(category.SlugEQ(item.slug)).Exist(ctx)
@@ -49,7 +51,11 @@ func (s *Server) bootstrap(ctx context.Context) error {
 			return err
 		}
 		if !exists {
-			_, err = s.db.Category.Create().SetName(item.name).SetSlug(item.slug).Save(ctx)
+			_, err = s.db.Category.Create().
+				SetName(item.name).
+				SetNameI18n(catalogmeta.EncodeLocalizedText(item.nameI18n)).
+				SetSlug(item.slug).
+				Save(ctx)
 			if err != nil {
 				return err
 			}

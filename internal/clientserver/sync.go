@@ -14,6 +14,7 @@ import (
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
+	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/mirror"
 )
 
@@ -28,16 +29,18 @@ func (e sourceSyncError) Error() string {
 }
 
 type feedApp struct {
-	ID               int          `json:"id"`
-	PackageID        string       `json:"packageId"`
-	Name             string       `json:"name"`
-	Slug             string       `json:"slug"`
-	Summary          string       `json:"summary"`
-	Category         string       `json:"category"`
-	IconURL          string       `json:"iconUrl"`
-	InstallProtected bool         `json:"installProtected"`
-	LatestVersion    *VersionDTO  `json:"latestVersion"`
-	Versions         []VersionDTO `json:"versions"`
+	ID               int                      `json:"id"`
+	PackageID        string                   `json:"packageId"`
+	Name             string                   `json:"name"`
+	Slug             string                   `json:"slug"`
+	Summary          string                   `json:"summary"`
+	Category         string                   `json:"category"`
+	CategoryI18n     map[string]string        `json:"categoryI18n"`
+	IconURL          string                   `json:"iconUrl"`
+	InstallProtected bool                     `json:"installProtected"`
+	Screenshots      []catalogmeta.Screenshot `json:"screenshots"`
+	LatestVersion    *VersionDTO              `json:"latestVersion"`
+	Versions         []VersionDTO             `json:"versions"`
 }
 
 type feedIndex struct {
@@ -132,6 +135,7 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 			versions = []VersionDTO{*app.LatestVersion}
 		}
 		versionsJSON := ""
+		screenshotsJSON := catalogmeta.EncodeScreenshots(app.Screenshots)
 		if app.LatestVersion != nil {
 			encoded, err := json.Marshal(app.LatestVersion)
 			if err != nil {
@@ -156,8 +160,10 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 			SetSlug(app.Slug).
 			SetSummary(app.Summary).
 			SetCategory(app.Category).
+			SetCategoryI18nJSON(catalogmeta.EncodeLocalizedText(app.CategoryI18n)).
 			SetIconURL(app.IconURL).
 			SetInstallProtected(app.InstallProtected).
+			SetScreenshotsJSON(screenshotsJSON).
 			SetLatestVersionJSON(versionJSON).
 			SetVersionsJSON(versionsJSON).
 			Save(ctx); err != nil {

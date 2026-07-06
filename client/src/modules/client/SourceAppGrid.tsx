@@ -8,6 +8,7 @@ import {
   cx,
   findInstalledApplication,
   hasInstallableVersion,
+  localizedCategory,
   sourceActionLabel,
   sourceInstallAction,
 } from '../../shared/utils';
@@ -71,7 +72,7 @@ export function SourceAppGrid({
             </div>
             <div className="app-meta">
               <span><Cloud size={14} /> {app.sourceName}</span>
-              <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
+              <span><Tag size={14} /> {localizedCategory(app, t('common.uncategorized'))}</span>
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
               {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
             </div>

@@ -127,6 +127,20 @@ func (_u *ClientSourceAppUpdate) SetNillableCategory(v *string) *ClientSourceApp
 	return _u
 }
 
+// SetCategoryI18nJSON sets the "category_i18n_json" field.
+func (_u *ClientSourceAppUpdate) SetCategoryI18nJSON(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetCategoryI18nJSON(v)
+	return _u
+}
+
+// SetNillableCategoryI18nJSON sets the "category_i18n_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableCategoryI18nJSON(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetCategoryI18nJSON(*v)
+	}
+	return _u
+}
+
 // SetIconURL sets the "icon_url" field.
 func (_u *ClientSourceAppUpdate) SetIconURL(v string) *ClientSourceAppUpdate {
 	_u.mutation.SetIconURL(v)
@@ -151,6 +165,20 @@ func (_u *ClientSourceAppUpdate) SetInstallProtected(v bool) *ClientSourceAppUpd
 func (_u *ClientSourceAppUpdate) SetNillableInstallProtected(v *bool) *ClientSourceAppUpdate {
 	if v != nil {
 		_u.SetInstallProtected(*v)
+	}
+	return _u
+}
+
+// SetScreenshotsJSON sets the "screenshots_json" field.
+func (_u *ClientSourceAppUpdate) SetScreenshotsJSON(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetScreenshotsJSON(v)
+	return _u
+}
+
+// SetNillableScreenshotsJSON sets the "screenshots_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableScreenshotsJSON(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetScreenshotsJSON(*v)
 	}
 	return _u
 }
@@ -308,11 +336,17 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.CategoryI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldCategoryI18nJSON, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.IconURL(); ok {
 		_spec.SetField(clientsourceapp.FieldIconURL, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ScreenshotsJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldScreenshotsJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LatestVersionJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldLatestVersionJSON, field.TypeString, value)
@@ -473,6 +507,20 @@ func (_u *ClientSourceAppUpdateOne) SetNillableCategory(v *string) *ClientSource
 	return _u
 }
 
+// SetCategoryI18nJSON sets the "category_i18n_json" field.
+func (_u *ClientSourceAppUpdateOne) SetCategoryI18nJSON(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetCategoryI18nJSON(v)
+	return _u
+}
+
+// SetNillableCategoryI18nJSON sets the "category_i18n_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableCategoryI18nJSON(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetCategoryI18nJSON(*v)
+	}
+	return _u
+}
+
 // SetIconURL sets the "icon_url" field.
 func (_u *ClientSourceAppUpdateOne) SetIconURL(v string) *ClientSourceAppUpdateOne {
 	_u.mutation.SetIconURL(v)
@@ -497,6 +545,20 @@ func (_u *ClientSourceAppUpdateOne) SetInstallProtected(v bool) *ClientSourceApp
 func (_u *ClientSourceAppUpdateOne) SetNillableInstallProtected(v *bool) *ClientSourceAppUpdateOne {
 	if v != nil {
 		_u.SetInstallProtected(*v)
+	}
+	return _u
+}
+
+// SetScreenshotsJSON sets the "screenshots_json" field.
+func (_u *ClientSourceAppUpdateOne) SetScreenshotsJSON(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetScreenshotsJSON(v)
+	return _u
+}
+
+// SetNillableScreenshotsJSON sets the "screenshots_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableScreenshotsJSON(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetScreenshotsJSON(*v)
 	}
 	return _u
 }
@@ -684,11 +746,17 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.CategoryI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldCategoryI18nJSON, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.IconURL(); ok {
 		_spec.SetField(clientsourceapp.FieldIconURL, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ScreenshotsJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldScreenshotsJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LatestVersionJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldLatestVersionJSON, field.TypeString, value)

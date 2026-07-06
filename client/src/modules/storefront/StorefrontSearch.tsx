@@ -4,6 +4,7 @@ import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { Category, InstallOptions, SortMode, SourceApp, StoreApp } from '../../shared/types';
+import { localizedName } from '../../shared/utils';
 import { AppGrid } from './AppGrid';
 
 export function StorefrontSearch({
@@ -44,7 +45,7 @@ export function StorefrontSearch({
           <XToggleButtonGroup value={activeCategory} onChange={(value) => onCategory(value || 'all')} label={t('search.categoryFilter')} size="sm">
             <XToggleButton value="all" label={t('common.all')} />
             {categories.map((category) => (
-              <XToggleButton key={category.id} value={category.name} label={category.name} />
+              <XToggleButton key={category.id} value={String(category.id)} label={localizedName(category)} />
             ))}
           </XToggleButtonGroup>
         )}

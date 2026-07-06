@@ -112,6 +112,20 @@ func (_u *AppScreenshotUpdate) SetNillableCaption(v *string) *AppScreenshotUpdat
 	return _u
 }
 
+// SetDeviceType sets the "device_type" field.
+func (_u *AppScreenshotUpdate) SetDeviceType(v appscreenshot.DeviceType) *AppScreenshotUpdate {
+	_u.mutation.SetDeviceType(v)
+	return _u
+}
+
+// SetNillableDeviceType sets the "device_type" field if the given value is not nil.
+func (_u *AppScreenshotUpdate) SetNillableDeviceType(v *appscreenshot.DeviceType) *AppScreenshotUpdate {
+	if v != nil {
+		_u.SetDeviceType(*v)
+	}
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *AppScreenshotUpdate) SetSortOrder(v int) *AppScreenshotUpdate {
 	_u.mutation.ResetSortOrder()
@@ -186,6 +200,11 @@ func (_u *AppScreenshotUpdate) check() error {
 			return &ValidationError{Name: "image_url", err: fmt.Errorf(`ent: validator failed for field "AppScreenshot.image_url": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DeviceType(); ok {
+		if err := appscreenshot.DeviceTypeValidator(v); err != nil {
+			return &ValidationError{Name: "device_type", err: fmt.Errorf(`ent: validator failed for field "AppScreenshot.device_type": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -221,6 +240,9 @@ func (_u *AppScreenshotUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if value, ok := _u.mutation.Caption(); ok {
 		_spec.SetField(appscreenshot.FieldCaption, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DeviceType(); ok {
+		_spec.SetField(appscreenshot.FieldDeviceType, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(appscreenshot.FieldSortOrder, field.TypeInt, value)
@@ -335,6 +357,20 @@ func (_u *AppScreenshotUpdateOne) SetNillableCaption(v *string) *AppScreenshotUp
 	return _u
 }
 
+// SetDeviceType sets the "device_type" field.
+func (_u *AppScreenshotUpdateOne) SetDeviceType(v appscreenshot.DeviceType) *AppScreenshotUpdateOne {
+	_u.mutation.SetDeviceType(v)
+	return _u
+}
+
+// SetNillableDeviceType sets the "device_type" field if the given value is not nil.
+func (_u *AppScreenshotUpdateOne) SetNillableDeviceType(v *appscreenshot.DeviceType) *AppScreenshotUpdateOne {
+	if v != nil {
+		_u.SetDeviceType(*v)
+	}
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *AppScreenshotUpdateOne) SetSortOrder(v int) *AppScreenshotUpdateOne {
 	_u.mutation.ResetSortOrder()
@@ -422,6 +458,11 @@ func (_u *AppScreenshotUpdateOne) check() error {
 			return &ValidationError{Name: "image_url", err: fmt.Errorf(`ent: validator failed for field "AppScreenshot.image_url": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DeviceType(); ok {
+		if err := appscreenshot.DeviceTypeValidator(v); err != nil {
+			return &ValidationError{Name: "device_type", err: fmt.Errorf(`ent: validator failed for field "AppScreenshot.device_type": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -474,6 +515,9 @@ func (_u *AppScreenshotUpdateOne) sqlSave(ctx context.Context) (_node *AppScreen
 	}
 	if value, ok := _u.mutation.Caption(); ok {
 		_spec.SetField(appscreenshot.FieldCaption, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DeviceType(); ok {
+		_spec.SetField(appscreenshot.FieldDeviceType, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(appscreenshot.FieldSortOrder, field.TypeInt, value)

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"mime"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,6 +67,34 @@ func (b *LocalBackend) Delete(ctx context.Context, path string) error {
 
 func (b *LocalBackend) PublicURL(path string) string {
 	return b.urlPrefix + strings.TrimLeft(filepath.ToSlash(path), "/")
+}
+
+func (b *LocalBackend) Open(ctx context.Context, path string) (Reader, error) {
+	select {
+	case <-ctx.Done():
+		return Reader{}, ctx.Err()
+	default:
+	}
+	full, err := b.safePath(path)
+	if err != nil {
+		return Reader{}, err
+	}
+	file, err := os.Open(full)
+	if err != nil {
+		return Reader{}, err
+	}
+	info, err := file.Stat()
+	if err != nil {
+		_ = file.Close()
+		return Reader{}, err
+	}
+	return Reader{
+		Body:        file,
+		Name:        info.Name(),
+		Size:        info.Size(),
+		ModTime:     info.ModTime(),
+		ContentType: mime.TypeByExtension(strings.ToLower(filepath.Ext(info.Name()))),
+	}, nil
 }
 
 func (b *LocalBackend) safePath(path string) (string, error) {

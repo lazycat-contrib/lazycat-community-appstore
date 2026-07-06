@@ -42,6 +42,20 @@ func (_u *TagUpdate) SetNillableName(v *string) *TagUpdate {
 	return _u
 }
 
+// SetNameI18n sets the "name_i18n" field.
+func (_u *TagUpdate) SetNameI18n(v string) *TagUpdate {
+	_u.mutation.SetNameI18n(v)
+	return _u
+}
+
+// SetNillableNameI18n sets the "name_i18n" field if the given value is not nil.
+func (_u *TagUpdate) SetNillableNameI18n(v *string) *TagUpdate {
+	if v != nil {
+		_u.SetNameI18n(*v)
+	}
+	return _u
+}
+
 // SetSlug sets the "slug" field.
 func (_u *TagUpdate) SetSlug(v string) *TagUpdate {
 	_u.mutation.SetSlug(v)
@@ -147,6 +161,9 @@ func (_u *TagUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(tag.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.NameI18n(); ok {
+		_spec.SetField(tag.FieldNameI18n, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Slug(); ok {
 		_spec.SetField(tag.FieldSlug, field.TypeString, value)
 	}
@@ -186,6 +203,20 @@ func (_u *TagUpdateOne) SetName(v string) *TagUpdateOne {
 func (_u *TagUpdateOne) SetNillableName(v *string) *TagUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetNameI18n sets the "name_i18n" field.
+func (_u *TagUpdateOne) SetNameI18n(v string) *TagUpdateOne {
+	_u.mutation.SetNameI18n(v)
+	return _u
+}
+
+// SetNillableNameI18n sets the "name_i18n" field if the given value is not nil.
+func (_u *TagUpdateOne) SetNillableNameI18n(v *string) *TagUpdateOne {
+	if v != nil {
+		_u.SetNameI18n(*v)
 	}
 	return _u
 }
@@ -324,6 +355,9 @@ func (_u *TagUpdateOne) sqlSave(ctx context.Context) (_node *Tag, err error) {
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(tag.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.NameI18n(); ok {
+		_spec.SetField(tag.FieldNameI18n, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Slug(); ok {
 		_spec.SetField(tag.FieldSlug, field.TypeString, value)

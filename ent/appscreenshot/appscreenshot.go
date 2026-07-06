@@ -3,6 +3,7 @@
 package appscreenshot
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -23,6 +24,8 @@ const (
 	FieldStoragePath = "storage_path"
 	// FieldCaption holds the string denoting the caption field in the database.
 	FieldCaption = "caption"
+	// FieldDeviceType holds the string denoting the device_type field in the database.
+	FieldDeviceType = "device_type"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
 	FieldSortOrder = "sort_order"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -39,6 +42,7 @@ var Columns = []string{
 	FieldImageURL,
 	FieldStoragePath,
 	FieldCaption,
+	FieldDeviceType,
 	FieldSortOrder,
 	FieldCreatedAt,
 }
@@ -65,6 +69,32 @@ var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )
+
+// DeviceType defines the type for the "device_type" enum field.
+type DeviceType string
+
+// DeviceTypeDESKTOP is the default value of the DeviceType enum.
+const DefaultDeviceType = DeviceTypeDESKTOP
+
+// DeviceType values.
+const (
+	DeviceTypeDESKTOP DeviceType = "DESKTOP"
+	DeviceTypeMOBILE  DeviceType = "MOBILE"
+)
+
+func (dt DeviceType) String() string {
+	return string(dt)
+}
+
+// DeviceTypeValidator is a validator for the "device_type" field enum values. It is called by the builders before save.
+func DeviceTypeValidator(dt DeviceType) error {
+	switch dt {
+	case DeviceTypeDESKTOP, DeviceTypeMOBILE:
+		return nil
+	default:
+		return fmt.Errorf("appscreenshot: invalid enum value for device_type field: %q", dt)
+	}
+}
 
 // OrderOption defines the ordering options for the AppScreenshot queries.
 type OrderOption func(*sql.Selector)
@@ -97,6 +127,11 @@ func ByStoragePath(opts ...sql.OrderTermOption) OrderOption {
 // ByCaption orders the results by the caption field.
 func ByCaption(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCaption, opts...).ToFunc()
+}
+
+// ByDeviceType orders the results by the device_type field.
+func ByDeviceType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeviceType, opts...).ToFunc()
 }
 
 // BySortOrder orders the results by the sort_order field.

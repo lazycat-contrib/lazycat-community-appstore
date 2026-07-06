@@ -364,6 +364,26 @@ func CaptionContainsFold(v string) predicate.AppScreenshot {
 	return predicate.AppScreenshot(sql.FieldContainsFold(FieldCaption, v))
 }
 
+// DeviceTypeEQ applies the EQ predicate on the "device_type" field.
+func DeviceTypeEQ(v DeviceType) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldEQ(FieldDeviceType, v))
+}
+
+// DeviceTypeNEQ applies the NEQ predicate on the "device_type" field.
+func DeviceTypeNEQ(v DeviceType) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldNEQ(FieldDeviceType, v))
+}
+
+// DeviceTypeIn applies the In predicate on the "device_type" field.
+func DeviceTypeIn(vs ...DeviceType) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldIn(FieldDeviceType, vs...))
+}
+
+// DeviceTypeNotIn applies the NotIn predicate on the "device_type" field.
+func DeviceTypeNotIn(vs ...DeviceType) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldNotIn(FieldDeviceType, vs...))
+}
+
 // SortOrderEQ applies the EQ predicate on the "sort_order" field.
 func SortOrderEQ(v int) predicate.AppScreenshot {
 	return predicate.AppScreenshot(sql.FieldEQ(FieldSortOrder, v))

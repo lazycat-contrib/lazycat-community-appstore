@@ -58,6 +58,8 @@ type Tx struct {
 	ReviewRequest *ReviewRequestClient
 	// SiteSetting is the client for interacting with the SiteSetting builders.
 	SiteSetting *SiteSettingClient
+	// StorageConfig is the client for interacting with the StorageConfig builders.
+	StorageConfig *StorageConfigClient
 	// Tag is the client for interacting with the Tag builders.
 	Tag *TagClient
 	// User is the client for interacting with the User builders.
@@ -218,6 +220,7 @@ func (tx *Tx) init() {
 	tx.OutdatedMark = NewOutdatedMarkClient(tx.config)
 	tx.ReviewRequest = NewReviewRequestClient(tx.config)
 	tx.SiteSetting = NewSiteSettingClient(tx.config)
+	tx.StorageConfig = NewStorageConfigClient(tx.config)
 	tx.Tag = NewTagClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserGroup = NewUserGroupClient(tx.config)

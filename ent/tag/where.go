@@ -59,6 +59,11 @@ func Name(v string) predicate.Tag {
 	return predicate.Tag(sql.FieldEQ(FieldName, v))
 }
 
+// NameI18n applies equality check predicate on the "name_i18n" field. It's identical to NameI18nEQ.
+func NameI18n(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldEQ(FieldNameI18n, v))
+}
+
 // Slug applies equality check predicate on the "slug" field. It's identical to SlugEQ.
 func Slug(v string) predicate.Tag {
 	return predicate.Tag(sql.FieldEQ(FieldSlug, v))
@@ -137,6 +142,71 @@ func NameEqualFold(v string) predicate.Tag {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.Tag {
 	return predicate.Tag(sql.FieldContainsFold(FieldName, v))
+}
+
+// NameI18nEQ applies the EQ predicate on the "name_i18n" field.
+func NameI18nEQ(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldEQ(FieldNameI18n, v))
+}
+
+// NameI18nNEQ applies the NEQ predicate on the "name_i18n" field.
+func NameI18nNEQ(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldNEQ(FieldNameI18n, v))
+}
+
+// NameI18nIn applies the In predicate on the "name_i18n" field.
+func NameI18nIn(vs ...string) predicate.Tag {
+	return predicate.Tag(sql.FieldIn(FieldNameI18n, vs...))
+}
+
+// NameI18nNotIn applies the NotIn predicate on the "name_i18n" field.
+func NameI18nNotIn(vs ...string) predicate.Tag {
+	return predicate.Tag(sql.FieldNotIn(FieldNameI18n, vs...))
+}
+
+// NameI18nGT applies the GT predicate on the "name_i18n" field.
+func NameI18nGT(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldGT(FieldNameI18n, v))
+}
+
+// NameI18nGTE applies the GTE predicate on the "name_i18n" field.
+func NameI18nGTE(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldGTE(FieldNameI18n, v))
+}
+
+// NameI18nLT applies the LT predicate on the "name_i18n" field.
+func NameI18nLT(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldLT(FieldNameI18n, v))
+}
+
+// NameI18nLTE applies the LTE predicate on the "name_i18n" field.
+func NameI18nLTE(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldLTE(FieldNameI18n, v))
+}
+
+// NameI18nContains applies the Contains predicate on the "name_i18n" field.
+func NameI18nContains(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldContains(FieldNameI18n, v))
+}
+
+// NameI18nHasPrefix applies the HasPrefix predicate on the "name_i18n" field.
+func NameI18nHasPrefix(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldHasPrefix(FieldNameI18n, v))
+}
+
+// NameI18nHasSuffix applies the HasSuffix predicate on the "name_i18n" field.
+func NameI18nHasSuffix(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldHasSuffix(FieldNameI18n, v))
+}
+
+// NameI18nEqualFold applies the EqualFold predicate on the "name_i18n" field.
+func NameI18nEqualFold(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldEqualFold(FieldNameI18n, v))
+}
+
+// NameI18nContainsFold applies the ContainsFold predicate on the "name_i18n" field.
+func NameI18nContainsFold(v string) predicate.Tag {
+	return predicate.Tag(sql.FieldContainsFold(FieldNameI18n, v))
 }
 
 // SlugEQ applies the EQ predicate on the "slug" field.

@@ -27,6 +27,7 @@ import (
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/internal/auth"
+	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/lpkmeta"
 	"lazycat.community/appstore/internal/mirror"
 	"lazycat.community/appstore/internal/storage"
@@ -438,13 +439,13 @@ func (s *Server) handleDeleteApp(w http.ResponseWriter, r *http.Request, u *entg
 	versions, _ := s.db.AppVersion.Query().Where(appversion.AppIDEQ(id)).All(r.Context())
 	for _, version := range versions {
 		if version.StoragePath != "" {
-			_ = s.storage.Delete(r.Context(), version.StoragePath)
+			s.deleteStoredObject(r.Context(), version.StoragePath)
 		}
 	}
 	screenshots, _ := s.db.AppScreenshot.Query().Where(appscreenshot.AppIDEQ(id)).All(r.Context())
 	for _, shot := range screenshots {
 		if shot.StoragePath != "" {
-			_ = s.storage.Delete(r.Context(), shot.StoragePath)
+			s.deleteStoredObject(r.Context(), shot.StoragePath)
 		}
 	}
 	_, _ = s.db.AppVersion.Delete().Where(appversion.AppIDEQ(id)).Exec(r.Context())
@@ -571,7 +572,11 @@ func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *e
 	if versionName == "" {
 		return nil, errors.New("version is required")
 	}
-	obj, err := storage.SaveLPK(r.Context(), s.storage, file, header.Filename, s.effectiveMaxLPKSize(r.Context()))
+	backend, err := s.storageBackend(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	obj, err := storage.SaveLPK(r.Context(), backend, file, header.Filename, s.effectiveMaxLPKSize(r.Context()))
 	if err != nil {
 		return nil, err
 	}
@@ -597,7 +602,7 @@ func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *e
 	}
 	created, err := create.Save(r.Context())
 	if err != nil {
-		_ = s.storage.Delete(r.Context(), obj.Path)
+		_ = backend.Delete(r.Context(), obj.Path)
 		return nil, err
 	}
 	if status == appversion.StatusPENDING {
@@ -791,6 +796,7 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 	if record.CategoryID != nil {
 		if cat, err := s.db.Category.Get(r.Context(), *record.CategoryID); err == nil {
 			dto.Category = cat.Name
+			dto.CategoryI18n = catalogmeta.DecodeLocalizedText(cat.NameI18n)
 		}
 	}
 	dto.Tags = s.tagNames(r, record.ID)
@@ -918,11 +924,17 @@ func (s *Server) handleUploadScreenshot(w http.ResponseWriter, r *http.Request, 
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Screenshots must be png, jpg, or webp", nil)
 		return
 	}
-	obj, err := storage.SaveFile(r.Context(), s.storage, file, header.Filename, 10<<20)
+	backend, err := s.storageBackend(r.Context())
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "SCREENSHOT_UPLOAD_FAILED", err.Error(), nil)
 		return
 	}
+	obj, err := storage.SaveFile(r.Context(), backend, file, header.Filename, 10<<20)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "SCREENSHOT_UPLOAD_FAILED", err.Error(), nil)
+		return
+	}
+	deviceType := appscreenshot.DeviceType(catalogmeta.CleanDeviceType(r.FormValue("deviceType")))
 	count, _ := s.db.AppScreenshot.Query().Where(appscreenshot.AppIDEQ(appID)).Count(r.Context())
 	created, err := s.db.AppScreenshot.Create().
 		SetAppID(appID).
@@ -930,10 +942,11 @@ func (s *Server) handleUploadScreenshot(w http.ResponseWriter, r *http.Request, 
 		SetImageURL(s.absoluteURL(r.Context(), obj.DownloadURL)).
 		SetStoragePath(obj.Path).
 		SetCaption(r.FormValue("caption")).
+		SetDeviceType(deviceType).
 		SetSortOrder(count).
 		Save(r.Context())
 	if err != nil {
-		_ = s.storage.Delete(r.Context(), obj.Path)
+		_ = backend.Delete(r.Context(), obj.Path)
 		writeError(w, http.StatusInternalServerError, "SCREENSHOT_CREATE_FAILED", "Could not save screenshot", nil)
 		return
 	}
@@ -1016,7 +1029,7 @@ func (s *Server) handleDeleteScreenshot(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	if shot.StoragePath != "" {
-		_ = s.storage.Delete(r.Context(), shot.StoragePath)
+		s.deleteStoredObject(r.Context(), shot.StoragePath)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
@@ -1042,12 +1055,13 @@ func (s *Server) loadScreenshots(r *http.Request, appID int) ([]screenshot, erro
 
 func toScreenshotDTO(record *entgo.AppScreenshot) screenshot {
 	return screenshot{
-		ID:        record.ID,
-		AppID:     record.AppID,
-		ImageURL:  record.ImageURL,
-		Caption:   record.Caption,
-		SortOrder: record.SortOrder,
-		CreatedAt: record.CreatedAt,
+		ID:         record.ID,
+		AppID:      record.AppID,
+		ImageURL:   record.ImageURL,
+		Caption:    record.Caption,
+		DeviceType: catalogmeta.CleanDeviceType(record.DeviceType.String()),
+		SortOrder:  record.SortOrder,
+		CreatedAt:  record.CreatedAt,
 	}
 }
 

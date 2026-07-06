@@ -405,7 +405,7 @@ export function SourcesView({
                     </div>
                   </div>
                   <div className="row-actions">
-                    <XIconButton label={t('sources.editSource', { name: source.name })} variant="ghost" icon={<Pencil size={17} />} onClick={() => openEditSource(source)} />
+                    <XIconButton label={t('sources.editTitle')} variant="ghost" icon={<Pencil size={17} />} onClick={() => openEditSource(source)} />
                     <XIconButton
                       label={t('sources.syncSource', { name: source.name })}
                       variant="ghost"

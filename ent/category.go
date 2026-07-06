@@ -19,6 +19,8 @@ type Category struct {
 	ID int `json:"id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
+	// NameI18n holds the value of the "name_i18n" field.
+	NameI18n string `json:"name_i18n,omitempty"`
 	// Slug holds the value of the "slug" field.
 	Slug string `json:"slug,omitempty"`
 	// ParentID holds the value of the "parent_id" field.
@@ -39,7 +41,7 @@ func (*Category) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case category.FieldID, category.FieldParentID, category.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
-		case category.FieldName, category.FieldSlug:
+		case category.FieldName, category.FieldNameI18n, category.FieldSlug:
 			values[i] = new(sql.NullString)
 		case category.FieldCreatedAt, category.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -69,6 +71,12 @@ func (_m *Category) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case category.FieldNameI18n:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field name_i18n", values[i])
+			} else if value.Valid {
+				_m.NameI18n = value.String
 			}
 		case category.FieldSlug:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -139,6 +147,9 @@ func (_m *Category) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("name_i18n=")
+	builder.WriteString(_m.NameI18n)
 	builder.WriteString(", ")
 	builder.WriteString("slug=")
 	builder.WriteString(_m.Slug)

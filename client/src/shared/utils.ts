@@ -57,13 +57,21 @@ export function hasInstallableVersion(app: StoreApp | SourceApp) {
 }
 
 export function localizedName(record: { name: string; nameI18n?: Record<string, string> }) {
+  return localizedText(record.nameI18n, record.name);
+}
+
+export function localizedText(values?: Record<string, string>, fallback = '') {
   const language = (i18n.resolvedLanguage || i18n.language || '').toLowerCase();
   const candidates = language.startsWith('zh') ? ['zh-CN', 'zh_Hans', 'zh', 'en'] : ['en', 'zh-CN', 'zh_Hans', 'zh'];
   for (const key of candidates) {
-    const value = record.nameI18n?.[key]?.trim();
+    const value = values?.[key]?.trim();
     if (value) return value;
   }
-  return record.name;
+  return fallback;
+}
+
+export function localizedCategory(record: { category?: string; categoryI18n?: Record<string, string> }, fallback = '') {
+  return localizedText(record.categoryI18n, record.category || fallback);
 }
 
 export function selectedSourceVersion(app: SourceApp, version?: string) {

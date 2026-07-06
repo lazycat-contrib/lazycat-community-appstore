@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 )
@@ -87,6 +88,7 @@ var (
 		{Name: "image_url", Type: field.TypeString},
 		{Name: "storage_path", Type: field.TypeString, Default: ""},
 		{Name: "caption", Type: field.TypeString, Default: ""},
+		{Name: "device_type", Type: field.TypeEnum, Enums: []string{"DESKTOP", "MOBILE"}, Default: "DESKTOP"},
 		{Name: "sort_order", Type: field.TypeInt, Default: 0},
 		{Name: "created_at", Type: field.TypeTime},
 	}
@@ -99,7 +101,7 @@ var (
 			{
 				Name:    "appscreenshot_app_id_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{AppScreenshotsColumns[1], AppScreenshotsColumns[6]},
+				Columns: []*schema.Column{AppScreenshotsColumns[1], AppScreenshotsColumns[7]},
 			},
 			{
 				Name:    "appscreenshot_uploader_id",
@@ -202,6 +204,7 @@ var (
 	CategoriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "name", Type: field.TypeString},
+		{Name: "name_i18n", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "slug", Type: field.TypeString, Unique: true},
 		{Name: "parent_id", Type: field.TypeInt, Nullable: true},
 		{Name: "sort_order", Type: field.TypeInt, Default: 0},
@@ -217,7 +220,7 @@ var (
 			{
 				Name:    "category_parent_id",
 				Unique:  false,
-				Columns: []*schema.Column{CategoriesColumns[3]},
+				Columns: []*schema.Column{CategoriesColumns[4]},
 			},
 		},
 	}
@@ -327,8 +330,10 @@ var (
 		{Name: "slug", Type: field.TypeString},
 		{Name: "summary", Type: field.TypeString, Default: ""},
 		{Name: "category", Type: field.TypeString, Default: ""},
+		{Name: "category_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "icon_url", Type: field.TypeString, Default: ""},
 		{Name: "install_protected", Type: field.TypeBool, Default: false},
+		{Name: "screenshots_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "latest_version_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "versions_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "created_at", Type: field.TypeTime},
@@ -343,7 +348,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "client_source_apps_client_sources_apps",
-				Columns:    []*schema.Column{ClientSourceAppsColumns[13]},
+				Columns:    []*schema.Column{ClientSourceAppsColumns[15]},
 				RefColumns: []*schema.Column{ClientSourcesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -352,17 +357,17 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_package_id",
 				Unique:  true,
-				Columns: []*schema.Column{ClientSourceAppsColumns[13], ClientSourceAppsColumns[2]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[15], ClientSourceAppsColumns[2]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_slug",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[13], ClientSourceAppsColumns[4]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[15], ClientSourceAppsColumns[4]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[13], ClientSourceAppsColumns[12]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[15], ClientSourceAppsColumns[14]},
 			},
 		},
 	}
@@ -724,10 +729,38 @@ var (
 		Columns:    SiteSettingsColumns,
 		PrimaryKey: []*schema.Column{SiteSettingsColumns[0]},
 	}
+	// StorageConfigsColumns holds the columns for the "storage_configs" table.
+	StorageConfigsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "key", Type: field.TypeString, Unique: true},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"LOCAL", "S3", "CLOUDFLARE_R2", "WEBDAV"}, Default: "LOCAL"},
+		{Name: "delivery_mode", Type: field.TypeEnum, Enums: []string{"SERVER", "DIRECT"}, Default: "SERVER"},
+		{Name: "local_path", Type: field.TypeString, Default: ""},
+		{Name: "endpoint_url", Type: field.TypeString, Default: ""},
+		{Name: "bucket_name", Type: field.TypeString, Default: ""},
+		{Name: "region", Type: field.TypeString, Default: "auto"},
+		{Name: "path_style", Type: field.TypeBool, Default: true},
+		{Name: "account_id", Type: field.TypeString, Default: ""},
+		{Name: "root_prefix", Type: field.TypeString, Default: ""},
+		{Name: "access_key_id", Type: field.TypeString, Default: ""},
+		{Name: "secret_access_key", Type: field.TypeString, Default: ""},
+		{Name: "webdav_username", Type: field.TypeString, Default: ""},
+		{Name: "webdav_password", Type: field.TypeString, Default: ""},
+		{Name: "public_base_url", Type: field.TypeString, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// StorageConfigsTable holds the schema information for the "storage_configs" table.
+	StorageConfigsTable = &schema.Table{
+		Name:       "storage_configs",
+		Columns:    StorageConfigsColumns,
+		PrimaryKey: []*schema.Column{StorageConfigsColumns[0]},
+	}
 	// TagsColumns holds the columns for the "tags" table.
 	TagsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "name", Type: field.TypeString},
+		{Name: "name_i18n", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "slug", Type: field.TypeString, Unique: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -810,6 +843,7 @@ var (
 		OutdatedMarksTable,
 		ReviewRequestsTable,
 		SiteSettingsTable,
+		StorageConfigsTable,
 		TagsTable,
 		UsersTable,
 		UserGroupsTable,
@@ -818,4 +852,7 @@ var (
 
 func init() {
 	ClientSourceAppsTable.ForeignKeys[0].RefTable = ClientSourcesTable
+	StorageConfigsTable.Annotation = &entsql.Annotation{
+		Table: "storage_configs",
+	}
 }

@@ -27,6 +27,8 @@ type AppScreenshot struct {
 	StoragePath string `json:"storage_path,omitempty"`
 	// Caption holds the value of the "caption" field.
 	Caption string `json:"caption,omitempty"`
+	// DeviceType holds the value of the "device_type" field.
+	DeviceType appscreenshot.DeviceType `json:"device_type,omitempty"`
 	// SortOrder holds the value of the "sort_order" field.
 	SortOrder int `json:"sort_order,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -41,7 +43,7 @@ func (*AppScreenshot) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case appscreenshot.FieldID, appscreenshot.FieldAppID, appscreenshot.FieldUploaderID, appscreenshot.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
-		case appscreenshot.FieldImageURL, appscreenshot.FieldStoragePath, appscreenshot.FieldCaption:
+		case appscreenshot.FieldImageURL, appscreenshot.FieldStoragePath, appscreenshot.FieldCaption, appscreenshot.FieldDeviceType:
 			values[i] = new(sql.NullString)
 		case appscreenshot.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -95,6 +97,12 @@ func (_m *AppScreenshot) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field caption", values[i])
 			} else if value.Valid {
 				_m.Caption = value.String
+			}
+		case appscreenshot.FieldDeviceType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field device_type", values[i])
+			} else if value.Valid {
+				_m.DeviceType = appscreenshot.DeviceType(value.String)
 			}
 		case appscreenshot.FieldSortOrder:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -158,6 +166,9 @@ func (_m *AppScreenshot) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("caption=")
 	builder.WriteString(_m.Caption)
+	builder.WriteString(", ")
+	builder.WriteString("device_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DeviceType))
 	builder.WriteString(", ")
 	builder.WriteString("sort_order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SortOrder))

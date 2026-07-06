@@ -9,6 +9,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var (
@@ -23,10 +24,19 @@ type Object struct {
 	SHA256      string
 }
 
+type Reader struct {
+	Body        io.ReadCloser
+	Name        string
+	Size        int64
+	ModTime     time.Time
+	ContentType string
+}
+
 type Backend interface {
 	Save(ctx context.Context, filename string, r io.Reader) (Object, error)
 	Delete(ctx context.Context, path string) error
 	PublicURL(path string) string
+	Open(ctx context.Context, path string) (Reader, error)
 }
 
 func SaveLPK(ctx context.Context, backend Backend, r io.Reader, filename string, maxBytes int64) (Object, error) {

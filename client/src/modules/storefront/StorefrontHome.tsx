@@ -6,7 +6,7 @@ import { API_BASE } from '../../config';
 import { AppIcon } from '../../components/AppIcon';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { Category, Collection, SiteProfile, StoreApp, Toast } from '../../shared/types';
-import { errorMessage } from '../../shared/utils';
+import { errorMessage, localizedCategory, localizedName } from '../../shared/utils';
 import { AppGrid } from './AppGrid';
 
 export function StorefrontHome({
@@ -68,7 +68,7 @@ export function StorefrontHome({
                 <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={app.name} size={52} />
                 <span>
                   <strong>{app.name}</strong>
-                  <small>{app.category || t('common.uncategorized')}</small>
+                  <small>{localizedCategory(app, t('common.uncategorized'))}</small>
                 </span>
               </XClickableCard>
             ))}
@@ -111,7 +111,7 @@ export function StorefrontHome({
           <div className="category-rail" aria-label={t('home.categories')}>
             <XButton type="button" variant="secondary" size="sm" label={t('common.all')} icon={<Layers3 size={16} />} onClick={() => onCategory('all')} />
             {categories.map((category) => (
-              <XButton type="button" variant="secondary" size="sm" key={category.id} label={category.name} icon={<Tag size={16} />} onClick={() => onCategory(category.name)} />
+              <XButton type="button" variant="secondary" size="sm" key={category.id} label={localizedName(category)} icon={<Tag size={16} />} onClick={() => onCategory(String(category.id))} />
             ))}
           </div>
         </section>

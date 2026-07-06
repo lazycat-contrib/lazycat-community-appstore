@@ -75,6 +75,9 @@ type ReviewRequest func(*sql.Selector)
 // SiteSetting is the predicate function for sitesetting builders.
 type SiteSetting func(*sql.Selector)
 
+// StorageConfig is the predicate function for storageconfig builders.
+type StorageConfig func(*sql.Selector)
+
 // Tag is the predicate function for tag builders.
 type Tag func(*sql.Selector)
 

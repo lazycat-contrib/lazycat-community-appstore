@@ -29,6 +29,7 @@ import (
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/schema"
 	"lazycat.community/appstore/ent/sitesetting"
+	"lazycat.community/appstore/ent/storageconfig"
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/ent/usergroup"
@@ -123,11 +124,11 @@ func init() {
 	// appscreenshot.DefaultCaption holds the default value on creation for the caption field.
 	appscreenshot.DefaultCaption = appscreenshotDescCaption.Default.(string)
 	// appscreenshotDescSortOrder is the schema descriptor for sort_order field.
-	appscreenshotDescSortOrder := appscreenshotFields[5].Descriptor()
+	appscreenshotDescSortOrder := appscreenshotFields[6].Descriptor()
 	// appscreenshot.DefaultSortOrder holds the default value on creation for the sort_order field.
 	appscreenshot.DefaultSortOrder = appscreenshotDescSortOrder.Default.(int)
 	// appscreenshotDescCreatedAt is the schema descriptor for created_at field.
-	appscreenshotDescCreatedAt := appscreenshotFields[6].Descriptor()
+	appscreenshotDescCreatedAt := appscreenshotFields[7].Descriptor()
 	// appscreenshot.DefaultCreatedAt holds the default value on creation for the created_at field.
 	appscreenshot.DefaultCreatedAt = appscreenshotDescCreatedAt.Default.(func() time.Time)
 	apptagFields := schema.AppTag{}.Fields()
@@ -184,20 +185,24 @@ func init() {
 	categoryDescName := categoryFields[0].Descriptor()
 	// category.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	category.NameValidator = categoryDescName.Validators[0].(func(string) error)
+	// categoryDescNameI18n is the schema descriptor for name_i18n field.
+	categoryDescNameI18n := categoryFields[1].Descriptor()
+	// category.DefaultNameI18n holds the default value on creation for the name_i18n field.
+	category.DefaultNameI18n = categoryDescNameI18n.Default.(string)
 	// categoryDescSlug is the schema descriptor for slug field.
-	categoryDescSlug := categoryFields[1].Descriptor()
+	categoryDescSlug := categoryFields[2].Descriptor()
 	// category.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
 	category.SlugValidator = categoryDescSlug.Validators[0].(func(string) error)
 	// categoryDescSortOrder is the schema descriptor for sort_order field.
-	categoryDescSortOrder := categoryFields[3].Descriptor()
+	categoryDescSortOrder := categoryFields[4].Descriptor()
 	// category.DefaultSortOrder holds the default value on creation for the sort_order field.
 	category.DefaultSortOrder = categoryDescSortOrder.Default.(int)
 	// categoryDescCreatedAt is the schema descriptor for created_at field.
-	categoryDescCreatedAt := categoryFields[4].Descriptor()
+	categoryDescCreatedAt := categoryFields[5].Descriptor()
 	// category.DefaultCreatedAt holds the default value on creation for the created_at field.
 	category.DefaultCreatedAt = categoryDescCreatedAt.Default.(func() time.Time)
 	// categoryDescUpdatedAt is the schema descriptor for updated_at field.
-	categoryDescUpdatedAt := categoryFields[5].Descriptor()
+	categoryDescUpdatedAt := categoryFields[6].Descriptor()
 	// category.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	category.DefaultUpdatedAt = categoryDescUpdatedAt.Default.(func() time.Time)
 	// category.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -338,28 +343,36 @@ func init() {
 	clientsourceappDescCategory := clientsourceappFields[6].Descriptor()
 	// clientsourceapp.DefaultCategory holds the default value on creation for the category field.
 	clientsourceapp.DefaultCategory = clientsourceappDescCategory.Default.(string)
+	// clientsourceappDescCategoryI18nJSON is the schema descriptor for category_i18n_json field.
+	clientsourceappDescCategoryI18nJSON := clientsourceappFields[7].Descriptor()
+	// clientsourceapp.DefaultCategoryI18nJSON holds the default value on creation for the category_i18n_json field.
+	clientsourceapp.DefaultCategoryI18nJSON = clientsourceappDescCategoryI18nJSON.Default.(string)
 	// clientsourceappDescIconURL is the schema descriptor for icon_url field.
-	clientsourceappDescIconURL := clientsourceappFields[7].Descriptor()
+	clientsourceappDescIconURL := clientsourceappFields[8].Descriptor()
 	// clientsourceapp.DefaultIconURL holds the default value on creation for the icon_url field.
 	clientsourceapp.DefaultIconURL = clientsourceappDescIconURL.Default.(string)
 	// clientsourceappDescInstallProtected is the schema descriptor for install_protected field.
-	clientsourceappDescInstallProtected := clientsourceappFields[8].Descriptor()
+	clientsourceappDescInstallProtected := clientsourceappFields[9].Descriptor()
 	// clientsourceapp.DefaultInstallProtected holds the default value on creation for the install_protected field.
 	clientsourceapp.DefaultInstallProtected = clientsourceappDescInstallProtected.Default.(bool)
+	// clientsourceappDescScreenshotsJSON is the schema descriptor for screenshots_json field.
+	clientsourceappDescScreenshotsJSON := clientsourceappFields[10].Descriptor()
+	// clientsourceapp.DefaultScreenshotsJSON holds the default value on creation for the screenshots_json field.
+	clientsourceapp.DefaultScreenshotsJSON = clientsourceappDescScreenshotsJSON.Default.(string)
 	// clientsourceappDescLatestVersionJSON is the schema descriptor for latest_version_json field.
-	clientsourceappDescLatestVersionJSON := clientsourceappFields[9].Descriptor()
+	clientsourceappDescLatestVersionJSON := clientsourceappFields[11].Descriptor()
 	// clientsourceapp.DefaultLatestVersionJSON holds the default value on creation for the latest_version_json field.
 	clientsourceapp.DefaultLatestVersionJSON = clientsourceappDescLatestVersionJSON.Default.(string)
 	// clientsourceappDescVersionsJSON is the schema descriptor for versions_json field.
-	clientsourceappDescVersionsJSON := clientsourceappFields[10].Descriptor()
+	clientsourceappDescVersionsJSON := clientsourceappFields[12].Descriptor()
 	// clientsourceapp.DefaultVersionsJSON holds the default value on creation for the versions_json field.
 	clientsourceapp.DefaultVersionsJSON = clientsourceappDescVersionsJSON.Default.(string)
 	// clientsourceappDescCreatedAt is the schema descriptor for created_at field.
-	clientsourceappDescCreatedAt := clientsourceappFields[11].Descriptor()
+	clientsourceappDescCreatedAt := clientsourceappFields[13].Descriptor()
 	// clientsourceapp.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsourceapp.DefaultCreatedAt = clientsourceappDescCreatedAt.Default.(func() time.Time)
 	// clientsourceappDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsourceappDescUpdatedAt := clientsourceappFields[12].Descriptor()
+	clientsourceappDescUpdatedAt := clientsourceappFields[14].Descriptor()
 	// clientsourceapp.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsourceapp.DefaultUpdatedAt = clientsourceappDescUpdatedAt.Default.(func() time.Time)
 	// clientsourceapp.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -570,22 +583,90 @@ func init() {
 	sitesetting.DefaultUpdatedAt = sitesettingDescUpdatedAt.Default.(func() time.Time)
 	// sitesetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	sitesetting.UpdateDefaultUpdatedAt = sitesettingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	storageconfigFields := schema.StorageConfig{}.Fields()
+	_ = storageconfigFields
+	// storageconfigDescKey is the schema descriptor for key field.
+	storageconfigDescKey := storageconfigFields[0].Descriptor()
+	// storageconfig.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	storageconfig.KeyValidator = storageconfigDescKey.Validators[0].(func(string) error)
+	// storageconfigDescLocalPath is the schema descriptor for local_path field.
+	storageconfigDescLocalPath := storageconfigFields[3].Descriptor()
+	// storageconfig.DefaultLocalPath holds the default value on creation for the local_path field.
+	storageconfig.DefaultLocalPath = storageconfigDescLocalPath.Default.(string)
+	// storageconfigDescEndpointURL is the schema descriptor for endpoint_url field.
+	storageconfigDescEndpointURL := storageconfigFields[4].Descriptor()
+	// storageconfig.DefaultEndpointURL holds the default value on creation for the endpoint_url field.
+	storageconfig.DefaultEndpointURL = storageconfigDescEndpointURL.Default.(string)
+	// storageconfigDescBucketName is the schema descriptor for bucket_name field.
+	storageconfigDescBucketName := storageconfigFields[5].Descriptor()
+	// storageconfig.DefaultBucketName holds the default value on creation for the bucket_name field.
+	storageconfig.DefaultBucketName = storageconfigDescBucketName.Default.(string)
+	// storageconfigDescRegion is the schema descriptor for region field.
+	storageconfigDescRegion := storageconfigFields[6].Descriptor()
+	// storageconfig.DefaultRegion holds the default value on creation for the region field.
+	storageconfig.DefaultRegion = storageconfigDescRegion.Default.(string)
+	// storageconfigDescPathStyle is the schema descriptor for path_style field.
+	storageconfigDescPathStyle := storageconfigFields[7].Descriptor()
+	// storageconfig.DefaultPathStyle holds the default value on creation for the path_style field.
+	storageconfig.DefaultPathStyle = storageconfigDescPathStyle.Default.(bool)
+	// storageconfigDescAccountID is the schema descriptor for account_id field.
+	storageconfigDescAccountID := storageconfigFields[8].Descriptor()
+	// storageconfig.DefaultAccountID holds the default value on creation for the account_id field.
+	storageconfig.DefaultAccountID = storageconfigDescAccountID.Default.(string)
+	// storageconfigDescRootPrefix is the schema descriptor for root_prefix field.
+	storageconfigDescRootPrefix := storageconfigFields[9].Descriptor()
+	// storageconfig.DefaultRootPrefix holds the default value on creation for the root_prefix field.
+	storageconfig.DefaultRootPrefix = storageconfigDescRootPrefix.Default.(string)
+	// storageconfigDescAccessKeyID is the schema descriptor for access_key_id field.
+	storageconfigDescAccessKeyID := storageconfigFields[10].Descriptor()
+	// storageconfig.DefaultAccessKeyID holds the default value on creation for the access_key_id field.
+	storageconfig.DefaultAccessKeyID = storageconfigDescAccessKeyID.Default.(string)
+	// storageconfigDescSecretAccessKey is the schema descriptor for secret_access_key field.
+	storageconfigDescSecretAccessKey := storageconfigFields[11].Descriptor()
+	// storageconfig.DefaultSecretAccessKey holds the default value on creation for the secret_access_key field.
+	storageconfig.DefaultSecretAccessKey = storageconfigDescSecretAccessKey.Default.(string)
+	// storageconfigDescWebdavUsername is the schema descriptor for webdav_username field.
+	storageconfigDescWebdavUsername := storageconfigFields[12].Descriptor()
+	// storageconfig.DefaultWebdavUsername holds the default value on creation for the webdav_username field.
+	storageconfig.DefaultWebdavUsername = storageconfigDescWebdavUsername.Default.(string)
+	// storageconfigDescWebdavPassword is the schema descriptor for webdav_password field.
+	storageconfigDescWebdavPassword := storageconfigFields[13].Descriptor()
+	// storageconfig.DefaultWebdavPassword holds the default value on creation for the webdav_password field.
+	storageconfig.DefaultWebdavPassword = storageconfigDescWebdavPassword.Default.(string)
+	// storageconfigDescPublicBaseURL is the schema descriptor for public_base_url field.
+	storageconfigDescPublicBaseURL := storageconfigFields[14].Descriptor()
+	// storageconfig.DefaultPublicBaseURL holds the default value on creation for the public_base_url field.
+	storageconfig.DefaultPublicBaseURL = storageconfigDescPublicBaseURL.Default.(string)
+	// storageconfigDescCreatedAt is the schema descriptor for created_at field.
+	storageconfigDescCreatedAt := storageconfigFields[15].Descriptor()
+	// storageconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
+	storageconfig.DefaultCreatedAt = storageconfigDescCreatedAt.Default.(func() time.Time)
+	// storageconfigDescUpdatedAt is the schema descriptor for updated_at field.
+	storageconfigDescUpdatedAt := storageconfigFields[16].Descriptor()
+	// storageconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	storageconfig.DefaultUpdatedAt = storageconfigDescUpdatedAt.Default.(func() time.Time)
+	// storageconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	storageconfig.UpdateDefaultUpdatedAt = storageconfigDescUpdatedAt.UpdateDefault.(func() time.Time)
 	tagFields := schema.Tag{}.Fields()
 	_ = tagFields
 	// tagDescName is the schema descriptor for name field.
 	tagDescName := tagFields[0].Descriptor()
 	// tag.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	tag.NameValidator = tagDescName.Validators[0].(func(string) error)
+	// tagDescNameI18n is the schema descriptor for name_i18n field.
+	tagDescNameI18n := tagFields[1].Descriptor()
+	// tag.DefaultNameI18n holds the default value on creation for the name_i18n field.
+	tag.DefaultNameI18n = tagDescNameI18n.Default.(string)
 	// tagDescSlug is the schema descriptor for slug field.
-	tagDescSlug := tagFields[1].Descriptor()
+	tagDescSlug := tagFields[2].Descriptor()
 	// tag.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
 	tag.SlugValidator = tagDescSlug.Validators[0].(func(string) error)
 	// tagDescCreatedAt is the schema descriptor for created_at field.
-	tagDescCreatedAt := tagFields[2].Descriptor()
+	tagDescCreatedAt := tagFields[3].Descriptor()
 	// tag.DefaultCreatedAt holds the default value on creation for the created_at field.
 	tag.DefaultCreatedAt = tagDescCreatedAt.Default.(func() time.Time)
 	// tagDescUpdatedAt is the schema descriptor for updated_at field.
-	tagDescUpdatedAt := tagFields[3].Descriptor()
+	tagDescUpdatedAt := tagFields[4].Descriptor()
 	// tag.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	tag.DefaultUpdatedAt = tagDescUpdatedAt.Default.(func() time.Time)
 	// tag.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

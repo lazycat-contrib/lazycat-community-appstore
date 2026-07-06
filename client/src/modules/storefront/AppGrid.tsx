@@ -6,7 +6,7 @@ import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCar
 import { AppIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
 import type { StoreApp } from '../../shared/types';
-import { cx, hasInstallableVersion } from '../../shared/utils';
+import { cx, hasInstallableVersion, localizedCategory } from '../../shared/utils';
 
 export function AppGrid({
   apps,
@@ -39,7 +39,7 @@ export function AppGrid({
               <ChevronRight size={18} />
             </div>
             <div className="app-meta">
-              <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
+              <span><Tag size={14} /> {localizedCategory(app, t('common.uncategorized'))}</span>
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
               <span><Download size={14} /> {t('app.downloads', { count: app.downloadCount })}</span>
               {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}

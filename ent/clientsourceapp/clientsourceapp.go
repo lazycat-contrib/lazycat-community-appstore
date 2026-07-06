@@ -28,10 +28,14 @@ const (
 	FieldSummary = "summary"
 	// FieldCategory holds the string denoting the category field in the database.
 	FieldCategory = "category"
+	// FieldCategoryI18nJSON holds the string denoting the category_i18n_json field in the database.
+	FieldCategoryI18nJSON = "category_i18n_json"
 	// FieldIconURL holds the string denoting the icon_url field in the database.
 	FieldIconURL = "icon_url"
 	// FieldInstallProtected holds the string denoting the install_protected field in the database.
 	FieldInstallProtected = "install_protected"
+	// FieldScreenshotsJSON holds the string denoting the screenshots_json field in the database.
+	FieldScreenshotsJSON = "screenshots_json"
 	// FieldLatestVersionJSON holds the string denoting the latest_version_json field in the database.
 	FieldLatestVersionJSON = "latest_version_json"
 	// FieldVersionsJSON holds the string denoting the versions_json field in the database.
@@ -63,8 +67,10 @@ var Columns = []string{
 	FieldSlug,
 	FieldSummary,
 	FieldCategory,
+	FieldCategoryI18nJSON,
 	FieldIconURL,
 	FieldInstallProtected,
+	FieldScreenshotsJSON,
 	FieldLatestVersionJSON,
 	FieldVersionsJSON,
 	FieldCreatedAt,
@@ -94,10 +100,14 @@ var (
 	DefaultSummary string
 	// DefaultCategory holds the default value on creation for the "category" field.
 	DefaultCategory string
+	// DefaultCategoryI18nJSON holds the default value on creation for the "category_i18n_json" field.
+	DefaultCategoryI18nJSON string
 	// DefaultIconURL holds the default value on creation for the "icon_url" field.
 	DefaultIconURL string
 	// DefaultInstallProtected holds the default value on creation for the "install_protected" field.
 	DefaultInstallProtected bool
+	// DefaultScreenshotsJSON holds the default value on creation for the "screenshots_json" field.
+	DefaultScreenshotsJSON string
 	// DefaultLatestVersionJSON holds the default value on creation for the "latest_version_json" field.
 	DefaultLatestVersionJSON string
 	// DefaultVersionsJSON holds the default value on creation for the "versions_json" field.
@@ -153,6 +163,11 @@ func ByCategory(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCategory, opts...).ToFunc()
 }
 
+// ByCategoryI18nJSON orders the results by the category_i18n_json field.
+func ByCategoryI18nJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCategoryI18nJSON, opts...).ToFunc()
+}
+
 // ByIconURL orders the results by the icon_url field.
 func ByIconURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIconURL, opts...).ToFunc()
@@ -161,6 +176,11 @@ func ByIconURL(opts ...sql.OrderTermOption) OrderOption {
 // ByInstallProtected orders the results by the install_protected field.
 func ByInstallProtected(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInstallProtected, opts...).ToFunc()
+}
+
+// ByScreenshotsJSON orders the results by the screenshots_json field.
+func ByScreenshotsJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldScreenshotsJSON, opts...).ToFunc()
 }
 
 // ByLatestVersionJSON orders the results by the latest_version_json field.

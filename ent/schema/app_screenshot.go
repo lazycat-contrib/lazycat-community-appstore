@@ -19,6 +19,7 @@ func (AppScreenshot) Fields() []ent.Field {
 		field.String("image_url").NotEmpty(),
 		field.String("storage_path").Default(""),
 		field.String("caption").Default(""),
+		field.Enum("device_type").Values("DESKTOP", "MOBILE").Default("DESKTOP"),
 		field.Int("sort_order").Default(0),
 		field.Time("created_at").Default(time.Now),
 	}

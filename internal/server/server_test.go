@@ -1289,6 +1289,84 @@ func TestAdminSettingsRejectInvalidValues(t *testing.T) {
 	}
 }
 
+func TestAdminStorageConfigCanBeManagedAndTested(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodGet, "/api/v1/admin/storage", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("storage get status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"provider":"LOCAL"`) || !strings.Contains(rec.Body.String(), `"deliveryMode":"SERVER"`) {
+		t.Fatalf("storage defaults body = %s", rec.Body.String())
+	}
+
+	root := filepath.Join(t.TempDir(), "objects")
+	rec = app.do(http.MethodPatch, "/api/v1/admin/storage", map[string]any{
+		"provider":     "LOCAL",
+		"deliveryMode": "SERVER",
+		"localPath":    root,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("storage update status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), root) || !strings.Contains(rec.Body.String(), `/api/v1/files/`) {
+		t.Fatalf("storage update body = %s", rec.Body.String())
+	}
+
+	rec = app.do(http.MethodPost, "/api/v1/admin/storage/test", map[string]any{
+		"provider":     "LOCAL",
+		"deliveryMode": "SERVER",
+		"localPath":    root,
+	})
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Fatalf("storage test status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAdminStorageConfigRejectsIncompleteSettings(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	tests := []map[string]any{
+		{"provider": "S3", "deliveryMode": "SERVER", "bucketName": "apps"},
+		{"provider": "CLOUDFLARE_R2", "deliveryMode": "DIRECT", "endpointUrl": "https://r2.example.com", "bucketName": "apps", "accessKeyId": "ak", "secretAccessKey": "sk"},
+		{"provider": "WEBDAV", "deliveryMode": "SERVER", "endpointUrl": "ftp://files.example.com"},
+	}
+	for _, body := range tests {
+		rec := app.do(http.MethodPatch, "/api/v1/admin/storage", body)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("storage update %#v status = %d, body = %s", body, rec.Code, rec.Body.String())
+		}
+	}
+}
+
+func TestStorageProxyServesConfiguredLocalObjects(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	root := filepath.Join(t.TempDir(), "objects")
+	if err := os.MkdirAll(filepath.Join(root, "nested"), 0o755); err != nil {
+		t.Fatalf("mkdir storage: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "nested", "file.txt"), []byte("content"), 0o644); err != nil {
+		t.Fatalf("write storage file: %v", err)
+	}
+	rec := app.do(http.MethodPatch, "/api/v1/admin/storage", map[string]any{
+		"provider":     "LOCAL",
+		"deliveryMode": "SERVER",
+		"localPath":    root,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("storage update status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = app.do(http.MethodGet, "/api/v1/files/nested/file.txt", nil)
+	if rec.Code != http.StatusOK || rec.Body.String() != "content" {
+		t.Fatalf("proxy file status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAdminSettingsDoNotExposeInternalSettings(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()

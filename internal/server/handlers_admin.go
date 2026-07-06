@@ -18,6 +18,7 @@ import (
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/ent/tag"
+	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/mirror"
 )
 
@@ -129,10 +130,11 @@ func (s *Server) decideReview(w http.ResponseWriter, r *http.Request, u *entgo.U
 }
 
 type taxonomyRequest struct {
-	Name      string `json:"name"`
-	Slug      string `json:"slug"`
-	ParentID  *int   `json:"parentId"`
-	SortOrder *int   `json:"sortOrder"`
+	Name      string                    `json:"name"`
+	NameI18n  catalogmeta.LocalizedText `json:"nameI18n"`
+	Slug      string                    `json:"slug"`
+	ParentID  *int                      `json:"parentId"`
+	SortOrder *int                      `json:"sortOrder"`
 }
 
 func (s *Server) handleListCategories(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -145,7 +147,11 @@ func (s *Server) handlePublicListCategories(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusInternalServerError, "CATEGORY_LIST_FAILED", "Could not list categories", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"categories": records})
+	out := make([]categoryDTO, 0, len(records))
+	for _, record := range records {
+		out = append(out, toCategoryDTO(record))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"categories": out})
 }
 
 func (s *Server) handleCreateCategory(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -154,16 +160,20 @@ func (s *Server) handleCreateCategory(w http.ResponseWriter, r *http.Request, u 
 		badRequest(w, err)
 		return
 	}
+	input.NameI18n = catalogmeta.CleanLocalizedText(input.NameI18n)
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Category name is required", nil)
-		return
+		name = input.NameI18n.Fallback("")
+		if name == "" {
+			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Category name is required", nil)
+			return
+		}
 	}
 	slug := strings.TrimSpace(input.Slug)
 	if slug == "" {
 		slug = slugify(name)
 	}
-	create := s.db.Category.Create().SetName(name).SetSlug(slug)
+	create := s.db.Category.Create().SetName(name).SetNameI18n(catalogmeta.EncodeLocalizedText(input.NameI18n)).SetSlug(slug)
 	if input.ParentID != nil {
 		create.SetParentID(*input.ParentID)
 	}
@@ -175,7 +185,7 @@ func (s *Server) handleCreateCategory(w http.ResponseWriter, r *http.Request, u 
 		writeError(w, http.StatusConflict, "CATEGORY_CREATE_FAILED", "Could not create category", nil)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"category": record})
+	writeJSON(w, http.StatusCreated, map[string]any{"category": toCategoryDTO(record)})
 }
 
 func (s *Server) handleUpdateCategory(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -193,6 +203,14 @@ func (s *Server) handleUpdateCategory(w http.ResponseWriter, r *http.Request, u 
 	if name := strings.TrimSpace(input.Name); name != "" {
 		update.SetName(name)
 	}
+	if input.NameI18n != nil {
+		update.SetNameI18n(catalogmeta.EncodeLocalizedText(input.NameI18n))
+		if strings.TrimSpace(input.Name) == "" {
+			if name := input.NameI18n.Fallback(""); name != "" {
+				update.SetName(name)
+			}
+		}
+	}
 	if slug := strings.TrimSpace(input.Slug); slug != "" {
 		update.SetSlug(slug)
 	}
@@ -207,7 +225,7 @@ func (s *Server) handleUpdateCategory(w http.ResponseWriter, r *http.Request, u 
 		writeError(w, http.StatusConflict, "CATEGORY_UPDATE_FAILED", "Could not update category", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"category": record})
+	writeJSON(w, http.StatusOK, map[string]any{"category": toCategoryDTO(record)})
 }
 
 func (s *Server) handleDeleteCategory(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -234,7 +252,11 @@ func (s *Server) handlePublicListTags(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "TAG_LIST_FAILED", "Could not list tags", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"tags": records})
+	out := make([]tagDTO, 0, len(records))
+	for _, record := range records {
+		out = append(out, toTagDTO(record))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"tags": out})
 }
 
 func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -243,21 +265,25 @@ func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request, u *entg
 		badRequest(w, err)
 		return
 	}
+	input.NameI18n = catalogmeta.CleanLocalizedText(input.NameI18n)
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Tag name is required", nil)
-		return
+		name = input.NameI18n.Fallback("")
+		if name == "" {
+			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Tag name is required", nil)
+			return
+		}
 	}
 	slug := strings.TrimSpace(input.Slug)
 	if slug == "" {
 		slug = slugify(name)
 	}
-	record, err := s.db.Tag.Create().SetName(name).SetSlug(slug).Save(r.Context())
+	record, err := s.db.Tag.Create().SetName(name).SetNameI18n(catalogmeta.EncodeLocalizedText(input.NameI18n)).SetSlug(slug).Save(r.Context())
 	if err != nil {
 		writeError(w, http.StatusConflict, "TAG_CREATE_FAILED", "Could not create tag", nil)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"tag": record})
+	writeJSON(w, http.StatusCreated, map[string]any{"tag": toTagDTO(record)})
 }
 
 func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -274,6 +300,14 @@ func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request, u *entg
 	if name := strings.TrimSpace(input.Name); name != "" {
 		update.SetName(name)
 	}
+	if input.NameI18n != nil {
+		update.SetNameI18n(catalogmeta.EncodeLocalizedText(input.NameI18n))
+		if strings.TrimSpace(input.Name) == "" {
+			if name := input.NameI18n.Fallback(""); name != "" {
+				update.SetName(name)
+			}
+		}
+	}
 	if slug := strings.TrimSpace(input.Slug); slug != "" {
 		update.SetSlug(slug)
 	}
@@ -282,7 +316,31 @@ func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request, u *entg
 		writeError(w, http.StatusConflict, "TAG_UPDATE_FAILED", "Could not update tag", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"tag": updated})
+	writeJSON(w, http.StatusOK, map[string]any{"tag": toTagDTO(updated)})
+}
+
+func toCategoryDTO(record *entgo.Category) categoryDTO {
+	return categoryDTO{
+		ID:        record.ID,
+		Name:      record.Name,
+		NameI18n:  catalogmeta.DecodeLocalizedText(record.NameI18n),
+		Slug:      record.Slug,
+		ParentID:  record.ParentID,
+		SortOrder: record.SortOrder,
+		CreatedAt: record.CreatedAt,
+		UpdatedAt: record.UpdatedAt,
+	}
+}
+
+func toTagDTO(record *entgo.Tag) tagDTO {
+	return tagDTO{
+		ID:        record.ID,
+		Name:      record.Name,
+		NameI18n:  catalogmeta.DecodeLocalizedText(record.NameI18n),
+		Slug:      record.Slug,
+		CreatedAt: record.CreatedAt,
+		UpdatedAt: record.UpdatedAt,
+	}
 }
 
 func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -618,7 +676,7 @@ func (s *Server) enforceVersionRetention(r *http.Request, appID int) {
 	}
 	for _, old := range records[maxVersions:] {
 		if old.StoragePath != "" {
-			_ = s.storage.Delete(r.Context(), old.StoragePath)
+			s.deleteStoredObject(r.Context(), old.StoragePath)
 		}
 		_ = s.db.AppVersion.DeleteOneID(old.ID).Exec(r.Context())
 	}

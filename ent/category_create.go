@@ -26,6 +26,20 @@ func (_c *CategoryCreate) SetName(v string) *CategoryCreate {
 	return _c
 }
 
+// SetNameI18n sets the "name_i18n" field.
+func (_c *CategoryCreate) SetNameI18n(v string) *CategoryCreate {
+	_c.mutation.SetNameI18n(v)
+	return _c
+}
+
+// SetNillableNameI18n sets the "name_i18n" field if the given value is not nil.
+func (_c *CategoryCreate) SetNillableNameI18n(v *string) *CategoryCreate {
+	if v != nil {
+		_c.SetNameI18n(*v)
+	}
+	return _c
+}
+
 // SetSlug sets the "slug" field.
 func (_c *CategoryCreate) SetSlug(v string) *CategoryCreate {
 	_c.mutation.SetSlug(v)
@@ -123,6 +137,10 @@ func (_c *CategoryCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *CategoryCreate) defaults() {
+	if _, ok := _c.mutation.NameI18n(); !ok {
+		v := category.DefaultNameI18n
+		_c.mutation.SetNameI18n(v)
+	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		v := category.DefaultSortOrder
 		_c.mutation.SetSortOrder(v)
@@ -146,6 +164,9 @@ func (_c *CategoryCreate) check() error {
 		if err := category.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Category.name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.NameI18n(); !ok {
+		return &ValidationError{Name: "name_i18n", err: errors.New(`ent: missing required field "Category.name_i18n"`)}
 	}
 	if _, ok := _c.mutation.Slug(); !ok {
 		return &ValidationError{Name: "slug", err: errors.New(`ent: missing required field "Category.slug"`)}
@@ -193,6 +214,10 @@ func (_c *CategoryCreate) createSpec() (*Category, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(category.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.NameI18n(); ok {
+		_spec.SetField(category.FieldNameI18n, field.TypeString, value)
+		_node.NameI18n = value
 	}
 	if value, ok := _c.mutation.Slug(); ok {
 		_spec.SetField(category.FieldSlug, field.TypeString, value)

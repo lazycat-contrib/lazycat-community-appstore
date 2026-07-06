@@ -1,3 +1,5 @@
+import { localizedCategory } from '../../shared/utils';
+
 export type SourceAppFilterOption = {
   key: string;
   label: string;
@@ -8,6 +10,7 @@ export type SourceScopedApp = {
   sourceId?: number | string;
   sourceName: string;
   category?: string;
+  categoryI18n?: Record<string, string>;
 };
 
 export function sourceFilterKey(app: SourceScopedApp) {
@@ -31,8 +34,8 @@ export function sourceAppSourceOptions(apps: SourceScopedApp[]): SourceAppFilter
 export function sourceAppCategoryOptions(apps: SourceScopedApp[], uncategorizedLabel: string): SourceAppFilterOption[] {
   const options = new Map<string, SourceAppFilterOption>();
   for (const app of apps) {
-    const label = app.category?.trim() || uncategorizedLabel;
-    const key = app.category?.trim() || '__uncategorized__';
+    const label = localizedCategory(app, uncategorizedLabel);
+    const key = app.category?.trim() || label || '__uncategorized__';
     const current = options.get(key);
     if (current) {
       current.count += 1;
@@ -48,6 +51,6 @@ export function matchesSourceAppSource(app: SourceScopedApp, selectedSource: str
 }
 
 export function matchesSourceAppCategory(app: SourceScopedApp, selectedCategory: string) {
-  const categoryKey = app.category?.trim() || '__uncategorized__';
+  const categoryKey = app.category?.trim() || localizedCategory(app, '__uncategorized__') || '__uncategorized__';
   return selectedCategory === 'all' || categoryKey === selectedCategory;
 }

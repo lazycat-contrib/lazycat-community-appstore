@@ -42,6 +42,20 @@ func (_u *CategoryUpdate) SetNillableName(v *string) *CategoryUpdate {
 	return _u
 }
 
+// SetNameI18n sets the "name_i18n" field.
+func (_u *CategoryUpdate) SetNameI18n(v string) *CategoryUpdate {
+	_u.mutation.SetNameI18n(v)
+	return _u
+}
+
+// SetNillableNameI18n sets the "name_i18n" field if the given value is not nil.
+func (_u *CategoryUpdate) SetNillableNameI18n(v *string) *CategoryUpdate {
+	if v != nil {
+		_u.SetNameI18n(*v)
+	}
+	return _u
+}
+
 // SetSlug sets the "slug" field.
 func (_u *CategoryUpdate) SetSlug(v string) *CategoryUpdate {
 	_u.mutation.SetSlug(v)
@@ -195,6 +209,9 @@ func (_u *CategoryUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(category.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.NameI18n(); ok {
+		_spec.SetField(category.FieldNameI18n, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Slug(); ok {
 		_spec.SetField(category.FieldSlug, field.TypeString, value)
 	}
@@ -249,6 +266,20 @@ func (_u *CategoryUpdateOne) SetName(v string) *CategoryUpdateOne {
 func (_u *CategoryUpdateOne) SetNillableName(v *string) *CategoryUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetNameI18n sets the "name_i18n" field.
+func (_u *CategoryUpdateOne) SetNameI18n(v string) *CategoryUpdateOne {
+	_u.mutation.SetNameI18n(v)
+	return _u
+}
+
+// SetNillableNameI18n sets the "name_i18n" field if the given value is not nil.
+func (_u *CategoryUpdateOne) SetNillableNameI18n(v *string) *CategoryUpdateOne {
+	if v != nil {
+		_u.SetNameI18n(*v)
 	}
 	return _u
 }
@@ -435,6 +466,9 @@ func (_u *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err 
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(category.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.NameI18n(); ok {
+		_spec.SetField(category.FieldNameI18n, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Slug(); ok {
 		_spec.SetField(category.FieldSlug, field.TypeString, value)

@@ -33,6 +33,7 @@ export type StoreApp = {
   iconUrl?: string;
   status: string;
   category?: string;
+  categoryI18n?: Record<string, string>;
   tags: string[];
   visibleGroupIds: number[];
   allowUnreviewedUpdates: boolean;
@@ -57,6 +58,7 @@ export type Screenshot = {
   appId: number;
   imageUrl: string;
   caption: string;
+  deviceType?: 'DESKTOP' | 'MOBILE' | string;
   sortOrder: number;
 };
 
@@ -209,8 +211,10 @@ export type SourceApp = {
   slug: string;
   summary: string;
   category?: string;
+  categoryI18n?: Record<string, string>;
   iconUrl?: string;
   installProtected?: boolean;
+  screenshots?: Screenshot[];
   latestVersion?: SourceVersion;
   versions?: SourceVersion[];
 };

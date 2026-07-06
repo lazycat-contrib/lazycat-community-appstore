@@ -87,6 +87,20 @@ func (_c *ClientSourceAppCreate) SetNillableCategory(v *string) *ClientSourceApp
 	return _c
 }
 
+// SetCategoryI18nJSON sets the "category_i18n_json" field.
+func (_c *ClientSourceAppCreate) SetCategoryI18nJSON(v string) *ClientSourceAppCreate {
+	_c.mutation.SetCategoryI18nJSON(v)
+	return _c
+}
+
+// SetNillableCategoryI18nJSON sets the "category_i18n_json" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableCategoryI18nJSON(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetCategoryI18nJSON(*v)
+	}
+	return _c
+}
+
 // SetIconURL sets the "icon_url" field.
 func (_c *ClientSourceAppCreate) SetIconURL(v string) *ClientSourceAppCreate {
 	_c.mutation.SetIconURL(v)
@@ -111,6 +125,20 @@ func (_c *ClientSourceAppCreate) SetInstallProtected(v bool) *ClientSourceAppCre
 func (_c *ClientSourceAppCreate) SetNillableInstallProtected(v *bool) *ClientSourceAppCreate {
 	if v != nil {
 		_c.SetInstallProtected(*v)
+	}
+	return _c
+}
+
+// SetScreenshotsJSON sets the "screenshots_json" field.
+func (_c *ClientSourceAppCreate) SetScreenshotsJSON(v string) *ClientSourceAppCreate {
+	_c.mutation.SetScreenshotsJSON(v)
+	return _c
+}
+
+// SetNillableScreenshotsJSON sets the "screenshots_json" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableScreenshotsJSON(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetScreenshotsJSON(*v)
 	}
 	return _c
 }
@@ -223,6 +251,10 @@ func (_c *ClientSourceAppCreate) defaults() {
 		v := clientsourceapp.DefaultCategory
 		_c.mutation.SetCategory(v)
 	}
+	if _, ok := _c.mutation.CategoryI18nJSON(); !ok {
+		v := clientsourceapp.DefaultCategoryI18nJSON
+		_c.mutation.SetCategoryI18nJSON(v)
+	}
 	if _, ok := _c.mutation.IconURL(); !ok {
 		v := clientsourceapp.DefaultIconURL
 		_c.mutation.SetIconURL(v)
@@ -230,6 +262,10 @@ func (_c *ClientSourceAppCreate) defaults() {
 	if _, ok := _c.mutation.InstallProtected(); !ok {
 		v := clientsourceapp.DefaultInstallProtected
 		_c.mutation.SetInstallProtected(v)
+	}
+	if _, ok := _c.mutation.ScreenshotsJSON(); !ok {
+		v := clientsourceapp.DefaultScreenshotsJSON
+		_c.mutation.SetScreenshotsJSON(v)
 	}
 	if _, ok := _c.mutation.LatestVersionJSON(); !ok {
 		v := clientsourceapp.DefaultLatestVersionJSON
@@ -287,11 +323,17 @@ func (_c *ClientSourceAppCreate) check() error {
 	if _, ok := _c.mutation.Category(); !ok {
 		return &ValidationError{Name: "category", err: errors.New(`ent: missing required field "ClientSourceApp.category"`)}
 	}
+	if _, ok := _c.mutation.CategoryI18nJSON(); !ok {
+		return &ValidationError{Name: "category_i18n_json", err: errors.New(`ent: missing required field "ClientSourceApp.category_i18n_json"`)}
+	}
 	if _, ok := _c.mutation.IconURL(); !ok {
 		return &ValidationError{Name: "icon_url", err: errors.New(`ent: missing required field "ClientSourceApp.icon_url"`)}
 	}
 	if _, ok := _c.mutation.InstallProtected(); !ok {
 		return &ValidationError{Name: "install_protected", err: errors.New(`ent: missing required field "ClientSourceApp.install_protected"`)}
+	}
+	if _, ok := _c.mutation.ScreenshotsJSON(); !ok {
+		return &ValidationError{Name: "screenshots_json", err: errors.New(`ent: missing required field "ClientSourceApp.screenshots_json"`)}
 	}
 	if _, ok := _c.mutation.LatestVersionJSON(); !ok {
 		return &ValidationError{Name: "latest_version_json", err: errors.New(`ent: missing required field "ClientSourceApp.latest_version_json"`)}
@@ -358,6 +400,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)
 		_node.Category = value
 	}
+	if value, ok := _c.mutation.CategoryI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldCategoryI18nJSON, field.TypeString, value)
+		_node.CategoryI18nJSON = value
+	}
 	if value, ok := _c.mutation.IconURL(); ok {
 		_spec.SetField(clientsourceapp.FieldIconURL, field.TypeString, value)
 		_node.IconURL = value
@@ -365,6 +411,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 	if value, ok := _c.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
 		_node.InstallProtected = value
+	}
+	if value, ok := _c.mutation.ScreenshotsJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldScreenshotsJSON, field.TypeString, value)
+		_node.ScreenshotsJSON = value
 	}
 	if value, ok := _c.mutation.LatestVersionJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldLatestVersionJSON, field.TypeString, value)

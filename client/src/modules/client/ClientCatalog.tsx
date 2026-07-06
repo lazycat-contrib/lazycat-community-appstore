@@ -20,6 +20,7 @@ import {
   findInstalledApplication,
   hasInstallableVersion,
   isSourceAppUpdateAvailable,
+  localizedCategory,
   selectedSourceVersion,
   sourceForApp,
 } from '../../shared/utils';
@@ -56,7 +57,7 @@ export function ClientCatalog({
   const sourceNeedle = query.trim().toLowerCase();
   const searchableSourceApps = sourceApps.filter((app) => {
     if (!sourceNeedle) return true;
-    return [app.name, app.summary, app.category, app.sourceName].filter(Boolean).join(' ').toLowerCase().includes(sourceNeedle);
+    return [app.name, app.summary, app.category, localizedCategory(app), app.sourceName].filter(Boolean).join(' ').toLowerCase().includes(sourceNeedle);
   });
   const sourceOptions = sourceAppSourceOptions(searchableSourceApps);
   const categoryOptions = sourceAppCategoryOptions(searchableSourceApps, t('common.uncategorized'));

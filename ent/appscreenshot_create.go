@@ -66,6 +66,20 @@ func (_c *AppScreenshotCreate) SetNillableCaption(v *string) *AppScreenshotCreat
 	return _c
 }
 
+// SetDeviceType sets the "device_type" field.
+func (_c *AppScreenshotCreate) SetDeviceType(v appscreenshot.DeviceType) *AppScreenshotCreate {
+	_c.mutation.SetDeviceType(v)
+	return _c
+}
+
+// SetNillableDeviceType sets the "device_type" field if the given value is not nil.
+func (_c *AppScreenshotCreate) SetNillableDeviceType(v *appscreenshot.DeviceType) *AppScreenshotCreate {
+	if v != nil {
+		_c.SetDeviceType(*v)
+	}
+	return _c
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_c *AppScreenshotCreate) SetSortOrder(v int) *AppScreenshotCreate {
 	_c.mutation.SetSortOrder(v)
@@ -137,6 +151,10 @@ func (_c *AppScreenshotCreate) defaults() {
 		v := appscreenshot.DefaultCaption
 		_c.mutation.SetCaption(v)
 	}
+	if _, ok := _c.mutation.DeviceType(); !ok {
+		v := appscreenshot.DefaultDeviceType
+		_c.mutation.SetDeviceType(v)
+	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		v := appscreenshot.DefaultSortOrder
 		_c.mutation.SetSortOrder(v)
@@ -168,6 +186,14 @@ func (_c *AppScreenshotCreate) check() error {
 	}
 	if _, ok := _c.mutation.Caption(); !ok {
 		return &ValidationError{Name: "caption", err: errors.New(`ent: missing required field "AppScreenshot.caption"`)}
+	}
+	if _, ok := _c.mutation.DeviceType(); !ok {
+		return &ValidationError{Name: "device_type", err: errors.New(`ent: missing required field "AppScreenshot.device_type"`)}
+	}
+	if v, ok := _c.mutation.DeviceType(); ok {
+		if err := appscreenshot.DeviceTypeValidator(v); err != nil {
+			return &ValidationError{Name: "device_type", err: fmt.Errorf(`ent: validator failed for field "AppScreenshot.device_type": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		return &ValidationError{Name: "sort_order", err: errors.New(`ent: missing required field "AppScreenshot.sort_order"`)}
@@ -220,6 +246,10 @@ func (_c *AppScreenshotCreate) createSpec() (*AppScreenshot, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.Caption(); ok {
 		_spec.SetField(appscreenshot.FieldCaption, field.TypeString, value)
 		_node.Caption = value
+	}
+	if value, ok := _c.mutation.DeviceType(); ok {
+		_spec.SetField(appscreenshot.FieldDeviceType, field.TypeEnum, value)
+		_node.DeviceType = value
 	}
 	if value, ok := _c.mutation.SortOrder(); ok {
 		_spec.SetField(appscreenshot.FieldSortOrder, field.TypeInt, value)

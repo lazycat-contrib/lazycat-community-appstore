@@ -38,6 +38,7 @@ import (
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/sitesetting"
+	"lazycat.community/appstore/ent/storageconfig"
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/ent/usergroup"
@@ -94,6 +95,8 @@ type Client struct {
 	ReviewRequest *ReviewRequestClient
 	// SiteSetting is the client for interacting with the SiteSetting builders.
 	SiteSetting *SiteSettingClient
+	// StorageConfig is the client for interacting with the StorageConfig builders.
+	StorageConfig *StorageConfigClient
 	// Tag is the client for interacting with the Tag builders.
 	Tag *TagClient
 	// User is the client for interacting with the User builders.
@@ -134,6 +137,7 @@ func (c *Client) init() {
 	c.OutdatedMark = NewOutdatedMarkClient(c.config)
 	c.ReviewRequest = NewReviewRequestClient(c.config)
 	c.SiteSetting = NewSiteSettingClient(c.config)
+	c.StorageConfig = NewStorageConfigClient(c.config)
 	c.Tag = NewTagClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserGroup = NewUserGroupClient(c.config)
@@ -252,6 +256,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		OutdatedMark:         NewOutdatedMarkClient(cfg),
 		ReviewRequest:        NewReviewRequestClient(cfg),
 		SiteSetting:          NewSiteSettingClient(cfg),
+		StorageConfig:        NewStorageConfigClient(cfg),
 		Tag:                  NewTagClient(cfg),
 		User:                 NewUserClient(cfg),
 		UserGroup:            NewUserGroupClient(cfg),
@@ -297,6 +302,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		OutdatedMark:         NewOutdatedMarkClient(cfg),
 		ReviewRequest:        NewReviewRequestClient(cfg),
 		SiteSetting:          NewSiteSettingClient(cfg),
+		StorageConfig:        NewStorageConfigClient(cfg),
 		Tag:                  NewTagClient(cfg),
 		User:                 NewUserClient(cfg),
 		UserGroup:            NewUserGroupClient(cfg),
@@ -333,8 +339,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
 		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorRequest,
 		c.Collection, c.CollectionApp, c.Comment, c.CommentNotification, c.Favorite,
-		c.GroupMember, c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User,
-		c.UserGroup,
+		c.GroupMember, c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.StorageConfig,
+		c.Tag, c.User, c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -348,8 +354,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
 		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorRequest,
 		c.Collection, c.CollectionApp, c.Comment, c.CommentNotification, c.Favorite,
-		c.GroupMember, c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User,
-		c.UserGroup,
+		c.GroupMember, c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.StorageConfig,
+		c.Tag, c.User, c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -404,6 +410,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ReviewRequest.mutate(ctx, m)
 	case *SiteSettingMutation:
 		return c.SiteSetting.mutate(ctx, m)
+	case *StorageConfigMutation:
+		return c.StorageConfig.mutate(ctx, m)
 	case *TagMutation:
 		return c.Tag.mutate(ctx, m)
 	case *UserMutation:
@@ -3506,6 +3514,139 @@ func (c *SiteSettingClient) mutate(ctx context.Context, m *SiteSettingMutation) 
 	}
 }
 
+// StorageConfigClient is a client for the StorageConfig schema.
+type StorageConfigClient struct {
+	config
+}
+
+// NewStorageConfigClient returns a client for the StorageConfig from the given config.
+func NewStorageConfigClient(c config) *StorageConfigClient {
+	return &StorageConfigClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `storageconfig.Hooks(f(g(h())))`.
+func (c *StorageConfigClient) Use(hooks ...Hook) {
+	c.hooks.StorageConfig = append(c.hooks.StorageConfig, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `storageconfig.Intercept(f(g(h())))`.
+func (c *StorageConfigClient) Intercept(interceptors ...Interceptor) {
+	c.inters.StorageConfig = append(c.inters.StorageConfig, interceptors...)
+}
+
+// Create returns a builder for creating a StorageConfig entity.
+func (c *StorageConfigClient) Create() *StorageConfigCreate {
+	mutation := newStorageConfigMutation(c.config, OpCreate)
+	return &StorageConfigCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of StorageConfig entities.
+func (c *StorageConfigClient) CreateBulk(builders ...*StorageConfigCreate) *StorageConfigCreateBulk {
+	return &StorageConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *StorageConfigClient) MapCreateBulk(slice any, setFunc func(*StorageConfigCreate, int)) *StorageConfigCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &StorageConfigCreateBulk{err: fmt.Errorf("calling to StorageConfigClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*StorageConfigCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &StorageConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for StorageConfig.
+func (c *StorageConfigClient) Update() *StorageConfigUpdate {
+	mutation := newStorageConfigMutation(c.config, OpUpdate)
+	return &StorageConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *StorageConfigClient) UpdateOne(_m *StorageConfig) *StorageConfigUpdateOne {
+	mutation := newStorageConfigMutation(c.config, OpUpdateOne, withStorageConfig(_m))
+	return &StorageConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *StorageConfigClient) UpdateOneID(id int) *StorageConfigUpdateOne {
+	mutation := newStorageConfigMutation(c.config, OpUpdateOne, withStorageConfigID(id))
+	return &StorageConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for StorageConfig.
+func (c *StorageConfigClient) Delete() *StorageConfigDelete {
+	mutation := newStorageConfigMutation(c.config, OpDelete)
+	return &StorageConfigDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *StorageConfigClient) DeleteOne(_m *StorageConfig) *StorageConfigDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *StorageConfigClient) DeleteOneID(id int) *StorageConfigDeleteOne {
+	builder := c.Delete().Where(storageconfig.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &StorageConfigDeleteOne{builder}
+}
+
+// Query returns a query builder for StorageConfig.
+func (c *StorageConfigClient) Query() *StorageConfigQuery {
+	return &StorageConfigQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeStorageConfig},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a StorageConfig entity by its id.
+func (c *StorageConfigClient) Get(ctx context.Context, id int) (*StorageConfig, error) {
+	return c.Query().Where(storageconfig.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *StorageConfigClient) GetX(ctx context.Context, id int) *StorageConfig {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *StorageConfigClient) Hooks() []Hook {
+	return c.hooks.StorageConfig
+}
+
+// Interceptors returns the client interceptors.
+func (c *StorageConfigClient) Interceptors() []Interceptor {
+	return c.inters.StorageConfig
+}
+
+func (c *StorageConfigClient) mutate(ctx context.Context, m *StorageConfigMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&StorageConfigCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&StorageConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&StorageConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&StorageConfigDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown StorageConfig mutation op: %q", m.Op())
+	}
+}
+
 // TagClient is a client for the Tag schema.
 type TagClient struct {
 	config
@@ -3912,14 +4053,15 @@ type (
 		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
 		ClientSyncSetting, Collaborator, CollaboratorRequest, Collection,
 		CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
-		OutdatedMark, ReviewRequest, SiteSetting, Tag, User, UserGroup []ent.Hook
+		OutdatedMark, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
+		UserGroup []ent.Hook
 	}
 	inters struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
 		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
 		ClientSyncSetting, Collaborator, CollaboratorRequest, Collection,
 		CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
-		OutdatedMark, ReviewRequest, SiteSetting, Tag, User,
+		OutdatedMark, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
 		UserGroup []ent.Interceptor
 	}
 )

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/mirror"
 )
 
@@ -47,19 +48,21 @@ type VersionDTO struct {
 }
 
 type SourceAppDTO struct {
-	ID               int          `json:"id"`
-	SourceID         int          `json:"sourceId"`
-	SourceName       string       `json:"sourceName"`
-	ExternalID       string       `json:"externalId"`
-	PackageID        string       `json:"packageId"`
-	Name             string       `json:"name"`
-	Slug             string       `json:"slug"`
-	Summary          string       `json:"summary"`
-	Category         string       `json:"category,omitempty"`
-	IconURL          string       `json:"iconUrl,omitempty"`
-	InstallProtected bool         `json:"installProtected"`
-	LatestVersion    *VersionDTO  `json:"latestVersion,omitempty"`
-	Versions         []VersionDTO `json:"versions,omitempty"`
+	ID               int                      `json:"id"`
+	SourceID         int                      `json:"sourceId"`
+	SourceName       string                   `json:"sourceName"`
+	ExternalID       string                   `json:"externalId"`
+	PackageID        string                   `json:"packageId"`
+	Name             string                   `json:"name"`
+	Slug             string                   `json:"slug"`
+	Summary          string                   `json:"summary"`
+	Category         string                   `json:"category,omitempty"`
+	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`
+	IconURL          string                   `json:"iconUrl,omitempty"`
+	InstallProtected bool                     `json:"installProtected"`
+	Screenshots      []catalogmeta.Screenshot `json:"screenshots,omitempty"`
+	LatestVersion    *VersionDTO              `json:"latestVersion,omitempty"`
+	Versions         []VersionDTO             `json:"versions,omitempty"`
 }
 
 type SyncAllResult struct {

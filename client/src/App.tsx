@@ -85,6 +85,7 @@ import {
   hasInstallableVersion,
   isSourceAppUpdateAvailable,
   isSourceStale,
+  localizedCategory,
   localizedName,
   runAction,
   selectedSourceVersion,
@@ -105,6 +106,7 @@ import { InstalledAppsView } from './modules/client/InstalledAppsView';
 import { ClientSettingsView } from './modules/client/ClientSettingsView';
 import { SourcesView as ClientSourcesView } from './modules/client/SourcesView';
 import { CollectionAppPicker } from './modules/admin/CollectionAppPicker';
+import { StorageSettingsPanel, defaultStorageSettings, type StorageSettings } from './modules/admin/StorageSettingsPanel';
 import { AppGrid } from './modules/storefront/AppGrid';
 import { StorefrontHome } from './modules/storefront/StorefrontHome';
 import { StorefrontSearch } from './modules/storefront/StorefrontSearch';
@@ -144,6 +146,7 @@ type StoreApp = {
   iconUrl?: string;
   status: string;
   category?: string;
+  categoryI18n?: Record<string, string>;
   tags: string[];
   visibleGroupIds: number[];
   allowUnreviewedUpdates: boolean;
@@ -168,6 +171,7 @@ type Screenshot = {
   appId: number;
   imageUrl: string;
   caption: string;
+  deviceType?: 'DESKTOP' | 'MOBILE' | string;
   sortOrder: number;
 };
 
@@ -317,8 +321,10 @@ type SourceApp = {
   slug: string;
   summary: string;
   category?: string;
+  categoryI18n?: Record<string, string>;
   iconUrl?: string;
   installProtected?: boolean;
+  screenshots?: Screenshot[];
   latestVersion?: SourceVersion;
   versions?: SourceVersion[];
 };
@@ -458,9 +464,36 @@ const clientTabs: NavItem[] = [
 
 type SortMode = 'recent' | 'downloads' | 'name';
 type CollectionDraft = { name: string; slug: string; kind: string; appIds: number[] };
+type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string };
 
 function verificationTokenFromURL() {
   return new URLSearchParams(window.location.search).get('token') || '';
+}
+
+function usePreferredScreenshotDevice() {
+  const readDevice = () => (window.matchMedia('(max-width: 720px)').matches ? 'MOBILE' : 'DESKTOP');
+  const [device, setDevice] = useState<'DESKTOP' | 'MOBILE'>(readDevice);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 720px)');
+    const update = () => setDevice(query.matches ? 'MOBILE' : 'DESKTOP');
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return device;
+}
+
+function orderedScreenshots(screenshots: Screenshot[] | undefined, preferredDevice: 'DESKTOP' | 'MOBILE') {
+  return [...(screenshots || [])].sort((left, right) => {
+    const leftPreferred = (left.deviceType || 'DESKTOP') === preferredDevice ? 0 : 1;
+    const rightPreferred = (right.deviceType || 'DESKTOP') === preferredDevice ? 0 : 1;
+    if (leftPreferred !== rightPreferred) return leftPreferred - rightPreferred;
+    return (left.sortOrder || 0) - (right.sortOrder || 0) || left.id - right.id;
+  });
+}
+
+function screenshotDeviceLabel(t: (key: string, options?: any) => string, deviceType?: string) {
+  return deviceType === 'MOBILE' ? t('drawer.screenshotDeviceMobile') : t('drawer.screenshotDeviceDesktop');
 }
 
 export function App() {
@@ -744,7 +777,7 @@ export function App() {
   const filteredApps = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const filtered = storeApps.filter((app) => {
-      const categoryMatch = activeCategory === 'all' || app.category === activeCategory;
+      const categoryMatch = activeCategory === 'all' || String(app.categoryId || '') === activeCategory;
       const submitterMatch = activeSubmitter === 'all' || app.owner === activeSubmitter;
       const queryMatch =
         needle === '' ||
@@ -1621,8 +1654,10 @@ function SourceAppDetailPage({
   const [commentText, setCommentText] = useState('');
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
   const [replyText, setReplyText] = useState('');
+  const preferredScreenshotDevice = usePreferredScreenshotDevice();
   const latestVersion = app.latestVersion;
   const sourceVersions = app.versions && app.versions.length > 0 ? app.versions : latestVersion ? [latestVersion] : [];
+  const sourceScreenshots = orderedScreenshots(app.screenshots, preferredScreenshotDevice);
   const installable = hasInstallableVersion(app);
   const installAction = sourceInstallAction(app, installedMatch);
   const isUpdateAvailable = installAction === 'update';
@@ -1708,7 +1743,7 @@ function SourceAppDetailPage({
             <p>{app.summary || t('common.lpkApp')}</p>
             <div className="app-meta">
               <span><Cloud size={14} /> {app.sourceName}</span>
-              <span><Tag size={14} /> {app.category || t('common.uncategorized')}</span>
+              <span><Tag size={14} /> {localizedCategory(app, t('common.uncategorized'))}</span>
               <span><Star size={14} /> {latestVersion?.version || t('app.noPublishedVersion')}</span>
               {installedMatch && (
                 <span className={cx('status-badge', isUpdateAvailable ? 'pending' : 'synced')}>
@@ -1775,7 +1810,7 @@ function SourceAppDetailPage({
           </div>
           <div>
             <span>{t('common.category')}</span>
-            <strong>{app.category || t('common.uncategorized')}</strong>
+            <strong>{localizedCategory(app, t('common.uncategorized'))}</strong>
           </div>
           <div>
             <span>{t('drawer.latestVersion')}</span>
@@ -1785,6 +1820,28 @@ function SourceAppDetailPage({
             <span>{t('drawer.artifactSource')}</span>
             <strong>{latestVersion?.sourceType || t('drawer.sourceMissing')}</strong>
           </div>
+        </section>
+
+        <section>
+          <div className="section-title">
+            <Archive size={19} />
+            <h3>{t('drawer.screenshots')}</h3>
+          </div>
+          {sourceScreenshots.length > 0 ? (
+            <div className="screenshot-grid">
+              {sourceScreenshots.map((shot) => (
+                <figure className="screenshot-item" key={`${shot.deviceType || 'DESKTOP'}-${shot.imageUrl}`}>
+                  <img src={shot.imageUrl} alt={shot.caption || app.name} />
+                  <figcaption>
+                    <span>{shot.caption || app.name}</span>
+                    <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          ) : (
+            <EmptyState icon={Archive} title={t('drawer.noScreenshots')} />
+          )}
         </section>
 
         <section className="source-version-panel">
@@ -2022,6 +2079,8 @@ function ProfileView({
   const [recentSubmission, setRecentSubmission] = useState<{ name: string; status: string } | null>(null);
   const [artifactMode, setArtifactMode] = useState<'local' | 'external'>('local');
   const [file, setFile] = useState<File | null>(null);
+  const [desktopScreenshotFiles, setDesktopScreenshotFiles] = useState<File[]>([]);
+  const [mobileScreenshotFiles, setMobileScreenshotFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [tokens, setTokens] = useState<APITokenRecord[]>([]);
   const [newToken, setNewToken] = useState('');
@@ -2212,16 +2271,32 @@ function ProfileView({
           }),
         });
       }
+      if (created.app?.id) {
+        await uploadInitialScreenshots(created.app.id, desktopScreenshotFiles, 'DESKTOP');
+        await uploadInitialScreenshots(created.app.id, mobileScreenshotFiles, 'MOBILE');
+      }
       setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
       setToast({ tone: 'success', message: t('submitApp.submitted') });
       setUploadForm({ name: '', version: '', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, emailNotificationsEnabled: true, sourceType: 'GITHUB', downloadUrl: '', sha256: '', installPassword: '' });
       setArtifactMode('local');
       setFile(null);
+      setDesktopScreenshotFiles([]);
+      setMobileScreenshotFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
       setIsSubmitOpen(false);
       setWorkspaceTab('apps');
       await refreshAll({ silent: true });
     });
+  }
+
+  async function uploadInitialScreenshots(appID: number, files: File[], deviceType: 'DESKTOP' | 'MOBILE') {
+    for (const screenshot of files) {
+      const form = new FormData();
+      form.set('file', screenshot);
+      form.set('caption', screenshot.name.replace(/\.[^.]+$/, ''));
+      form.set('deviceType', deviceType);
+      await api(`/api/v1/apps/${appID}/screenshots`, { method: 'POST', body: form });
+    }
   }
 
   async function createToken() {
@@ -2657,7 +2732,7 @@ function ProfileView({
                 inputRef={fileInputRef}
                 accept=".lpk"
                 required
-                onChange={(nextFile) => setFile(nextFile)}
+                onChange={(nextFile) => setFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
               />
             ) : (
               <div className="artifact-fields">
@@ -2686,6 +2761,32 @@ function ProfileView({
                 />
               </div>
             )}
+          </div>
+          <div className="artifact-section">
+            <div className="artifact-section-head">
+              <strong>{t('submitApp.screenshots')}</strong>
+              <span>{t('submitApp.screenshotsHelp')}</span>
+            </div>
+            <div className="screenshot-upload-grid">
+              <FilePicker
+                label={t('submitApp.desktopScreenshots')}
+                help={t('submitApp.desktopScreenshotsHelp', { count: desktopScreenshotFiles.length })}
+                value={desktopScreenshotFiles}
+                accept=".png,.jpg,.jpeg,.webp"
+                multiple
+                maxFiles={8}
+                onChange={(nextFiles) => setDesktopScreenshotFiles(Array.isArray(nextFiles) ? nextFiles : nextFiles ? [nextFiles] : [])}
+              />
+              <FilePicker
+                label={t('submitApp.mobileScreenshots')}
+                help={t('submitApp.mobileScreenshotsHelp', { count: mobileScreenshotFiles.length })}
+                value={mobileScreenshotFiles}
+                accept=".png,.jpg,.jpeg,.webp"
+                multiple
+                maxFiles={8}
+                onChange={(nextFiles) => setMobileScreenshotFiles(Array.isArray(nextFiles) ? nextFiles : nextFiles ? [nextFiles] : [])}
+              />
+            </div>
           </div>
           <XTextInput
             type="password"
@@ -2875,14 +2976,20 @@ function AdminPanel({
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [reviewApps, setReviewApps] = useState<StoreApp[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [storageSettings, setStorageSettings] = useState<StorageSettings>(defaultStorageSettings);
   const [adminCategories, setAdminCategories] = useState<Category[]>([]);
   const [adminTags, setAdminTags] = useState<TagRecord[]>([]);
   const [adminCollections, setAdminCollections] = useState<Collection[]>([]);
-  const [categoryForm, setCategoryForm] = useState({ name: '', slug: '' });
-  const [tagForm, setTagForm] = useState({ name: '', slug: '' });
+  const [categoryForm, setCategoryForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' });
+  const [tagForm, setTagForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' });
   const [collectionForm, setCollectionForm] = useState<{ name: string; kind: string; appIds: number[] }>({ name: '', kind: 'MANUAL', appIds: [] });
-  const [categoryDrafts, setCategoryDrafts] = useState<Record<number, { name: string; slug: string }>>({});
-  const [tagDrafts, setTagDrafts] = useState<Record<number, { name: string; slug: string }>>({});
+  const [siteSettingsTab, setSiteSettingsTab] = useState<'identity' | 'announcement' | 'policy' | 'storage' | 'mail'>('identity');
+  const [isCollectionCreateOpen, setIsCollectionCreateOpen] = useState(false);
+  const [taxonomyCreateMode, setTaxonomyCreateMode] = useState<'category' | 'tag' | null>(null);
+  const [editingCategoryID, setEditingCategoryID] = useState<number | null>(null);
+  const [editingTagID, setEditingTagID] = useState<number | null>(null);
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<number, TaxonomyDraft>>({});
+  const [tagDrafts, setTagDrafts] = useState<Record<number, TaxonomyDraft>>({});
   const [collectionDrafts, setCollectionDrafts] = useState<Record<number, CollectionDraft>>({});
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [testEmailTo, setTestEmailTo] = useState(user.email || '');
@@ -2905,6 +3012,13 @@ function AdminPanel({
     { value: 'SOFTWARE_ADMIN', label: t('admin.roles.softwareAdmin') },
     { value: 'SITE_ADMIN', label: t('admin.roles.siteAdmin') },
   ];
+  const siteSettingsTabs = [
+    { key: 'identity', label: t('admin.siteSettingTabs.identity'), icon: Archive },
+    { key: 'announcement', label: t('admin.siteSettingTabs.announcement'), icon: MessageSquare },
+    { key: 'policy', label: t('admin.siteSettingTabs.policy'), icon: ShieldCheck },
+    { key: 'storage', label: t('admin.siteSettingTabs.storage'), icon: Server },
+    { key: 'mail', label: t('admin.siteSettingTabs.mail'), icon: MessageSquare },
+  ] as const;
   const siteIdentityFields = [
     { key: 'site_title', label: t('admin.settings.siteTitle'), help: t('admin.settingsHelp.siteTitle') },
     { key: 'site_icon_url', label: t('admin.settings.siteIconURL'), help: t('admin.settingsHelp.siteIconURL'), type: 'url' },
@@ -3002,12 +3116,14 @@ function AdminPanel({
       setTagDrafts({});
       setCollectionDrafts({});
       if (isSiteAdmin) {
-        const [userData, settingData] = await Promise.all([
+        const [userData, settingData, storageData] = await Promise.all([
           api<{ users: User[] }>('/api/v1/admin/users'),
           api<{ settings: Record<string, string> }>('/api/v1/admin/settings'),
+          api<{ storage: StorageSettings }>('/api/v1/admin/storage'),
         ]);
         setUsers(userData.users);
         setSettings(settingData.settings || {});
+        setStorageSettings({ ...defaultStorageSettings, ...(storageData.storage || {}) });
       }
     });
   }
@@ -3059,6 +3175,27 @@ function AdminPanel({
         }),
       });
       setToast({ tone: 'success', message: t('admin.testEmailSent') });
+    });
+  }
+
+  async function saveStorageSettings() {
+    await runAction(setToast, t('admin.storageSaveFailed'), async () => {
+      const data = await api<{ storage: StorageSettings }>('/api/v1/admin/storage', {
+        method: 'PATCH',
+        body: JSON.stringify(storageSettings),
+      });
+      setStorageSettings({ ...defaultStorageSettings, ...(data.storage || {}) });
+      setToast({ tone: 'success', message: t('admin.storageSaved') });
+    });
+  }
+
+  async function testStorageSettings() {
+    await runAction(setToast, t('admin.storageTestFailed'), async () => {
+      await api('/api/v1/admin/storage/test', {
+        method: 'POST',
+        body: JSON.stringify(storageSettings),
+      });
+      setToast({ tone: 'success', message: t('admin.storageTested') });
     });
   }
 
@@ -3163,21 +3300,42 @@ function AdminPanel({
     }
   }
 
+  function emptyTaxonomyDraft(): TaxonomyDraft {
+    return { name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' };
+  }
+
+  function taxonomyDraft(item: Category | TagRecord): TaxonomyDraft {
+    return {
+      name: item.name,
+      nameI18n: {
+        'zh-CN': item.nameI18n?.['zh-CN'] || item.nameI18n?.zh || '',
+        en: item.nameI18n?.en || '',
+      },
+      slug: item.slug,
+    };
+  }
+
+  function updateTaxonomyI18n(draft: TaxonomyDraft, language: string, value: string): TaxonomyDraft {
+    return { ...draft, nameI18n: { ...draft.nameI18n, [language]: value } };
+  }
+
   async function createCategory(event: FormEvent) {
     event.preventDefault();
     await runAction(setToast, t('admin.categoryCreateFailed'), async () => {
       await api('/api/v1/admin/categories', { method: 'POST', body: JSON.stringify(categoryForm) });
-      setCategoryForm({ name: '', slug: '' });
+      setCategoryForm(emptyTaxonomyDraft());
+      setTaxonomyCreateMode(null);
       setToast({ tone: 'success', message: t('admin.categoryCreated') });
       await reload();
     });
   }
 
   async function updateCategory(item: Category) {
-    const draft = categoryDrafts[item.id] || { name: item.name, slug: item.slug };
+    const draft = categoryDrafts[item.id] || taxonomyDraft(item);
     await runAction(setToast, t('admin.categoryUpdateFailed'), async () => {
       await api(`/api/v1/admin/categories/${item.id}`, { method: 'PATCH', body: JSON.stringify(draft) });
       setToast({ tone: 'success', message: t('admin.categoryUpdated') });
+      setEditingCategoryID(null);
       await reload();
     });
   }
@@ -3201,17 +3359,19 @@ function AdminPanel({
     event.preventDefault();
     await runAction(setToast, t('admin.tagCreateFailed'), async () => {
       await api('/api/v1/admin/tags', { method: 'POST', body: JSON.stringify(tagForm) });
-      setTagForm({ name: '', slug: '' });
+      setTagForm(emptyTaxonomyDraft());
+      setTaxonomyCreateMode(null);
       setToast({ tone: 'success', message: t('admin.tagCreated') });
       await reload();
     });
   }
 
   async function updateTag(item: TagRecord) {
-    const draft = tagDrafts[item.id] || { name: item.name, slug: item.slug };
+    const draft = tagDrafts[item.id] || taxonomyDraft(item);
     await runAction(setToast, t('admin.tagUpdateFailed'), async () => {
       await api(`/api/v1/admin/tags/${item.id}`, { method: 'PATCH', body: JSON.stringify(draft) });
       setToast({ tone: 'success', message: t('admin.tagUpdated') });
+      setEditingTagID(null);
       await reload();
     });
   }
@@ -3243,6 +3403,7 @@ function AdminPanel({
         }),
       });
       setCollectionForm({ name: '', kind: 'MANUAL', appIds: [] });
+      setIsCollectionCreateOpen(false);
       setToast({ tone: 'success', message: t('admin.collectionCreated') });
       await reload();
     });
@@ -3457,56 +3618,90 @@ function AdminPanel({
       )}
       {isSiteAdmin && adminTab === 'site' && (
         <section className="settings-layout">
-          <form className="panel form-panel site-settings-panel" onSubmit={saveSettings}>
+          <section className="panel form-panel site-settings-panel">
             <SectionTitle icon={Settings} title={t('admin.siteSettings')} />
-            <div className="settings-section">
-              <div className="settings-section-head">
-                <strong>{t('admin.siteIdentity')}</strong>
-                <span>{t('admin.siteIdentityBody')}</span>
-              </div>
-              <XFormLayout>
-                {siteIdentityFields.map(renderSettingField)}
-              </XFormLayout>
-            </div>
-            <div className="settings-section">
-              <div className="settings-section-head">
-                <strong>{t('admin.announcementCenter')}</strong>
-                <span>{t('admin.announcementCenterBody')}</span>
-              </div>
-              <XFormLayout>
-                {announcementFields.map(renderSettingField)}
-              </XFormLayout>
-            </div>
-            <div className="settings-section">
-              <div className="settings-section-head">
-                <strong>{t('admin.policySettings')}</strong>
-                <span>{t('admin.policySettingsBody')}</span>
-              </div>
-              <XFormLayout>
-                {policySettingFields.map(renderSettingField)}
-              </XFormLayout>
-            </div>
-            <div className="settings-section">
-              <div className="settings-section-head">
-                <strong>{t('admin.smtpSettings')}</strong>
-                <span>{t('admin.smtpSettingsBody')}</span>
-              </div>
-              <XFormLayout>
-                {smtpSettingFields.map(renderSettingField)}
-              </XFormLayout>
-              <div className="test-email-form">
-                <XTextInput
-                  type="email"
-                  label={t('admin.testEmailTo')}
-                  description={t('admin.testEmailHelp')}
-                  value={testEmailTo}
-                  onChange={setTestEmailTo}
+            <XTabList value={siteSettingsTab} onChange={(value) => setSiteSettingsTab(value as typeof siteSettingsTab)} hasDivider size="sm">
+              {siteSettingsTabs.map((item) => {
+                const Icon = item.icon;
+                return <XTab key={item.key} value={item.key} label={item.label} icon={<Icon size={16} />} />;
+              })}
+            </XTabList>
+
+            {siteSettingsTab !== 'storage' ? (
+              <form className="settings-tab-panel" onSubmit={saveSettings}>
+                {siteSettingsTab === 'identity' && (
+                  <div className="settings-section">
+                    <div className="settings-section-head">
+                      <strong>{t('admin.siteIdentity')}</strong>
+                      <span>{t('admin.siteIdentityBody')}</span>
+                    </div>
+                    <XFormLayout>
+                      {siteIdentityFields.map(renderSettingField)}
+                    </XFormLayout>
+                  </div>
+                )}
+
+                {siteSettingsTab === 'announcement' && (
+                  <div className="settings-section">
+                    <div className="settings-section-head">
+                      <strong>{t('admin.announcementCenter')}</strong>
+                      <span>{t('admin.announcementCenterBody')}</span>
+                    </div>
+                    <XFormLayout>
+                      {announcementFields.map(renderSettingField)}
+                    </XFormLayout>
+                  </div>
+                )}
+
+                {siteSettingsTab === 'policy' && (
+                  <div className="settings-section">
+                    <div className="settings-section-head">
+                      <strong>{t('admin.policySettings')}</strong>
+                      <span>{t('admin.policySettingsBody')}</span>
+                    </div>
+                    <XFormLayout>
+                      {policySettingFields.map(renderSettingField)}
+                    </XFormLayout>
+                  </div>
+                )}
+
+                {siteSettingsTab === 'mail' && (
+                  <div className="settings-section">
+                    <div className="settings-section-head">
+                      <strong>{t('admin.smtpSettings')}</strong>
+                      <span>{t('admin.smtpSettingsBody')}</span>
+                    </div>
+                    <XFormLayout>
+                      {smtpSettingFields.map(renderSettingField)}
+                    </XFormLayout>
+                    <div className="test-email-form">
+                      <XTextInput
+                        type="email"
+                        label={t('admin.testEmailTo')}
+                        description={t('admin.testEmailHelp')}
+                        value={testEmailTo}
+                        onChange={setTestEmailTo}
+                      />
+                      <XButton type="button" variant="secondary" size="sm" label={t('admin.sendTestEmail')} icon={<MessageSquare size={17} />} onClick={() => void sendTestEmail()} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="settings-form-actions">
+                  <XButton type="submit" variant="primary" label={t('admin.saveSettings')} icon={<Settings size={18} />} />
+                </div>
+              </form>
+            ) : (
+              <div className="settings-tab-panel">
+                <StorageSettingsPanel
+                  storage={storageSettings}
+                  onChange={setStorageSettings}
+                  onSave={saveStorageSettings}
+                  onTest={testStorageSettings}
                 />
-                <XButton type="button" variant="secondary" size="sm" label={t('admin.sendTestEmail')} icon={<MessageSquare size={17} />} onClick={() => void sendTestEmail()} />
               </div>
-            </div>
-            <XButton type="submit" variant="primary" label={t('admin.saveSettings')} icon={<Settings size={18} />} />
-          </form>
+            )}
+          </section>
           <section className="panel site-preview-panel">
             <SectionTitle icon={Archive} title={t('admin.sitePreview')} />
             <div className="site-preview-brand">
@@ -3560,84 +3755,195 @@ function AdminPanel({
         </section>
       )}
       {adminTab === 'taxonomy' && (
-      <section className="split">
-        <div className="panel form-panel">
-          <SectionTitle icon={Layers3} title={t('admin.categoriesAndTags')} />
-          <form className="inline-stack" onSubmit={createCategory}>
-            <XTextInput label={t('admin.categoryName')} value={categoryForm.name} onChange={(value) => setCategoryForm({ ...categoryForm, name: value })} />
-            <XTextInput label={t('admin.categorySlug')} value={categoryForm.slug} onChange={(value) => setCategoryForm({ ...categoryForm, slug: value })} />
-            <XButton type="submit" variant="secondary" label={t('admin.category')} icon={<Plus size={17} />} />
-          </form>
-          <form className="inline-stack" onSubmit={createTag}>
-            <XTextInput label={t('admin.tagName')} value={tagForm.name} onChange={(value) => setTagForm({ ...tagForm, name: value })} />
-            <XTextInput label={t('admin.tagSlug')} value={tagForm.slug} onChange={(value) => setTagForm({ ...tagForm, slug: value })} />
-            <XButton type="submit" variant="secondary" label={t('admin.tag')} icon={<Plus size={17} />} />
-          </form>
-        </div>
+      <section className="workspace-pane taxonomy-workspace">
+        {taxonomyCreateMode && (
+          <div className="modal-backdrop" role="presentation" onClick={() => setTaxonomyCreateMode(null)}>
+            <form
+              className="modal-panel form-panel taxonomy-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label={taxonomyCreateMode === 'category' ? t('admin.createCategory') : t('admin.createTag')}
+              onClick={(event) => event.stopPropagation()}
+              onSubmit={taxonomyCreateMode === 'category' ? createCategory : createTag}
+            >
+              <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setTaxonomyCreateMode(null)} />
+              <SectionTitle icon={Tag} title={taxonomyCreateMode === 'category' ? t('admin.createCategory') : t('admin.createTag')} />
+              {taxonomyCreateMode === 'category' ? (
+                <>
+                  <XTextInput label={t('admin.categoryNameZh')} value={categoryForm.nameI18n['zh-CN'] || ''} onChange={(value) => setCategoryForm(updateTaxonomyI18n(categoryForm, 'zh-CN', value))} />
+                  <XTextInput label={t('admin.categoryNameEn')} value={categoryForm.nameI18n.en || ''} onChange={(value) => setCategoryForm(updateTaxonomyI18n(categoryForm, 'en', value))} />
+                  <XTextInput label={t('admin.categoryName')} value={categoryForm.name} onChange={(value) => setCategoryForm({ ...categoryForm, name: value })} />
+                  <XTextInput label={t('admin.categorySlug')} value={categoryForm.slug} onChange={(value) => setCategoryForm({ ...categoryForm, slug: value })} />
+                </>
+              ) : (
+                <>
+                  <XTextInput label={t('admin.tagNameZh')} value={tagForm.nameI18n['zh-CN'] || ''} onChange={(value) => setTagForm(updateTaxonomyI18n(tagForm, 'zh-CN', value))} />
+                  <XTextInput label={t('admin.tagNameEn')} value={tagForm.nameI18n.en || ''} onChange={(value) => setTagForm(updateTaxonomyI18n(tagForm, 'en', value))} />
+                  <XTextInput label={t('admin.tagName')} value={tagForm.name} onChange={(value) => setTagForm({ ...tagForm, name: value })} />
+                  <XTextInput label={t('admin.tagSlug')} value={tagForm.slug} onChange={(value) => setTagForm({ ...tagForm, slug: value })} />
+                </>
+              )}
+              <div className="dialog-actions">
+                <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={() => setTaxonomyCreateMode(null)} />
+                <XButton type="submit" variant="primary" label={taxonomyCreateMode === 'category' ? t('admin.createCategory') : t('admin.createTag')} icon={<Plus size={18} />} />
+              </div>
+            </form>
+          </div>
+        )}
+
         <section className="panel">
-          <SectionTitle icon={Tag} title={t('admin.categoryList')} />
-          <div className="review-list">
-            {adminCategories.map((item) => {
-              const draft = categoryDrafts[item.id] || { name: item.name, slug: item.slug };
-              return (
-                <div className="edit-row" key={item.id}>
-                  <XTextInput label={t('admin.categoryNameFor', { name: item.name })} isLabelHidden value={draft.name} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, name: value } }))} />
-                  <XTextInput label={t('admin.categorySlugFor', { name: item.name })} isLabelHidden value={draft.slug} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: value } }))} />
-                  <div className="row-actions">
-                    <XIconButton type="button" variant="ghost" label={t('admin.saveCategoryNamed', { name: item.name })} icon={<Save size={16} />} onClick={() => void updateCategory(item)} />
-                    <XIconButton type="button" variant="destructive" label={t('admin.deleteCategoryNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteCategory(item)} />
-                  </div>
-                </div>
-              );
-            })}
+          <div className="section-title with-action">
+            <div>
+              <Tag size={19} />
+              <h2>{t('admin.categoriesAndTags')}</h2>
+            </div>
+            <div className="row-actions">
+              <XButton type="button" variant="secondary" size="sm" label={t('admin.createCategory')} icon={<Plus size={17} />} onClick={() => setTaxonomyCreateMode('category')} />
+              <XButton type="button" variant="secondary" size="sm" label={t('admin.createTag')} icon={<Plus size={17} />} onClick={() => setTaxonomyCreateMode('tag')} />
+            </div>
           </div>
-          <SectionTitle icon={Tag} title={t('admin.tagList')} />
-          <div className="review-list">
-            {adminTags.map((item) => {
-              const draft = tagDrafts[item.id] || { name: item.name, slug: item.slug };
-              return (
-                <div className="edit-row" key={item.id}>
-                  <XTextInput label={t('admin.tagNameFor', { name: item.name })} isLabelHidden value={draft.name} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, name: value } }))} />
-                  <XTextInput label={t('admin.tagSlugFor', { name: item.name })} isLabelHidden value={draft.slug} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: value } }))} />
-                  <div className="row-actions">
-                    <XIconButton type="button" variant="ghost" label={t('admin.saveTagNamed', { name: item.name })} icon={<Save size={16} />} onClick={() => void updateTag(item)} />
-                    <XIconButton type="button" variant="destructive" label={t('admin.deleteTagNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteTag(item)} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <p className="inline-note">{t('admin.taxonomyHelp')}</p>
         </section>
+
+        <div className="taxonomy-list-grid">
+          <section className="panel">
+            <SectionTitle icon={Layers3} title={t('admin.categoryList')} />
+            <div className="review-list">
+              {adminCategories.length === 0 ? (
+                <EmptyState icon={Layers3} title={t('admin.noCategories')} body={t('admin.noCategoriesBody')} />
+              ) : adminCategories.map((item) => {
+                const draft = categoryDrafts[item.id] || taxonomyDraft(item);
+                const isEditing = editingCategoryID === item.id;
+                return (
+                  <div className={cx('taxonomy-row', isEditing && 'editing')} key={item.id}>
+                    {isEditing ? (
+                      <>
+                        <div className="taxonomy-edit-fields">
+                          <XTextInput label={t('admin.categoryNameZhFor', { name: localizedName(item) })} value={draft.nameI18n['zh-CN'] || ''} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'zh-CN', value) }))} />
+                          <XTextInput label={t('admin.categoryNameEnFor', { name: localizedName(item) })} value={draft.nameI18n.en || ''} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'en', value) }))} />
+                          <XTextInput label={t('admin.categoryNameFor', { name: localizedName(item) })} value={draft.name} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, name: value } }))} />
+                          <XTextInput label={t('admin.categorySlugFor', { name: item.name })} value={draft.slug} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: value } }))} />
+                        </div>
+                        <div className="dialog-actions">
+                          <XButton type="button" variant="secondary" size="sm" label={t('common.cancel')} icon={<X size={16} />} onClick={() => setEditingCategoryID(null)} />
+                          <XButton type="button" variant="primary" size="sm" label={t('admin.saveCategory')} icon={<Save size={16} />} onClick={() => void updateCategory(item)} />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="taxonomy-summary">
+                          <strong>{localizedName(item)}</strong>
+                          <span>{item.slug}</span>
+                          <small>{t('admin.taxonomyLanguages', { zh: item.nameI18n?.['zh-CN'] || item.nameI18n?.zh || item.name || '-', en: item.nameI18n?.en || '-' })}</small>
+                        </div>
+                        <div className="row-actions">
+                          <XIconButton type="button" variant="ghost" label={t('admin.editCategoryNamed', { name: item.name })} icon={<Pencil size={16} />} onClick={() => setEditingCategoryID(item.id)} />
+                          <XIconButton type="button" variant="destructive" label={t('admin.deleteCategoryNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteCategory(item)} />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="panel">
+            <SectionTitle icon={Tag} title={t('admin.tagList')} />
+            <div className="review-list">
+              {adminTags.length === 0 ? (
+                <EmptyState icon={Tag} title={t('admin.noTags')} body={t('admin.noTagsBody')} />
+              ) : adminTags.map((item) => {
+                const draft = tagDrafts[item.id] || taxonomyDraft(item);
+                const isEditing = editingTagID === item.id;
+                return (
+                  <div className={cx('taxonomy-row', isEditing && 'editing')} key={item.id}>
+                    {isEditing ? (
+                      <>
+                        <div className="taxonomy-edit-fields">
+                          <XTextInput label={t('admin.tagNameZhFor', { name: localizedName(item) })} value={draft.nameI18n['zh-CN'] || ''} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'zh-CN', value) }))} />
+                          <XTextInput label={t('admin.tagNameEnFor', { name: localizedName(item) })} value={draft.nameI18n.en || ''} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'en', value) }))} />
+                          <XTextInput label={t('admin.tagNameFor', { name: localizedName(item) })} value={draft.name} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, name: value } }))} />
+                          <XTextInput label={t('admin.tagSlugFor', { name: item.name })} value={draft.slug} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: value } }))} />
+                        </div>
+                        <div className="dialog-actions">
+                          <XButton type="button" variant="secondary" size="sm" label={t('common.cancel')} icon={<X size={16} />} onClick={() => setEditingTagID(null)} />
+                          <XButton type="button" variant="primary" size="sm" label={t('admin.saveTag')} icon={<Save size={16} />} onClick={() => void updateTag(item)} />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="taxonomy-summary">
+                          <strong>{localizedName(item)}</strong>
+                          <span>{item.slug}</span>
+                          <small>{t('admin.taxonomyLanguages', { zh: item.nameI18n?.['zh-CN'] || item.nameI18n?.zh || item.name || '-', en: item.nameI18n?.en || '-' })}</small>
+                        </div>
+                        <div className="row-actions">
+                          <XIconButton type="button" variant="ghost" label={t('admin.editTagNamed', { name: item.name })} icon={<Pencil size={16} />} onClick={() => setEditingTagID(item.id)} />
+                          <XIconButton type="button" variant="destructive" label={t('admin.deleteTagNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteTag(item)} />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
       </section>
       )}
       {adminTab === 'collections' && (
-      <section className="split">
-        <form className="panel form-panel" onSubmit={createCollection}>
-          <SectionTitle icon={Layers3} title={t('admin.collection')} />
-          <XTextInput label={t('common.name')} value={collectionForm.name} onChange={(value) => setCollectionForm({ ...collectionForm, name: value })} />
-          <XSelector
-            label={t('admin.type')}
-            value={collectionForm.kind}
-            options={collectionKindOptions}
-            onChange={(value) => setCollectionForm({ ...collectionForm, kind: value })}
-          />
-          <CollectionAppPicker
-            apps={apps}
-            appIds={collectionForm.appIds}
-            labels={{
-              title: t('admin.collectionApps'),
-              selectedCount: t('admin.selectedAppsCount', { count: collectionForm.appIds.length }),
-              empty: t('admin.noApprovedAppsForCollection'),
-            }}
-            onChange={(appIds) => setCollectionForm({ ...collectionForm, appIds })}
-          />
-          <p className="field-help">{t('admin.collectionAppsHelp')}</p>
-          <XButton type="submit" variant="primary" label={t('admin.createCollection')} icon={<Layers3 size={18} />} />
-        </form>
+      <section className="workspace-pane">
+        {isCollectionCreateOpen && (
+          <div className="modal-backdrop" role="presentation" onClick={() => setIsCollectionCreateOpen(false)}>
+            <form
+              className="modal-panel form-panel collection-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label={t('admin.createCollection')}
+              onClick={(event) => event.stopPropagation()}
+              onSubmit={createCollection}
+            >
+              <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setIsCollectionCreateOpen(false)} />
+              <SectionTitle icon={Layers3} title={t('admin.createCollection')} />
+              <XTextInput label={t('common.name')} value={collectionForm.name} onChange={(value) => setCollectionForm({ ...collectionForm, name: value })} />
+              <XSelector
+                label={t('admin.type')}
+                value={collectionForm.kind}
+                options={collectionKindOptions}
+                onChange={(value) => setCollectionForm({ ...collectionForm, kind: value })}
+              />
+              <CollectionAppPicker
+                apps={apps}
+                appIds={collectionForm.appIds}
+                labels={{
+                  title: t('admin.collectionApps'),
+                  selectedCount: t('admin.selectedAppsCount', { count: collectionForm.appIds.length }),
+                  empty: t('admin.noApprovedAppsForCollection'),
+                }}
+                onChange={(appIds) => setCollectionForm({ ...collectionForm, appIds })}
+              />
+              <p className="field-help">{t('admin.collectionAppsHelp')}</p>
+              <div className="dialog-actions">
+                <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={() => setIsCollectionCreateOpen(false)} />
+                <XButton type="submit" variant="primary" label={t('admin.createCollection')} icon={<Layers3 size={18} />} />
+              </div>
+            </form>
+          </div>
+        )}
+
         <section className="panel">
-          <SectionTitle icon={Layers3} title={t('admin.collectionList')} />
+          <div className="section-title with-action">
+            <div>
+              <Layers3 size={19} />
+              <h2>{t('admin.collectionList')}</h2>
+            </div>
+            <XButton type="button" variant="primary" size="sm" label={t('admin.createCollection')} icon={<Plus size={17} />} onClick={() => setIsCollectionCreateOpen(true)} />
+          </div>
           <div className="review-list">
-            {adminCollections.map((item) => {
+            {adminCollections.length === 0 ? (
+              <EmptyState icon={Layers3} title={t('admin.noCollections')} body={t('admin.noCollectionsBody')} />
+            ) : adminCollections.map((item) => {
               const draft =
                 collectionDrafts[item.id] || {
                   name: item.name,
@@ -3725,6 +4031,8 @@ function AppDrawer({
   const [replyText, setReplyText] = useState('');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotCaption, setScreenshotCaption] = useState('');
+  const [screenshotDeviceType, setScreenshotDeviceType] = useState<'DESKTOP' | 'MOBILE'>('DESKTOP');
+  const preferredScreenshotDevice = usePreferredScreenshotDevice();
   const [versionForm, setVersionForm] = useState({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
   const [versionArtifactMode, setVersionArtifactMode] = useState<'local' | 'external'>('local');
   const [versionFile, setVersionFile] = useState<File | null>(null);
@@ -3757,6 +4065,7 @@ function AppDrawer({
   const trustTitle = trustState === 'ready' ? t('drawer.trustReadyTitle') : trustState === 'caution' ? t('drawer.trustCautionTitle') : t('drawer.trustBlockedTitle');
   const trustBody = trustState === 'ready' ? t('drawer.trustReadyBody') : trustState === 'caution' ? t('drawer.trustCautionBody') : t('drawer.trustBlockedBody');
   const installNextStep = canUploadVersion ? t('drawer.installBlockedMaintainer') : t('drawer.installBlockedUser');
+  const displayScreenshots = orderedScreenshots(app.screenshots, preferredScreenshotDevice);
   const trustFacts = [
     { label: t('drawer.installStatus'), value: installable ? t('app.installReady') : t('app.installMissingVersion') },
     { label: t('drawer.installAccess'), value: app.installProtected ? t('app.installPasswordRequired') : t('app.installOpen') },
@@ -3964,10 +4273,12 @@ function AppDrawer({
     const form = new FormData();
     form.set('file', screenshotFile);
     form.set('caption', screenshotCaption);
+    form.set('deviceType', screenshotDeviceType);
     await runAction(setToast, t('drawer.screenshotUploadFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/screenshots`, { method: 'POST', body: form });
       setScreenshotFile(null);
       setScreenshotCaption('');
+      setScreenshotDeviceType('DESKTOP');
       setToast({ tone: 'success', message: t('drawer.screenshotUploaded') });
       await onRefresh();
     });
@@ -4068,7 +4379,7 @@ function AppDrawer({
             <p>{app.summary || app.description}</p>
             <div className="meta-line">
               <span>{app.owner}</span>
-              <span>{app.category || t('common.uncategorized')}</span>
+              <span>{localizedCategory(app, t('common.uncategorized'))}</span>
               <span>{app.latestVersion?.version || '-'}</span>
             </div>
           </div>
@@ -4282,7 +4593,7 @@ function AppDrawer({
                       inputRef={versionFileInputRef}
                       accept=".lpk"
                       required
-                      onChange={(nextFile) => setVersionFile(nextFile)}
+                      onChange={(nextFile) => setVersionFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
                     />
                   ) : (
                     <div className="artifact-fields">
@@ -4379,12 +4690,15 @@ function AppDrawer({
         )}
         <section>
           <h3>{t('drawer.screenshots')}</h3>
-          {(app.screenshots || []).length > 0 ? (
+          {displayScreenshots.length > 0 ? (
             <div className="screenshot-grid">
-              {(app.screenshots || []).map((shot, index, shots) => (
+              {displayScreenshots.map((shot, index, shots) => (
                 <figure className="screenshot-item" key={shot.id}>
                   <img src={shot.imageUrl} alt={shot.caption || app.name} />
-                  {shot.caption && <figcaption>{shot.caption}</figcaption>}
+                  <figcaption>
+                    <span>{shot.caption || app.name}</span>
+                    <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
+                  </figcaption>
                   {canMaintain && (
                     <div className="screenshot-actions">
                       <XIconButton type="button" variant="ghost" label={t('drawer.moveScreenshotUp')} icon={<ArrowUp size={15} />} isDisabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)} />
@@ -4405,7 +4719,17 @@ function AppDrawer({
                 label={t('drawer.uploadScreenshot')}
                 value={screenshotFile}
                 accept=".png,.jpg,.jpeg,.webp"
-                onChange={(nextFile) => setScreenshotFile(nextFile)}
+                onChange={(nextFile) => setScreenshotFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
+              />
+              <XSelector
+                label={t('drawer.screenshotDevice')}
+                isLabelHidden
+                value={screenshotDeviceType}
+                options={[
+                  { value: 'DESKTOP', label: t('drawer.screenshotDeviceDesktop') },
+                  { value: 'MOBILE', label: t('drawer.screenshotDeviceMobile') },
+                ]}
+                onChange={(value) => setScreenshotDeviceType(value as 'DESKTOP' | 'MOBILE')}
               />
               <XIconButton type="submit" variant="ghost" label={t('drawer.uploadScreenshot')} icon={<Upload size={17} />} />
             </form>

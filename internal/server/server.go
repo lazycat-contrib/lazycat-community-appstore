@@ -86,9 +86,11 @@ func newStorageBackend(cfg config.Config) (storage.Backend, error) {
 		return storage.NewS3Backend(storage.S3Options{
 			Endpoint:  cfg.S3Endpoint,
 			Bucket:    cfg.S3Bucket,
+			Region:    "auto",
 			AccessKey: cfg.S3AccessKey,
 			SecretKey: cfg.S3SecretKey,
 			UseSSL:    cfg.S3UseSSL,
+			PathStyle: true,
 			PublicURL: cfg.S3PublicURL,
 		})
 	case "github":
@@ -146,6 +148,7 @@ func ensureSQLiteDir(cfg config.Config) error {
 
 func (s *Server) routes() {
 	s.mux.Handle("GET /files/", http.StripPrefix("/files/", http.HandlerFunc(s.handleLocalFile)))
+	s.mux.HandleFunc("GET /api/v1/files/{path...}", s.handleProxyFile)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "lazycat-appstore-server"})
 	})
@@ -218,6 +221,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleGetSettings))
 	s.mux.HandleFunc("PATCH /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleUpdateSettings))
 	s.mux.HandleFunc("POST /api/v1/admin/settings/test-email", s.withRole(userRoleSiteAdmin)(s.handleSendTestEmail))
+	s.mux.HandleFunc("GET /api/v1/admin/storage", s.withRole(userRoleSiteAdmin)(s.handleGetStorageConfig))
+	s.mux.HandleFunc("PATCH /api/v1/admin/storage", s.withRole(userRoleSiteAdmin)(s.handleUpdateStorageConfig))
+	s.mux.HandleFunc("POST /api/v1/admin/storage/test", s.withRole(userRoleSiteAdmin)(s.handleTestStorageConfig))
 
 	s.mux.HandleFunc("GET /source/v1/index.json", s.handleSourceIndex)
 

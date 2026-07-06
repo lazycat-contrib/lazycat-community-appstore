@@ -26,6 +26,20 @@ func (_c *TagCreate) SetName(v string) *TagCreate {
 	return _c
 }
 
+// SetNameI18n sets the "name_i18n" field.
+func (_c *TagCreate) SetNameI18n(v string) *TagCreate {
+	_c.mutation.SetNameI18n(v)
+	return _c
+}
+
+// SetNillableNameI18n sets the "name_i18n" field if the given value is not nil.
+func (_c *TagCreate) SetNillableNameI18n(v *string) *TagCreate {
+	if v != nil {
+		_c.SetNameI18n(*v)
+	}
+	return _c
+}
+
 // SetSlug sets the "slug" field.
 func (_c *TagCreate) SetSlug(v string) *TagCreate {
 	_c.mutation.SetSlug(v)
@@ -95,6 +109,10 @@ func (_c *TagCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *TagCreate) defaults() {
+	if _, ok := _c.mutation.NameI18n(); !ok {
+		v := tag.DefaultNameI18n
+		_c.mutation.SetNameI18n(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := tag.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -114,6 +132,9 @@ func (_c *TagCreate) check() error {
 		if err := tag.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Tag.name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.NameI18n(); !ok {
+		return &ValidationError{Name: "name_i18n", err: errors.New(`ent: missing required field "Tag.name_i18n"`)}
 	}
 	if _, ok := _c.mutation.Slug(); !ok {
 		return &ValidationError{Name: "slug", err: errors.New(`ent: missing required field "Tag.slug"`)}
@@ -158,6 +179,10 @@ func (_c *TagCreate) createSpec() (*Tag, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(tag.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.NameI18n(); ok {
+		_spec.SetField(tag.FieldNameI18n, field.TypeString, value)
+		_node.NameI18n = value
 	}
 	if value, ok := _c.mutation.Slug(); ok {
 		_spec.SetField(tag.FieldSlug, field.TypeString, value)
