@@ -20,17 +20,24 @@
   --red: #b83333;
   --amber: #b7781b;
   --on-strong: #ffffff;
-  --sidebar-bg: #16231d;
-  --sidebar-ink: #f6f8f4;
-  --sidebar-muted: #aab8b1;
-  --sidebar-item: #dce4df;
-  --sidebar-hover: #25372f;
-  --sidebar-line: #334a40;
+  --sidebar-bg: #fbfcf8;
+  --sidebar-ink: #1d2421;
+  --sidebar-muted: #63706a;
+  --sidebar-item: #34423b;
+  --sidebar-hover: #edf3ec;
+  --sidebar-line: #d5ddd4;
   --brand-mark-bg: #b9e6cf;
   --brand-mark-ink: #0b3c2c;
   --hero-ink: #ffffff;
   --hero-muted: #d7e5dc;
   --hero-accent: #a9e3c5;
+  --hero-overlay-start: rgba(17, 35, 29, 0.96);
+  --hero-overlay-end: rgba(17, 35, 29, 0.82);
+  --hero-overlay-soft-start: rgba(17, 35, 29, 0.94);
+  --hero-overlay-soft-end: rgba(17, 35, 29, 0.78);
+  --hero-stripe-a: #1b3329;
+  --hero-stripe-b: #213b31;
+  --hero-glass: rgba(255, 255, 255, 0.11);
   --status-success-bg: #f1faf5;
   --status-success-line: #b8dfca;
   --status-info-bg: #f3f7fc;
@@ -53,6 +60,7 @@
   --progress-track: #30453b;
   --progress-fill: #b9e6cf;
   --toast-bg: #1d2421;
+  --modal-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -88,6 +96,13 @@
   --hero-ink: #f5fbf7;
   --hero-muted: #bbcbc2;
   --hero-accent: #7cddb0;
+  --hero-overlay-start: rgba(6, 14, 10, 0.98);
+  --hero-overlay-end: rgba(6, 14, 10, 0.88);
+  --hero-overlay-soft-start: rgba(6, 14, 10, 0.96);
+  --hero-overlay-soft-end: rgba(6, 14, 10, 0.82);
+  --hero-stripe-a: #10251c;
+  --hero-stripe-b: #173026;
+  --hero-glass: rgba(255, 255, 255, 0.08);
   --status-success-bg: #10261b;
   --status-success-line: #2d6949;
   --status-info-bg: #102033;
@@ -110,6 +125,7 @@
   --progress-track: #203329;
   --progress-fill: #65d99d;
   --toast-bg: #e9f0eb;
+  --modal-shadow: 0 24px 80px rgba(0, 0, 0, 0.46);
 }
 
 * {
@@ -206,6 +222,7 @@ textarea {
   padding: 22px;
   background: var(--sidebar-bg);
   color: var(--sidebar-ink);
+  border-right: 1px solid var(--sidebar-line);
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -322,6 +339,10 @@ textarea {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 22px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
 }
 
 .searchbox {
@@ -526,8 +547,8 @@ a.secondary-button {
   border-radius: 8px;
   padding: clamp(24px, 5vw, 54px);
   background:
-    linear-gradient(90deg, rgba(17, 35, 29, 0.96), rgba(17, 35, 29, 0.82)),
-    repeating-linear-gradient(135deg, #1b3329 0 16px, #213b31 16px 32px);
+    linear-gradient(90deg, var(--hero-overlay-start), var(--hero-overlay-end)),
+    repeating-linear-gradient(135deg, var(--hero-stripe-a) 0 16px, var(--hero-stripe-b) 16px 32px);
   color: var(--hero-ink);
   display: grid;
   align-content: center;
@@ -558,7 +579,7 @@ a.secondary-button {
 .setup-steps div {
   min-height: 44px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.11);
+  background: var(--hero-glass);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -606,8 +627,8 @@ a.secondary-button {
   min-height: 210px;
   border-radius: 8px;
   background:
-    linear-gradient(90deg, rgba(17, 35, 29, 0.94), rgba(17, 35, 29, 0.78)),
-    repeating-linear-gradient(135deg, #1b3329 0 16px, #213b31 16px 32px);
+    linear-gradient(90deg, var(--hero-overlay-soft-start), var(--hero-overlay-soft-end)),
+    repeating-linear-gradient(135deg, var(--hero-stripe-a) 0 16px, var(--hero-stripe-b) 16px 32px);
   color: var(--hero-ink);
   padding: clamp(22px, 4vw, 42px);
   display: flex;
@@ -658,7 +679,7 @@ a.secondary-button {
 .hero-stack div {
   min-height: 44px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.11);
+  background: var(--hero-glass);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -997,6 +1018,42 @@ a.secondary-button {
   overflow: hidden;
 }
 
+.avatar-fallback {
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(
+      135deg,
+      hsl(var(--avatar-hue) 54% 88%),
+      color-mix(in srgb, var(--avatar-bg) 72%, hsl(var(--avatar-hue) 46% 78%))
+    );
+  color: color-mix(in srgb, var(--ink) 84%, hsl(var(--avatar-hue) 58% 34%));
+  font-size: 13px;
+  font-weight: 760;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+:root[data-theme='dark'] .avatar-fallback {
+  background:
+    linear-gradient(
+      135deg,
+      hsl(var(--avatar-hue) 32% 28%),
+      color-mix(in srgb, var(--avatar-bg) 72%, hsl(var(--avatar-hue) 34% 22%))
+    );
+  color: color-mix(in srgb, var(--ink) 88%, hsl(var(--avatar-hue) 60% 72%));
+}
+
+.app-artwork {
+  display: block;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  border: 1px solid var(--avatar-line);
+  background: var(--avatar-bg);
+  object-fit: cover;
+  overflow: hidden;
+}
+
 .avatar-large {
   width: 74px;
   height: 74px;
@@ -1025,6 +1082,48 @@ a.secondary-button {
   flex-wrap: wrap;
   gap: 6px;
   min-width: 0;
+}
+
+.admin-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.admin-metric-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.admin-metric-card {
+  min-width: 0;
+}
+
+.admin-metric-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.admin-metric-card-head span:first-child {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-metric-card > strong {
+  display: block;
+  color: var(--ink);
+  font-size: 26px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-metric-card > p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .status-badge {
@@ -2012,15 +2111,22 @@ a.secondary-button {
 }
 
 .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--backdrop);
+  display: flex;
   justify-content: center;
   align-items: center;
   padding: 18px;
   z-index: 30;
 }
 
+.modal-panel,
 .install-password-dialog {
   position: relative;
-  width: min(430px, 100%);
+  width: min(560px, 100%);
+  max-height: min(86vh, 780px);
+  overflow: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -2028,7 +2134,7 @@ a.secondary-button {
   padding: 20px;
   display: grid;
   gap: 16px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--modal-shadow);
   opacity: 1;
   transform: translateY(0);
   transition:
@@ -2044,7 +2150,21 @@ a.secondary-button {
   }
 }
 
+.install-password-dialog {
+  width: min(430px, 100%);
+}
+
+.source-add-dialog {
+  gap: 14px;
+}
+
 .install-password-dialog .close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.modal-panel .close {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -2086,16 +2206,19 @@ a.secondary-button {
   border: 1px solid var(--status-success-line);
 }
 
+.modal-panel label,
 .install-password-dialog label {
   display: grid;
   gap: 6px;
 }
 
+.modal-panel label > span,
 .install-password-dialog label > span {
   color: var(--muted);
   font-size: 13px;
 }
 
+.modal-panel input,
 .install-password-dialog input {
   min-height: 44px;
   width: 100%;
@@ -2372,6 +2495,58 @@ a.secondary-button {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
+}
+
+.collection-picker {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--subtle-surface);
+  padding: 10px;
+}
+
+.collection-picker-head {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.collection-picker-head strong {
+  font-size: 13px;
+}
+
+.collection-picker-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.collection-app-options {
+  display: grid;
+  gap: 6px;
+  max-height: 210px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.collection-app-options .toggle-line {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(64px, auto);
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 7px 8px;
+  background: var(--surface);
+}
+
+.collection-app-options .toggle-line small {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .compact-line {

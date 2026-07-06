@@ -28,6 +28,8 @@ const (
 	FieldSummary = "summary"
 	// FieldCategory holds the string denoting the category field in the database.
 	FieldCategory = "category"
+	// FieldIconURL holds the string denoting the icon_url field in the database.
+	FieldIconURL = "icon_url"
 	// FieldInstallProtected holds the string denoting the install_protected field in the database.
 	FieldInstallProtected = "install_protected"
 	// FieldLatestVersionJSON holds the string denoting the latest_version_json field in the database.
@@ -61,6 +63,7 @@ var Columns = []string{
 	FieldSlug,
 	FieldSummary,
 	FieldCategory,
+	FieldIconURL,
 	FieldInstallProtected,
 	FieldLatestVersionJSON,
 	FieldVersionsJSON,
@@ -91,6 +94,8 @@ var (
 	DefaultSummary string
 	// DefaultCategory holds the default value on creation for the "category" field.
 	DefaultCategory string
+	// DefaultIconURL holds the default value on creation for the "icon_url" field.
+	DefaultIconURL string
 	// DefaultInstallProtected holds the default value on creation for the "install_protected" field.
 	DefaultInstallProtected bool
 	// DefaultLatestVersionJSON holds the default value on creation for the "latest_version_json" field.
@@ -146,6 +151,11 @@ func BySummary(opts ...sql.OrderTermOption) OrderOption {
 // ByCategory orders the results by the category field.
 func ByCategory(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCategory, opts...).ToFunc()
+}
+
+// ByIconURL orders the results by the icon_url field.
+func ByIconURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIconURL, opts...).ToFunc()
 }
 
 // ByInstallProtected orders the results by the install_protected field.

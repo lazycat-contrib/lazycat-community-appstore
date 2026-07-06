@@ -302,6 +302,7 @@ var (
 		{Name: "slug", Type: field.TypeString},
 		{Name: "summary", Type: field.TypeString, Default: ""},
 		{Name: "category", Type: field.TypeString, Default: ""},
+		{Name: "icon_url", Type: field.TypeString, Default: ""},
 		{Name: "install_protected", Type: field.TypeBool, Default: false},
 		{Name: "latest_version_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "versions_json", Type: field.TypeString, Size: 2147483647, Default: ""},
@@ -317,7 +318,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "client_source_apps_client_sources_apps",
-				Columns:    []*schema.Column{ClientSourceAppsColumns[12]},
+				Columns:    []*schema.Column{ClientSourceAppsColumns[13]},
 				RefColumns: []*schema.Column{ClientSourcesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -326,17 +327,17 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_package_id",
 				Unique:  true,
-				Columns: []*schema.Column{ClientSourceAppsColumns[12], ClientSourceAppsColumns[2]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[13], ClientSourceAppsColumns[2]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_slug",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[12], ClientSourceAppsColumns[4]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[13], ClientSourceAppsColumns[4]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[12], ClientSourceAppsColumns[11]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[13], ClientSourceAppsColumns[12]},
 			},
 		},
 	}

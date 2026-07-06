@@ -127,6 +127,20 @@ func (_u *ClientSourceAppUpdate) SetNillableCategory(v *string) *ClientSourceApp
 	return _u
 }
 
+// SetIconURL sets the "icon_url" field.
+func (_u *ClientSourceAppUpdate) SetIconURL(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetIconURL(v)
+	return _u
+}
+
+// SetNillableIconURL sets the "icon_url" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableIconURL(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetIconURL(*v)
+	}
+	return _u
+}
+
 // SetInstallProtected sets the "install_protected" field.
 func (_u *ClientSourceAppUpdate) SetInstallProtected(v bool) *ClientSourceAppUpdate {
 	_u.mutation.SetInstallProtected(v)
@@ -294,6 +308,9 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.IconURL(); ok {
+		_spec.SetField(clientsourceapp.FieldIconURL, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
 	}
@@ -452,6 +469,20 @@ func (_u *ClientSourceAppUpdateOne) SetCategory(v string) *ClientSourceAppUpdate
 func (_u *ClientSourceAppUpdateOne) SetNillableCategory(v *string) *ClientSourceAppUpdateOne {
 	if v != nil {
 		_u.SetCategory(*v)
+	}
+	return _u
+}
+
+// SetIconURL sets the "icon_url" field.
+func (_u *ClientSourceAppUpdateOne) SetIconURL(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetIconURL(v)
+	return _u
+}
+
+// SetNillableIconURL sets the "icon_url" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableIconURL(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetIconURL(*v)
 	}
 	return _u
 }
@@ -652,6 +683,9 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.IconURL(); ok {
+		_spec.SetField(clientsourceapp.FieldIconURL, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)

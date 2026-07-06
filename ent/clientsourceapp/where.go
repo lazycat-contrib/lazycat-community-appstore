@@ -90,6 +90,11 @@ func Category(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldCategory, v))
 }
 
+// IconURL applies equality check predicate on the "icon_url" field. It's identical to IconURLEQ.
+func IconURL(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldIconURL, v))
+}
+
 // InstallProtected applies equality check predicate on the "install_protected" field. It's identical to InstallProtectedEQ.
 func InstallProtected(v bool) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldInstallProtected, v))
@@ -523,6 +528,71 @@ func CategoryEqualFold(v string) predicate.ClientSourceApp {
 // CategoryContainsFold applies the ContainsFold predicate on the "category" field.
 func CategoryContainsFold(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldCategory, v))
+}
+
+// IconURLEQ applies the EQ predicate on the "icon_url" field.
+func IconURLEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldIconURL, v))
+}
+
+// IconURLNEQ applies the NEQ predicate on the "icon_url" field.
+func IconURLNEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldIconURL, v))
+}
+
+// IconURLIn applies the In predicate on the "icon_url" field.
+func IconURLIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldIconURL, vs...))
+}
+
+// IconURLNotIn applies the NotIn predicate on the "icon_url" field.
+func IconURLNotIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldIconURL, vs...))
+}
+
+// IconURLGT applies the GT predicate on the "icon_url" field.
+func IconURLGT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldIconURL, v))
+}
+
+// IconURLGTE applies the GTE predicate on the "icon_url" field.
+func IconURLGTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldIconURL, v))
+}
+
+// IconURLLT applies the LT predicate on the "icon_url" field.
+func IconURLLT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldIconURL, v))
+}
+
+// IconURLLTE applies the LTE predicate on the "icon_url" field.
+func IconURLLTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldIconURL, v))
+}
+
+// IconURLContains applies the Contains predicate on the "icon_url" field.
+func IconURLContains(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContains(FieldIconURL, v))
+}
+
+// IconURLHasPrefix applies the HasPrefix predicate on the "icon_url" field.
+func IconURLHasPrefix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasPrefix(FieldIconURL, v))
+}
+
+// IconURLHasSuffix applies the HasSuffix predicate on the "icon_url" field.
+func IconURLHasSuffix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasSuffix(FieldIconURL, v))
+}
+
+// IconURLEqualFold applies the EqualFold predicate on the "icon_url" field.
+func IconURLEqualFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEqualFold(FieldIconURL, v))
+}
+
+// IconURLContainsFold applies the ContainsFold predicate on the "icon_url" field.
+func IconURLContainsFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldIconURL, v))
 }
 
 // InstallProtectedEQ applies the EQ predicate on the "install_protected" field.

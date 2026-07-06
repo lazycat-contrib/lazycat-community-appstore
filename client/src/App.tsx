@@ -36,12 +36,28 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { Avatar } from '@humation/react';
-import { humation1 } from '@humation/assets-humation-1';
+import { Theme } from '@astryxdesign/core/theme';
+import { neutralTheme } from '@astryxdesign/theme-neutral/built';
+import { Badge as XBadge } from '@astryxdesign/core/Badge';
+import { Button as XButton } from '@astryxdesign/core/Button';
+import { Card as XCard } from '@astryxdesign/core/Card';
+import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
+import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
+import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
+import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
+import { AppIcon, AvatarIcon } from './components/AppIcon';
+import { CollectionAppPicker } from './modules/admin/CollectionAppPicker';
+import {
+  matchesSourceAppCategory,
+  matchesSourceAppSource,
+  sourceAppCategoryOptions,
+  sourceAppSourceOptions,
+} from './modules/client/sourceAppFilters';
 
 type User = {
   id: number;
@@ -210,6 +226,7 @@ type SourceApp = {
   slug: string;
   summary: string;
   category?: string;
+  iconUrl?: string;
   installProtected?: boolean;
   latestVersion?: SourceVersion;
   versions?: SourceVersion[];
@@ -328,10 +345,6 @@ function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
 
-function AvatarIcon({ seed, title, size = 46, className }: { seed: string; title?: string; size?: number; className?: string }) {
-  return <Avatar assets={humation1} seed={seed || 'lazycat-app'} title={title} size={size} className={cx('humation-avatar', className)} />;
-}
-
 async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!HAS_API) {
     throw new Error(i18n.t('toast.apiMissing'));
@@ -341,7 +354,7 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers: options.body instanceof FormData ? options.headers : { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   });
-  const data = await response.json().catch(() => ({}));
+  const data = await readResponseJSON(response);
   if (!response.ok) {
     throw new Error(data?.error?.message || `HTTP ${response.status}`);
   }
@@ -350,13 +363,28 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 const CLIENT_API_BASE = '/api/client/v1';
 
+async function readResponseJSON(response: Response): Promise<any> {
+  const text = await response.text();
+  if (!text.trim()) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (!response.ok) return {};
+    throw new Error(i18n.t('toast.invalidApiResponse'));
+  }
+}
+
+function arrayOrEmpty<T>(value?: T[]) {
+  return Array.isArray(value) ? value : [];
+}
+
 async function clientApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${CLIENT_API_BASE}${path}`, {
     credentials: 'include',
     headers: options.body instanceof FormData ? options.headers : { 'Content-Type': 'application/json', ...options.headers },
     ...options,
   });
-  const data = await response.json().catch(() => ({}));
+  const data = await readResponseJSON(response);
   if (!response.ok) {
     throw new Error(data?.error?.message || `HTTP ${response.status}`);
   }
@@ -514,7 +542,7 @@ function readSystemTheme(): ResolvedTheme {
 }
 
 function nextThemeMode(mode: ThemeMode): ThemeMode {
-  if (mode === 'system') return 'light';
+  if (mode === 'system') return readSystemTheme() === 'dark' ? 'light' : 'dark';
   if (mode === 'light') return 'dark';
   return 'system';
 }
@@ -534,6 +562,7 @@ type SortMode = 'recent' | 'downloads' | 'name';
 type SourceAppFilter = 'all' | 'installable' | 'installed' | 'incomplete';
 type SourceHealth = 'syncing' | 'auth' | 'failed' | 'stale' | 'synced' | 'unsynced';
 type SourceHealthFilter = 'all' | Exclude<SourceHealth, 'syncing'>;
+type CollectionDraft = { name: string; slug: string; kind: string; appIds: number[] };
 
 function verificationTokenFromURL() {
   return new URLSearchParams(window.location.search).get('token') || '';
@@ -584,8 +613,8 @@ export function App() {
   const [setupRequired, setSetupRequired] = useState(false);
   const defaultSourceCheckedRef = useRef(false);
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
-  const navItems = HAS_API ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : clientTabs;
-  const modeLabel = HAS_API ? t('mode.serverStore') : t('mode.standaloneClient');
+  const serverNavItems = user ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : serverBaseTabs.filter((item) => item.key !== 'profile');
+  const navItems = HAS_API ? serverNavItems : clientTabs;
   const siteTitle = HAS_API ? siteProfile.title : t('appName');
   const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
   const drawerOpen = Boolean(selectedApp || (!HAS_API && selectedSourceApp));
@@ -614,10 +643,13 @@ export function App() {
   }, [sources, sourceApps]);
 
   useEffect(() => {
+    if (HAS_API && !user && tab === 'profile') {
+      return;
+    }
     if (!navItems.some((item) => item.key === tab)) {
       setTab(navItems[0].key);
     }
-  }, [navItems, tab]);
+  }, [navItems, tab, user]);
 
   useEffect(() => {
     document.getElementById('main-content')?.focus({ preventScroll: true });
@@ -732,7 +764,8 @@ export function App() {
 
   async function loadClientSources() {
     const data = await clientApi<{ sources: SourceSubscription[] }>('/sources');
-    if (!defaultSourceCheckedRef.current && data.sources.length === 0 && DEFAULT_SOURCE_URL) {
+    const nextSources = arrayOrEmpty(data.sources);
+    if (!defaultSourceCheckedRef.current && nextSources.length === 0 && DEFAULT_SOURCE_URL) {
       defaultSourceCheckedRef.current = true;
       const created = await clientApi<{ source: SourceSubscription }>('/sources', {
         method: 'POST',
@@ -742,20 +775,22 @@ export function App() {
       return [created.source];
     }
     defaultSourceCheckedRef.current = true;
-    setSources(data.sources);
-    return data.sources;
+    setSources(nextSources);
+    return nextSources;
   }
 
   async function loadClientApps() {
     const data = await clientApi<{ apps: SourceApp[] }>('/apps');
-    setSourceApps(data.apps);
-    return data.apps;
+    const nextApps = arrayOrEmpty(data.apps);
+    setSourceApps(nextApps);
+    return nextApps;
   }
 
   async function loadInstallHistory() {
     const data = await clientApi<{ history: InstallHistoryEntry[] }>('/history');
-    setInstallHistory(data.history || []);
-    return data.history || [];
+    const nextHistory = arrayOrEmpty(data.history);
+    setInstallHistory(nextHistory);
+    return nextHistory;
   }
 
   async function refreshClientData(options: { silent?: boolean } = {}) {
@@ -988,7 +1023,7 @@ export function App() {
 
   if (HAS_API && setupRequired) {
     return (
-      <>
+      <Theme theme={neutralTheme} mode={resolvedTheme}>
         <SetupWizard
           onComplete={async (nextUser) => {
             setUser(nextUser);
@@ -1001,11 +1036,12 @@ export function App() {
           onThemeModeChange={setThemeMode}
         />
         {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
-      </>
+      </Theme>
     );
   }
 
   return (
+    <Theme theme={neutralTheme} mode={resolvedTheme}>
     <div className="shell">
       <a className="skip-link" href="#main-content" inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>{t('common.skipToMain')}</a>
       <aside className="sidebar" inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>
@@ -1015,7 +1051,6 @@ export function App() {
           </div>
           <div>
             <strong>{siteTitle}</strong>
-            <span>{modeLabel}</span>
           </div>
         </div>
         <nav className="nav">
@@ -1029,13 +1064,6 @@ export function App() {
             );
           })}
         </nav>
-        <div className="server-card">
-          <Server size={18} />
-          <div>
-            <span>{HAS_API ? t('mode.serverApi') : t('mode.sourceClient')}</span>
-            <strong>{HAS_API ? API_BASE.replace(/^https?:\/\//, '') : t('mode.notConfigured')}</strong>
-          </div>
-        </div>
       </aside>
 
       <main className="main" id="main-content" tabIndex={-1} inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>
@@ -1050,7 +1078,6 @@ export function App() {
             />
           </div>
           <div className="top-actions">
-            <span className="mode-pill">{modeLabel}</span>
             <label className="language-select">
               <span>{t('language.label')}</span>
               <select aria-label={t('language.label')} value={currentLanguage} onChange={(event) => void i18n.changeLanguage(event.target.value)}>
@@ -1283,6 +1310,7 @@ export function App() {
 
       {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
     </div>
+    </Theme>
   );
 }
 
@@ -1590,11 +1618,6 @@ function HomeView({
             </button>
           </div>
         </div>
-        <div className="hero-stack">
-          <div><PackagePlus size={18} /> {t('home.upload')}</div>
-          <div><ShieldCheck size={18} /> {t('home.trusted')}</div>
-          <div><Download size={18} /> {t('home.install')}</div>
-        </div>
       </div>
 
       <section className="store-metrics" aria-label={t('nav.store')}>
@@ -1707,11 +1730,15 @@ function SearchView({
 }) {
   const { t } = useTranslation();
   const [sourceAppFilter, setSourceAppFilter] = useState<SourceAppFilter>('all');
+  const [selectedSourceFilter, setSelectedSourceFilter] = useState('all');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   const sourceNeedle = query.trim().toLowerCase();
   const searchableSourceApps = sourceApps.filter((app) => {
     if (!sourceNeedle) return true;
     return [app.name, app.summary, app.category, app.sourceName].filter(Boolean).join(' ').toLowerCase().includes(sourceNeedle);
   });
+  const sourceOptions = sourceAppSourceOptions(searchableSourceApps);
+  const categoryOptions = sourceAppCategoryOptions(searchableSourceApps, t('common.uncategorized'));
   const sourceAppFilterItems: Array<{ key: SourceAppFilter; label: string; count: number }> = [
     { key: 'all', label: t('search.sourceFilters.all'), count: searchableSourceApps.length },
     { key: 'installable', label: t('search.sourceFilters.installable'), count: searchableSourceApps.filter(hasInstallableVersion).length },
@@ -1723,6 +1750,8 @@ function SearchView({
     },
   ];
   const filteredSourceApps = searchableSourceApps.filter((app) => {
+    if (!matchesSourceAppSource(app, selectedSourceFilter)) return false;
+    if (!matchesSourceAppCategory(app, selectedCategoryFilter)) return false;
     if (sourceAppFilter === 'installable') return hasInstallableVersion(app);
     if (sourceAppFilter === 'installed') return Boolean(findInstalledApplication(app, installedApps));
     if (sourceAppFilter === 'incomplete') return !hasInstallableVersion(app) || !app.latestVersion?.sha256 || !app.latestVersion?.size;
@@ -1778,6 +1807,26 @@ function SearchView({
         </div>
         <section className="panel">
           <SectionTitle icon={Download} title={t('search.subscribedApps')} />
+          <div className="filter-bar">
+            <label>
+              <span>{t('search.sourceFilter')}</span>
+              <select value={selectedSourceFilter} onChange={(event) => setSelectedSourceFilter(event.target.value)}>
+                <option value="all">{t('search.allSources')}</option>
+                {sourceOptions.map((option) => (
+                  <option key={option.key} value={option.key}>{option.label} ({option.count})</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{t('search.categoryFilter')}</span>
+              <select value={selectedCategoryFilter} onChange={(event) => setSelectedCategoryFilter(event.target.value)}>
+                <option value="all">{t('search.allCategories')}</option>
+                {categoryOptions.map((option) => (
+                  <option key={option.key} value={option.key}>{option.label} ({option.count})</option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div className="segmented filter-segmented" aria-label={t('search.sourceAppFilter')}>
             {sourceAppFilterItems.map((item) => (
               <button
@@ -1897,7 +1946,7 @@ function SourceAppGrid({
         return (
           <article className="source-app-card" key={`${app.sourceId || app.sourceName}-${app.id}`}>
             <button type="button" className="app-open" onClick={() => onOpen(app)} aria-label={t('app.open', { name: app.name })}>
-              <AvatarIcon seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} />
+              <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} />
               <div>
                 <h3>{app.name}</h3>
                 <p>{app.summary || t('common.lpkApp')}</p>
@@ -1988,6 +2037,9 @@ function SourcesView({
   const [syncingID, setSyncingID] = useState<SourceID | null>(null);
   const [confirmDeleteSource, setConfirmDeleteSource] = useState<SourceID | null>(null);
   const [sourceHealthFilter, setSourceHealthFilter] = useState<SourceHealthFilter>('all');
+  const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
+  const [selectedSyncedSource, setSelectedSyncedSource] = useState('all');
+  const [selectedSyncedCategory, setSelectedSyncedCategory] = useState('all');
 
   function normalizedSourceURL(rawURL: string) {
     try {
@@ -2025,6 +2077,7 @@ function SourcesView({
     try {
       await onAddSource({ name, url, password: draft.password, mirror: draft.mirror });
       setDraft(emptyDraft);
+      setIsAddSourceOpen(false);
       setToast({ tone: 'success', message: t('sources.addedNext') });
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('sources.invalid')) });
@@ -2061,6 +2114,11 @@ function SourcesView({
     { key: 'failed', label: t('sources.filters.failed'), count: sources.filter((source) => healthFor(source) === 'failed').length },
   ];
   const filteredSources = sources.filter((source) => sourceHealthFilter === 'all' || healthFor(source) === sourceHealthFilter);
+  const syncedSourceOptions = sourceAppSourceOptions(sourceApps);
+  const syncedCategoryOptions = sourceAppCategoryOptions(sourceApps, t('common.uncategorized'));
+  const filteredSyncedSourceApps = sourceApps.filter(
+    (app) => matchesSourceAppSource(app, selectedSyncedSource) && matchesSourceAppCategory(app, selectedSyncedCategory),
+  );
 
   async function deleteSource(source: SourceSubscription) {
     if (confirmDeleteSource !== source.id) {
@@ -2085,10 +2143,16 @@ function SourcesView({
           <h1>{t('sources.title')}</h1>
           <p>{t('sources.subtitle')}</p>
         </div>
-        <button type="button" className="primary-button" onClick={() => void onSyncAll()}>
-          <RefreshCw size={18} />
-          <span>{t('sources.syncAll')}</span>
-        </button>
+        <div className="row-actions">
+          <button type="button" className="primary-button" onClick={() => setIsAddSourceOpen(true)}>
+            <Plus size={18} />
+            <span>{t('sources.add')}</span>
+          </button>
+          <button type="button" className="secondary-button" onClick={() => void onSyncAll()}>
+            <RefreshCw size={18} />
+            <span>{t('sources.syncAll')}</span>
+          </button>
+        </div>
       </div>
 
       <div className="client-summary-grid source-summary" aria-label={t('sources.summary')}>
@@ -2118,65 +2182,85 @@ function SourcesView({
         </div>
       </div>
 
-      <section className="split">
-      <form className="panel form-panel" onSubmit={addSource} noValidate>
-        <SectionTitle icon={Cloud} title={t('sources.addTitle')} />
-        <div className="source-readiness" aria-label={t('sources.addReadiness')}>
-          <div className={cx('readiness-step', sourceNameReady && 'ready')}>
-            <span className={cx('status-badge', sourceNameReady ? 'approved' : 'unlisted')}>
-              {sourceNameReady ? <Check size={14} /> : <AlertCircle size={14} />}
-              {sourceNameReady ? t('sources.ready') : t('sources.needsValue')}
-            </span>
-            <strong>{t('sources.readinessName')}</strong>
-            <small>{sourceNameReady ? t('sources.readinessNameReady') : t('sources.readinessNameMissing')}</small>
-          </div>
-          <div className={cx('readiness-step', sourceURLReady && 'ready')}>
-            <span className={cx('status-badge', sourceURLReady ? 'approved' : 'unlisted')}>
-              {sourceURLReady ? <Check size={14} /> : <AlertCircle size={14} />}
-              {sourceURLReady ? t('sources.ready') : t('sources.needsValue')}
-            </span>
-            <strong>{t('sources.readinessUrl')}</strong>
-            <small>{sourceURLReady ? t('sources.readinessUrlReady') : t('sources.readinessUrlMissing')}</small>
-          </div>
-          <div className={cx('readiness-step', sourcePasswordReady && 'ready')}>
-            <span className={cx('status-badge', sourcePasswordReady ? 'synced' : 'unsynced')}>
-              <KeyRound size={14} />
-              {sourcePasswordReady ? t('sources.filled') : t('sources.optional')}
-            </span>
-            <strong>{t('sources.readinessPassword')}</strong>
-            <small>{sourcePasswordReady ? t('sources.readinessPasswordReady') : t('sources.readinessPasswordOptional')}</small>
-          </div>
-          <div className={cx('readiness-step', sourceMirrorReady && 'ready')}>
-            <span className={cx('status-badge', sourceMirrorReady ? 'synced' : 'unsynced')}>
-              <Link size={14} />
-              {sourceMirrorReady ? t('sources.filled') : t('sources.optional')}
-            </span>
-            <strong>{t('sources.readinessMirror')}</strong>
-            <small>{sourceMirrorReady ? t('sources.readinessMirrorReady') : t('sources.readinessMirrorOptional')}</small>
-          </div>
+      {isAddSourceOpen && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setIsAddSourceOpen(false)}>
+          <form
+            className="modal-panel form-panel source-add-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('sources.addTitle')}
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={addSource}
+            noValidate
+          >
+            <button type="button" className="icon-button close" aria-label={t('common.close')} onClick={() => setIsAddSourceOpen(false)}>
+              <X size={17} />
+            </button>
+            <SectionTitle icon={Cloud} title={t('sources.addTitle')} />
+            <div className="source-readiness" aria-label={t('sources.addReadiness')}>
+              <div className={cx('readiness-step', sourceNameReady && 'ready')}>
+                <span className={cx('status-badge', sourceNameReady ? 'approved' : 'unlisted')}>
+                  {sourceNameReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                  {sourceNameReady ? t('sources.ready') : t('sources.needsValue')}
+                </span>
+                <strong>{t('sources.readinessName')}</strong>
+                <small>{sourceNameReady ? t('sources.readinessNameReady') : t('sources.readinessNameMissing')}</small>
+              </div>
+              <div className={cx('readiness-step', sourceURLReady && 'ready')}>
+                <span className={cx('status-badge', sourceURLReady ? 'approved' : 'unlisted')}>
+                  {sourceURLReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                  {sourceURLReady ? t('sources.ready') : t('sources.needsValue')}
+                </span>
+                <strong>{t('sources.readinessUrl')}</strong>
+                <small>{sourceURLReady ? t('sources.readinessUrlReady') : t('sources.readinessUrlMissing')}</small>
+              </div>
+              <div className={cx('readiness-step', sourcePasswordReady && 'ready')}>
+                <span className={cx('status-badge', sourcePasswordReady ? 'synced' : 'unsynced')}>
+                  <KeyRound size={14} />
+                  {sourcePasswordReady ? t('sources.filled') : t('sources.optional')}
+                </span>
+                <strong>{t('sources.readinessPassword')}</strong>
+                <small>{sourcePasswordReady ? t('sources.readinessPasswordReady') : t('sources.readinessPasswordOptional')}</small>
+              </div>
+              <div className={cx('readiness-step', sourceMirrorReady && 'ready')}>
+                <span className={cx('status-badge', sourceMirrorReady ? 'synced' : 'unsynced')}>
+                  <Link size={14} />
+                  {sourceMirrorReady ? t('sources.filled') : t('sources.optional')}
+                </span>
+                <strong>{t('sources.readinessMirror')}</strong>
+                <small>{sourceMirrorReady ? t('sources.readinessMirrorReady') : t('sources.readinessMirrorOptional')}</small>
+              </div>
+            </div>
+            <label>
+              <span>{t('common.name')}</span>
+              <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+            </label>
+            <label>
+              <span>{t('sources.url')}</span>
+              <input type="url" value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} />
+            </label>
+            <label>
+              <span>{t('sources.password')}</span>
+              <input type="password" value={draft.password} onChange={(event) => setDraft({ ...draft, password: event.target.value })} />
+            </label>
+            <label>
+              <span>{t('sources.mirror')}</span>
+              <input value={draft.mirror} onChange={(event) => setDraft({ ...draft, mirror: event.target.value })} />
+            </label>
+            {!canAddSource && <p className="field-help">{t('sources.addBlocked')}</p>}
+            <div className="dialog-actions">
+              <button type="button" className="secondary-button" onClick={() => setIsAddSourceOpen(false)}>
+                <X size={18} />
+                <span>{t('common.cancel')}</span>
+              </button>
+              <button type="submit" className="primary-button" disabled={!canAddSource}>
+                <Cloud size={18} />
+                <span>{t('sources.add')}</span>
+              </button>
+            </div>
+          </form>
         </div>
-        <label>
-          <span>{t('common.name')}</span>
-          <input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
-        </label>
-        <label>
-          <span>{t('sources.url')}</span>
-          <input type="url" value={draft.url} onChange={(event) => setDraft({ ...draft, url: event.target.value })} />
-        </label>
-        <label>
-          <span>{t('sources.password')}</span>
-          <input type="password" value={draft.password} onChange={(event) => setDraft({ ...draft, password: event.target.value })} />
-        </label>
-        <label>
-          <span>{t('sources.mirror')}</span>
-          <input value={draft.mirror} onChange={(event) => setDraft({ ...draft, mirror: event.target.value })} />
-        </label>
-        {!canAddSource && <p className="field-help">{t('sources.addBlocked')}</p>}
-        <button type="submit" className="primary-button" disabled={!canAddSource}>
-          <Cloud size={18} />
-          <span>{t('sources.add')}</span>
-        </button>
-      </form>
+      )}
 
       <section className="panel">
         <SectionTitle icon={Server} title={t('sources.subscriptions')} />
@@ -2300,11 +2384,39 @@ function SourcesView({
           )}
         </div>
       </section>
-      </section>
 
       <section className="panel">
         <SectionTitle icon={Download} title={t('sources.syncedApps')} />
-        <SourceAppGrid apps={sourceApps} installedApps={installedApps} onOpen={onOpenSource} onInstall={onInstall} onGoSources={() => undefined} showEmptyAction={false} />
+        <div className="filter-bar">
+          <label>
+            <span>{t('search.sourceFilter')}</span>
+            <select value={selectedSyncedSource} onChange={(event) => setSelectedSyncedSource(event.target.value)}>
+              <option value="all">{t('search.allSources')}</option>
+              {syncedSourceOptions.map((option) => (
+                <option key={option.key} value={option.key}>{option.label} ({option.count})</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t('search.categoryFilter')}</span>
+            <select value={selectedSyncedCategory} onChange={(event) => setSelectedSyncedCategory(event.target.value)}>
+              <option value="all">{t('search.allCategories')}</option>
+              {syncedCategoryOptions.map((option) => (
+                <option key={option.key} value={option.key}>{option.label} ({option.count})</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <SourceAppGrid
+          apps={filteredSyncedSourceApps}
+          installedApps={installedApps}
+          onOpen={onOpenSource}
+          onInstall={onInstall}
+          onGoSources={() => setIsAddSourceOpen(true)}
+          showEmptyAction={sourceApps.length === 0}
+          emptyTitle={sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle')}
+          emptyBody={sourceApps.length === 0 ? t('search.noSyncedAppsBody') : t('search.noFilterResultsBody')}
+        />
       </section>
     </section>
   );
@@ -2376,7 +2488,7 @@ function SourceAppDrawer({
           <X size={17} />
         </button>
         <header className="detail-head">
-          <AvatarIcon seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} className="detail-avatar" />
+          <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} className="detail-avatar" />
           <div>
             <span className="eyebrow subtle">{t('sourceDetail.eyebrow')}</span>
             <h2 id={drawerTitleId}>{app.name}</h2>
@@ -2654,7 +2766,7 @@ function ProfileView({
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
-  const [workspaceTab, setWorkspaceTab] = useState<'overview' | 'submit' | 'tokens' | 'groups' | 'favorites'>('overview');
+  const [workspaceTab, setWorkspaceTab] = useState<'overview' | 'apps' | 'submit' | 'tokens' | 'groups' | 'favorites'>('overview');
   const [authForm, setAuthForm] = useState({ username: '', password: '', email: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
   const [uploadForm, setUploadForm] = useState({
@@ -2683,6 +2795,7 @@ function ProfileView({
   const AuthSubmitIcon = mode === 'verify' ? Check : mode === 'register' ? Plus : LogIn;
   const workspaceTabs = [
     { key: 'overview', label: t('profile.tabs.overview'), icon: Gauge },
+    { key: 'apps', label: t('profile.tabs.apps'), icon: PackagePlus },
     { key: 'submit', label: t('profile.tabs.submit'), icon: Upload },
     { key: 'tokens', label: t('profile.tabs.tokens'), icon: KeyRound },
     { key: 'groups', label: t('profile.tabs.groups'), icon: Users },
@@ -3190,7 +3303,7 @@ function ProfileView({
         <div className="panel profile-card">
           <AvatarIcon seed={user.email || user.username} title={user.username} size={74} className="avatar-large" />
           <h2>{user.username}</h2>
-          <p>{user.role}</p>
+          <p>{t(`admin.roles.${user.role === 'SITE_ADMIN' ? 'siteAdmin' : user.role === 'SOFTWARE_ADMIN' ? 'softwareAdmin' : 'user'}`)}</p>
           <button
             type="button"
             className="secondary-button"
@@ -3207,7 +3320,7 @@ function ProfileView({
         </div>
 
         <section className="panel">
-          <SectionTitle icon={PackagePlus} title={t('profile.mySubmissions')} />
+          <SectionTitle icon={Gauge} title={t('profile.publishOverview')} />
           <div className="workflow-summary-grid" aria-label={t('profile.publishOverview')}>
             <div>
               <span>{t('profile.totalSubmissions')}</span>
@@ -3236,30 +3349,36 @@ function ProfileView({
               ))}
             </div>
           )}
-          <div className="review-list">
-            {ownedApps.length === 0 ? (
-              <EmptyState icon={PackagePlus} title={t('profile.mySubmissionsEmpty')} body={t('profile.mySubmissionsEmptyBody')} />
-            ) : (
-              ownedApps.map((item) => (
-                <div className="review-row" key={item.id}>
-                  <div>
-                    <strong>{item.name}</strong>
-                    <span>{item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
-                    <small className="workflow-hint">{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
-                  </div>
-                  <div className="row-actions">
-                    <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
-                    <button type="button" className="secondary-button compact-button" onClick={() => void onOpen(item)}>
-                      <ChevronRight size={17} />
-                      <span>{t('profile.openSubmission')}</span>
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
         </section>
       </div>
+      )}
+
+      {workspaceTab === 'apps' && (
+      <section className="panel">
+        <SectionTitle icon={PackagePlus} title={t('profile.mySubmissions')} />
+        <div className="review-list">
+          {ownedApps.length === 0 ? (
+            <EmptyState icon={PackagePlus} title={t('profile.mySubmissionsEmpty')} body={t('profile.mySubmissionsEmptyBody')} />
+          ) : (
+            ownedApps.map((item) => (
+              <div className="review-row" key={item.id}>
+                <div>
+                  <strong>{item.name}</strong>
+                  <span>{item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
+                  <small className="workflow-hint">{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
+                </div>
+                <div className="row-actions">
+                  <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
+                  <button type="button" className="secondary-button compact-button" onClick={() => void onOpen(item)}>
+                    <ChevronRight size={17} />
+                    <span>{t('profile.openSubmission')}</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
       )}
 
       {workspaceTab === 'submit' && (
@@ -3625,10 +3744,10 @@ function AdminPanel({
   const [adminCollections, setAdminCollections] = useState<Collection[]>([]);
   const [categoryForm, setCategoryForm] = useState({ name: '', slug: '' });
   const [tagForm, setTagForm] = useState({ name: '', slug: '' });
-  const [collectionForm, setCollectionForm] = useState({ name: '', kind: 'MANUAL', appIds: '' });
+  const [collectionForm, setCollectionForm] = useState<{ name: string; kind: string; appIds: number[] }>({ name: '', kind: 'MANUAL', appIds: [] });
   const [categoryDrafts, setCategoryDrafts] = useState<Record<number, { name: string; slug: string }>>({});
   const [tagDrafts, setTagDrafts] = useState<Record<number, { name: string; slug: string }>>({});
-  const [collectionDrafts, setCollectionDrafts] = useState<Record<number, { name: string; slug: string; kind: string; appIds: string }>>({});
+  const [collectionDrafts, setCollectionDrafts] = useState<Record<number, CollectionDraft>>({});
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const isSiteAdmin = user.role === 'SITE_ADMIN';
   const adminTabs = [
@@ -3643,6 +3762,11 @@ function AdminPanel({
     { value: 'MANUAL', label: t('admin.collectionKinds.manual') },
     { value: 'RECENT_UPDATED', label: t('admin.collectionKinds.recentUpdated') },
     { value: 'MOST_DOWNLOADED', label: t('admin.collectionKinds.mostDownloaded') },
+  ];
+  const userRoleOptions: Array<{ value: User['role']; label: string }> = [
+    { value: 'USER', label: t('admin.roles.user') },
+    { value: 'SOFTWARE_ADMIN', label: t('admin.roles.softwareAdmin') },
+    { value: 'SITE_ADMIN', label: t('admin.roles.siteAdmin') },
   ];
   const siteIdentityFields = [
     { key: 'site_title', label: t('admin.settings.siteTitle'), help: t('admin.settingsHelp.siteTitle') },
@@ -3792,32 +3916,54 @@ function AdminPanel({
     inputMode?: string;
     options?: Array<{ value: string; label: string }>;
   }) {
+    if (field.type === 'boolean') {
+      return (
+        <XSelector
+          key={field.key}
+          label={field.label}
+          description={field.help}
+          value={settings[field.key] || 'false'}
+          options={[
+            { value: 'false', label: t('common.off') },
+            { value: 'true', label: t('common.on') },
+          ]}
+          onChange={(value) => updateSetting(field.key, value)}
+        />
+      );
+    }
+    if (field.type === 'select') {
+      return (
+        <XSelector
+          key={field.key}
+          label={field.label}
+          description={field.help}
+          value={settings[field.key] || field.options?.[0]?.value || ''}
+          options={field.options || []}
+          onChange={(value) => updateSetting(field.key, value)}
+        />
+      );
+    }
+    if (field.type === 'textarea') {
+      return (
+        <XTextArea
+          key={field.key}
+          label={field.label}
+          description={field.help}
+          value={settings[field.key] || ''}
+          rows={4}
+          onChange={(value) => updateSetting(field.key, value)}
+        />
+      );
+    }
     return (
-      <label key={field.key}>
-        <span>{field.label}</span>
-        {field.type === 'boolean' ? (
-          <select value={settings[field.key] || 'false'} onChange={(event) => updateSetting(field.key, event.target.value)}>
-            <option value="false">{t('common.off')}</option>
-            <option value="true">{t('common.on')}</option>
-          </select>
-        ) : field.type === 'select' ? (
-          <select value={settings[field.key] || field.options?.[0]?.value || ''} onChange={(event) => updateSetting(field.key, event.target.value)}>
-            {(field.options || []).map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        ) : field.type === 'textarea' ? (
-          <textarea value={settings[field.key] || ''} onChange={(event) => updateSetting(field.key, event.target.value)} />
-        ) : (
-          <input
-            type={field.type || 'text'}
-            inputMode={field.inputMode as 'numeric' | undefined}
-            value={settings[field.key] || ''}
-            onChange={(event) => updateSetting(field.key, event.target.value)}
-          />
-        )}
-        <small className="field-help">{field.help}</small>
-      </label>
+      <XTextInput
+        key={field.key}
+        type={field.type === 'password' ? 'password' : 'text'}
+        label={field.label}
+        description={field.help}
+        value={settings[field.key] || ''}
+        onChange={(value) => updateSetting(field.key, value)}
+      />
     );
   }
 
@@ -3907,10 +4053,10 @@ function AdminPanel({
         body: JSON.stringify({
           name: collectionForm.name,
           kind: collectionForm.kind,
-          appIds: collectionForm.appIds.split(',').map((id) => Number(id.trim())).filter(Boolean),
+          appIds: collectionForm.appIds,
         }),
       });
-      setCollectionForm({ name: '', kind: 'MANUAL', appIds: '' });
+      setCollectionForm({ name: '', kind: 'MANUAL', appIds: [] });
       setToast({ tone: 'success', message: t('admin.collectionCreated') });
       await reload();
     });
@@ -3922,7 +4068,7 @@ function AdminPanel({
         name: item.name,
         slug: item.slug,
         kind: item.kind,
-        appIds: (item.apps || []).map((app) => app.id).join(','),
+        appIds: (item.apps || []).map((app) => app.id),
       };
     await runAction(setToast, t('admin.collectionUpdateFailed'), async () => {
       await api(`/api/v1/admin/collections/${item.id}`, {
@@ -3931,7 +4077,7 @@ function AdminPanel({
           name: draft.name,
           slug: draft.slug,
           kind: draft.kind,
-          appIds: draft.appIds.split(',').map((id) => Number(id.trim())).filter(Boolean),
+          appIds: draft.appIds,
         }),
       });
       setToast({ tone: 'success', message: t('admin.collectionUpdated') });
@@ -3954,6 +4100,39 @@ function AdminPanel({
     });
   }
 
+  function statusBadgeVariant(value?: string): 'neutral' | 'success' | 'warning' | 'error' | 'info' {
+    const key = statusKey(value);
+    if (key === 'approved' || key === 'synced') return 'success';
+    if (key === 'pending') return 'warning';
+    if (key === 'rejected' || key === 'failed' || key === 'blocked') return 'error';
+    return 'neutral';
+  }
+
+  function renderAdminMetric({
+    label,
+    value,
+    body,
+    status,
+    variant,
+  }: {
+    label: string;
+    value: string | number;
+    body: string;
+    status: string;
+    variant: 'neutral' | 'success' | 'warning' | 'error' | 'info';
+  }) {
+    return (
+      <XCard className="admin-metric-card" padding={4}>
+        <div className="admin-metric-card-head">
+          <span>{label}</span>
+          <XBadge label={status} variant={variant} />
+        </div>
+        <strong>{value}</strong>
+        <p>{body}</p>
+      </XCard>
+    );
+  }
+
   return (
     <section className="page-grid">
       <div className="page-heading">
@@ -3961,72 +4140,71 @@ function AdminPanel({
         <h1>{t('admin.title')}</h1>
         <p>{t('admin.body')}</p>
       </div>
-      <div className="segmented workspace-tabs" aria-label={t('admin.tabs.label')}>
+      <XTabList value={adminTab} onChange={(value) => setAdminTab(value as typeof adminTab)} hasDivider size="md">
         {adminTabs.map((item) => {
           const Icon = item.icon;
-          return (
-            <button
-              type="button"
-              key={item.key}
-              className={cx(adminTab === item.key && 'active')}
-              onClick={() => setAdminTab(item.key)}
-            >
-              <Icon size={17} />
-              <span>{item.label}</span>
-            </button>
-          );
+          return <XTab key={item.key} value={item.key} label={item.label} icon={<Icon size={17} />} />;
         })}
-      </div>
+      </XTabList>
       {adminTab === 'reviews' && (
       <>
       <section className="panel">
         <SectionTitle icon={Gauge} title={t('admin.operationsOverview')} />
-        <div className="source-readiness" aria-label={t('admin.operationsOverview')}>
-          <div className={cx('readiness-step', reviewSummary.total === 0 && 'ready')}>
-            <span className={cx('status-badge', reviewSummary.total === 0 ? 'approved' : 'pending')}>
-              {reviewSummary.total === 0 ? <Check size={14} /> : <AlertCircle size={14} />}
-              {reviewSummary.total === 0 ? t('admin.opsReady') : t('admin.opsNeedsAction')}
-            </span>
-            <strong>{t('admin.opsReviewTitle')}</strong>
-            <small>{reviewOpsBody}</small>
-          </div>
-          <div className={cx('readiness-step', catalogReady && 'ready')}>
-            <span className={cx('status-badge', catalogReady ? 'approved' : 'unlisted')}>
-              {catalogReady ? <Check size={14} /> : <AlertCircle size={14} />}
-              {catalogReady ? t('admin.opsReady') : t('admin.opsNeedsAction')}
-            </span>
-            <strong>{t('admin.opsCatalogTitle')}</strong>
-            <small>{catalogOpsBody}</small>
-          </div>
-          <div className={cx('readiness-step', sourceProtected && 'ready')}>
-            <span className={cx('status-badge', sourceProtected ? 'synced' : 'unlisted')}>
-              {sourceProtected ? <ShieldCheck size={14} /> : <AlertCircle size={14} />}
-              {sourceProtected ? t('admin.opsReady') : t('admin.opsNeedsAction')}
-            </span>
-            <strong>{t('admin.opsSourceTitle')}</strong>
-            <small>{sourceOpsBody}</small>
-          </div>
+        <div className="admin-metric-grid" aria-label={t('admin.operationsOverview')}>
+          {renderAdminMetric({
+            label: t('admin.opsReviewTitle'),
+            value: reviewSummary.total,
+            body: reviewOpsBody,
+            status: reviewSummary.total === 0 ? t('admin.opsReady') : t('admin.opsNeedsAction'),
+            variant: reviewSummary.total === 0 ? 'success' : 'warning',
+          })}
+          {renderAdminMetric({
+            label: t('admin.opsCatalogTitle'),
+            value: apps.length,
+            body: catalogOpsBody,
+            status: catalogReady ? t('admin.opsReady') : t('admin.opsNeedsAction'),
+            variant: catalogReady ? 'success' : 'warning',
+          })}
+          {renderAdminMetric({
+            label: t('admin.opsSourceTitle'),
+            value: sourceProtected ? t('common.on') : t('common.off'),
+            body: sourceOpsBody,
+            status: sourceProtected ? t('admin.opsReady') : t('admin.opsNeedsAction'),
+            variant: sourceProtected ? 'success' : 'warning',
+          })}
         </div>
       </section>
       <section className="panel">
         <SectionTitle icon={ShieldCheck} title={t('admin.reviewQueue')} />
-        <div className="workflow-summary-grid" aria-label={t('admin.reviewSummary')}>
-          <div className={cx(reviewSummary.total > 0 && 'attention')}>
-            <span>{t('admin.pendingTotal')}</span>
-            <strong>{reviewSummary.total}</strong>
-          </div>
-          <div>
-            <span>{t('admin.appSubmissions')}</span>
-            <strong>{reviewSummary.appSubmissions}</strong>
-          </div>
-          <div>
-            <span>{t('admin.versionUploads')}</span>
-            <strong>{reviewSummary.versionUploads}</strong>
-          </div>
-          <div>
-            <span>{t('admin.infoUpdates')}</span>
-            <strong>{reviewSummary.infoUpdates}</strong>
-          </div>
+        <div className="admin-metric-grid compact" aria-label={t('admin.reviewSummary')}>
+          {renderAdminMetric({
+            label: t('admin.pendingTotal'),
+            value: reviewSummary.total,
+            body: t('admin.reviewSummaryPendingBody'),
+            status: reviewSummary.total > 0 ? t('admin.opsNeedsAction') : t('admin.opsReady'),
+            variant: reviewSummary.total > 0 ? 'warning' : 'success',
+          })}
+          {renderAdminMetric({
+            label: t('admin.appSubmissions'),
+            value: reviewSummary.appSubmissions,
+            body: t('admin.reviewSummaryAppBody'),
+            status: t('reviewKinds.appsubmission'),
+            variant: 'neutral',
+          })}
+          {renderAdminMetric({
+            label: t('admin.versionUploads'),
+            value: reviewSummary.versionUploads,
+            body: t('admin.reviewSummaryVersionBody'),
+            status: t('reviewKinds.versionupload'),
+            variant: 'neutral',
+          })}
+          {renderAdminMetric({
+            label: t('admin.infoUpdates'),
+            value: reviewSummary.infoUpdates,
+            body: t('admin.reviewSummaryInfoBody'),
+            status: t('reviewKinds.appinfoupdate'),
+            variant: 'neutral',
+          })}
         </div>
         <div className="review-list">
           {reviews.length === 0 ? (
@@ -4065,23 +4243,23 @@ function AdminPanel({
                     )}
                   </div>
                   <div className="row-actions">
-                    <span className={cx('status-badge', statusKey(review.status))}>{t(`statusLabels.${statusKey(review.status)}`)}</span>
-                    <button
-                      type="button"
-                      className="icon-button ok"
-                      aria-label={t('admin.approveReview', { id: review.id })}
+                    <XBadge label={t(`statusLabels.${statusKey(review.status)}`)} variant={statusBadgeVariant(review.status)} />
+                    <XButton
+                      label={t('admin.approveReview', { id: review.id })}
+                      icon={<Check size={16} />}
+                      isIconOnly
+                      size="sm"
+                      variant="secondary"
                       onClick={() => void onApprove(review, true)}
-                    >
-                      <Check size={17} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button danger"
-                      aria-label={t('admin.rejectReview', { id: review.id })}
+                    />
+                    <XButton
+                      label={t('admin.rejectReview', { id: review.id })}
+                      icon={<X size={16} />}
+                      isIconOnly
+                      size="sm"
+                      variant="destructive"
                       onClick={() => void onApprove(review, false)}
-                    >
-                      <X size={17} />
-                    </button>
+                    />
                   </div>
                 </div>
               );
@@ -4100,32 +4278,29 @@ function AdminPanel({
                 <strong>{t('admin.siteIdentity')}</strong>
                 <span>{t('admin.siteIdentityBody')}</span>
               </div>
-              <div className="settings-grid">
+              <XFormLayout direction="horizontal">
                 {siteIdentityFields.map(renderSettingField)}
-              </div>
+              </XFormLayout>
             </div>
             <div className="settings-section">
               <div className="settings-section-head">
                 <strong>{t('admin.announcementCenter')}</strong>
                 <span>{t('admin.announcementCenterBody')}</span>
               </div>
-              <div className="settings-grid">
+              <XFormLayout>
                 {announcementFields.map(renderSettingField)}
-              </div>
+              </XFormLayout>
             </div>
             <div className="settings-section">
               <div className="settings-section-head">
                 <strong>{t('admin.policySettings')}</strong>
                 <span>{t('admin.policySettingsBody')}</span>
               </div>
-              <div className="settings-grid">
+              <XFormLayout direction="horizontal">
                 {policySettingFields.map(renderSettingField)}
-              </div>
+              </XFormLayout>
             </div>
-            <button type="submit" className="primary-button">
-              <Settings size={18} />
-              <span>{t('admin.saveSettings')}</span>
-            </button>
+            <XButton type="submit" variant="primary" label={t('admin.saveSettings')} icon={<Settings size={18} />} />
           </form>
           <section className="panel site-preview-panel">
             <SectionTitle icon={Archive} title={t('admin.sitePreview')} />
@@ -4164,19 +4339,18 @@ function AdminPanel({
             <div className="review-list">
               {users.map((item) => (
                 <div className="review-row" key={item.id}>
-                  <div>
-                    <strong>#{item.id} {item.username}</strong>
-                    <span>{item.email || t('admin.noEmail')}</span>
-                  </div>
-                  <select
-                    aria-label={t('admin.userRoleFor', { username: item.username })}
+                <div>
+                  <strong>#{item.id} {item.username}</strong>
+                  <span>{item.email || t('admin.noEmail')}</span>
+                </div>
+                  <XSelector
+                    label={t('admin.userRoleFor', { username: item.username })}
+                    isLabelHidden
                     value={item.role}
-                    onChange={(event) => void updateUserRole(item.id, event.target.value as User['role'])}
-                  >
-                    <option value="USER">USER</option>
-                    <option value="SOFTWARE_ADMIN">SOFTWARE_ADMIN</option>
-                    <option value="SITE_ADMIN">SITE_ADMIN</option>
-                  </select>
+                    options={userRoleOptions}
+                    width={220}
+                    onChange={(value) => void updateUserRole(item.id, value as User['role'])}
+                  />
                 </div>
               ))}
             </div>
@@ -4188,14 +4362,14 @@ function AdminPanel({
         <div className="panel form-panel">
           <SectionTitle icon={Layers3} title={t('admin.categoriesAndTags')} />
           <form className="inline-stack" onSubmit={createCategory}>
-            <input aria-label={t('admin.categoryName')} placeholder={t('admin.categoryName')} value={categoryForm.name} onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })} />
-            <input aria-label={t('admin.categorySlug')} placeholder={t('admin.categorySlug')} value={categoryForm.slug} onChange={(event) => setCategoryForm({ ...categoryForm, slug: event.target.value })} />
-            <button type="submit" className="secondary-button"><Plus size={17} /><span>{t('admin.category')}</span></button>
+            <XTextInput label={t('admin.categoryName')} value={categoryForm.name} onChange={(value) => setCategoryForm({ ...categoryForm, name: value })} />
+            <XTextInput label={t('admin.categorySlug')} value={categoryForm.slug} onChange={(value) => setCategoryForm({ ...categoryForm, slug: value })} />
+            <XButton type="submit" variant="secondary" label={t('admin.category')} icon={<Plus size={17} />} />
           </form>
           <form className="inline-stack" onSubmit={createTag}>
-            <input aria-label={t('admin.tagName')} placeholder={t('admin.tagName')} value={tagForm.name} onChange={(event) => setTagForm({ ...tagForm, name: event.target.value })} />
-            <input aria-label={t('admin.tagSlug')} placeholder={t('admin.tagSlug')} value={tagForm.slug} onChange={(event) => setTagForm({ ...tagForm, slug: event.target.value })} />
-            <button type="submit" className="secondary-button"><Plus size={17} /><span>{t('admin.tag')}</span></button>
+            <XTextInput label={t('admin.tagName')} value={tagForm.name} onChange={(value) => setTagForm({ ...tagForm, name: value })} />
+            <XTextInput label={t('admin.tagSlug')} value={tagForm.slug} onChange={(value) => setTagForm({ ...tagForm, slug: value })} />
+            <XButton type="submit" variant="secondary" label={t('admin.tag')} icon={<Plus size={17} />} />
           </form>
         </div>
         <section className="panel">
@@ -4238,26 +4412,25 @@ function AdminPanel({
       <section className="split">
         <form className="panel form-panel" onSubmit={createCollection}>
           <SectionTitle icon={Layers3} title={t('admin.collection')} />
-          <label>
-            <span>{t('common.name')}</span>
-            <input value={collectionForm.name} onChange={(event) => setCollectionForm({ ...collectionForm, name: event.target.value })} />
-          </label>
-          <label>
-            <span>{t('admin.type')}</span>
-            <select value={collectionForm.kind} onChange={(event) => setCollectionForm({ ...collectionForm, kind: event.target.value })}>
-              {collectionKindOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>{t('admin.appIds')}</span>
-            <input value={collectionForm.appIds} onChange={(event) => setCollectionForm({ ...collectionForm, appIds: event.target.value })} />
-          </label>
-          <button type="submit" className="primary-button">
-            <Layers3 size={18} />
-            <span>{t('admin.createCollection')}</span>
-          </button>
+          <XTextInput label={t('common.name')} value={collectionForm.name} onChange={(value) => setCollectionForm({ ...collectionForm, name: value })} />
+          <XSelector
+            label={t('admin.type')}
+            value={collectionForm.kind}
+            options={collectionKindOptions}
+            onChange={(value) => setCollectionForm({ ...collectionForm, kind: value })}
+          />
+          <CollectionAppPicker
+            apps={apps}
+            appIds={collectionForm.appIds}
+            labels={{
+              title: t('admin.collectionApps'),
+              selectedCount: t('admin.selectedAppsCount', { count: collectionForm.appIds.length }),
+              empty: t('admin.noApprovedAppsForCollection'),
+            }}
+            onChange={(appIds) => setCollectionForm({ ...collectionForm, appIds })}
+          />
+          <p className="field-help">{t('admin.collectionAppsHelp')}</p>
+          <XButton type="submit" variant="primary" label={t('admin.createCollection')} icon={<Layers3 size={18} />} />
         </form>
         <section className="panel">
           <SectionTitle icon={Layers3} title={t('admin.collectionList')} />
@@ -4268,7 +4441,7 @@ function AdminPanel({
                   name: item.name,
                   slug: item.slug,
                   kind: item.kind,
-                  appIds: (item.apps || []).map((app) => app.id).join(','),
+                  appIds: (item.apps || []).map((app) => app.id),
                 };
               return (
                 <div className="collection-edit-row" key={item.id}>
@@ -4279,7 +4452,16 @@ function AdminPanel({
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>
-                  <input aria-label={t('admin.collectionAppIdsFor', { name: item.name })} value={draft.appIds} onChange={(event) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, appIds: event.target.value } }))} />
+                  <CollectionAppPicker
+                    apps={apps}
+                    appIds={draft.appIds}
+                    labels={{
+                      title: t('admin.collectionAppsFor', { name: item.name }),
+                      selectedCount: t('admin.selectedAppsCount', { count: draft.appIds.length }),
+                      empty: t('admin.noApprovedAppsForCollection'),
+                    }}
+                    onChange={(appIds) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, appIds } }))}
+                  />
                   <div className="row-actions">
                     <button type="button" className="icon-button" aria-label={t('admin.saveCollectionNamed', { name: item.name })} onClick={() => void updateCollection(item)}><Save size={16} /></button>
                     <button type="button" className="icon-button danger" aria-label={t('admin.deleteCollectionNamed', { name: item.name })} onClick={() => void deleteCollection(item)}><Trash2 size={16} /></button>

@@ -1629,6 +1629,9 @@ components:
           type: string
         category:
           type: string
+        iconUrl:
+          type: string
+          format: uri
         installProtected:
           type: boolean
         latestVersion:

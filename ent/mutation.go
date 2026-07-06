@@ -7681,6 +7681,7 @@ type ClientSourceAppMutation struct {
 	slug                *string
 	summary             *string
 	category            *string
+	icon_url            *string
 	install_protected   *bool
 	latest_version_json *string
 	versions_json       *string
@@ -8044,6 +8045,42 @@ func (m *ClientSourceAppMutation) ResetCategory() {
 	m.category = nil
 }
 
+// SetIconURL sets the "icon_url" field.
+func (m *ClientSourceAppMutation) SetIconURL(s string) {
+	m.icon_url = &s
+}
+
+// IconURL returns the value of the "icon_url" field in the mutation.
+func (m *ClientSourceAppMutation) IconURL() (r string, exists bool) {
+	v := m.icon_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIconURL returns the old "icon_url" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldIconURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIconURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIconURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIconURL: %w", err)
+	}
+	return oldValue.IconURL, nil
+}
+
+// ResetIconURL resets all changes to the "icon_url" field.
+func (m *ClientSourceAppMutation) ResetIconURL() {
+	m.icon_url = nil
+}
+
 // SetInstallProtected sets the "install_protected" field.
 func (m *ClientSourceAppMutation) SetInstallProtected(b bool) {
 	m.install_protected = &b
@@ -8285,7 +8322,7 @@ func (m *ClientSourceAppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceAppMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.source != nil {
 		fields = append(fields, clientsourceapp.FieldSourceID)
 	}
@@ -8306,6 +8343,9 @@ func (m *ClientSourceAppMutation) Fields() []string {
 	}
 	if m.category != nil {
 		fields = append(fields, clientsourceapp.FieldCategory)
+	}
+	if m.icon_url != nil {
+		fields = append(fields, clientsourceapp.FieldIconURL)
 	}
 	if m.install_protected != nil {
 		fields = append(fields, clientsourceapp.FieldInstallProtected)
@@ -8344,6 +8384,8 @@ func (m *ClientSourceAppMutation) Field(name string) (ent.Value, bool) {
 		return m.Summary()
 	case clientsourceapp.FieldCategory:
 		return m.Category()
+	case clientsourceapp.FieldIconURL:
+		return m.IconURL()
 	case clientsourceapp.FieldInstallProtected:
 		return m.InstallProtected()
 	case clientsourceapp.FieldLatestVersionJSON:
@@ -8377,6 +8419,8 @@ func (m *ClientSourceAppMutation) OldField(ctx context.Context, name string) (en
 		return m.OldSummary(ctx)
 	case clientsourceapp.FieldCategory:
 		return m.OldCategory(ctx)
+	case clientsourceapp.FieldIconURL:
+		return m.OldIconURL(ctx)
 	case clientsourceapp.FieldInstallProtected:
 		return m.OldInstallProtected(ctx)
 	case clientsourceapp.FieldLatestVersionJSON:
@@ -8444,6 +8488,13 @@ func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCategory(v)
+		return nil
+	case clientsourceapp.FieldIconURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIconURL(v)
 		return nil
 	case clientsourceapp.FieldInstallProtected:
 		v, ok := value.(bool)
@@ -8552,6 +8603,9 @@ func (m *ClientSourceAppMutation) ResetField(name string) error {
 		return nil
 	case clientsourceapp.FieldCategory:
 		m.ResetCategory()
+		return nil
+	case clientsourceapp.FieldIconURL:
+		m.ResetIconURL()
 		return nil
 	case clientsourceapp.FieldInstallProtected:
 		m.ResetInstallProtected()

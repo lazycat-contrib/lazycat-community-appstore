@@ -22,6 +22,7 @@ func (ClientSourceApp) Fields() []ent.Field {
 		field.String("slug").NotEmpty(),
 		field.String("summary").Default(""),
 		field.String("category").Default(""),
+		field.String("icon_url").Default(""),
 		field.Bool("install_protected").Default(false),
 		field.Text("latest_version_json").Default(""),
 		field.Text("versions_json").Default(""),

@@ -50,6 +50,7 @@ type SourceAppDTO struct {
 	Slug             string       `json:"slug"`
 	Summary          string       `json:"summary"`
 	Category         string       `json:"category,omitempty"`
+	IconURL          string       `json:"iconUrl,omitempty"`
 	InstallProtected bool         `json:"installProtected"`
 	LatestVersion    *VersionDTO  `json:"latestVersion,omitempty"`
 	Versions         []VersionDTO `json:"versions,omitempty"`

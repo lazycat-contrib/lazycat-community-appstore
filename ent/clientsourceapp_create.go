@@ -87,6 +87,20 @@ func (_c *ClientSourceAppCreate) SetNillableCategory(v *string) *ClientSourceApp
 	return _c
 }
 
+// SetIconURL sets the "icon_url" field.
+func (_c *ClientSourceAppCreate) SetIconURL(v string) *ClientSourceAppCreate {
+	_c.mutation.SetIconURL(v)
+	return _c
+}
+
+// SetNillableIconURL sets the "icon_url" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableIconURL(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetIconURL(*v)
+	}
+	return _c
+}
+
 // SetInstallProtected sets the "install_protected" field.
 func (_c *ClientSourceAppCreate) SetInstallProtected(v bool) *ClientSourceAppCreate {
 	_c.mutation.SetInstallProtected(v)
@@ -209,6 +223,10 @@ func (_c *ClientSourceAppCreate) defaults() {
 		v := clientsourceapp.DefaultCategory
 		_c.mutation.SetCategory(v)
 	}
+	if _, ok := _c.mutation.IconURL(); !ok {
+		v := clientsourceapp.DefaultIconURL
+		_c.mutation.SetIconURL(v)
+	}
 	if _, ok := _c.mutation.InstallProtected(); !ok {
 		v := clientsourceapp.DefaultInstallProtected
 		_c.mutation.SetInstallProtected(v)
@@ -268,6 +286,9 @@ func (_c *ClientSourceAppCreate) check() error {
 	}
 	if _, ok := _c.mutation.Category(); !ok {
 		return &ValidationError{Name: "category", err: errors.New(`ent: missing required field "ClientSourceApp.category"`)}
+	}
+	if _, ok := _c.mutation.IconURL(); !ok {
+		return &ValidationError{Name: "icon_url", err: errors.New(`ent: missing required field "ClientSourceApp.icon_url"`)}
 	}
 	if _, ok := _c.mutation.InstallProtected(); !ok {
 		return &ValidationError{Name: "install_protected", err: errors.New(`ent: missing required field "ClientSourceApp.install_protected"`)}
@@ -336,6 +357,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 	if value, ok := _c.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)
 		_node.Category = value
+	}
+	if value, ok := _c.mutation.IconURL(); ok {
+		_spec.SetField(clientsourceapp.FieldIconURL, field.TypeString, value)
+		_node.IconURL = value
 	}
 	if value, ok := _c.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)

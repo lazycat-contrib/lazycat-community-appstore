@@ -131,6 +131,7 @@ func sourceAppDTO(app *ent.ClientSourceApp) (SourceAppDTO, error) {
 		Slug:             app.Slug,
 		Summary:          app.Summary,
 		Category:         app.Category,
+		IconURL:          app.IconURL,
 		InstallProtected: app.InstallProtected,
 		LatestVersion:    version,
 		Versions:         versions,

@@ -86,7 +86,8 @@ func TestSourceDuplicateURLForUserFails(t *testing.T) {
 }
 
 func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
-	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var feed *httptest.Server
+	feed = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("X-Source-Password"); got != "pw" {
 			t.Fatalf("password header = %q", got)
 		}
@@ -97,6 +98,7 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 			"slug":      "notes",
 			"summary":   "Write notes",
 			"category":  "tools",
+			"iconUrl":   feed.URL + "/icons/notes.png",
 			"latestVersion": map[string]any{
 				"version":             "1.2.3",
 				"downloadUrl":         "https://github.com/org/notes/releases/download/a/notes.lpk",
@@ -135,7 +137,7 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	}
 	apps := app.request("GET", "/api/client/v1/apps", ``, "alice")
 	body := apps.Body.String()
-	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) {
+	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, `"iconUrl":"`+feed.URL+`/icons/notes.png"`) || !strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) {
 		t.Fatalf("cached app missing mirror rewrite: %s", body)
 	}
 }

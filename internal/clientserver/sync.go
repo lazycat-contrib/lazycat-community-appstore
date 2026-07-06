@@ -33,6 +33,7 @@ type feedApp struct {
 	Slug             string       `json:"slug"`
 	Summary          string       `json:"summary"`
 	Category         string       `json:"category"`
+	IconURL          string       `json:"iconUrl"`
 	InstallProtected bool         `json:"installProtected"`
 	LatestVersion    *VersionDTO  `json:"latestVersion"`
 	Versions         []VersionDTO `json:"versions"`
@@ -141,6 +142,7 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 			SetSlug(app.Slug).
 			SetSummary(app.Summary).
 			SetCategory(app.Category).
+			SetIconURL(app.IconURL).
 			SetInstallProtected(app.InstallProtected).
 			SetLatestVersionJSON(versionJSON).
 			SetVersionsJSON(versionsJSON).
@@ -219,6 +221,7 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 		app.PackageID = strings.TrimSpace(app.PackageID)
 		app.Name = strings.TrimSpace(app.Name)
 		app.Slug = strings.TrimSpace(app.Slug)
+		app.IconURL = strings.TrimSpace(app.IconURL)
 		if app.PackageID == "" || app.Name == "" || app.Slug == "" {
 			continue
 		}
