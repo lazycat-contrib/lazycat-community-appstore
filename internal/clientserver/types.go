@@ -135,5 +135,11 @@ type CommentInput struct {
 }
 
 type ClientSettingsDTO struct {
-	CommentDisplayName string `json:"commentDisplayName"`
+	CommentDisplayName      string     `json:"commentDisplayName"`
+	AutoSyncEnabled         bool       `json:"autoSyncEnabled"`
+	AutoSyncIntervalMinutes int        `json:"autoSyncIntervalMinutes"`
+	SyncOnStartup           bool       `json:"syncOnStartup"`
+	LastAutoSyncAt          *time.Time `json:"lastAutoSyncAt,omitempty"`
+	LastAutoSyncStatus      string     `json:"lastAutoSyncStatus,omitempty"`
+	LastAutoSyncError       string     `json:"lastAutoSyncError,omitempty"`
 }

@@ -117,6 +117,7 @@ type createAppJSON struct {
 	Slug                      string   `json:"slug"`
 	Summary                   string   `json:"summary"`
 	Description               string   `json:"description"`
+	IconURL                   string   `json:"iconUrl"`
 	CategoryID                *int     `json:"categoryId"`
 	Tags                      []string `json:"tags"`
 	AllowUnreviewedUpdates    bool     `json:"allowUnreviewedUpdates"`
@@ -294,6 +295,9 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 		SetAllowUnreviewedUpdates(input.AllowUnreviewedUpdates).
 		SetCommentsEnabled(commentsEnabled).
 		SetEmailNotificationsEnabled(emailNotificationsEnabled)
+	if iconURL := strings.TrimSpace(input.IconURL); iconURL != "" {
+		create.SetIconURL(iconURL)
+	}
 	if hash, err := hashInstallPassword(input.InstallPassword); err != nil {
 		return nil, err
 	} else if hash != "" {
@@ -705,6 +709,9 @@ func applyAppMetadata(input *createAppJSON, meta lpkmeta.Metadata) error {
 	}
 	if input.Version == "" {
 		input.Version = meta.Version
+	}
+	if strings.TrimSpace(input.IconURL) == "" {
+		input.IconURL = meta.IconDataURL()
 	}
 	return nil
 }

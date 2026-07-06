@@ -1054,6 +1054,9 @@ func TestMultipartCreateAppFillsMetadataFromLPK(t *testing.T) {
 	if created.Name != "Upload Meta" || created.Slug != "upload-meta" || created.Summary != "Parsed from package.yml" {
 		t.Fatalf("metadata not applied: %+v", created)
 	}
+	if created.IconURL == nil || !strings.HasPrefix(*created.IconURL, "data:image/png;base64,") {
+		t.Fatalf("icon metadata not applied: icon=%v", created.IconURL)
+	}
 	version := app.server.db.AppVersion.Query().Where(appversion.AppIDEQ(created.ID)).OnlyX(t.Context())
 	if version.Version != "1.2.3" || version.Sha256 == "" || version.FileSize != int64(len(lpk)) {
 		t.Fatalf("version metadata not applied: %+v", version)
@@ -1083,6 +1086,9 @@ func TestURLCreateAppFillsMetadataAndSHA256(t *testing.T) {
 	version := app.server.db.AppVersion.Query().Where(appversion.AppIDEQ(created.ID)).OnlyX(t.Context())
 	if created.Name != "URL Meta" || version.Version != "2.0.0" || version.Sha256 != hex.EncodeToString(sum[:]) || version.FileSize != int64(len(lpk)) {
 		t.Fatalf("url metadata not applied: app=%+v version=%+v", created, version)
+	}
+	if created.IconURL == nil || !strings.HasPrefix(*created.IconURL, "data:image/png;base64,") {
+		t.Fatalf("url icon metadata not applied: icon=%v", created.IconURL)
 	}
 }
 
@@ -1642,19 +1648,25 @@ func TestSiteAdminCanListAndUpdateUsers(t *testing.T) {
 
 func testLPKArchive(t *testing.T, packageID, version, name, description string) []byte {
 	t.Helper()
-	body := fmt.Sprintf("package: %s\nversion: %s\nname: %s\ndescription: %s\n", packageID, version, name, description)
+	body := fmt.Sprintf("package: %s\nversion: %s\nname: %s\ndescription: %s\nicon: icon.png\n", packageID, version, name, description)
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
-	if err := tw.WriteHeader(&tar.Header{Name: "package.yml", Mode: 0o644, Size: int64(len(body))}); err != nil {
-		t.Fatalf("WriteHeader: %v", err)
-	}
-	if _, err := tw.Write([]byte(body)); err != nil {
-		t.Fatalf("Write package.yml: %v", err)
-	}
+	writeTestTarFile(t, tw, "package.yml", []byte(body))
+	writeTestTarFile(t, tw, "icon.png", []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0x00, 0x00, 0x00, 0x0d})
 	if err := tw.Close(); err != nil {
 		t.Fatalf("Close tar: %v", err)
 	}
 	return buf.Bytes()
+}
+
+func writeTestTarFile(t *testing.T, tw *tar.Writer, name string, content []byte) {
+	t.Helper()
+	if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(content))}); err != nil {
+		t.Fatalf("WriteHeader: %v", err)
+	}
+	if _, err := tw.Write(content); err != nil {
+		t.Fatalf("Write %s: %v", name, err)
+	}
 }
 
 func (a *testApp) serverCookieFor(userID int) *http.Cookie {

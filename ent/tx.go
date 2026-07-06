@@ -34,6 +34,8 @@ type Tx struct {
 	ClientSource *ClientSourceClient
 	// ClientSourceApp is the client for interacting with the ClientSourceApp builders.
 	ClientSourceApp *ClientSourceAppClient
+	// ClientSyncSetting is the client for interacting with the ClientSyncSetting builders.
+	ClientSyncSetting *ClientSyncSettingClient
 	// Collaborator is the client for interacting with the Collaborator builders.
 	Collaborator *CollaboratorClient
 	// CollaboratorRequest is the client for interacting with the CollaboratorRequest builders.
@@ -204,6 +206,7 @@ func (tx *Tx) init() {
 	tx.ClientSetting = NewClientSettingClient(tx.config)
 	tx.ClientSource = NewClientSourceClient(tx.config)
 	tx.ClientSourceApp = NewClientSourceAppClient(tx.config)
+	tx.ClientSyncSetting = NewClientSyncSettingClient(tx.config)
 	tx.Collaborator = NewCollaboratorClient(tx.config)
 	tx.CollaboratorRequest = NewCollaboratorRequestClient(tx.config)
 	tx.Collection = NewCollectionClient(tx.config)

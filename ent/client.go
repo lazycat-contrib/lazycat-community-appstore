@@ -26,6 +26,7 @@ import (
 	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
+	"lazycat.community/appstore/ent/clientsyncsetting"
 	"lazycat.community/appstore/ent/collaborator"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collection"
@@ -69,6 +70,8 @@ type Client struct {
 	ClientSource *ClientSourceClient
 	// ClientSourceApp is the client for interacting with the ClientSourceApp builders.
 	ClientSourceApp *ClientSourceAppClient
+	// ClientSyncSetting is the client for interacting with the ClientSyncSetting builders.
+	ClientSyncSetting *ClientSyncSettingClient
 	// Collaborator is the client for interacting with the Collaborator builders.
 	Collaborator *CollaboratorClient
 	// CollaboratorRequest is the client for interacting with the CollaboratorRequest builders.
@@ -119,6 +122,7 @@ func (c *Client) init() {
 	c.ClientSetting = NewClientSettingClient(c.config)
 	c.ClientSource = NewClientSourceClient(c.config)
 	c.ClientSourceApp = NewClientSourceAppClient(c.config)
+	c.ClientSyncSetting = NewClientSyncSettingClient(c.config)
 	c.Collaborator = NewCollaboratorClient(c.config)
 	c.CollaboratorRequest = NewCollaboratorRequestClient(c.config)
 	c.Collection = NewCollectionClient(c.config)
@@ -236,6 +240,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ClientSetting:        NewClientSettingClient(cfg),
 		ClientSource:         NewClientSourceClient(cfg),
 		ClientSourceApp:      NewClientSourceAppClient(cfg),
+		ClientSyncSetting:    NewClientSyncSettingClient(cfg),
 		Collaborator:         NewCollaboratorClient(cfg),
 		CollaboratorRequest:  NewCollaboratorRequestClient(cfg),
 		Collection:           NewCollectionClient(cfg),
@@ -280,6 +285,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ClientSetting:        NewClientSettingClient(cfg),
 		ClientSource:         NewClientSourceClient(cfg),
 		ClientSourceApp:      NewClientSourceAppClient(cfg),
+		ClientSyncSetting:    NewClientSyncSettingClient(cfg),
 		Collaborator:         NewCollaboratorClient(cfg),
 		CollaboratorRequest:  NewCollaboratorRequestClient(cfg),
 		Collection:           NewCollectionClient(cfg),
@@ -325,9 +331,10 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
 		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
-		c.ClientSourceApp, c.Collaborator, c.CollaboratorRequest, c.Collection,
-		c.CollectionApp, c.Comment, c.CommentNotification, c.Favorite, c.GroupMember,
-		c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User, c.UserGroup,
+		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorRequest,
+		c.Collection, c.CollectionApp, c.Comment, c.CommentNotification, c.Favorite,
+		c.GroupMember, c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User,
+		c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -339,9 +346,10 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
 		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
-		c.ClientSourceApp, c.Collaborator, c.CollaboratorRequest, c.Collection,
-		c.CollectionApp, c.Comment, c.CommentNotification, c.Favorite, c.GroupMember,
-		c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User, c.UserGroup,
+		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorRequest,
+		c.Collection, c.CollectionApp, c.Comment, c.CommentNotification, c.Favorite,
+		c.GroupMember, c.OutdatedMark, c.ReviewRequest, c.SiteSetting, c.Tag, c.User,
+		c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -372,6 +380,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ClientSource.mutate(ctx, m)
 	case *ClientSourceAppMutation:
 		return c.ClientSourceApp.mutate(ctx, m)
+	case *ClientSyncSettingMutation:
+		return c.ClientSyncSetting.mutate(ctx, m)
 	case *CollaboratorMutation:
 		return c.Collaborator.mutate(ctx, m)
 	case *CollaboratorRequestMutation:
@@ -1897,6 +1907,139 @@ func (c *ClientSourceAppClient) mutate(ctx context.Context, m *ClientSourceAppMu
 		return (&ClientSourceAppDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ClientSourceApp mutation op: %q", m.Op())
+	}
+}
+
+// ClientSyncSettingClient is a client for the ClientSyncSetting schema.
+type ClientSyncSettingClient struct {
+	config
+}
+
+// NewClientSyncSettingClient returns a client for the ClientSyncSetting from the given config.
+func NewClientSyncSettingClient(c config) *ClientSyncSettingClient {
+	return &ClientSyncSettingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `clientsyncsetting.Hooks(f(g(h())))`.
+func (c *ClientSyncSettingClient) Use(hooks ...Hook) {
+	c.hooks.ClientSyncSetting = append(c.hooks.ClientSyncSetting, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `clientsyncsetting.Intercept(f(g(h())))`.
+func (c *ClientSyncSettingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ClientSyncSetting = append(c.inters.ClientSyncSetting, interceptors...)
+}
+
+// Create returns a builder for creating a ClientSyncSetting entity.
+func (c *ClientSyncSettingClient) Create() *ClientSyncSettingCreate {
+	mutation := newClientSyncSettingMutation(c.config, OpCreate)
+	return &ClientSyncSettingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ClientSyncSetting entities.
+func (c *ClientSyncSettingClient) CreateBulk(builders ...*ClientSyncSettingCreate) *ClientSyncSettingCreateBulk {
+	return &ClientSyncSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ClientSyncSettingClient) MapCreateBulk(slice any, setFunc func(*ClientSyncSettingCreate, int)) *ClientSyncSettingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ClientSyncSettingCreateBulk{err: fmt.Errorf("calling to ClientSyncSettingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ClientSyncSettingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ClientSyncSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ClientSyncSetting.
+func (c *ClientSyncSettingClient) Update() *ClientSyncSettingUpdate {
+	mutation := newClientSyncSettingMutation(c.config, OpUpdate)
+	return &ClientSyncSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ClientSyncSettingClient) UpdateOne(_m *ClientSyncSetting) *ClientSyncSettingUpdateOne {
+	mutation := newClientSyncSettingMutation(c.config, OpUpdateOne, withClientSyncSetting(_m))
+	return &ClientSyncSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ClientSyncSettingClient) UpdateOneID(id int) *ClientSyncSettingUpdateOne {
+	mutation := newClientSyncSettingMutation(c.config, OpUpdateOne, withClientSyncSettingID(id))
+	return &ClientSyncSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ClientSyncSetting.
+func (c *ClientSyncSettingClient) Delete() *ClientSyncSettingDelete {
+	mutation := newClientSyncSettingMutation(c.config, OpDelete)
+	return &ClientSyncSettingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ClientSyncSettingClient) DeleteOne(_m *ClientSyncSetting) *ClientSyncSettingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ClientSyncSettingClient) DeleteOneID(id int) *ClientSyncSettingDeleteOne {
+	builder := c.Delete().Where(clientsyncsetting.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ClientSyncSettingDeleteOne{builder}
+}
+
+// Query returns a query builder for ClientSyncSetting.
+func (c *ClientSyncSettingClient) Query() *ClientSyncSettingQuery {
+	return &ClientSyncSettingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeClientSyncSetting},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ClientSyncSetting entity by its id.
+func (c *ClientSyncSettingClient) Get(ctx context.Context, id int) (*ClientSyncSetting, error) {
+	return c.Query().Where(clientsyncsetting.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ClientSyncSettingClient) GetX(ctx context.Context, id int) *ClientSyncSetting {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ClientSyncSettingClient) Hooks() []Hook {
+	return c.hooks.ClientSyncSetting
+}
+
+// Interceptors returns the client interceptors.
+func (c *ClientSyncSettingClient) Interceptors() []Interceptor {
+	return c.inters.ClientSyncSetting
+}
+
+func (c *ClientSyncSettingClient) mutate(ctx context.Context, m *ClientSyncSettingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ClientSyncSettingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ClientSyncSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ClientSyncSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ClientSyncSettingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ClientSyncSetting mutation op: %q", m.Op())
 	}
 }
 
@@ -3767,15 +3910,16 @@ type (
 	hooks struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
 		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
-		Collaborator, CollaboratorRequest, Collection, CollectionApp, Comment,
-		CommentNotification, Favorite, GroupMember, OutdatedMark, ReviewRequest,
-		SiteSetting, Tag, User, UserGroup []ent.Hook
+		ClientSyncSetting, Collaborator, CollaboratorRequest, Collection,
+		CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
+		OutdatedMark, ReviewRequest, SiteSetting, Tag, User, UserGroup []ent.Hook
 	}
 	inters struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
 		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
-		Collaborator, CollaboratorRequest, Collection, CollectionApp, Comment,
-		CommentNotification, Favorite, GroupMember, OutdatedMark, ReviewRequest,
-		SiteSetting, Tag, User, UserGroup []ent.Interceptor
+		ClientSyncSetting, Collaborator, CollaboratorRequest, Collection,
+		CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
+		OutdatedMark, ReviewRequest, SiteSetting, Tag, User,
+		UserGroup []ent.Interceptor
 	}
 )

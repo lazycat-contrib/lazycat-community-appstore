@@ -93,6 +93,7 @@ import { FilePicker } from './shared/components/FilePicker';
 import { ClientHistoryView } from './modules/client/ClientHistoryView';
 import { ClientCatalog } from './modules/client/ClientCatalog';
 import { InstalledAppsView } from './modules/client/InstalledAppsView';
+import { ClientSettingsView } from './modules/client/ClientSettingsView';
 import { SourcesView as ClientSourcesView } from './modules/client/SourcesView';
 import { CollectionAppPicker } from './modules/admin/CollectionAppPicker';
 import { AppGrid } from './modules/storefront/AppGrid';
@@ -269,6 +270,12 @@ type SourceInput = Pick<SourceSubscription, 'name' | 'url' | 'password' | 'defau
 
 type ClientSettings = {
   commentDisplayName: string;
+  autoSyncEnabled: boolean;
+  autoSyncIntervalMinutes: number;
+  syncOnStartup: boolean;
+  lastAutoSyncAt?: string;
+  lastAutoSyncStatus?: string;
+  lastAutoSyncError?: string;
 };
 
 type CommentNotification = {
@@ -419,7 +426,7 @@ function reviewFieldLabel(key: string, t: (key: string, options?: any) => string
   return labels[key] || key;
 }
 
-type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'history' | 'admin';
+type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'history' | 'settings' | 'admin';
 type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
 type ThemeMode = 'system' | 'light' | 'dark';
 type ResolvedTheme = Exclude<ThemeMode, 'system'>;
@@ -437,6 +444,7 @@ const clientTabs: NavItem[] = [
   { key: 'search', labelKey: 'nav.install', icon: Download },
   { key: 'profile', labelKey: 'nav.installed', icon: Archive },
   { key: 'history', labelKey: 'nav.history', icon: History },
+  { key: 'settings', labelKey: 'nav.settings', icon: Settings },
 ];
 
 type SortMode = 'recent' | 'downloads' | 'name';
@@ -464,7 +472,12 @@ export function App() {
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
   const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
-  const [clientSettings, setClientSettings] = useState<ClientSettings>({ commentDisplayName: '' });
+  const [clientSettings, setClientSettings] = useState<ClientSettings>({
+    commentDisplayName: '',
+    autoSyncEnabled: false,
+    autoSyncIntervalMinutes: 60,
+    syncOnStartup: false,
+  });
   const [installedApps, setInstalledApps] = useState<InstalledApplication[]>([]);
   const [installHistory, setInstallHistory] = useState<InstallHistoryEntry[]>([]);
   const [installedState, setInstalledState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
@@ -659,7 +672,7 @@ export function App() {
 
   async function loadClientSettings() {
     const data = await clientApi<{ settings: ClientSettings }>('/settings');
-    const nextSettings = data.settings || { commentDisplayName: '' };
+    const nextSettings = data.settings || { commentDisplayName: '', autoSyncEnabled: false, autoSyncIntervalMinutes: 60, syncOnStartup: false };
     setClientSettings(nextSettings);
     return nextSettings;
   }
@@ -1082,8 +1095,6 @@ export function App() {
                 onInstall={installApp}
                 installedApps={installedApps}
                 sourceStats={sourceStats}
-                clientSettings={clientSettings}
-                onSaveClientSettings={saveClientSettings}
                 setToast={setToast}
               />
             )}
@@ -1114,6 +1125,14 @@ export function App() {
                 sourceApps={sourceApps}
                 onRefresh={() => void loadInstallHistory()}
                 onOpenSource={setSelectedSourceApp}
+              />
+            )}
+            {tab === 'settings' && !HAS_API && (
+              <ClientSettingsView
+                settings={clientSettings}
+                sourceStats={sourceStats}
+                onSave={saveClientSettings}
+                setToast={setToast}
               />
             )}
             {tab === 'admin' && (

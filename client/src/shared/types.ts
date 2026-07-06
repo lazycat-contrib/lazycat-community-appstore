@@ -171,6 +171,12 @@ export type SourceInput = Pick<
 
 export type ClientSettings = {
   commentDisplayName: string;
+  autoSyncEnabled: boolean;
+  autoSyncIntervalMinutes: number;
+  syncOnStartup: boolean;
+  lastAutoSyncAt?: string;
+  lastAutoSyncStatus?: string;
+  lastAutoSyncError?: string;
 };
 
 export type CommentNotification = {

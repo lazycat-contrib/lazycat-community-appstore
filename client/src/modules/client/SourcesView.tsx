@@ -9,17 +9,15 @@ import {
   RefreshCw,
   Save,
   Server,
-  ShieldCheck,
   X,
 } from 'lucide-react';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { DEFAULT_SOURCE_URL } from '../../config';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import type {
-  ClientSettings,
   ClientSourceStats,
   InstalledApplication,
   SourceApp,
@@ -60,8 +58,6 @@ export function SourcesView({
   onInstall,
   installedApps,
   sourceStats,
-  clientSettings,
-  onSaveClientSettings,
   setToast,
 }: {
   sources: SourceSubscription[];
@@ -75,8 +71,6 @@ export function SourcesView({
   onInstall: (app: SourceApp) => void;
   installedApps: InstalledApplication[];
   sourceStats: ClientSourceStats;
-  clientSettings: ClientSettings;
-  onSaveClientSettings: (settings: ClientSettings) => Promise<void>;
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
@@ -90,11 +84,6 @@ export function SourcesView({
   const [editDraft, setEditDraft] = useState<SourceInput>(emptyDraft);
   const [selectedSyncedSource, setSelectedSyncedSource] = useState('all');
   const [selectedSyncedCategory, setSelectedSyncedCategory] = useState('all');
-  const [clientSettingsDraft, setClientSettingsDraft] = useState<ClientSettings>(clientSettings);
-
-  useEffect(() => {
-    setClientSettingsDraft(clientSettings);
-  }, [clientSettings.commentDisplayName]);
 
   function normalizedSourceURL(rawURL: string) {
     try {
@@ -217,16 +206,6 @@ export function SourcesView({
     }
   }
 
-  async function savePrivacySettings(event: FormEvent) {
-    event.preventDefault();
-    try {
-      await onSaveClientSettings({ commentDisplayName: clientSettingsDraft.commentDisplayName.trim() });
-      setToast({ tone: 'success', message: t('sources.privacySaved') });
-    } catch (error) {
-      setToast({ tone: 'error', message: errorMessage(error, t('sources.privacySaveFailed')) });
-    }
-  }
-
   return (
     <section className="page-grid">
       <div className="page-heading with-action">
@@ -273,30 +252,6 @@ export function SourcesView({
           <strong>{sourceStats.failedSourceCount}</strong>
         </div>
       </div>
-
-      <section className="panel client-privacy-panel">
-        <div className="section-title with-action">
-          <div>
-            <ShieldCheck size={19} />
-            <h2>{t('sources.privacyTitle')}</h2>
-          </div>
-          <span className="status-badge synced">{t('sources.privacyDefaultBadge')}</span>
-        </div>
-        <p className="muted-text">{t('sources.privacyBody')}</p>
-        <form className="privacy-form" onSubmit={savePrivacySettings}>
-          <XTextInput
-            label={t('sources.commentDisplayName')}
-            description={t('sources.commentDisplayNameHelp', { name: t('sources.defaultCommentDisplayName') })}
-            value={clientSettingsDraft.commentDisplayName}
-            placeholder={t('sources.defaultCommentDisplayName')}
-            onChange={(value) => setClientSettingsDraft({ commentDisplayName: value })}
-          />
-          <button type="submit" className="secondary-button compact-button">
-            <Save size={17} />
-            <span>{t('common.save')}</span>
-          </button>
-        </form>
-      </section>
 
       {isAddSourceOpen && (
         <div className="modal-backdrop" role="presentation" onClick={() => setIsAddSourceOpen(false)}>

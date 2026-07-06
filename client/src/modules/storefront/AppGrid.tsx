@@ -1,7 +1,7 @@
 import { Check, ChevronRight, Download, KeyRound, Link, PackagePlus, ShieldCheck, Star, Tag } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { AvatarIcon } from '../../components/AppIcon';
+import { AppIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
 import type { StoreApp } from '../../shared/types';
 import { cx, hasInstallableVersion } from '../../shared/utils';
@@ -29,7 +29,7 @@ export function AppGrid({
         return (
           <article className="app-card" key={app.id}>
             <button type="button" className="app-open" onClick={() => void onOpen(app)} aria-label={t('app.open', { name: app.name })}>
-              <AvatarIcon seed={app.slug || app.name} title={app.name} />
+              <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={app.name} />
               <div>
                 <h3>{app.name}</h3>
                 <p>{app.summary || app.description || t('common.lpkApp')}</p>

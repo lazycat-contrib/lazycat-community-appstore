@@ -7,8 +7,10 @@ require (
 	gitee.com/linakesi/lzc-sdk v0.1.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/lib-x/entsqlite v0.2.3
+	github.com/lib-x/timewheel v0.4.0
 	github.com/lib/pq v1.12.3
 	github.com/minio/minio-go/v7 v7.2.1
+	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.53.0
 	google.golang.org/grpc v1.63.2
 )
@@ -44,7 +46,6 @@ require (
 	github.com/zclconf/go-cty v1.14.4 // indirect
 	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect

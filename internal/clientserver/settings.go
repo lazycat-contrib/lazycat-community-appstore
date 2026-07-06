@@ -1,17 +1,31 @@
 package clientserver
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 
+	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientsetting"
+	"lazycat.community/appstore/ent/clientsyncsetting"
 )
 
 const settingCommentDisplayName = "comment_display_name"
 
+const (
+	defaultAutoSyncIntervalMinutes = 60
+	minAutoSyncIntervalMinutes     = 5
+	maxAutoSyncIntervalMinutes     = 24 * 60
+)
+
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettings(r)})
+	settings, err := s.clientSettings(r.Context(), currentUserID(r))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "SETTING_LOAD_FAILED", "Could not load settings")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"settings": settings})
 }
 
 func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
@@ -21,19 +35,51 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	displayName := sanitizeClientSetting(input.CommentDisplayName, 40)
+	userID := currentUserID(r)
 	if err := s.setClientSetting(r, settingCommentDisplayName, displayName); err != nil {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"settings": ClientSettingsDTO{CommentDisplayName: displayName}})
+	syncSetting, err := s.setClientSyncSetting(r.Context(), userID, input)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettingsDTO(displayName, syncSetting)})
 }
 
-func (s *Server) clientSettings(r *http.Request) ClientSettingsDTO {
-	return ClientSettingsDTO{CommentDisplayName: strings.TrimSpace(s.clientSetting(r, settingCommentDisplayName))}
+func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSettingsDTO, error) {
+	commentDisplayName := strings.TrimSpace(s.clientSetting(ctx, userID, settingCommentDisplayName))
+	syncSetting, err := s.clientSyncSetting(ctx, userID)
+	if err != nil {
+		return ClientSettingsDTO{}, err
+	}
+	return s.clientSettingsDTO(commentDisplayName, syncSetting), nil
+}
+
+func (s *Server) clientSettingsDTO(commentDisplayName string, syncSetting *ent.ClientSyncSetting) ClientSettingsDTO {
+	dto := ClientSettingsDTO{
+		CommentDisplayName:      commentDisplayName,
+		AutoSyncIntervalMinutes: defaultAutoSyncIntervalMinutes,
+	}
+	if syncSetting == nil {
+		return dto
+	}
+	dto.AutoSyncEnabled = syncSetting.AutoSyncEnabled
+	dto.AutoSyncIntervalMinutes = sanitizeAutoSyncInterval(syncSetting.AutoSyncIntervalMinutes)
+	dto.SyncOnStartup = syncSetting.SyncOnStartup
+	dto.LastAutoSyncAt = syncSetting.LastAutoSyncAt
+	if syncSetting.LastAutoSyncStatus != nil {
+		dto.LastAutoSyncStatus = syncSetting.LastAutoSyncStatus.String()
+	}
+	if syncSetting.LastAutoSyncError != nil {
+		dto.LastAutoSyncError = *syncSetting.LastAutoSyncError
+	}
+	return dto
 }
 
 func (s *Server) clientCommentDisplayName(r *http.Request) string {
-	value := strings.TrimSpace(s.clientSetting(r, settingCommentDisplayName))
+	value := strings.TrimSpace(s.clientSetting(r.Context(), currentUserID(r), settingCommentDisplayName))
 	if value == "" {
 		return defaultClientCommentDisplayName(r)
 	}
@@ -48,10 +94,10 @@ func defaultClientCommentDisplayName(r *http.Request) string {
 	return "LazyCat user"
 }
 
-func (s *Server) clientSetting(r *http.Request, key string) string {
+func (s *Server) clientSetting(ctx context.Context, userID, key string) string {
 	record, err := s.db.ClientSetting.Query().
-		Where(clientsetting.UserIDEQ(currentUserID(r)), clientsetting.KeyEQ(key)).
-		Only(r.Context())
+		Where(clientsetting.UserIDEQ(userID), clientsetting.KeyEQ(key)).
+		Only(ctx)
 	if err != nil {
 		return ""
 	}
@@ -69,6 +115,52 @@ func (s *Server) setClientSetting(r *http.Request, key, value string) error {
 	}
 	_, err = s.db.ClientSetting.Create().SetUserID(userID).SetKey(key).SetValue(value).Save(r.Context())
 	return err
+}
+
+func (s *Server) clientSyncSetting(ctx context.Context, userID string) (*ent.ClientSyncSetting, error) {
+	record, err := s.db.ClientSyncSetting.Query().
+		Where(clientsyncsetting.UserIDEQ(userID)).
+		Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	return record, err
+}
+
+func (s *Server) setClientSyncSetting(ctx context.Context, userID string, input ClientSettingsDTO) (*ent.ClientSyncSetting, error) {
+	interval := sanitizeAutoSyncInterval(input.AutoSyncIntervalMinutes)
+	record, err := s.db.ClientSyncSetting.Query().
+		Where(clientsyncsetting.UserIDEQ(userID)).
+		Only(ctx)
+	if err == nil {
+		return s.db.ClientSyncSetting.UpdateOneID(record.ID).
+			SetAutoSyncEnabled(input.AutoSyncEnabled).
+			SetAutoSyncIntervalMinutes(interval).
+			SetSyncOnStartup(input.SyncOnStartup).
+			Save(ctx)
+	}
+	if !ent.IsNotFound(err) {
+		return nil, err
+	}
+	return s.db.ClientSyncSetting.Create().
+		SetUserID(userID).
+		SetAutoSyncEnabled(input.AutoSyncEnabled).
+		SetAutoSyncIntervalMinutes(interval).
+		SetSyncOnStartup(input.SyncOnStartup).
+		Save(ctx)
+}
+
+func sanitizeAutoSyncInterval(value int) int {
+	if value <= 0 {
+		return defaultAutoSyncIntervalMinutes
+	}
+	if value < minAutoSyncIntervalMinutes {
+		return minAutoSyncIntervalMinutes
+	}
+	if value > maxAutoSyncIntervalMinutes {
+		return maxAutoSyncIntervalMinutes
+	}
+	return value
 }
 
 func sanitizeClientSetting(value string, limit int) string {

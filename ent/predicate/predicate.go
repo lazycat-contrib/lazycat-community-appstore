@@ -39,6 +39,9 @@ type ClientSource func(*sql.Selector)
 // ClientSourceApp is the predicate function for clientsourceapp builders.
 type ClientSourceApp func(*sql.Selector)
 
+// ClientSyncSetting is the predicate function for clientsyncsetting builders.
+type ClientSyncSetting func(*sql.Selector)
+
 // Collaborator is the predicate function for collaborator builders.
 type Collaborator func(*sql.Selector)
 

@@ -16,6 +16,7 @@ import (
 	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
+	"lazycat.community/appstore/ent/clientsyncsetting"
 	"lazycat.community/appstore/ent/collaborator"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collection"
@@ -363,6 +364,34 @@ func init() {
 	clientsourceapp.DefaultUpdatedAt = clientsourceappDescUpdatedAt.Default.(func() time.Time)
 	// clientsourceapp.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	clientsourceapp.UpdateDefaultUpdatedAt = clientsourceappDescUpdatedAt.UpdateDefault.(func() time.Time)
+	clientsyncsettingFields := schema.ClientSyncSetting{}.Fields()
+	_ = clientsyncsettingFields
+	// clientsyncsettingDescUserID is the schema descriptor for user_id field.
+	clientsyncsettingDescUserID := clientsyncsettingFields[0].Descriptor()
+	// clientsyncsetting.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	clientsyncsetting.UserIDValidator = clientsyncsettingDescUserID.Validators[0].(func(string) error)
+	// clientsyncsettingDescAutoSyncEnabled is the schema descriptor for auto_sync_enabled field.
+	clientsyncsettingDescAutoSyncEnabled := clientsyncsettingFields[1].Descriptor()
+	// clientsyncsetting.DefaultAutoSyncEnabled holds the default value on creation for the auto_sync_enabled field.
+	clientsyncsetting.DefaultAutoSyncEnabled = clientsyncsettingDescAutoSyncEnabled.Default.(bool)
+	// clientsyncsettingDescAutoSyncIntervalMinutes is the schema descriptor for auto_sync_interval_minutes field.
+	clientsyncsettingDescAutoSyncIntervalMinutes := clientsyncsettingFields[2].Descriptor()
+	// clientsyncsetting.DefaultAutoSyncIntervalMinutes holds the default value on creation for the auto_sync_interval_minutes field.
+	clientsyncsetting.DefaultAutoSyncIntervalMinutes = clientsyncsettingDescAutoSyncIntervalMinutes.Default.(int)
+	// clientsyncsettingDescSyncOnStartup is the schema descriptor for sync_on_startup field.
+	clientsyncsettingDescSyncOnStartup := clientsyncsettingFields[3].Descriptor()
+	// clientsyncsetting.DefaultSyncOnStartup holds the default value on creation for the sync_on_startup field.
+	clientsyncsetting.DefaultSyncOnStartup = clientsyncsettingDescSyncOnStartup.Default.(bool)
+	// clientsyncsettingDescCreatedAt is the schema descriptor for created_at field.
+	clientsyncsettingDescCreatedAt := clientsyncsettingFields[7].Descriptor()
+	// clientsyncsetting.DefaultCreatedAt holds the default value on creation for the created_at field.
+	clientsyncsetting.DefaultCreatedAt = clientsyncsettingDescCreatedAt.Default.(func() time.Time)
+	// clientsyncsettingDescUpdatedAt is the schema descriptor for updated_at field.
+	clientsyncsettingDescUpdatedAt := clientsyncsettingFields[8].Descriptor()
+	// clientsyncsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	clientsyncsetting.DefaultUpdatedAt = clientsyncsettingDescUpdatedAt.Default.(func() time.Time)
+	// clientsyncsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	clientsyncsetting.UpdateDefaultUpdatedAt = clientsyncsettingDescUpdatedAt.UpdateDefault.(func() time.Time)
 	collaboratorFields := schema.Collaborator{}.Fields()
 	_ = collaboratorFields
 	// collaboratorDescCreatedAt is the schema descriptor for created_at field.

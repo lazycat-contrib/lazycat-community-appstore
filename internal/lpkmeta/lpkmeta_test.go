@@ -13,11 +13,14 @@ const validPackageYAML = `package: cloud.lazycat.app.notes
 version: 1.2.3
 name: Notes
 description: Source synced notes
+icon: icon.png
 author: LazyCat
 license: MIT
 homepage: https://example.com/notes
 min_os_version: 1.5.0
 `
+
+var tinyPNG = []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0x00, 0x00, 0x00, 0x0d}
 
 func TestParseReaderAtTarPackageYAML(t *testing.T) {
 	raw := tarLPK(t, validPackageYAML)
@@ -45,6 +48,42 @@ func TestParseReaderAtZipPackageYAML(t *testing.T) {
 
 	if meta.PackageID != "cloud.lazycat.app.notes" || meta.Version != "1.2.3" {
 		t.Fatalf("unexpected metadata: %+v", meta)
+	}
+}
+
+func TestParseReaderAtExtractsTarIcon(t *testing.T) {
+	raw := tarArchive(t, map[string]string{
+		packageYAMLName(): validPackageYAML,
+		"icon.png":        string(tinyPNG),
+	})
+
+	meta, err := ParseReaderAt(bytes.NewReader(raw), int64(len(raw)))
+	if err != nil {
+		t.Fatalf("ParseReaderAt returned error: %v", err)
+	}
+
+	if meta.IconPath != "icon.png" || meta.IconMediaType != "image/png" || !bytes.Equal(meta.IconData, tinyPNG) {
+		t.Fatalf("unexpected icon metadata: path=%q media=%q data=%x", meta.IconPath, meta.IconMediaType, meta.IconData)
+	}
+	if got := meta.IconDataURL(); !strings.HasPrefix(got, "data:image/png;base64,") {
+		t.Fatalf("IconDataURL = %q, want png data URL", got)
+	}
+}
+
+func TestParseReaderAtExtractsZipIcon(t *testing.T) {
+	packageYAML := strings.Replace(validPackageYAML, "icon: icon.png", "icon: assets/icon.png", 1)
+	raw := zipArchive(t, map[string]string{
+		packageYAMLName(): packageYAML,
+		"assets/icon.png": string(tinyPNG),
+	})
+
+	meta, err := ParseReaderAt(bytes.NewReader(raw), int64(len(raw)))
+	if err != nil {
+		t.Fatalf("ParseReaderAt returned error: %v", err)
+	}
+
+	if meta.IconPath != "assets/icon.png" || meta.IconMediaType != "image/png" || !bytes.Equal(meta.IconData, tinyPNG) {
+		t.Fatalf("unexpected icon metadata: path=%q media=%q data=%x", meta.IconPath, meta.IconMediaType, meta.IconData)
 	}
 }
 
@@ -129,14 +168,21 @@ func tarArchive(t *testing.T, files map[string]string) []byte {
 
 func zipLPK(t *testing.T, packageYAML string) []byte {
 	t.Helper()
+	return zipArchive(t, map[string]string{packageYAMLName(): packageYAML})
+}
+
+func zipArchive(t *testing.T, files map[string]string) []byte {
+	t.Helper()
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
-	w, err := zw.Create(packageYAMLName())
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-	if _, err := w.Write([]byte(packageYAML)); err != nil {
-		t.Fatalf("Write: %v", err)
+	for name, content := range files {
+		w, err := zw.Create(name)
+		if err != nil {
+			t.Fatalf("Create: %v", err)
+		}
+		if _, err := w.Write([]byte(content)); err != nil {
+			t.Fatalf("Write: %v", err)
+		}
 	}
 	if err := zw.Close(); err != nil {
 		t.Fatalf("Close zip: %v", err)

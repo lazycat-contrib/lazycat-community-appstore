@@ -11,10 +11,11 @@ import (
 )
 
 type Server struct {
-	cfg Config
-	db  *ent.Client
-	pkg PackageManager
-	mux *http.ServeMux
+	cfg           Config
+	db            *ent.Client
+	pkg           PackageManager
+	mux           *http.ServeMux
+	syncScheduler *sourceSyncScheduler
 }
 
 func New(cfg Config) (*Server, error) {
@@ -24,6 +25,12 @@ func New(cfg Config) (*Server, error) {
 	}
 	s := &Server{cfg: cfg, db: db, pkg: NewLazyCatPackageManager(), mux: http.NewServeMux()}
 	s.routes()
+	syncScheduler, err := newSourceSyncScheduler(s)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	s.syncScheduler = syncScheduler
 	return s, nil
 }
 
@@ -34,6 +41,9 @@ func newTestServer(db *ent.Client) *Server {
 }
 
 func (s *Server) Close() error {
+	if s.syncScheduler != nil {
+		_ = s.syncScheduler.Close()
+	}
 	return s.db.Close()
 }
 

@@ -3,11 +3,15 @@ package lpkmeta
 import (
 	"archive/tar"
 	"archive/zip"
+	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -15,6 +19,7 @@ import (
 
 const packageYAML = "package.yml"
 const maxPackageYAMLBytes = 1 << 20
+const maxIconBytes = 2 << 20
 
 var (
 	ErrPackageNotFound = errors.New("package.yml not found")
@@ -22,14 +27,17 @@ var (
 )
 
 type Metadata struct {
-	PackageID    string
-	Version      string
-	Name         string
-	Description  string
-	Author       string
-	License      string
-	Homepage     string
-	MinOSVersion string
+	PackageID     string
+	Version       string
+	Name          string
+	Description   string
+	Author        string
+	License       string
+	Homepage      string
+	MinOSVersion  string
+	IconPath      string
+	IconMediaType string
+	IconData      []byte
 }
 
 type packageFile struct {
@@ -37,6 +45,7 @@ type packageFile struct {
 	Version      string                   `yaml:"version"`
 	Name         string                   `yaml:"name"`
 	Description  string                   `yaml:"description"`
+	Icon         string                   `yaml:"icon"`
 	Author       string                   `yaml:"author"`
 	License      string                   `yaml:"license"`
 	Homepage     string                   `yaml:"homepage"`
@@ -80,26 +89,48 @@ func parseZip(r io.ReaderAt, size int64) (Metadata, error) {
 	if err != nil {
 		return Metadata{}, err
 	}
+	var packageRaw []byte
+	icons := map[string]iconFile{}
 	for _, file := range zr.File {
-		if cleanArchiveName(file.Name) != packageYAML {
+		name := cleanArchiveName(file.Name)
+		if name != packageYAML && !isPotentialIconFile(name) {
 			continue
 		}
 		rc, err := file.Open()
 		if err != nil {
 			return Metadata{}, err
 		}
-		defer rc.Close()
-		return parsePackageYAML(io.LimitReader(rc, maxPackageYAMLBytes+1))
+		if name == packageYAML {
+			packageRaw, err = readLimited(rc, maxPackageYAMLBytes)
+		} else if file.FileInfo().Mode().IsRegular() {
+			var data []byte
+			data, err = readLimited(rc, maxIconBytes)
+			if err == nil {
+				icons[name] = iconFile{path: name, data: data}
+			}
+		}
+		closeErr := rc.Close()
+		if err != nil {
+			return Metadata{}, err
+		}
+		if closeErr != nil {
+			return Metadata{}, closeErr
+		}
 	}
-	return Metadata{}, ErrPackageNotFound
+	if len(packageRaw) == 0 {
+		return Metadata{}, ErrPackageNotFound
+	}
+	return parsePackageYAML(bytes.NewReader(packageRaw), icons)
 }
 
 func parseTar(r io.Reader) (Metadata, error) {
 	tr := tar.NewReader(r)
+	var packageRaw []byte
+	icons := map[string]iconFile{}
 	for {
 		header, err := tr.Next()
 		if errors.Is(err, io.EOF) {
-			return Metadata{}, ErrPackageNotFound
+			break
 		}
 		if err != nil {
 			return Metadata{}, err
@@ -107,20 +138,33 @@ func parseTar(r io.Reader) (Metadata, error) {
 		if header.Typeflag != tar.TypeReg && header.Typeflag != tar.TypeRegA {
 			continue
 		}
-		if cleanArchiveName(header.Name) != packageYAML {
+		name := cleanArchiveName(header.Name)
+		if name != packageYAML && !isPotentialIconFile(name) {
 			continue
 		}
-		return parsePackageYAML(io.LimitReader(tr, maxPackageYAMLBytes+1))
+		if name == packageYAML {
+			packageRaw, err = readLimited(tr, maxPackageYAMLBytes)
+		} else {
+			var data []byte
+			data, err = readLimited(tr, maxIconBytes)
+			if err == nil {
+				icons[name] = iconFile{path: name, data: data}
+			}
+		}
+		if err != nil {
+			return Metadata{}, err
+		}
 	}
+	if len(packageRaw) == 0 {
+		return Metadata{}, ErrPackageNotFound
+	}
+	return parsePackageYAML(bytes.NewReader(packageRaw), icons)
 }
 
-func parsePackageYAML(r io.Reader) (Metadata, error) {
-	raw, err := io.ReadAll(r)
+func parsePackageYAML(r io.Reader, icons map[string]iconFile) (Metadata, error) {
+	raw, err := readLimited(r, maxPackageYAMLBytes)
 	if err != nil {
 		return Metadata{}, err
-	}
-	if len(raw) > maxPackageYAMLBytes {
-		return Metadata{}, fmt.Errorf("%w: package.yml exceeds %d bytes", ErrInvalidPackage, maxPackageYAMLBytes)
 	}
 	var pkg packageFile
 	if err := yaml.Unmarshal(raw, &pkg); err != nil {
@@ -133,6 +177,7 @@ func parsePackageYAML(r io.Reader) (Metadata, error) {
 	if meta.Version == "" {
 		return Metadata{}, fmt.Errorf("%w: version is required", ErrInvalidPackage)
 	}
+	applyIcon(&meta, pkg, icons)
 	return meta, nil
 }
 
@@ -146,6 +191,7 @@ func normalize(pkg packageFile) Metadata {
 		License:      strings.TrimSpace(pkg.License),
 		Homepage:     strings.TrimSpace(pkg.Homepage),
 		MinOSVersion: strings.TrimSpace(pkg.MinOSVersion),
+		IconPath:     cleanArchiveName(pkg.Icon),
 	}
 	if meta.Name == "" {
 		for _, key := range []string{"zh", "zh-CN", "zh_Hans", "en"} {
@@ -173,10 +219,96 @@ func normalize(pkg packageFile) Metadata {
 	return meta
 }
 
+func (m Metadata) IconDataURL() string {
+	if len(m.IconData) == 0 || m.IconMediaType == "" {
+		return ""
+	}
+	return "data:" + m.IconMediaType + ";base64," + base64.StdEncoding.EncodeToString(m.IconData)
+}
+
 func cleanArchiveName(name string) string {
 	clean := path.Clean(strings.TrimSpace(strings.TrimPrefix(name, "./")))
 	if clean == "." || strings.HasPrefix(clean, "../") || strings.HasPrefix(clean, "/") {
 		return ""
 	}
 	return clean
+}
+
+type iconFile struct {
+	path string
+	data []byte
+}
+
+func readLimited(r io.Reader, limit int64) ([]byte, error) {
+	raw, err := io.ReadAll(io.LimitReader(r, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(raw)) > limit {
+		return nil, fmt.Errorf("%w: archive entry exceeds %d bytes", ErrInvalidPackage, limit)
+	}
+	return raw, nil
+}
+
+func isPotentialIconFile(name string) bool {
+	ext := strings.ToLower(filepath.Ext(name))
+	if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".webp" {
+		return false
+	}
+	base := strings.ToLower(path.Base(name))
+	return base == "icon"+ext || strings.Contains(base, "icon")
+}
+
+func applyIcon(meta *Metadata, pkg packageFile, icons map[string]iconFile) {
+	if len(icons) == 0 {
+		return
+	}
+	candidates := []string{}
+	if meta.IconPath != "" {
+		candidates = append(candidates, meta.IconPath)
+	}
+	candidates = append(candidates, "icon.png", "icon.jpg", "icon.jpeg", "icon.webp")
+	for _, candidate := range candidates {
+		if icon, ok := icons[cleanArchiveName(candidate)]; ok {
+			meta.IconPath = icon.path
+			meta.IconData = append([]byte(nil), icon.data...)
+			meta.IconMediaType = iconMediaType(icon.path, icon.data)
+			return
+		}
+	}
+	if strings.TrimSpace(pkg.Icon) == "" {
+		for _, icon := range icons {
+			meta.IconPath = icon.path
+			meta.IconData = append([]byte(nil), icon.data...)
+			meta.IconMediaType = iconMediaType(icon.path, icon.data)
+			return
+		}
+	}
+}
+
+func iconMediaType(name string, data []byte) string {
+	if detected := httpDetectContentType(data); detected != "application/octet-stream" {
+		return detected
+	}
+	if byExt := mime.TypeByExtension(strings.ToLower(filepath.Ext(name))); byExt != "" {
+		return strings.Split(byExt, ";")[0]
+	}
+	return "application/octet-stream"
+}
+
+func httpDetectContentType(data []byte) string {
+	sample := data
+	if len(sample) > 512 {
+		sample = sample[:512]
+	}
+	switch {
+	case len(sample) >= 8 && bytes.Equal(sample[:8], []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}):
+		return "image/png"
+	case len(sample) >= 3 && bytes.Equal(sample[:3], []byte{0xff, 0xd8, 0xff}):
+		return "image/jpeg"
+	case len(sample) >= 12 && string(sample[:4]) == "RIFF" && string(sample[8:12]) == "WEBP":
+		return "image/webp"
+	default:
+		return "application/octet-stream"
+	}
 }

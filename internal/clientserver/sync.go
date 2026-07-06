@@ -65,20 +65,28 @@ func (s *Server) handleSyncSource(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSyncAllSources(w http.ResponseWriter, r *http.Request) {
 	userID := currentUserID(r)
-	sources, err := s.db.ClientSource.Query().Where(clientsource.UserIDEQ(userID)).All(r.Context())
+	result, err := s.syncAllSources(r.Context(), userID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SOURCE_LIST_FAILED", "Could not list sources")
 		return
 	}
+	writeJSON(w, http.StatusOK, map[string]any{"result": result})
+}
+
+func (s *Server) syncAllSources(ctx context.Context, userID string) (SyncAllResult, error) {
+	sources, err := s.db.ClientSource.Query().Where(clientsource.UserIDEQ(userID)).All(ctx)
+	if err != nil {
+		return SyncAllResult{}, err
+	}
 	result := SyncAllResult{}
 	for _, source := range sources {
-		if _, err := s.syncSource(r.Context(), source.ID, userID); err != nil {
+		if _, err := s.syncSource(ctx, source.ID, userID); err != nil {
 			result.Failed++
 		} else {
 			result.Success++
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"result": result})
+	return result, nil
 }
 
 func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (SourceDTO, error) {

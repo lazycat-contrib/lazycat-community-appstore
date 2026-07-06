@@ -8,8 +8,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/ent/clientsyncsetting"
 	"lazycat.community/appstore/internal/mirror"
 )
 
@@ -83,6 +85,44 @@ func TestSourceDuplicateURLForUserFails(t *testing.T) {
 	rec := app.request("POST", "/api/client/v1/sources", body, "alice")
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("duplicate = %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
+	app := testServer(t)
+	rec := app.request("PATCH", "/api/client/v1/settings", `{"commentDisplayName":"  Alice  Cat  ","autoSyncEnabled":true,"autoSyncIntervalMinutes":1,"syncOnStartup":true}`, "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("settings save = %d %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"commentDisplayName":"Alice Cat"`) || !strings.Contains(rec.Body.String(), `"autoSyncIntervalMinutes":5`) {
+		t.Fatalf("settings response not normalized: %s", rec.Body.String())
+	}
+	setting, err := app.server.db.ClientSyncSetting.Query().
+		Where(clientsyncsetting.UserIDEQ("alice")).
+		Only(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !setting.AutoSyncEnabled || !setting.SyncOnStartup || setting.AutoSyncIntervalMinutes != 5 {
+		t.Fatalf("bad sync setting: %#v", setting)
+	}
+	if count, err := app.server.db.ClientSetting.Query().Count(context.Background()); err != nil || count != 1 {
+		t.Fatalf("client_settings count = %d, err = %v", count, err)
+	}
+}
+
+func TestAutoSyncDueUsesLastRunAndInterval(t *testing.T) {
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	oldRun := now.Add(-61 * time.Minute)
+	recentRun := now.Add(-30 * time.Minute)
+	if !autoSyncDue(&ent.ClientSyncSetting{AutoSyncEnabled: true, AutoSyncIntervalMinutes: 60, LastAutoSyncAt: &oldRun}, now) {
+		t.Fatal("expected old auto sync to be due")
+	}
+	if autoSyncDue(&ent.ClientSyncSetting{AutoSyncEnabled: true, AutoSyncIntervalMinutes: 60, LastAutoSyncAt: &recentRun}, now) {
+		t.Fatal("expected recent auto sync not to be due")
+	}
+	if autoSyncDue(&ent.ClientSyncSetting{AutoSyncEnabled: false, AutoSyncIntervalMinutes: 60, LastAutoSyncAt: &oldRun}, now) {
+		t.Fatal("disabled auto sync should not be due")
 	}
 }
 

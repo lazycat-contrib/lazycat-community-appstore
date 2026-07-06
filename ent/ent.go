@@ -23,6 +23,7 @@ import (
 	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
+	"lazycat.community/appstore/ent/clientsyncsetting"
 	"lazycat.community/appstore/ent/collaborator"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collection"
@@ -108,6 +109,7 @@ func checkColumn(t, c string) error {
 			clientsetting.Table:        clientsetting.ValidColumn,
 			clientsource.Table:         clientsource.ValidColumn,
 			clientsourceapp.Table:      clientsourceapp.ValidColumn,
+			clientsyncsetting.Table:    clientsyncsetting.ValidColumn,
 			collaborator.Table:         collaborator.ValidColumn,
 			collaboratorrequest.Table:  collaboratorrequest.ValidColumn,
 			collection.Table:           collection.ValidColumn,

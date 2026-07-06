@@ -1,6 +1,7 @@
 import { Copy, Download, History, Layers3, LogIn, PackagePlus, Search, Tag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API_BASE } from '../../config';
+import { AppIcon } from '../../components/AppIcon';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { Category, Collection, SiteProfile, StoreApp, Toast } from '../../shared/types';
 import { errorMessage } from '../../shared/utils';
@@ -47,9 +48,9 @@ export function StorefrontHome({
   }
 
   return (
-    <section className="page-grid">
-      <div className="hero-band">
-        <div>
+    <section className="page-grid storefront-page">
+      <div className="hero-band storefront-hero">
+        <div className="storefront-hero-copy">
           <span className="eyebrow">{t('home.eyebrow')}</span>
           <h1>{siteProfile.title || t('home.title')}</h1>
           <p>{t('home.body')}</p>
@@ -64,6 +65,26 @@ export function StorefrontHome({
             </button>
           </div>
         </div>
+        {latest.length > 0 && (
+          <div className="hero-app-shelf" aria-label={t('home.featuredApps')}>
+            {latest.slice(0, 4).map((app) => (
+              <button type="button" className="featured-app-tile" key={app.id} onClick={() => void onOpen(app)} aria-label={t('app.open', { name: app.name })}>
+                <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={app.name} size={52} />
+                <span>
+                  <strong>{app.name}</strong>
+                  <small>{app.category || t('common.uncategorized')}</small>
+                </span>
+              </button>
+            ))}
+            <button type="button" className="featured-app-tile browse-tile" onClick={() => onNavigate('search')}>
+              <Search size={24} />
+              <span>
+                <strong>{t('home.browseInstallable')}</strong>
+                <small>{t('home.featuredHint')}</small>
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       <section className="store-metrics" aria-label={t('nav.store')}>

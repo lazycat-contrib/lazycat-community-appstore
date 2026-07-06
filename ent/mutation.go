@@ -22,6 +22,7 @@ import (
 	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
+	"lazycat.community/appstore/ent/clientsyncsetting"
 	"lazycat.community/appstore/ent/collaborator"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collection"
@@ -59,6 +60,7 @@ const (
 	TypeClientSetting        = "ClientSetting"
 	TypeClientSource         = "ClientSource"
 	TypeClientSourceApp      = "ClientSourceApp"
+	TypeClientSyncSetting    = "ClientSyncSetting"
 	TypeCollaborator         = "Collaborator"
 	TypeCollaboratorRequest  = "CollaboratorRequest"
 	TypeCollection           = "Collection"
@@ -9406,6 +9408,860 @@ func (m *ClientSourceAppMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown ClientSourceApp edge %s", name)
+}
+
+// ClientSyncSettingMutation represents an operation that mutates the ClientSyncSetting nodes in the graph.
+type ClientSyncSettingMutation struct {
+	config
+	op                            Op
+	typ                           string
+	id                            *int
+	user_id                       *string
+	auto_sync_enabled             *bool
+	auto_sync_interval_minutes    *int
+	addauto_sync_interval_minutes *int
+	sync_on_startup               *bool
+	last_auto_sync_at             *time.Time
+	last_auto_sync_status         *clientsyncsetting.LastAutoSyncStatus
+	last_auto_sync_error          *string
+	created_at                    *time.Time
+	updated_at                    *time.Time
+	clearedFields                 map[string]struct{}
+	done                          bool
+	oldValue                      func(context.Context) (*ClientSyncSetting, error)
+	predicates                    []predicate.ClientSyncSetting
+}
+
+var _ ent.Mutation = (*ClientSyncSettingMutation)(nil)
+
+// clientsyncsettingOption allows management of the mutation configuration using functional options.
+type clientsyncsettingOption func(*ClientSyncSettingMutation)
+
+// newClientSyncSettingMutation creates new mutation for the ClientSyncSetting entity.
+func newClientSyncSettingMutation(c config, op Op, opts ...clientsyncsettingOption) *ClientSyncSettingMutation {
+	m := &ClientSyncSettingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeClientSyncSetting,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withClientSyncSettingID sets the ID field of the mutation.
+func withClientSyncSettingID(id int) clientsyncsettingOption {
+	return func(m *ClientSyncSettingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *ClientSyncSetting
+		)
+		m.oldValue = func(ctx context.Context) (*ClientSyncSetting, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().ClientSyncSetting.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withClientSyncSetting sets the old ClientSyncSetting of the mutation.
+func withClientSyncSetting(node *ClientSyncSetting) clientsyncsettingOption {
+	return func(m *ClientSyncSettingMutation) {
+		m.oldValue = func(context.Context) (*ClientSyncSetting, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m ClientSyncSettingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m ClientSyncSettingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *ClientSyncSettingMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *ClientSyncSettingMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().ClientSyncSetting.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *ClientSyncSettingMutation) SetUserID(s string) {
+	m.user_id = &s
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *ClientSyncSettingMutation) UserID() (r string, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the ClientSyncSetting entity.
+// If the ClientSyncSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSyncSettingMutation) OldUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *ClientSyncSettingMutation) ResetUserID() {
+	m.user_id = nil
+}
+
+// SetAutoSyncEnabled sets the "auto_sync_enabled" field.
+func (m *ClientSyncSettingMutation) SetAutoSyncEnabled(b bool) {
+	m.auto_sync_enabled = &b
+}
+
+// AutoSyncEnabled returns the value of the "auto_sync_enabled" field in the mutation.
+func (m *ClientSyncSettingMutation) AutoSyncEnabled() (r bool, exists bool) {
+	v := m.auto_sync_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoSyncEnabled returns the old "auto_sync_enabled" field's value of the ClientSyncSetting entity.
+// If the ClientSyncSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSyncSettingMutation) OldAutoSyncEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoSyncEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoSyncEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoSyncEnabled: %w", err)
+	}
+	return oldValue.AutoSyncEnabled, nil
+}
+
+// ResetAutoSyncEnabled resets all changes to the "auto_sync_enabled" field.
+func (m *ClientSyncSettingMutation) ResetAutoSyncEnabled() {
+	m.auto_sync_enabled = nil
+}
+
+// SetAutoSyncIntervalMinutes sets the "auto_sync_interval_minutes" field.
+func (m *ClientSyncSettingMutation) SetAutoSyncIntervalMinutes(i int) {
+	m.auto_sync_interval_minutes = &i
+	m.addauto_sync_interval_minutes = nil
+}
+
+// AutoSyncIntervalMinutes returns the value of the "auto_sync_interval_minutes" field in the mutation.
+func (m *ClientSyncSettingMutation) AutoSyncIntervalMinutes() (r int, exists bool) {
+	v := m.auto_sync_interval_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoSyncIntervalMinutes returns the old "auto_sync_interval_minutes" field's value of the ClientSyncSetting entity.
+// If the ClientSyncSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSyncSettingMutation) OldAutoSyncIntervalMinutes(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoSyncIntervalMinutes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoSyncIntervalMinutes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoSyncIntervalMinutes: %w", err)
+	}
+	return oldValue.AutoSyncIntervalMinutes, nil
+}
+
+// AddAutoSyncIntervalMinutes adds i to the "auto_sync_interval_minutes" field.
+func (m *ClientSyncSettingMutation) AddAutoSyncIntervalMinutes(i int) {
+	if m.addauto_sync_interval_minutes != nil {
+		*m.addauto_sync_interval_minutes += i
+	} else {
+		m.addauto_sync_interval_minutes = &i
+	}
+}
+
+// AddedAutoSyncIntervalMinutes returns the value that was added to the "auto_sync_interval_minutes" field in this mutation.
+func (m *ClientSyncSettingMutation) AddedAutoSyncIntervalMinutes() (r int, exists bool) {
+	v := m.addauto_sync_interval_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAutoSyncIntervalMinutes resets all changes to the "auto_sync_interval_minutes" field.
+func (m *ClientSyncSettingMutation) ResetAutoSyncIntervalMinutes() {
+	m.auto_sync_interval_minutes = nil
+	m.addauto_sync_interval_minutes = nil
+}
+
+// SetSyncOnStartup sets the "sync_on_startup" field.
+func (m *ClientSyncSettingMutation) SetSyncOnStartup(b bool) {
+	m.sync_on_startup = &b
+}
+
+// SyncOnStartup returns the value of the "sync_on_startup" field in the mutation.
+func (m *ClientSyncSettingMutation) SyncOnStartup() (r bool, exists bool) {
+	v := m.sync_on_startup
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSyncOnStartup returns the old "sync_on_startup" field's value of the ClientSyncSetting entity.
+// If the ClientSyncSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSyncSettingMutation) OldSyncOnStartup(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSyncOnStartup is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSyncOnStartup requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSyncOnStartup: %w", err)
+	}
+	return oldValue.SyncOnStartup, nil
+}
+
+// ResetSyncOnStartup resets all changes to the "sync_on_startup" field.
+func (m *ClientSyncSettingMutation) ResetSyncOnStartup() {
+	m.sync_on_startup = nil
+}
+
+// SetLastAutoSyncAt sets the "last_auto_sync_at" field.
+func (m *ClientSyncSettingMutation) SetLastAutoSyncAt(t time.Time) {
+	m.last_auto_sync_at = &t
+}
+
+// LastAutoSyncAt returns the value of the "last_auto_sync_at" field in the mutation.
+func (m *ClientSyncSettingMutation) LastAutoSyncAt() (r time.Time, exists bool) {
+	v := m.last_auto_sync_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastAutoSyncAt returns the old "last_auto_sync_at" field's value of the ClientSyncSetting entity.
+// If the ClientSyncSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSyncSettingMutation) OldLastAutoSyncAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastAutoSyncAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastAutoSyncAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastAutoSyncAt: %w", err)
+	}
+	return oldValue.LastAutoSyncAt, nil
+}
+
+// ClearLastAutoSyncAt clears the value of the "last_auto_sync_at" field.
+func (m *ClientSyncSettingMutation) ClearLastAutoSyncAt() {
+	m.last_auto_sync_at = nil
+	m.clearedFields[clientsyncsetting.FieldLastAutoSyncAt] = struct{}{}
+}
+
+// LastAutoSyncAtCleared returns if the "last_auto_sync_at" field was cleared in this mutation.
+func (m *ClientSyncSettingMutation) LastAutoSyncAtCleared() bool {
+	_, ok := m.clearedFields[clientsyncsetting.FieldLastAutoSyncAt]
+	return ok
+}
+
+// ResetLastAutoSyncAt resets all changes to the "last_auto_sync_at" field.
+func (m *ClientSyncSettingMutation) ResetLastAutoSyncAt() {
+	m.last_auto_sync_at = nil
+	delete(m.clearedFields, clientsyncsetting.FieldLastAutoSyncAt)
+}
+
+// SetLastAutoSyncStatus sets the "last_auto_sync_status" field.
+func (m *ClientSyncSettingMutation) SetLastAutoSyncStatus(cass clientsyncsetting.LastAutoSyncStatus) {
+	m.last_auto_sync_status = &cass
+}
+
+// LastAutoSyncStatus returns the value of the "last_auto_sync_status" field in the mutation.
+func (m *ClientSyncSettingMutation) LastAutoSyncStatus() (r clientsyncsetting.LastAutoSyncStatus, exists bool) {
+	v := m.last_auto_sync_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastAutoSyncStatus returns the old "last_auto_sync_status" field's value of the ClientSyncSetting entity.
+// If the ClientSyncSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSyncSettingMutation) OldLastAutoSyncStatus(ctx context.Context) (v *clientsyncsetting.LastAutoSyncStatus, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastAutoSyncStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastAutoSyncStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastAutoSyncStatus: %w", err)
+	}
+	return oldValue.LastAutoSyncStatus, nil
+}
+
+// ClearLastAutoSyncStatus clears the value of the "last_auto_sync_status" field.
+func (m *ClientSyncSettingMutation) ClearLastAutoSyncStatus() {
+	m.last_auto_sync_status = nil
+	m.clearedFields[clientsyncsetting.FieldLastAutoSyncStatus] = struct{}{}
+}
+
+// LastAutoSyncStatusCleared returns if the "last_auto_sync_status" field was cleared in this mutation.
+func (m *ClientSyncSettingMutation) LastAutoSyncStatusCleared() bool {
+	_, ok := m.clearedFields[clientsyncsetting.FieldLastAutoSyncStatus]
+	return ok
+}
+
+// ResetLastAutoSyncStatus resets all changes to the "last_auto_sync_status" field.
+func (m *ClientSyncSettingMutation) ResetLastAutoSyncStatus() {
+	m.last_auto_sync_status = nil
+	delete(m.clearedFields, clientsyncsetting.FieldLastAutoSyncStatus)
+}
+
+// SetLastAutoSyncError sets the "last_auto_sync_error" field.
+func (m *ClientSyncSettingMutation) SetLastAutoSyncError(s string) {
+	m.last_auto_sync_error = &s
+}
+
+// LastAutoSyncError returns the value of the "last_auto_sync_error" field in the mutation.
+func (m *ClientSyncSettingMutation) LastAutoSyncError() (r string, exists bool) {
+	v := m.last_auto_sync_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastAutoSyncError returns the old "last_auto_sync_error" field's value of the ClientSyncSetting entity.
+// If the ClientSyncSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSyncSettingMutation) OldLastAutoSyncError(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastAutoSyncError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastAutoSyncError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastAutoSyncError: %w", err)
+	}
+	return oldValue.LastAutoSyncError, nil
+}
+
+// ClearLastAutoSyncError clears the value of the "last_auto_sync_error" field.
+func (m *ClientSyncSettingMutation) ClearLastAutoSyncError() {
+	m.last_auto_sync_error = nil
+	m.clearedFields[clientsyncsetting.FieldLastAutoSyncError] = struct{}{}
+}
+
+// LastAutoSyncErrorCleared returns if the "last_auto_sync_error" field was cleared in this mutation.
+func (m *ClientSyncSettingMutation) LastAutoSyncErrorCleared() bool {
+	_, ok := m.clearedFields[clientsyncsetting.FieldLastAutoSyncError]
+	return ok
+}
+
+// ResetLastAutoSyncError resets all changes to the "last_auto_sync_error" field.
+func (m *ClientSyncSettingMutation) ResetLastAutoSyncError() {
+	m.last_auto_sync_error = nil
+	delete(m.clearedFields, clientsyncsetting.FieldLastAutoSyncError)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *ClientSyncSettingMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *ClientSyncSettingMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the ClientSyncSetting entity.
+// If the ClientSyncSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSyncSettingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *ClientSyncSettingMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *ClientSyncSettingMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *ClientSyncSettingMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the ClientSyncSetting entity.
+// If the ClientSyncSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSyncSettingMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *ClientSyncSettingMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the ClientSyncSettingMutation builder.
+func (m *ClientSyncSettingMutation) Where(ps ...predicate.ClientSyncSetting) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the ClientSyncSettingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *ClientSyncSettingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.ClientSyncSetting, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *ClientSyncSettingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *ClientSyncSettingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (ClientSyncSetting).
+func (m *ClientSyncSettingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *ClientSyncSettingMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.user_id != nil {
+		fields = append(fields, clientsyncsetting.FieldUserID)
+	}
+	if m.auto_sync_enabled != nil {
+		fields = append(fields, clientsyncsetting.FieldAutoSyncEnabled)
+	}
+	if m.auto_sync_interval_minutes != nil {
+		fields = append(fields, clientsyncsetting.FieldAutoSyncIntervalMinutes)
+	}
+	if m.sync_on_startup != nil {
+		fields = append(fields, clientsyncsetting.FieldSyncOnStartup)
+	}
+	if m.last_auto_sync_at != nil {
+		fields = append(fields, clientsyncsetting.FieldLastAutoSyncAt)
+	}
+	if m.last_auto_sync_status != nil {
+		fields = append(fields, clientsyncsetting.FieldLastAutoSyncStatus)
+	}
+	if m.last_auto_sync_error != nil {
+		fields = append(fields, clientsyncsetting.FieldLastAutoSyncError)
+	}
+	if m.created_at != nil {
+		fields = append(fields, clientsyncsetting.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, clientsyncsetting.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *ClientSyncSettingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case clientsyncsetting.FieldUserID:
+		return m.UserID()
+	case clientsyncsetting.FieldAutoSyncEnabled:
+		return m.AutoSyncEnabled()
+	case clientsyncsetting.FieldAutoSyncIntervalMinutes:
+		return m.AutoSyncIntervalMinutes()
+	case clientsyncsetting.FieldSyncOnStartup:
+		return m.SyncOnStartup()
+	case clientsyncsetting.FieldLastAutoSyncAt:
+		return m.LastAutoSyncAt()
+	case clientsyncsetting.FieldLastAutoSyncStatus:
+		return m.LastAutoSyncStatus()
+	case clientsyncsetting.FieldLastAutoSyncError:
+		return m.LastAutoSyncError()
+	case clientsyncsetting.FieldCreatedAt:
+		return m.CreatedAt()
+	case clientsyncsetting.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *ClientSyncSettingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case clientsyncsetting.FieldUserID:
+		return m.OldUserID(ctx)
+	case clientsyncsetting.FieldAutoSyncEnabled:
+		return m.OldAutoSyncEnabled(ctx)
+	case clientsyncsetting.FieldAutoSyncIntervalMinutes:
+		return m.OldAutoSyncIntervalMinutes(ctx)
+	case clientsyncsetting.FieldSyncOnStartup:
+		return m.OldSyncOnStartup(ctx)
+	case clientsyncsetting.FieldLastAutoSyncAt:
+		return m.OldLastAutoSyncAt(ctx)
+	case clientsyncsetting.FieldLastAutoSyncStatus:
+		return m.OldLastAutoSyncStatus(ctx)
+	case clientsyncsetting.FieldLastAutoSyncError:
+		return m.OldLastAutoSyncError(ctx)
+	case clientsyncsetting.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case clientsyncsetting.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown ClientSyncSetting field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ClientSyncSettingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case clientsyncsetting.FieldUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case clientsyncsetting.FieldAutoSyncEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoSyncEnabled(v)
+		return nil
+	case clientsyncsetting.FieldAutoSyncIntervalMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoSyncIntervalMinutes(v)
+		return nil
+	case clientsyncsetting.FieldSyncOnStartup:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSyncOnStartup(v)
+		return nil
+	case clientsyncsetting.FieldLastAutoSyncAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastAutoSyncAt(v)
+		return nil
+	case clientsyncsetting.FieldLastAutoSyncStatus:
+		v, ok := value.(clientsyncsetting.LastAutoSyncStatus)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastAutoSyncStatus(v)
+		return nil
+	case clientsyncsetting.FieldLastAutoSyncError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastAutoSyncError(v)
+		return nil
+	case clientsyncsetting.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case clientsyncsetting.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSyncSetting field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *ClientSyncSettingMutation) AddedFields() []string {
+	var fields []string
+	if m.addauto_sync_interval_minutes != nil {
+		fields = append(fields, clientsyncsetting.FieldAutoSyncIntervalMinutes)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *ClientSyncSettingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case clientsyncsetting.FieldAutoSyncIntervalMinutes:
+		return m.AddedAutoSyncIntervalMinutes()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *ClientSyncSettingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case clientsyncsetting.FieldAutoSyncIntervalMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAutoSyncIntervalMinutes(v)
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSyncSetting numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *ClientSyncSettingMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(clientsyncsetting.FieldLastAutoSyncAt) {
+		fields = append(fields, clientsyncsetting.FieldLastAutoSyncAt)
+	}
+	if m.FieldCleared(clientsyncsetting.FieldLastAutoSyncStatus) {
+		fields = append(fields, clientsyncsetting.FieldLastAutoSyncStatus)
+	}
+	if m.FieldCleared(clientsyncsetting.FieldLastAutoSyncError) {
+		fields = append(fields, clientsyncsetting.FieldLastAutoSyncError)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *ClientSyncSettingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *ClientSyncSettingMutation) ClearField(name string) error {
+	switch name {
+	case clientsyncsetting.FieldLastAutoSyncAt:
+		m.ClearLastAutoSyncAt()
+		return nil
+	case clientsyncsetting.FieldLastAutoSyncStatus:
+		m.ClearLastAutoSyncStatus()
+		return nil
+	case clientsyncsetting.FieldLastAutoSyncError:
+		m.ClearLastAutoSyncError()
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSyncSetting nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *ClientSyncSettingMutation) ResetField(name string) error {
+	switch name {
+	case clientsyncsetting.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case clientsyncsetting.FieldAutoSyncEnabled:
+		m.ResetAutoSyncEnabled()
+		return nil
+	case clientsyncsetting.FieldAutoSyncIntervalMinutes:
+		m.ResetAutoSyncIntervalMinutes()
+		return nil
+	case clientsyncsetting.FieldSyncOnStartup:
+		m.ResetSyncOnStartup()
+		return nil
+	case clientsyncsetting.FieldLastAutoSyncAt:
+		m.ResetLastAutoSyncAt()
+		return nil
+	case clientsyncsetting.FieldLastAutoSyncStatus:
+		m.ResetLastAutoSyncStatus()
+		return nil
+	case clientsyncsetting.FieldLastAutoSyncError:
+		m.ResetLastAutoSyncError()
+		return nil
+	case clientsyncsetting.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case clientsyncsetting.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown ClientSyncSetting field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *ClientSyncSettingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *ClientSyncSettingMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *ClientSyncSettingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *ClientSyncSettingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *ClientSyncSettingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *ClientSyncSettingMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *ClientSyncSettingMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown ClientSyncSetting unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *ClientSyncSettingMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown ClientSyncSetting edge %s", name)
 }
 
 // CollaboratorMutation represents an operation that mutates the Collaborator nodes in the graph.
