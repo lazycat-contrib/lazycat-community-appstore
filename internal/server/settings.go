@@ -181,6 +181,7 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 		IconURL:      cleanURLSetting(s.setting(ctx, settingSiteIconURL, "")),
 		PublicURL:    publicURL,
 		SourceURL:    publicURL + "/source/v1/index.json",
+		Version:      appVersion(),
 		Announcement: announcement,
 		Registration: siteRegistration{Mode: s.registrationMode(ctx)},
 	}

@@ -431,10 +431,10 @@ func init() {
 	collaborator.DefaultCreatedAt = collaboratorDescCreatedAt.Default.(func() time.Time)
 	collaboratorinviteFields := schema.CollaboratorInvite{}.Fields()
 	_ = collaboratorinviteFields
-	// collaboratorinviteDescTokenHash is the schema descriptor for token_hash field.
-	collaboratorinviteDescTokenHash := collaboratorinviteFields[3].Descriptor()
-	// collaboratorinvite.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
-	collaboratorinvite.TokenHashValidator = collaboratorinviteDescTokenHash.Validators[0].(func(string) error)
+	// collaboratorinviteDescToken is the schema descriptor for token field.
+	collaboratorinviteDescToken := collaboratorinviteFields[3].Descriptor()
+	// collaboratorinvite.TokenValidator is a validator for the "token" field. It is called by the builders before save.
+	collaboratorinvite.TokenValidator = collaboratorinviteDescToken.Validators[0].(func(string) error)
 	// collaboratorinviteDescTokenPrefix is the schema descriptor for token_prefix field.
 	collaboratorinviteDescTokenPrefix := collaboratorinviteFields[4].Descriptor()
 	// collaboratorinvite.TokenPrefixValidator is a validator for the "token_prefix" field. It is called by the builders before save.

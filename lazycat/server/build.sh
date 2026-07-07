@@ -5,6 +5,7 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 CONTENT_DIR="$SCRIPT_DIR/content"
 WEB_DIST_DIR="$ROOT_DIR/web/dist"
+PACKAGE_VERSION=$(awk '/^version:/ { print $2; exit }' "$SCRIPT_DIR/package.yml")
 
 rm -rf "$CONTENT_DIR" "$WEB_DIST_DIR"
 mkdir -p "$CONTENT_DIR/lazycat-injects" "$WEB_DIST_DIR" "$ROOT_DIR/dist"
@@ -24,4 +25,4 @@ server binary. The Go `web` package embeds the generated Vite assets from here.
 EOF
 
 cd "$ROOT_DIR"
-CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$CONTENT_DIR/store-server" ./cmd/store-server
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X lazycat.community/appstore/internal/buildinfo.Version=$PACKAGE_VERSION" -o "$CONTENT_DIR/store-server" ./cmd/store-server

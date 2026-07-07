@@ -23,8 +23,8 @@ type CollaboratorInvite struct {
 	InviterID int `json:"inviter_id,omitempty"`
 	// Email holds the value of the "email" field.
 	Email *string `json:"email,omitempty"`
-	// TokenHash holds the value of the "token_hash" field.
-	TokenHash string `json:"-"`
+	// Token holds the value of the "token" field.
+	Token string `json:"-"`
 	// TokenPrefix holds the value of the "token_prefix" field.
 	TokenPrefix string `json:"token_prefix,omitempty"`
 	// AcceptedBy holds the value of the "accepted_by" field.
@@ -47,7 +47,7 @@ func (*CollaboratorInvite) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case collaboratorinvite.FieldID, collaboratorinvite.FieldAppID, collaboratorinvite.FieldInviterID, collaboratorinvite.FieldAcceptedBy:
 			values[i] = new(sql.NullInt64)
-		case collaboratorinvite.FieldEmail, collaboratorinvite.FieldTokenHash, collaboratorinvite.FieldTokenPrefix:
+		case collaboratorinvite.FieldEmail, collaboratorinvite.FieldToken, collaboratorinvite.FieldTokenPrefix:
 			values[i] = new(sql.NullString)
 		case collaboratorinvite.FieldAcceptedAt, collaboratorinvite.FieldExpiresAt, collaboratorinvite.FieldCreatedAt, collaboratorinvite.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -91,11 +91,11 @@ func (_m *CollaboratorInvite) assignValues(columns []string, values []any) error
 				_m.Email = new(string)
 				*_m.Email = value.String
 			}
-		case collaboratorinvite.FieldTokenHash:
+		case collaboratorinvite.FieldToken:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field token_hash", values[i])
+				return fmt.Errorf("unexpected type %T for field token", values[i])
 			} else if value.Valid {
-				_m.TokenHash = value.String
+				_m.Token = value.String
 			}
 		case collaboratorinvite.FieldTokenPrefix:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -182,7 +182,7 @@ func (_m *CollaboratorInvite) String() string {
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
-	builder.WriteString("token_hash=<sensitive>")
+	builder.WriteString("token=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("token_prefix=")
 	builder.WriteString(_m.TokenPrefix)

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/internal/buildinfo"
 	"lazycat.community/appstore/internal/catalogmeta"
 )
 
@@ -50,8 +51,16 @@ type siteProfile struct {
 	IconURL      string           `json:"iconUrl,omitempty"`
 	PublicURL    string           `json:"publicUrl"`
 	SourceURL    string           `json:"sourceUrl"`
+	Version      string           `json:"version"`
 	Announcement siteAnnouncement `json:"announcement"`
 	Registration siteRegistration `json:"registration"`
+}
+
+func appVersion() string {
+	if strings.TrimSpace(buildinfo.Version) == "" {
+		return "dev"
+	}
+	return buildinfo.Version
 }
 
 type siteRegistration struct {

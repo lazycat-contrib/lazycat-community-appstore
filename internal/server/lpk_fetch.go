@@ -48,10 +48,22 @@ func (s *Server) inspectLPKURL(ctx context.Context, rawURL string, maxBytes int6
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	parsed, err := s.lpkFetchURL(ctx, rawURL, useMirrorDownload)
+	candidates, err := s.lpkFetchURLs(ctx, rawURL, useMirrorDownload)
 	if err != nil {
 		return lpkInspection{}, err
 	}
+	failures := make([]string, 0, len(candidates))
+	for _, parsed := range candidates {
+		inspected, err := s.inspectLPKFetchCandidate(ctx, parsed, maxBytes)
+		if err == nil {
+			return inspected, nil
+		}
+		failures = append(failures, fmt.Sprintf("%s: %v", parsed.Host, err))
+	}
+	return lpkInspection{}, fmt.Errorf("could not fetch LPK URL after trying %d candidate(s): %s", len(candidates), strings.Join(failures, "; "))
+}
+
+func (s *Server) inspectLPKFetchCandidate(ctx context.Context, parsed *url.URL, maxBytes int64) (lpkInspection, error) {
 	if err := validateLPKURLHost(ctx, parsed, s.allowPrivateLPKURLHosts); err != nil {
 		return lpkInspection{}, err
 	}
@@ -119,17 +131,45 @@ func (s *Server) inspectLPKURL(ctx context.Context, rawURL string, maxBytes int6
 }
 
 func (s *Server) lpkFetchURL(ctx context.Context, rawURL string, useMirrorDownload bool) (*url.URL, error) {
+	candidates, err := s.lpkFetchURLs(ctx, rawURL, useMirrorDownload)
+	if err != nil {
+		return nil, err
+	}
+	return candidates[0], nil
+}
+
+func (s *Server) lpkFetchURLs(ctx context.Context, rawURL string, useMirrorDownload bool) ([]*url.URL, error) {
 	normalized := normalizeGitHubRawURL(rawURL)
 	parsed, err := parseHTTPDownloadURL(normalized)
 	if err != nil {
 		return nil, err
 	}
+	candidates := []*url.URL{}
+	seen := map[string]struct{}{}
+	addCandidate := func(raw string) error {
+		candidate, err := parseHTTPDownloadURL(raw)
+		if err != nil {
+			return err
+		}
+		key := candidate.String()
+		if _, ok := seen[key]; ok {
+			return nil
+		}
+		seen[key] = struct{}{}
+		candidates = append(candidates, candidate)
+		return nil
+	}
 	if useMirrorDownload {
-		if entry, ok := firstGitHubMirrorForURL(s.effectiveGitHubMirrors(ctx), parsed.String()); ok {
-			return parseHTTPDownloadURL(mirror.RewriteGitHub(parsed.String(), entry))
+		for _, entry := range gitHubMirrorsForURL(s.effectiveGitHubMirrors(ctx), parsed.String()) {
+			if err := addCandidate(mirror.RewriteGitHub(parsed.String(), entry)); err != nil {
+				return nil, err
+			}
 		}
 	}
-	return parsed, nil
+	if err := addCandidate(parsed.String()); err != nil {
+		return nil, err
+	}
+	return candidates, nil
 }
 
 func parseHTTPDownloadURL(rawURL string) (*url.URL, error) {
@@ -144,16 +184,25 @@ func parseHTTPDownloadURL(rawURL string) (*url.URL, error) {
 }
 
 func firstGitHubMirrorForURL(entries []mirror.Entry, rawURL string) (mirror.Entry, bool) {
-	kind := mirror.KindForURL(rawURL)
-	if kind == "" {
+	mirrors := gitHubMirrorsForURL(entries, rawURL)
+	if len(mirrors) == 0 {
 		return mirror.Entry{}, false
 	}
+	return mirrors[0], true
+}
+
+func gitHubMirrorsForURL(entries []mirror.Entry, rawURL string) []mirror.Entry {
+	kind := mirror.KindForURL(rawURL)
+	if kind == "" {
+		return nil
+	}
+	out := []mirror.Entry{}
 	for _, entry := range entries {
 		if entry.Kind == kind {
-			return entry, true
+			out = append(out, entry)
 		}
 	}
-	return mirror.Entry{}, false
+	return out
 }
 
 func normalizeGitHubRawURL(rawURL string) string {

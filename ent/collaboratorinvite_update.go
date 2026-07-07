@@ -90,16 +90,16 @@ func (_u *CollaboratorInviteUpdate) ClearEmail() *CollaboratorInviteUpdate {
 	return _u
 }
 
-// SetTokenHash sets the "token_hash" field.
-func (_u *CollaboratorInviteUpdate) SetTokenHash(v string) *CollaboratorInviteUpdate {
-	_u.mutation.SetTokenHash(v)
+// SetToken sets the "token" field.
+func (_u *CollaboratorInviteUpdate) SetToken(v string) *CollaboratorInviteUpdate {
+	_u.mutation.SetToken(v)
 	return _u
 }
 
-// SetNillableTokenHash sets the "token_hash" field if the given value is not nil.
-func (_u *CollaboratorInviteUpdate) SetNillableTokenHash(v *string) *CollaboratorInviteUpdate {
+// SetNillableToken sets the "token" field if the given value is not nil.
+func (_u *CollaboratorInviteUpdate) SetNillableToken(v *string) *CollaboratorInviteUpdate {
 	if v != nil {
-		_u.SetTokenHash(*v)
+		_u.SetToken(*v)
 	}
 	return _u
 }
@@ -242,9 +242,9 @@ func (_u *CollaboratorInviteUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *CollaboratorInviteUpdate) check() error {
-	if v, ok := _u.mutation.TokenHash(); ok {
-		if err := collaboratorinvite.TokenHashValidator(v); err != nil {
-			return &ValidationError{Name: "token_hash", err: fmt.Errorf(`ent: validator failed for field "CollaboratorInvite.token_hash": %w`, err)}
+	if v, ok := _u.mutation.Token(); ok {
+		if err := collaboratorinvite.TokenValidator(v); err != nil {
+			return &ValidationError{Name: "token", err: fmt.Errorf(`ent: validator failed for field "CollaboratorInvite.token": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.TokenPrefix(); ok {
@@ -285,8 +285,8 @@ func (_u *CollaboratorInviteUpdate) sqlSave(ctx context.Context) (_node int, err
 	if _u.mutation.EmailCleared() {
 		_spec.ClearField(collaboratorinvite.FieldEmail, field.TypeString)
 	}
-	if value, ok := _u.mutation.TokenHash(); ok {
-		_spec.SetField(collaboratorinvite.FieldTokenHash, field.TypeString, value)
+	if value, ok := _u.mutation.Token(); ok {
+		_spec.SetField(collaboratorinvite.FieldToken, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.TokenPrefix(); ok {
 		_spec.SetField(collaboratorinvite.FieldTokenPrefix, field.TypeString, value)
@@ -397,16 +397,16 @@ func (_u *CollaboratorInviteUpdateOne) ClearEmail() *CollaboratorInviteUpdateOne
 	return _u
 }
 
-// SetTokenHash sets the "token_hash" field.
-func (_u *CollaboratorInviteUpdateOne) SetTokenHash(v string) *CollaboratorInviteUpdateOne {
-	_u.mutation.SetTokenHash(v)
+// SetToken sets the "token" field.
+func (_u *CollaboratorInviteUpdateOne) SetToken(v string) *CollaboratorInviteUpdateOne {
+	_u.mutation.SetToken(v)
 	return _u
 }
 
-// SetNillableTokenHash sets the "token_hash" field if the given value is not nil.
-func (_u *CollaboratorInviteUpdateOne) SetNillableTokenHash(v *string) *CollaboratorInviteUpdateOne {
+// SetNillableToken sets the "token" field if the given value is not nil.
+func (_u *CollaboratorInviteUpdateOne) SetNillableToken(v *string) *CollaboratorInviteUpdateOne {
 	if v != nil {
-		_u.SetTokenHash(*v)
+		_u.SetToken(*v)
 	}
 	return _u
 }
@@ -562,9 +562,9 @@ func (_u *CollaboratorInviteUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *CollaboratorInviteUpdateOne) check() error {
-	if v, ok := _u.mutation.TokenHash(); ok {
-		if err := collaboratorinvite.TokenHashValidator(v); err != nil {
-			return &ValidationError{Name: "token_hash", err: fmt.Errorf(`ent: validator failed for field "CollaboratorInvite.token_hash": %w`, err)}
+	if v, ok := _u.mutation.Token(); ok {
+		if err := collaboratorinvite.TokenValidator(v); err != nil {
+			return &ValidationError{Name: "token", err: fmt.Errorf(`ent: validator failed for field "CollaboratorInvite.token": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.TokenPrefix(); ok {
@@ -622,8 +622,8 @@ func (_u *CollaboratorInviteUpdateOne) sqlSave(ctx context.Context) (_node *Coll
 	if _u.mutation.EmailCleared() {
 		_spec.ClearField(collaboratorinvite.FieldEmail, field.TypeString)
 	}
-	if value, ok := _u.mutation.TokenHash(); ok {
-		_spec.SetField(collaboratorinvite.FieldTokenHash, field.TypeString, value)
+	if value, ok := _u.mutation.Token(); ok {
+		_spec.SetField(collaboratorinvite.FieldToken, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.TokenPrefix(); ok {
 		_spec.SetField(collaboratorinvite.FieldTokenPrefix, field.TypeString, value)

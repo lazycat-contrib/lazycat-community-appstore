@@ -64,7 +64,9 @@
   --install-panel-control-line: var(--color-border);
   --progress-track: var(--color-track);
   --progress-fill: var(--color-accent);
-  --toast-bg: var(--color-background-inverted);
+  --toast-bg: var(--color-background-popover);
+  --toast-ink: var(--color-text-primary);
+  --toast-line: var(--color-border-emphasized);
   --modal-shadow: 0 24px 80px var(--color-shadow);
   --catalog-card-max-width: 380px;
   --catalog-card-max-height: 360px;
@@ -220,6 +222,22 @@ body,
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 170px;
+}
+
+.app-version,
+.mobile-app-version {
+  color: var(--sidebar-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.app-version {
+  margin-top: auto;
+}
+
+.mobile-app-version {
+  display: none;
 }
 
 .main {
@@ -2360,6 +2378,30 @@ body,
 .app-submission-dialog {
   width: min(960px, 100%);
   max-height: min(90vh, 920px);
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.app-submission-dialog > .section-title {
+  z-index: 3;
+  padding: 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.app-submission-scroll {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.app-submission-dialog .app-submission-scroll {
+  overflow: auto;
+  padding: 20px;
+  min-height: 0;
+  overscroll-behavior: contain;
 }
 
 .install-password-dialog .close {
@@ -3052,6 +3094,63 @@ body,
   padding: 16px;
 }
 
+.collaboration-workspace {
+  display: grid;
+  gap: 14px;
+}
+
+.compact-heading {
+  gap: 4px;
+}
+
+.collaboration-owned-list,
+.collaboration-app-panel,
+.collaboration-block {
+  display: grid;
+  gap: 12px;
+}
+
+.collaboration-app-panel {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.collaboration-app-panel h3,
+.collaboration-block h4 {
+  margin: 0;
+}
+
+.collaboration-block h4 {
+  font-size: 14px;
+}
+
+.collaboration-inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.collaboration-inline-form.invite-form {
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) auto;
+}
+
+.collaboration-inline-form > button {
+  min-width: 132px;
+  min-height: 38px;
+}
+
+.compact-review-list {
+  gap: 8px;
+}
+
+.compact-row {
+  min-height: 48px;
+  max-width: none;
+  max-height: none;
+}
+
 .nested-panel {
   background: var(--field);
 }
@@ -3317,9 +3416,13 @@ body,
   z-index: 40;
   min-height: 44px;
   border-radius: 8px;
+  border: 1px solid var(--toast-line);
   padding: 10px 14px;
   background: var(--toast-bg);
-  color: var(--app-bg);
+  color: var(--toast-ink);
+  box-shadow: var(--modal-shadow);
+  max-width: min(460px, calc(100vw - 32px));
+  overflow-wrap: anywhere;
   opacity: 1;
   transition:
     transform 180ms var(--ease-out),
@@ -3334,18 +3437,21 @@ body,
 }
 
 .toast.success {
-  background: var(--color-success);
-  color: var(--color-on-success);
+  background: var(--color-success-muted);
+  border-color: var(--color-success);
+  color: var(--color-text-primary);
 }
 
 .toast.error {
-  background: var(--color-error);
-  color: var(--color-on-error);
+  background: var(--color-error-muted);
+  border-color: var(--color-error);
+  color: var(--color-text-primary);
 }
 
 .toast.neutral {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--color-background-popover);
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
 }
 
 .mobile-tab-list {
@@ -3370,6 +3476,13 @@ code {
 
   .main {
     padding: 14px;
+  }
+
+  .mobile-app-version {
+    display: block;
+    padding: 6px 14px calc(84px + env(safe-area-inset-bottom));
+    color: var(--muted);
+    font-size: 12px;
   }
 
   .topbar {
@@ -3637,6 +3750,15 @@ code {
 
   .top-actions {
     justify-content: space-between;
+  }
+
+  .collaboration-inline-form,
+  .collaboration-inline-form.invite-form {
+    grid-template-columns: 1fr;
+  }
+
+  .collaboration-inline-form > button {
+    width: fit-content;
   }
 
   .account-trigger {

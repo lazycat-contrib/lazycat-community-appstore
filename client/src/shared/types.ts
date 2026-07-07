@@ -316,6 +316,7 @@ export type SiteProfile = {
   iconUrl?: string;
   publicUrl: string;
   sourceUrl: string;
+  version?: string;
   announcement: SiteAnnouncement;
   registration: SiteRegistration;
 };

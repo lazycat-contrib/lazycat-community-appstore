@@ -11249,7 +11249,7 @@ type CollaboratorInviteMutation struct {
 	inviter_id     *int
 	addinviter_id  *int
 	email          *string
-	token_hash     *string
+	token          *string
 	token_prefix   *string
 	accepted_by    *int
 	addaccepted_by *int
@@ -11522,40 +11522,40 @@ func (m *CollaboratorInviteMutation) ResetEmail() {
 	delete(m.clearedFields, collaboratorinvite.FieldEmail)
 }
 
-// SetTokenHash sets the "token_hash" field.
-func (m *CollaboratorInviteMutation) SetTokenHash(s string) {
-	m.token_hash = &s
+// SetToken sets the "token" field.
+func (m *CollaboratorInviteMutation) SetToken(s string) {
+	m.token = &s
 }
 
-// TokenHash returns the value of the "token_hash" field in the mutation.
-func (m *CollaboratorInviteMutation) TokenHash() (r string, exists bool) {
-	v := m.token_hash
+// Token returns the value of the "token" field in the mutation.
+func (m *CollaboratorInviteMutation) Token() (r string, exists bool) {
+	v := m.token
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldTokenHash returns the old "token_hash" field's value of the CollaboratorInvite entity.
+// OldToken returns the old "token" field's value of the CollaboratorInvite entity.
 // If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CollaboratorInviteMutation) OldTokenHash(ctx context.Context) (v string, err error) {
+func (m *CollaboratorInviteMutation) OldToken(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldTokenHash is only allowed on UpdateOne operations")
+		return v, errors.New("OldToken is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldTokenHash requires an ID field in the mutation")
+		return v, errors.New("OldToken requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldTokenHash: %w", err)
+		return v, fmt.Errorf("querying old value for OldToken: %w", err)
 	}
-	return oldValue.TokenHash, nil
+	return oldValue.Token, nil
 }
 
-// ResetTokenHash resets all changes to the "token_hash" field.
-func (m *CollaboratorInviteMutation) ResetTokenHash() {
-	m.token_hash = nil
+// ResetToken resets all changes to the "token" field.
+func (m *CollaboratorInviteMutation) ResetToken() {
+	m.token = nil
 }
 
 // SetTokenPrefix sets the "token_prefix" field.
@@ -11865,8 +11865,8 @@ func (m *CollaboratorInviteMutation) Fields() []string {
 	if m.email != nil {
 		fields = append(fields, collaboratorinvite.FieldEmail)
 	}
-	if m.token_hash != nil {
-		fields = append(fields, collaboratorinvite.FieldTokenHash)
+	if m.token != nil {
+		fields = append(fields, collaboratorinvite.FieldToken)
 	}
 	if m.token_prefix != nil {
 		fields = append(fields, collaboratorinvite.FieldTokenPrefix)
@@ -11900,8 +11900,8 @@ func (m *CollaboratorInviteMutation) Field(name string) (ent.Value, bool) {
 		return m.InviterID()
 	case collaboratorinvite.FieldEmail:
 		return m.Email()
-	case collaboratorinvite.FieldTokenHash:
-		return m.TokenHash()
+	case collaboratorinvite.FieldToken:
+		return m.Token()
 	case collaboratorinvite.FieldTokenPrefix:
 		return m.TokenPrefix()
 	case collaboratorinvite.FieldAcceptedBy:
@@ -11929,8 +11929,8 @@ func (m *CollaboratorInviteMutation) OldField(ctx context.Context, name string) 
 		return m.OldInviterID(ctx)
 	case collaboratorinvite.FieldEmail:
 		return m.OldEmail(ctx)
-	case collaboratorinvite.FieldTokenHash:
-		return m.OldTokenHash(ctx)
+	case collaboratorinvite.FieldToken:
+		return m.OldToken(ctx)
 	case collaboratorinvite.FieldTokenPrefix:
 		return m.OldTokenPrefix(ctx)
 	case collaboratorinvite.FieldAcceptedBy:
@@ -11973,12 +11973,12 @@ func (m *CollaboratorInviteMutation) SetField(name string, value ent.Value) erro
 		}
 		m.SetEmail(v)
 		return nil
-	case collaboratorinvite.FieldTokenHash:
+	case collaboratorinvite.FieldToken:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetTokenHash(v)
+		m.SetToken(v)
 		return nil
 	case collaboratorinvite.FieldTokenPrefix:
 		v, ok := value.(string)
@@ -12140,8 +12140,8 @@ func (m *CollaboratorInviteMutation) ResetField(name string) error {
 	case collaboratorinvite.FieldEmail:
 		m.ResetEmail()
 		return nil
-	case collaboratorinvite.FieldTokenHash:
-		m.ResetTokenHash()
+	case collaboratorinvite.FieldToken:
+		m.ResetToken()
 		return nil
 	case collaboratorinvite.FieldTokenPrefix:
 		m.ResetTokenPrefix()

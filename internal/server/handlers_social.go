@@ -775,7 +775,7 @@ func (s *Server) handleCreateCollaboratorInvite(w http.ResponseWriter, r *http.R
 	create := s.db.CollaboratorInvite.Create().
 		SetAppID(appRecord.ID).
 		SetInviterID(u.ID).
-		SetTokenHash(tokenHash(token)).
+		SetToken(token).
 		SetTokenPrefix(tokenPrefix(token)).
 		SetExpiresAt(time.Now().Add(7 * 24 * time.Hour))
 	if email != "" {
@@ -815,7 +815,7 @@ func (s *Server) handleAcceptCollaboratorInvite(w http.ResponseWriter, r *http.R
 	}
 	defer func() { _ = tx.Rollback() }()
 	invite, err := tx.CollaboratorInvite.Query().
-		Where(collaboratorinvite.TokenHashEQ(tokenHash(token)), collaboratorinvite.AcceptedAtIsNil(), collaboratorinvite.ExpiresAtGT(now)).
+		Where(collaboratorinvite.TokenEQ(token), collaboratorinvite.AcceptedAtIsNil(), collaboratorinvite.ExpiresAtGT(now)).
 		Only(r.Context())
 	if err != nil {
 		writeError(w, http.StatusNotFound, "COLLABORATOR_INVITE_NOT_FOUND", "Collaborator invite not found or expired", nil)
@@ -1043,6 +1043,9 @@ func (s *Server) collaboratorDTO(ctx context.Context, record *entgo.Collaborator
 }
 
 func (s *Server) collaboratorInviteDTO(ctx context.Context, record *entgo.CollaboratorInvite, inviteURL, appName string) collaboratorInviteDTO {
+	if inviteURL == "" && record.Token != "" {
+		inviteURL = s.collaboratorInviteURL(ctx, record.Token)
+	}
 	dto := collaboratorInviteDTO{
 		ID:          record.ID,
 		AppID:       record.AppID,

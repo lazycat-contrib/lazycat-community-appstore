@@ -147,6 +147,7 @@ export function AppSubmissionForm({
           </div>
           <XButton type="button" variant="secondary" size="sm" label={t('common.cancel')} icon={<X size={17} />} onClick={onCancel} />
         </div>
+        <div className="app-submission-scroll">
         <div className="workflow-strip">
           <div>
             <strong>{t('submitApp.publishPath')}</strong>
@@ -384,6 +385,7 @@ export function AppSubmissionForm({
           icon={<Upload size={18} />}
           isDisabled={!canSubmitUpload || isSubmitting}
         />
+        </div>
       </form>
   );
 }

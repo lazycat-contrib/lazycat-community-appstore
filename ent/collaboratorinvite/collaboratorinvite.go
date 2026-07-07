@@ -19,8 +19,8 @@ const (
 	FieldInviterID = "inviter_id"
 	// FieldEmail holds the string denoting the email field in the database.
 	FieldEmail = "email"
-	// FieldTokenHash holds the string denoting the token_hash field in the database.
-	FieldTokenHash = "token_hash"
+	// FieldToken holds the string denoting the token field in the database.
+	FieldToken = "token"
 	// FieldTokenPrefix holds the string denoting the token_prefix field in the database.
 	FieldTokenPrefix = "token_prefix"
 	// FieldAcceptedBy holds the string denoting the accepted_by field in the database.
@@ -43,7 +43,7 @@ var Columns = []string{
 	FieldAppID,
 	FieldInviterID,
 	FieldEmail,
-	FieldTokenHash,
+	FieldToken,
 	FieldTokenPrefix,
 	FieldAcceptedBy,
 	FieldAcceptedAt,
@@ -63,8 +63,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
-	// TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
-	TokenHashValidator func(string) error
+	// TokenValidator is a validator for the "token" field. It is called by the builders before save.
+	TokenValidator func(string) error
 	// TokenPrefixValidator is a validator for the "token_prefix" field. It is called by the builders before save.
 	TokenPrefixValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -98,9 +98,9 @@ func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEmail, opts...).ToFunc()
 }
 
-// ByTokenHash orders the results by the token_hash field.
-func ByTokenHash(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTokenHash, opts...).ToFunc()
+// ByToken orders the results by the token field.
+func ByToken(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldToken, opts...).ToFunc()
 }
 
 // ByTokenPrefix orders the results by the token_prefix field.

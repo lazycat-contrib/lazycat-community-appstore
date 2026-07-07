@@ -153,6 +153,15 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"title":"懒猫私有商店服务端"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"http://store.test/source/v1/index.json"`) {
 		t.Fatalf("default site profile body = %s", rec.Body.String())
 	}
+	var defaultProfile struct {
+		Site siteProfile `json:"site"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &defaultProfile); err != nil {
+		t.Fatalf("decode default profile: %v", err)
+	}
+	if defaultProfile.Site.Version != appVersion() {
+		t.Fatalf("site profile version = %q, want %q", defaultProfile.Site.Version, appVersion())
+	}
 
 	app.login("admin", "changeme")
 	rec = app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{
@@ -1292,6 +1301,40 @@ func TestLPKFetchURLUsesConfiguredGitHubMirrors(t *testing.T) {
 	}
 	if got, want := directURL.String(), "https://github.com/acme/demo/releases/download/v1/app.lpk"; got != want {
 		t.Fatalf("direct fetch url = %q, want %q", got, want)
+	}
+}
+
+func TestInspectLPKURLRetriesConfiguredGitHubMirrors(t *testing.T) {
+	app := newTestApp(t)
+	app.server.allowPrivateLPKURLHosts = true
+	ctx := t.Context()
+	lpk := testLPKArchive(t, "cloud.lazycat.test.mirror-retry", "1.0.0", "Mirror Retry", "Fetched from second mirror")
+	firstHits := 0
+	secondHits := 0
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		firstHits++
+		http.Error(w, "bad mirror", http.StatusBadGateway)
+	}))
+	defer first.Close()
+	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		secondHits++
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(lpk)
+	}))
+	defer second.Close()
+	if err := app.server.setSetting(ctx, settingGitHubDownloadMirrors, "Slow=>"+first.URL+"\nFast=>"+second.URL); err != nil {
+		t.Fatalf("set mirrors: %v", err)
+	}
+
+	inspected, err := app.server.inspectLPKURL(ctx, "https://github.com/acme/retry/releases/download/v1/app.lpk", int64(len(lpk)+1024), true)
+	if err != nil {
+		t.Fatalf("inspect with retry: %v", err)
+	}
+	if firstHits != 1 || secondHits != 1 {
+		t.Fatalf("mirror hits first=%d second=%d, want 1/1", firstHits, secondHits)
+	}
+	if inspected.Metadata.PackageID != "cloud.lazycat.test.mirror-retry" || inspected.Metadata.Version != "1.0.0" {
+		t.Fatalf("unexpected metadata: %+v", inspected.Metadata)
 	}
 }
 

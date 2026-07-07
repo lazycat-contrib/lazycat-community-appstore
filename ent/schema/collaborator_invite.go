@@ -17,7 +17,7 @@ func (CollaboratorInvite) Fields() []ent.Field {
 		field.Int("app_id"),
 		field.Int("inviter_id"),
 		field.String("email").Optional().Nillable(),
-		field.String("token_hash").NotEmpty().Unique().Sensitive(),
+		field.String("token").NotEmpty().Unique().Sensitive(),
 		field.String("token_prefix").NotEmpty(),
 		field.Int("accepted_by").Optional().Nillable(),
 		field.Time("accepted_at").Optional().Nillable(),

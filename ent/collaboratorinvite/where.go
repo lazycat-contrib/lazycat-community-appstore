@@ -69,9 +69,9 @@ func Email(v string) predicate.CollaboratorInvite {
 	return predicate.CollaboratorInvite(sql.FieldEQ(FieldEmail, v))
 }
 
-// TokenHash applies equality check predicate on the "token_hash" field. It's identical to TokenHashEQ.
-func TokenHash(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldEQ(FieldTokenHash, v))
+// Token applies equality check predicate on the "token" field. It's identical to TokenEQ.
+func Token(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldEQ(FieldToken, v))
 }
 
 // TokenPrefix applies equality check predicate on the "token_prefix" field. It's identical to TokenPrefixEQ.
@@ -259,69 +259,69 @@ func EmailContainsFold(v string) predicate.CollaboratorInvite {
 	return predicate.CollaboratorInvite(sql.FieldContainsFold(FieldEmail, v))
 }
 
-// TokenHashEQ applies the EQ predicate on the "token_hash" field.
-func TokenHashEQ(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldEQ(FieldTokenHash, v))
+// TokenEQ applies the EQ predicate on the "token" field.
+func TokenEQ(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldEQ(FieldToken, v))
 }
 
-// TokenHashNEQ applies the NEQ predicate on the "token_hash" field.
-func TokenHashNEQ(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldNEQ(FieldTokenHash, v))
+// TokenNEQ applies the NEQ predicate on the "token" field.
+func TokenNEQ(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldNEQ(FieldToken, v))
 }
 
-// TokenHashIn applies the In predicate on the "token_hash" field.
-func TokenHashIn(vs ...string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldIn(FieldTokenHash, vs...))
+// TokenIn applies the In predicate on the "token" field.
+func TokenIn(vs ...string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldIn(FieldToken, vs...))
 }
 
-// TokenHashNotIn applies the NotIn predicate on the "token_hash" field.
-func TokenHashNotIn(vs ...string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldNotIn(FieldTokenHash, vs...))
+// TokenNotIn applies the NotIn predicate on the "token" field.
+func TokenNotIn(vs ...string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldNotIn(FieldToken, vs...))
 }
 
-// TokenHashGT applies the GT predicate on the "token_hash" field.
-func TokenHashGT(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldGT(FieldTokenHash, v))
+// TokenGT applies the GT predicate on the "token" field.
+func TokenGT(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldGT(FieldToken, v))
 }
 
-// TokenHashGTE applies the GTE predicate on the "token_hash" field.
-func TokenHashGTE(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldGTE(FieldTokenHash, v))
+// TokenGTE applies the GTE predicate on the "token" field.
+func TokenGTE(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldGTE(FieldToken, v))
 }
 
-// TokenHashLT applies the LT predicate on the "token_hash" field.
-func TokenHashLT(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldLT(FieldTokenHash, v))
+// TokenLT applies the LT predicate on the "token" field.
+func TokenLT(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldLT(FieldToken, v))
 }
 
-// TokenHashLTE applies the LTE predicate on the "token_hash" field.
-func TokenHashLTE(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldLTE(FieldTokenHash, v))
+// TokenLTE applies the LTE predicate on the "token" field.
+func TokenLTE(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldLTE(FieldToken, v))
 }
 
-// TokenHashContains applies the Contains predicate on the "token_hash" field.
-func TokenHashContains(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldContains(FieldTokenHash, v))
+// TokenContains applies the Contains predicate on the "token" field.
+func TokenContains(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldContains(FieldToken, v))
 }
 
-// TokenHashHasPrefix applies the HasPrefix predicate on the "token_hash" field.
-func TokenHashHasPrefix(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldHasPrefix(FieldTokenHash, v))
+// TokenHasPrefix applies the HasPrefix predicate on the "token" field.
+func TokenHasPrefix(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldHasPrefix(FieldToken, v))
 }
 
-// TokenHashHasSuffix applies the HasSuffix predicate on the "token_hash" field.
-func TokenHashHasSuffix(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldHasSuffix(FieldTokenHash, v))
+// TokenHasSuffix applies the HasSuffix predicate on the "token" field.
+func TokenHasSuffix(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldHasSuffix(FieldToken, v))
 }
 
-// TokenHashEqualFold applies the EqualFold predicate on the "token_hash" field.
-func TokenHashEqualFold(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldEqualFold(FieldTokenHash, v))
+// TokenEqualFold applies the EqualFold predicate on the "token" field.
+func TokenEqualFold(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldEqualFold(FieldToken, v))
 }
 
-// TokenHashContainsFold applies the ContainsFold predicate on the "token_hash" field.
-func TokenHashContainsFold(v string) predicate.CollaboratorInvite {
-	return predicate.CollaboratorInvite(sql.FieldContainsFold(FieldTokenHash, v))
+// TokenContainsFold applies the ContainsFold predicate on the "token" field.
+func TokenContainsFold(v string) predicate.CollaboratorInvite {
+	return predicate.CollaboratorInvite(sql.FieldContainsFold(FieldToken, v))
 }
 
 // TokenPrefixEQ applies the EQ predicate on the "token_prefix" field.

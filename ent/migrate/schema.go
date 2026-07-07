@@ -442,7 +442,7 @@ var (
 		{Name: "app_id", Type: field.TypeInt},
 		{Name: "inviter_id", Type: field.TypeInt},
 		{Name: "email", Type: field.TypeString, Nullable: true},
-		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "token", Type: field.TypeString, Unique: true},
 		{Name: "token_prefix", Type: field.TypeString},
 		{Name: "accepted_by", Type: field.TypeInt, Nullable: true},
 		{Name: "accepted_at", Type: field.TypeTime, Nullable: true},
