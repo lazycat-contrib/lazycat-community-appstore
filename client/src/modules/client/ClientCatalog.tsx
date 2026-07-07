@@ -35,7 +35,7 @@ import {
   sourceAppSourceOptions,
 } from './sourceAppFilters';
 
-const PAGE_SIZE_OPTIONS = [12, 24, 48];
+const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
 
 export function ClientCatalog({
   sourceApps,
@@ -46,6 +46,7 @@ export function ClientCatalog({
   onOpenSource,
   onInstall,
   onGoSources,
+  defaultPageSize,
 }: {
   sourceApps: SourceApp[];
   sources: SourceSubscription[];
@@ -55,13 +56,14 @@ export function ClientCatalog({
   onOpenSource: (app: SourceApp) => void;
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
+  defaultPageSize: number;
 }) {
   const { t } = useTranslation();
   const [sourceAppFilter, setSourceAppFilter] = useState<SourceAppFilter>('all');
   const [selectedSourceFilter, setSelectedSourceFilter] = useState('all');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(24);
+  const [pageSize, setPageSize] = useState(defaultPageSize || 24);
   const sourceNeedle = query.trim().toLowerCase();
   const searchableSourceApps = sourceApps.filter((app) => {
     if (!sourceNeedle) return true;
@@ -113,6 +115,11 @@ export function ClientCatalog({
   useEffect(() => {
     setPage(1);
   }, [sourceNeedle, selectedSourceFilter, selectedCategoryFilter, effectiveSourceAppFilter, sourceApps.length, installedApps.length]);
+
+  useEffect(() => {
+    setPageSize(defaultPageSize || 24);
+    setPage(1);
+  }, [defaultPageSize]);
 
   async function updateAllSourceApps() {
     for (const app of updateSourceApps) {

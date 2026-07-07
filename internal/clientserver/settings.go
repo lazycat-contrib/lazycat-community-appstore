@@ -4,14 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsyncsetting"
+	"lazycat.community/appstore/internal/pagination"
 )
 
-const settingCommentDisplayName = "comment_display_name"
+const (
+	settingCommentDisplayName = "comment_display_name"
+	settingDefaultPageSize    = "default_page_size"
+)
 
 const (
 	defaultAutoSyncIntervalMinutes = 60
@@ -40,26 +45,33 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
 	}
+	defaultPageSize := pagination.ClampPageSize(input.DefaultPageSize, pagination.DefaultPageSize, 100)
+	if err := s.setClientSetting(r, settingDefaultPageSize, strconv.Itoa(defaultPageSize)); err != nil {
+		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
+		return
+	}
 	syncSetting, err := s.setClientSyncSetting(r.Context(), userID, input)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettingsDTO(displayName, syncSetting)})
+	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettingsDTO(displayName, defaultPageSize, syncSetting)})
 }
 
 func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSettingsDTO, error) {
 	commentDisplayName := strings.TrimSpace(s.clientSetting(ctx, userID, settingCommentDisplayName))
+	defaultPageSize := s.clientDefaultPageSize(ctx, userID, pagination.DefaultPageSize, 100)
 	syncSetting, err := s.clientSyncSetting(ctx, userID)
 	if err != nil {
 		return ClientSettingsDTO{}, err
 	}
-	return s.clientSettingsDTO(commentDisplayName, syncSetting), nil
+	return s.clientSettingsDTO(commentDisplayName, defaultPageSize, syncSetting), nil
 }
 
-func (s *Server) clientSettingsDTO(commentDisplayName string, syncSetting *ent.ClientSyncSetting) ClientSettingsDTO {
+func (s *Server) clientSettingsDTO(commentDisplayName string, defaultPageSize int, syncSetting *ent.ClientSyncSetting) ClientSettingsDTO {
 	dto := ClientSettingsDTO{
 		CommentDisplayName:      commentDisplayName,
+		DefaultPageSize:         pagination.ClampPageSize(defaultPageSize, pagination.DefaultPageSize, 100),
 		AutoSyncIntervalMinutes: defaultAutoSyncIntervalMinutes,
 	}
 	if syncSetting == nil {
@@ -76,6 +88,15 @@ func (s *Server) clientSettingsDTO(commentDisplayName string, syncSetting *ent.C
 		dto.LastAutoSyncError = *syncSetting.LastAutoSyncError
 	}
 	return dto
+}
+
+func (s *Server) clientDefaultPageSize(ctx context.Context, userID string, fallback, maxPageSize int) int {
+	raw := strings.TrimSpace(s.clientSetting(ctx, userID, settingDefaultPageSize))
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		value = fallback
+	}
+	return pagination.ClampPageSize(value, fallback, maxPageSize)
 }
 
 func (s *Server) clientCommentDisplayName(r *http.Request) string {

@@ -47,14 +47,15 @@ func userDisplayName(u *ent.User) string {
 }
 
 type siteProfile struct {
-	Title        string           `json:"title"`
-	Subtitle     string           `json:"subtitle,omitempty"`
-	IconURL      string           `json:"iconUrl,omitempty"`
-	PublicURL    string           `json:"publicUrl"`
-	SourceURL    string           `json:"sourceUrl"`
-	Version      string           `json:"version"`
-	Announcement siteAnnouncement `json:"announcement"`
-	Registration siteRegistration `json:"registration"`
+	Title           string           `json:"title"`
+	Subtitle        string           `json:"subtitle,omitempty"`
+	IconURL         string           `json:"iconUrl,omitempty"`
+	PublicURL       string           `json:"publicUrl"`
+	SourceURL       string           `json:"sourceUrl"`
+	Version         string           `json:"version"`
+	DefaultPageSize int              `json:"defaultPageSize"`
+	Announcement    siteAnnouncement `json:"announcement"`
+	Registration    siteRegistration `json:"registration"`
 }
 
 func appVersion() string {

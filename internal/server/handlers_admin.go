@@ -21,15 +21,25 @@ import (
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/mirror"
+	"lazycat.community/appstore/internal/pagination"
 	"lazycat.community/appstore/internal/storage"
 )
 
 func (s *Server) handleListReviews(w http.ResponseWriter, r *http.Request, u *entgo.User) {
-	q := s.db.ReviewRequest.Query().Order(entgo.Desc(reviewrequest.FieldCreatedAt)).Limit(200)
+	page := pagination.FromRequest(r, s.effectiveDefaultPageSize(r.Context(), 50, 200), 200)
+	q := s.db.ReviewRequest.Query()
 	if status := strings.TrimSpace(r.URL.Query().Get("status")); status != "" {
 		q.Where(reviewrequest.StatusEQ(reviewrequest.Status(status)))
 	}
-	records, err := q.All(r.Context())
+	total, err := q.Clone().Count(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "REVIEW_LIST_FAILED", "Could not list reviews", nil)
+		return
+	}
+	records, err := q.Order(entgo.Desc(reviewrequest.FieldCreatedAt)).
+		Offset(page.Offset()).
+		Limit(page.PageSize).
+		All(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "REVIEW_LIST_FAILED", "Could not list reviews", nil)
 		return
@@ -50,7 +60,7 @@ func (s *Server) handleListReviews(w http.ResponseWriter, r *http.Request, u *en
 			CreatedAt:  record.CreatedAt,
 		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"reviews": out})
+	writeJSON(w, http.StatusOK, pagination.NewReviewsPage(out, page, total))
 }
 
 type reviewDecisionRequest struct {
@@ -393,6 +403,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 	values := map[string]string{
 		settingMaxLPKSize:               strconv.FormatInt(s.cfg.MaxLPKSize, 10),
 		settingMaxVersions:              strconv.Itoa(s.cfg.MaxVersions),
+		settingDefaultPageSize:          strconv.Itoa(pagination.DefaultPageSize),
 		settingRequireEmailVerify:       strconv.FormatBool(s.cfg.RequireEmailVerify),
 		settingSourcePassword:           s.cfg.SourcePassword,
 		settingSourcePasswordRotation:   strconv.Itoa(s.cfg.SourcePasswordRotation),
@@ -585,10 +596,16 @@ func validateSetting(key, value string) error {
 		if err != nil || parsed <= 0 {
 			return fmt.Errorf("%s must be a positive integer", key)
 		}
-	case settingMaxVersions, settingSourcePasswordRotation:
+	case settingMaxVersions, settingSourcePasswordRotation, settingDefaultPageSize:
 		parsed, err := strconv.Atoi(value)
 		if err != nil || parsed < 0 {
 			return fmt.Errorf("%s must be a non-negative integer", key)
+		}
+		if key == settingDefaultPageSize && parsed <= 0 {
+			return fmt.Errorf("%s must be a positive integer", key)
+		}
+		if key == settingDefaultPageSize && parsed > 200 {
+			return fmt.Errorf("%s must be at most 200", key)
 		}
 	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingAllowManualOutdatedClear:
 		if _, err := strconv.ParseBool(value); err != nil {
@@ -652,6 +669,7 @@ func isPublicSetting(key string) bool {
 	switch key {
 	case settingMaxLPKSize,
 		settingMaxVersions,
+		settingDefaultPageSize,
 		settingRequireEmailVerify,
 		settingSourcePassword,
 		settingSourcePasswordRotation,

@@ -3,26 +3,25 @@ package clientserver
 import (
 	"context"
 	"net/http"
-	"strconv"
 
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientinstallhistory"
+	"lazycat.community/appstore/internal/pagination"
 )
 
 func (s *Server) handleInstallHistory(w http.ResponseWriter, r *http.Request) {
-	limit := 100
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil || parsed <= 0 || parsed > 500 {
-			writeError(w, http.StatusBadRequest, "INVALID_LIMIT", "Invalid history limit")
-			return
-		}
-		limit = parsed
+	userID := currentUserID(r)
+	page := pagination.FromRequest(r, s.clientDefaultPageSize(r.Context(), userID, pagination.DefaultPageSize, 500), 500)
+	query := s.db.ClientInstallHistory.Query().
+		Where(clientinstallhistory.UserIDEQ(userID))
+	total, err := query.Clone().Count(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "HISTORY_LIST_FAILED", "Could not list install history")
+		return
 	}
-	rows, err := s.db.ClientInstallHistory.Query().
-		Where(clientinstallhistory.UserIDEQ(currentUserID(r))).
-		Order(ent.Desc(clientinstallhistory.FieldCreatedAt)).
-		Limit(limit).
+	rows, err := query.Order(ent.Desc(clientinstallhistory.FieldCreatedAt)).
+		Offset(page.Offset()).
+		Limit(page.PageSize).
 		All(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "HISTORY_LIST_FAILED", "Could not list install history")
@@ -32,7 +31,7 @@ func (s *Server) handleInstallHistory(w http.ResponseWriter, r *http.Request) {
 	for _, row := range rows {
 		out = append(out, installHistoryDTO(row))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"history": out})
+	writeJSON(w, http.StatusOK, pagination.NewHistoryPage(out, page, total))
 }
 
 func (s *Server) recordInstallHistory(ctx context.Context, userID string, app *ent.ClientSourceApp, dto SourceAppDTO, version *VersionDTO, result clientinstallhistory.Result, errorMessage string) error {

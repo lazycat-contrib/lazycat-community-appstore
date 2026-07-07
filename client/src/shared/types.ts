@@ -272,6 +272,7 @@ export type SourceInput = Pick<
 
 export type ClientSettings = {
   commentDisplayName: string;
+  defaultPageSize: number;
   autoSyncEnabled: boolean;
   autoSyncIntervalMinutes: number;
   syncOnStartup: boolean;
@@ -355,6 +356,7 @@ export type SiteProfile = {
   publicUrl: string;
   sourceUrl: string;
   version?: string;
+  defaultPageSize?: number;
   announcement: SiteAnnouncement;
   registration: SiteRegistration;
 };

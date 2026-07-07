@@ -8,10 +8,21 @@ import (
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/auth"
+	"lazycat.community/appstore/internal/pagination"
 )
 
 func (s *Server) handleAdminListUsers(w http.ResponseWriter, r *http.Request, u *entgo.User) {
-	records, err := s.db.User.Query().Order(entgo.Asc(user.FieldUsername)).All(r.Context())
+	page := pagination.FromRequest(r, s.effectiveDefaultPageSize(r.Context(), 50, 200), 200)
+	q := s.db.User.Query()
+	total, err := q.Clone().Count(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "USER_LIST_FAILED", "Could not list users", nil)
+		return
+	}
+	records, err := q.Order(entgo.Asc(user.FieldUsername)).
+		Offset(page.Offset()).
+		Limit(page.PageSize).
+		All(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "USER_LIST_FAILED", "Could not list users", nil)
 		return
@@ -20,7 +31,7 @@ func (s *Server) handleAdminListUsers(w http.ResponseWriter, r *http.Request, u 
 	for _, record := range records {
 		out = append(out, toPublicUser(record))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"users": out})
+	writeJSON(w, http.StatusOK, pagination.NewUsersPage(out, page, total))
 }
 
 type updateUserRequest struct {

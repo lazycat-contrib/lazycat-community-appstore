@@ -21,6 +21,7 @@ import (
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/outdatedmark"
 	userpkg "lazycat.community/appstore/ent/user"
+	"lazycat.community/appstore/internal/pagination"
 )
 
 type commentRequest struct {
@@ -163,14 +164,21 @@ func (s *Server) handleDeleteComment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleListCommentNotifications(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	page := pagination.FromRequest(r, s.effectiveDefaultPageSize(r.Context(), 40, 100), 100)
 	query := s.db.CommentNotification.Query().
-		Where(commentnotificationpkg.OwnerIDEQ(u.ID)).
-		Order(entgo.Desc(commentnotificationpkg.FieldCreatedAt)).
-		Limit(80)
+		Where(commentnotificationpkg.OwnerIDEQ(u.ID))
 	if r.URL.Query().Get("unreadOnly") == "true" {
 		query.Where(commentnotificationpkg.ReadEQ(false))
 	}
-	records, err := query.All(r.Context())
+	total, err := query.Clone().Count(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "COMMENT_NOTIFICATION_LIST_FAILED", "Could not list comment notifications", nil)
+		return
+	}
+	records, err := query.Order(entgo.Desc(commentnotificationpkg.FieldCreatedAt)).
+		Offset(page.Offset()).
+		Limit(page.PageSize).
+		All(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "COMMENT_NOTIFICATION_LIST_FAILED", "Could not list comment notifications", nil)
 		return
@@ -188,7 +196,7 @@ func (s *Server) handleListCommentNotifications(w http.ResponseWriter, r *http.R
 			CreatedAt: record.CreatedAt,
 		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"notifications": out})
+	writeJSON(w, http.StatusOK, pagination.NewNotificationsPage(out, page, total))
 }
 
 func (s *Server) handleReadCommentNotification(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -403,28 +411,85 @@ func (s *Server) toggleFavorite(w http.ResponseWriter, r *http.Request, u *entgo
 }
 
 func (s *Server) handleListFavorites(w http.ResponseWriter, r *http.Request, u *entgo.User) {
-	records, err := s.db.Favorite.Query().Where(favorite.UserIDEQ(u.ID)).All(r.Context())
+	page := pagination.FromRequest(r, s.effectiveDefaultPageSize(r.Context(), pagination.DefaultPageSize, 100), 100)
+	targetType := favorite.TargetType(strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("targetType"))))
+	if targetType == favorite.TargetTypeAPP || targetType == favorite.TargetTypeSUBMITTER {
+		query := s.db.Favorite.Query().
+			Where(favorite.UserIDEQ(u.ID), favorite.TargetTypeEQ(targetType))
+		total, err := query.Clone().Count(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "FAVORITE_LIST_FAILED", "Could not list favorites", nil)
+			return
+		}
+		records, err := query.Order(entgo.Desc(favorite.FieldCreatedAt)).
+			Offset(page.Offset()).
+			Limit(page.PageSize).
+			All(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "FAVORITE_LIST_FAILED", "Could not list favorites", nil)
+			return
+		}
+		apps, submitters := s.favoriteListDTOs(r, u, records)
+		writeJSON(w, http.StatusOK, pagination.NewFavoritesPage(apps, submitters, page, total))
+		return
+	}
+
+	records, err := s.db.Favorite.Query().Where(favorite.UserIDEQ(u.ID)).Order(entgo.Desc(favorite.FieldCreatedAt)).All(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "FAVORITE_LIST_FAILED", "Could not list favorites", nil)
 		return
 	}
+	apps, submitters := s.favoriteListDTOs(r, u, records)
+	writeJSON(w, http.StatusOK, pagination.Favorites[appSummary, publicUser]{Apps: apps, Submitters: submitters})
+}
+
+func (s *Server) favoriteListDTOs(r *http.Request, u *entgo.User, records []*entgo.Favorite) ([]appSummary, []publicUser) {
 	apps := []appSummary{}
 	submitters := []publicUser{}
+	appIDs := make([]int, 0, len(records))
+	submitterIDs := make([]int, 0, len(records))
 	for _, record := range records {
 		switch record.TargetType {
 		case favorite.TargetTypeAPP:
-			appRecord, err := s.db.App.Get(r.Context(), record.TargetID)
-			if err == nil && appRecord.Status == app.StatusAPPROVED && s.userCanSeeApp(r, appRecord, u) {
+			appIDs = append(appIDs, record.TargetID)
+		case favorite.TargetTypeSUBMITTER:
+			submitterIDs = append(submitterIDs, record.TargetID)
+		}
+	}
+
+	appByID := map[int]*entgo.App{}
+	if len(appIDs) > 0 {
+		appRecords, err := s.db.App.Query().Where(app.IDIn(appIDs...)).All(r.Context())
+		if err == nil {
+			for _, appRecord := range appRecords {
+				appByID[appRecord.ID] = appRecord
+			}
+		}
+	}
+	submitterByID := map[int]*entgo.User{}
+	if len(submitterIDs) > 0 {
+		submitterRecords, err := s.db.User.Query().Where(userpkg.IDIn(submitterIDs...)).All(r.Context())
+		if err == nil {
+			for _, submitter := range submitterRecords {
+				submitterByID[submitter.ID] = submitter
+			}
+		}
+	}
+
+	for _, record := range records {
+		switch record.TargetType {
+		case favorite.TargetTypeAPP:
+			appRecord := appByID[record.TargetID]
+			if appRecord != nil && appRecord.Status == app.StatusAPPROVED && s.userCanSeeApp(r, appRecord, u) {
 				apps = append(apps, s.appSummaryDTO(r, appRecord, u))
 			}
 		case favorite.TargetTypeSUBMITTER:
-			submitter, err := s.db.User.Get(r.Context(), record.TargetID)
-			if err == nil {
+			if submitter := submitterByID[record.TargetID]; submitter != nil {
 				submitters = append(submitters, toPublicUser(submitter))
 			}
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"apps": apps, "submitters": submitters})
+	return apps, submitters
 }
 
 type outdatedRequest struct {

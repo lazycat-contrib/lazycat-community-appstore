@@ -2,20 +2,27 @@ import { AlertCircle, Check, ChevronRight, History, RefreshCw } from 'lucide-rea
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { InstallHistoryEntry, SourceApp } from '../../shared/types';
+import type { InstallHistoryEntry, Pagination as PaginationMeta, SourceApp } from '../../shared/types';
 import { cx, formatDate, normalizeAppIdentity, shortSHA } from '../../shared/utils';
+
+const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100, 200];
 
 export function ClientHistoryView({
   history,
+  pagination,
   sourceApps,
   onRefresh,
+  onPageChange,
   onOpenSource,
 }: {
   history: InstallHistoryEntry[];
+  pagination: PaginationMeta;
   sourceApps: SourceApp[];
   onRefresh: () => void;
+  onPageChange: (page: number, pageSize?: number) => void | Promise<void>;
   onOpenSource: (app: SourceApp) => void;
 }) {
   const { t } = useTranslation();
@@ -43,7 +50,7 @@ export function ClientHistoryView({
       <div className="client-summary-grid" aria-label={t('history.summary')}>
         <div>
           <span>{t('history.total')}</span>
-          <strong>{history.length}</strong>
+          <strong>{pagination.totalItems || history.length}</strong>
         </div>
         <div>
           <span>{t('history.success')}</span>
@@ -101,6 +108,17 @@ export function ClientHistoryView({
             })
           )}
         </div>
+        {pagination.pageSize > 0 && pagination.totalItems > pagination.pageSize && (
+          <XPagination
+            className="pagination-bar"
+            page={pagination.page}
+            onChange={(page) => void onPageChange(page, pagination.pageSize)}
+            totalItems={pagination.totalItems}
+            pageSize={pagination.pageSize}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            onPageSizeChange={(pageSize) => void onPageChange(1, pageSize)}
+          />
+        )}
       </section>
     </section>
   );

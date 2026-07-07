@@ -55,6 +55,8 @@ import type {
   InstallHistoryEntry,
   InstallOptions,
   InstallPasswordRequest,
+  PaginatedResponse,
+  Pagination as PaginationMeta,
   ResolvedTheme,
   Review,
   SetupStatus,
@@ -109,6 +111,10 @@ import { StorefrontHome } from './modules/storefront/StorefrontHome';
 type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'history' | 'settings' | 'admin';
 type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
 type AuthMode = 'login' | 'register' | 'verify';
+
+const DEFAULT_REVIEW_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
+const DEFAULT_HISTORY_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
+const DEFAULT_CLIENT_PAGE_SIZE = 24;
 
 const serverBaseTabs: NavItem[] = [
   { key: 'home', labelKey: 'nav.store', icon: Home },
@@ -178,6 +184,7 @@ export function App() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewPagination, setReviewPagination] = useState<PaginationMeta>(DEFAULT_REVIEW_PAGINATION);
   const [user, setUser] = useState<User | null>(null);
   const [storageOptions, setStorageOptions] = useState<StorageOption[]>([]);
   const [query, setQuery] = useState('');
@@ -189,12 +196,14 @@ export function App() {
   const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
   const [clientSettings, setClientSettings] = useState<ClientSettings>({
     commentDisplayName: '',
+    defaultPageSize: DEFAULT_CLIENT_PAGE_SIZE,
     autoSyncEnabled: false,
     autoSyncIntervalMinutes: 60,
     syncOnStartup: false,
   });
   const [installedApps, setInstalledApps] = useState<InstalledApplication[]>([]);
   const [installHistory, setInstallHistory] = useState<InstallHistoryEntry[]>([]);
+  const [installHistoryPagination, setInstallHistoryPagination] = useState<PaginationMeta>(DEFAULT_HISTORY_PAGINATION);
   const [installedState, setInstalledState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [installedError, setInstalledError] = useState('');
   const [installActivity, setInstallActivity] = useState<InstallActivity | null>(null);
@@ -545,15 +554,25 @@ export function App() {
 
   async function loadClientSettings() {
     const data = await clientApi<{ settings: ClientSettings }>('/settings');
-    const nextSettings = data.settings || { commentDisplayName: '', autoSyncEnabled: false, autoSyncIntervalMinutes: 60, syncOnStartup: false };
+    const defaultSettings: ClientSettings = {
+      commentDisplayName: '',
+      defaultPageSize: DEFAULT_CLIENT_PAGE_SIZE,
+      autoSyncEnabled: false,
+      autoSyncIntervalMinutes: 60,
+      syncOnStartup: false,
+    };
+    const nextSettings = { ...defaultSettings, ...(data.settings || {}) };
     setClientSettings(nextSettings);
     return nextSettings;
   }
 
-  async function loadInstallHistory() {
-    const data = await clientApi<{ history: InstallHistoryEntry[] }>('/history');
+  async function loadInstallHistory(page = installHistoryPagination.page || 1, pageSize = installHistoryPagination.pageSize) {
+    const params = new URLSearchParams({ page: String(page) });
+    if (pageSize > 0) params.set('pageSize', String(pageSize));
+    const data = await clientApi<PaginatedResponse<InstallHistoryEntry, 'history'>>(`/history?${params.toString()}`);
     const nextHistory = arrayOrEmpty(data.history);
     setInstallHistory(nextHistory);
+    setInstallHistoryPagination(data.pagination || { page, pageSize, totalItems: nextHistory.length, totalPages: 1 });
     return nextHistory;
   }
 
@@ -576,10 +595,13 @@ export function App() {
     }
   }
 
-  async function loadReviews() {
+  async function loadReviews(page = reviewPagination.page, pageSize = reviewPagination.pageSize) {
     await runAction(setToast, t('toast.loadReviewsFailed'), async () => {
-      const data = await api<{ reviews: Review[] }>('/api/v1/admin/reviews?status=PENDING');
-      setReviews(data.reviews);
+      const params = new URLSearchParams({ status: 'PENDING', page: String(page || 1) });
+      if (pageSize > 0) params.set('pageSize', String(pageSize));
+      const data = await api<PaginatedResponse<Review, 'reviews'>>(`/api/v1/admin/reviews?${params.toString()}`);
+      setReviews(data.reviews || []);
+      setReviewPagination(data.pagination || { page, pageSize, totalItems: data.reviews?.length || 0, totalPages: 1 });
     });
   }
 
@@ -1087,6 +1109,7 @@ export function App() {
                 onOpenSource={setSelectedSourceApp}
                 onInstall={installApp}
                 onGoSources={() => navigateTo('sources')}
+                defaultPageSize={HAS_API ? siteProfile.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE : clientSettings.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE}
               />
             )}
             {tab === 'sources' && (
@@ -1136,8 +1159,10 @@ export function App() {
             {tab === 'history' && !HAS_API && (
               <ClientHistoryView
                 history={installHistory}
+                pagination={installHistoryPagination}
                 sourceApps={sourceApps}
-                onRefresh={() => void loadInstallHistory()}
+                onRefresh={() => void loadInstallHistory(installHistoryPagination.page || 1, installHistoryPagination.pageSize)}
+                onPageChange={(page, pageSize) => void loadInstallHistory(page, pageSize)}
                 onOpenSource={setSelectedSourceApp}
               />
             )}
@@ -1151,7 +1176,16 @@ export function App() {
             )}
             {tab === 'admin' && (
               user && canReview ? (
-                <AdminPanel user={user} reviews={reviews} onApprove={approveReview} onSiteProfileSaved={applySiteProfile} onStorageOptionsChanged={loadStorageOptions} setToast={setToast} />
+                <AdminPanel
+                  user={user}
+                  reviews={reviews}
+                  reviewPagination={reviewPagination}
+                  onReviewPageChange={loadReviews}
+                  onApprove={approveReview}
+                  onSiteProfileSaved={applySiteProfile}
+                  onStorageOptionsChanged={loadStorageOptions}
+                  setToast={setToast}
+                />
               ) : (
                 <EmptyState
                   icon={ShieldCheck}

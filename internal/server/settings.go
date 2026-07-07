@@ -9,11 +9,13 @@ import (
 
 	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/internal/mirror"
+	"lazycat.community/appstore/internal/pagination"
 )
 
 const (
 	settingMaxLPKSize               = "max_lpk_size"
 	settingMaxVersions              = "max_versions"
+	settingDefaultPageSize          = "default_page_size"
 	settingRequireEmailVerify       = "require_email_verify"
 	settingSourcePassword           = "source_password"
 	settingSourcePasswordRotation   = "source_password_rotation"
@@ -112,6 +114,10 @@ func (s *Server) effectiveMaxVersions(ctx context.Context) int {
 	return s.settingInt(ctx, settingMaxVersions, s.cfg.MaxVersions)
 }
 
+func (s *Server) effectiveDefaultPageSize(ctx context.Context, fallback, maxPageSize int) int {
+	return pagination.ClampPageSize(s.settingInt(ctx, settingDefaultPageSize, fallback), fallback, maxPageSize)
+}
+
 func (s *Server) effectiveMaxLPKSize(ctx context.Context) int64 {
 	raw := s.setting(ctx, settingMaxLPKSize, "")
 	if raw == "" {
@@ -176,14 +182,15 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 		UpdatedAt: strings.TrimSpace(s.setting(ctx, settingAnnouncementUpdatedAt, "")),
 	}
 	return siteProfile{
-		Title:        title,
-		Subtitle:     strings.TrimSpace(s.setting(ctx, settingSiteSubtitle, "")),
-		IconURL:      cleanURLSetting(s.setting(ctx, settingSiteIconURL, "")),
-		PublicURL:    publicURL,
-		SourceURL:    publicURL + "/source/v1/index.json",
-		Version:      appVersion(),
-		Announcement: announcement,
-		Registration: siteRegistration{Mode: s.registrationMode(ctx)},
+		Title:           title,
+		Subtitle:        strings.TrimSpace(s.setting(ctx, settingSiteSubtitle, "")),
+		IconURL:         cleanURLSetting(s.setting(ctx, settingSiteIconURL, "")),
+		PublicURL:       publicURL,
+		SourceURL:       publicURL + "/source/v1/index.json",
+		Version:         appVersion(),
+		DefaultPageSize: s.effectiveDefaultPageSize(ctx, pagination.DefaultPageSize, 100),
+		Announcement:    announcement,
+		Registration:    siteRegistration{Mode: s.registrationMode(ctx)},
 	}
 }
 

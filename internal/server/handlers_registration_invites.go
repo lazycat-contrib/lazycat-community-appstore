@@ -10,6 +10,7 @@ import (
 
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/registrationinvite"
+	"lazycat.community/appstore/internal/pagination"
 )
 
 const maxInviteUses = 10000
@@ -32,9 +33,17 @@ type createRegistrationInviteRequest struct {
 }
 
 func (s *Server) handleListRegistrationInvites(w http.ResponseWriter, r *http.Request, u *entgo.User) {
-	records, err := s.db.RegistrationInvite.Query().
+	page := pagination.FromRequest(r, s.effectiveDefaultPageSize(r.Context(), 50, 200), 200)
+	q := s.db.RegistrationInvite.Query()
+	total, err := q.Clone().Count(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "INVITE_LIST_FAILED", "Could not list registration invites", nil)
+		return
+	}
+	records, err := q.
 		Order(entgo.Desc(registrationinvite.FieldCreatedAt)).
-		Limit(200).
+		Offset(page.Offset()).
+		Limit(page.PageSize).
 		All(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "INVITE_LIST_FAILED", "Could not list registration invites", nil)
@@ -44,7 +53,7 @@ func (s *Server) handleListRegistrationInvites(w http.ResponseWriter, r *http.Re
 	for _, record := range records {
 		invites = append(invites, toRegistrationInviteDTO(record))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"invites": invites})
+	writeJSON(w, http.StatusOK, pagination.NewInvitesPage(invites, page, total))
 }
 
 func (s *Server) handleCreateRegistrationInvite(w http.ResponseWriter, r *http.Request, u *entgo.User) {

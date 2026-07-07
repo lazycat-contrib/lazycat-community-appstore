@@ -163,6 +163,9 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	if defaultProfile.Site.Version != appVersion() {
 		t.Fatalf("site profile version = %q, want %q", defaultProfile.Site.Version, appVersion())
 	}
+	if defaultProfile.Site.DefaultPageSize != 24 {
+		t.Fatalf("default page size = %d, want 24", defaultProfile.Site.DefaultPageSize)
+	}
 
 	app.login("admin", "changeme")
 	rec = app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{
@@ -176,6 +179,7 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 		"announcement_body":       "Downloads may be slower tonight.",
 		"announcement_link_label": "Details",
 		"announcement_link_url":   "https://status.example.com/",
+		"default_page_size":       "48",
 	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("settings update status = %d, body = %s", rec.Code, rec.Body.String())
@@ -214,6 +218,9 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	firstAnnouncementUpdate := profile.Site.Announcement.UpdatedAt
 	if firstAnnouncementUpdate == "" {
 		t.Fatal("announcement updatedAt was not set")
+	}
+	if profile.Site.DefaultPageSize != 48 {
+		t.Fatalf("site profile default page size = %d, want 48", profile.Site.DefaultPageSize)
 	}
 
 	app.login("admin", "changeme")

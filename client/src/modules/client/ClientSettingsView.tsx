@@ -11,6 +11,7 @@ import type { ClientSettings, ClientSourceStats, Toast } from '../../shared/type
 import { errorMessage, formatDate } from '../../shared/utils';
 
 const syncIntervalOptions = [5, 15, 30, 60, 360, 720, 1440];
+const pageSizeOptions = [12, 24, 48, 96, 100];
 
 export function ClientSettingsView({
   settings,
@@ -30,6 +31,7 @@ export function ClientSettingsView({
   useEffect(() => {
     setDraft({
       commentDisplayName: settings.commentDisplayName || '',
+      defaultPageSize: settings.defaultPageSize || 24,
       autoSyncEnabled: Boolean(settings.autoSyncEnabled),
       autoSyncIntervalMinutes: settings.autoSyncIntervalMinutes || 60,
       syncOnStartup: Boolean(settings.syncOnStartup),
@@ -41,6 +43,7 @@ export function ClientSettingsView({
     settings.autoSyncEnabled,
     settings.autoSyncIntervalMinutes,
     settings.commentDisplayName,
+    settings.defaultPageSize,
     settings.lastAutoSyncAt,
     settings.lastAutoSyncError,
     settings.lastAutoSyncStatus,
@@ -65,6 +68,7 @@ export function ClientSettingsView({
       await onSave({
         ...draft,
         commentDisplayName: draft.commentDisplayName.trim(),
+        defaultPageSize: Number(draft.defaultPageSize) || 24,
         autoSyncIntervalMinutes: Number(intervalValue) || 60,
       });
       setToast({ tone: 'success', message: t('clientSettings.saved') });
@@ -173,6 +177,13 @@ export function ClientSettingsView({
             value={draft.commentDisplayName}
             placeholder={t('clientSettings.defaultCommentDisplayName')}
             onChange={(value) => setDraft({ ...draft, commentDisplayName: value })}
+          />
+          <XSelector
+            label={t('clientSettings.defaultPageSize')}
+            description={t('clientSettings.defaultPageSizeHelp')}
+            value={String(draft.defaultPageSize || 24)}
+            options={pageSizeOptions.map((value) => ({ value: String(value), label: t('clientSettings.pageSizeOption', { count: value }) }))}
+            onChange={(value) => setDraft({ ...draft, defaultPageSize: Number(value) || 24 })}
           />
         </section>
 

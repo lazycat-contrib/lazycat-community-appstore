@@ -172,6 +172,7 @@ export function defaultSiteProfile(title: string): SiteProfile {
     subtitle: '',
     publicUrl,
     sourceUrl: `${publicUrl}/source/v1/index.json`,
+    defaultPageSize: 24,
     announcement: { enabled: false, level: 'info' },
     registration: { mode: 'open' },
   };

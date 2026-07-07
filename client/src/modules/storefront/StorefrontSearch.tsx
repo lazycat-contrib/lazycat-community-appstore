@@ -9,7 +9,7 @@ import type { Category, InstallOptions, SortMode, SourceApp, StoreApp } from '..
 import { localizedName } from '../../shared/utils';
 import { AppGrid } from './AppGrid';
 
-const PAGE_SIZE_OPTIONS = [12, 24, 48];
+const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
 
 export function StorefrontSearch({
   apps,
@@ -23,6 +23,7 @@ export function StorefrontSearch({
   onSortMode,
   onOpen,
   onInstall,
+  defaultPageSize,
 }: {
   apps: StoreApp[];
   categories: Category[];
@@ -35,10 +36,11 @@ export function StorefrontSearch({
   onSortMode: (mode: SortMode) => void;
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
+  defaultPageSize: number;
 }) {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(24);
+  const [pageSize, setPageSize] = useState(defaultPageSize || 24);
   const totalPages = Math.max(1, Math.ceil(apps.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedApps = useMemo(() => {
@@ -49,6 +51,11 @@ export function StorefrontSearch({
   useEffect(() => {
     setPage(1);
   }, [apps]);
+
+  useEffect(() => {
+    setPageSize(defaultPageSize || 24);
+    setPage(1);
+  }, [defaultPageSize]);
 
   return (
     <section className="page-grid">

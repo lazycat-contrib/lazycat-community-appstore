@@ -23,6 +23,7 @@ export function SearchView({
   onOpenSource,
   onInstall,
   onGoSources,
+  defaultPageSize,
 }: {
   apps: StoreApp[];
   sourceApps: SourceApp[];
@@ -43,6 +44,7 @@ export function SearchView({
   onOpenSource: (app: SourceApp) => void;
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
+  defaultPageSize: number;
 }) {
 
   if (mode === 'client') {
@@ -56,6 +58,7 @@ export function SearchView({
         onOpenSource={onOpenSource}
         onInstall={onInstall}
         onGoSources={onGoSources}
+        defaultPageSize={defaultPageSize}
       />
     );
   }
@@ -73,6 +76,7 @@ export function SearchView({
       onSortMode={onSortMode}
       onOpen={onOpen}
       onInstall={onInstall}
+      defaultPageSize={defaultPageSize}
     />
   );
 }

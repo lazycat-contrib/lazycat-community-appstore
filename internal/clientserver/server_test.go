@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/ent/clientinstallhistory"
 	"lazycat.community/appstore/ent/clientsyncsetting"
 	"lazycat.community/appstore/internal/mirror"
+	"lazycat.community/appstore/internal/pagination"
 )
 
 func TestSQLiteDSNAddsPragmas(t *testing.T) {
@@ -96,7 +98,7 @@ func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("settings save = %d %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"commentDisplayName":"Alice Cat"`) || !strings.Contains(rec.Body.String(), `"autoSyncIntervalMinutes":5`) {
+	if !strings.Contains(rec.Body.String(), `"commentDisplayName":"Alice Cat"`) || !strings.Contains(rec.Body.String(), `"defaultPageSize":24`) || !strings.Contains(rec.Body.String(), `"autoSyncIntervalMinutes":5`) {
 		t.Fatalf("settings response not normalized: %s", rec.Body.String())
 	}
 	setting, err := app.server.db.ClientSyncSetting.Query().
@@ -108,8 +110,50 @@ func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
 	if !setting.AutoSyncEnabled || !setting.SyncOnStartup || setting.AutoSyncIntervalMinutes != 5 {
 		t.Fatalf("bad sync setting: %#v", setting)
 	}
-	if count, err := app.server.db.ClientSetting.Query().Count(context.Background()); err != nil || count != 1 {
+	if count, err := app.server.db.ClientSetting.Query().Count(context.Background()); err != nil || count != 2 {
 		t.Fatalf("client_settings count = %d, err = %v", count, err)
+	}
+}
+
+func TestInstallHistoryUsesClientDefaultPageSize(t *testing.T) {
+	app := testServer(t)
+	ctx := context.Background()
+	seedCachedApp(t, app.server.db, "alice")
+	sourceApp := app.server.db.ClientSourceApp.Query().OnlyX(ctx)
+	for i := range 3 {
+		app.server.db.ClientInstallHistory.Create().
+			SetUserID("alice").
+			SetSourceID(sourceApp.SourceID).
+			SetSourceAppID(sourceApp.ID).
+			SetSourceName("Feed").
+			SetPackageID(fmt.Sprintf("cloud.lazycat.app.notes.%d", i)).
+			SetAppName(fmt.Sprintf("Notes %d", i)).
+			SetVersion("1.0.0").
+			SetResult(clientinstallhistory.ResultSUCCESS).
+			SetCreatedAt(time.Now().Add(time.Duration(i) * time.Minute)).
+			SaveX(ctx)
+	}
+
+	rec := app.request("PATCH", "/api/client/v1/settings", `{"defaultPageSize":2}`, "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("settings save = %d %s", rec.Code, rec.Body.String())
+	}
+	rec = app.request("GET", "/api/client/v1/history", ``, "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("history = %d %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		History    []InstallHistoryDTO `json:"history"`
+		Pagination pagination.Response `json:"pagination"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode history: %v", err)
+	}
+	if len(response.History) != 2 {
+		t.Fatalf("history length = %d, want 2; body = %s", len(response.History), rec.Body.String())
+	}
+	if response.Pagination.Page != 1 || response.Pagination.PageSize != 2 || response.Pagination.TotalItems != 3 || response.Pagination.TotalPages != 2 {
+		t.Fatalf("pagination = %#v", response.Pagination)
 	}
 }
 

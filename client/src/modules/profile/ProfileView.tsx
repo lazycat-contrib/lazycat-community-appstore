@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Check, ChevronRight, Cloud, Gauge, Heart, KeyRound, LogIn, LogOut, PackagePlus, RefreshCw, Search, Server, Settings, Upload, Users, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
@@ -12,7 +13,7 @@ import { canUserManageApp, canUserUploadVersion, defaultUploadStorageKey, displa
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { Category, ClientSourceStats, CollaborationData, FavoriteData, Group, InstalledApplication, SourceApp, StorageOption, StoreApp, Toast, User } from '../../shared/types';
+import type { Category, ClientSourceStats, CollaborationData, FavoriteData, Group, InstalledApplication, PaginatedResponse, Pagination as PaginationMeta, SourceApp, StorageOption, StoreApp, Toast, User } from '../../shared/types';
 import { cx, formatDate, hasInstallableVersion, runAction, statusKey } from '../../shared/utils';
 import { InstalledAppsView } from '../client/InstalledAppsView';
 import type { AppDetailMode } from '../storefront/AppDrawer';
@@ -24,6 +25,9 @@ import { MCPWorkspace } from './MCPWorkspace';
 
 type ProfileWorkspaceTab = 'overview' | 'apps' | 'collaboration' | 'manage' | 'mcp' | 'tokens' | 'groups' | 'favorites';
 type ProfileNavigationTarget = 'sources' | 'search';
+
+const DEFAULT_FAVORITE_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
+const FAVORITE_PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
 
 function verificationTokenFromURL() {
   const params = new URLSearchParams(window.location.search);
@@ -121,6 +125,10 @@ export function ProfileView({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
   const [favoriteTab, setFavoriteTab] = useState<'apps' | 'submitters'>('apps');
+  const [favoritePagination, setFavoritePagination] = useState<{ apps: PaginationMeta; submitters: PaginationMeta }>({
+    apps: DEFAULT_FAVORITE_PAGINATION,
+    submitters: DEFAULT_FAVORITE_PAGINATION,
+  });
   const canUseManagementWorkspace = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const workspaceTabs = [
     { key: 'overview' as const, label: t('profile.tabs.overview'), icon: Gauge },
@@ -387,10 +395,33 @@ export function ProfileView({
     }
   }
 
+  function favoritePath(targetType: 'APP' | 'SUBMITTER', page: number, pageSize?: number) {
+    const params = new URLSearchParams({ targetType, page: String(page || 1) });
+    if (pageSize && pageSize > 0) params.set('pageSize', String(pageSize));
+    return `/api/v1/me/favorites?${params.toString()}`;
+  }
+
+  async function loadFavoriteApps(page = favoritePagination.apps.page || 1, pageSize = favoritePagination.apps.pageSize) {
+    const data = await api<PaginatedResponse<StoreApp, 'apps'>>(favoritePath('APP', page, pageSize));
+    setFavorites((current) => ({ ...current, apps: data.apps || [] }));
+    setFavoritePagination((current) => ({
+      ...current,
+      apps: data.pagination || { page, pageSize, totalItems: data.apps?.length || 0, totalPages: 1 },
+    }));
+  }
+
+  async function loadFavoriteSubmitters(page = favoritePagination.submitters.page || 1, pageSize = favoritePagination.submitters.pageSize) {
+    const data = await api<PaginatedResponse<User, 'submitters'>>(favoritePath('SUBMITTER', page, pageSize));
+    setFavorites((current) => ({ ...current, submitters: data.submitters || [] }));
+    setFavoritePagination((current) => ({
+      ...current,
+      submitters: data.pagination || { page, pageSize, totalItems: data.submitters?.length || 0, totalPages: 1 },
+    }));
+  }
+
   async function loadFavorites() {
     await runAction(setToast, t('favorites.loadFailed'), async () => {
-      const data = await api<FavoriteData>('/api/v1/me/favorites');
-      setFavorites({ apps: data.apps || [], submitters: data.submitters || [] });
+      await Promise.all([loadFavoriteApps(), loadFavoriteSubmitters()]);
     });
   }
 
@@ -732,21 +763,37 @@ export function ProfileView({
             <XButton type="button" variant="secondary" size="sm" label={t('favorites.refresh')} icon={<RefreshCw size={18} />} onClick={() => void loadFavorites()} />
           </div>
           {favoriteTab === 'apps' ? (
-            <div className="review-list">
-              {favorites.apps.length === 0 ? (
-                <EmptyState icon={Heart} title={t('favorites.emptyApps')} />
-              ) : (
-                favorites.apps.map((item) => (
-                  <XButton type="button" variant="ghost" label={item.name} className="review-row interactive-row" key={`app-${item.id}`} onClick={() => void onOpen(item)}>
-                    <div>
-                      <strong>{item.name}</strong>
-                      <span>{item.owner} · {item.latestVersion?.version || item.status}</span>
-                    </div>
-                    <ChevronRight size={17} aria-hidden="true" />
-                  </XButton>
-                ))
+            <>
+              <div className="review-list">
+                {favorites.apps.length === 0 ? (
+                  <EmptyState icon={Heart} title={t('favorites.emptyApps')} />
+                ) : (
+                  favorites.apps.map((item) => (
+                    <XButton type="button" variant="ghost" label={item.name} className="review-row interactive-row" key={`app-${item.id}`} onClick={() => void onOpen(item)}>
+                      <div>
+                        <strong>{item.name}</strong>
+                        <span>{item.owner} · {item.latestVersion?.version || item.status}</span>
+                      </div>
+                      <ChevronRight size={17} aria-hidden="true" />
+                    </XButton>
+                  ))
+                )}
+              </div>
+              {favoritePagination.apps.pageSize > 0 && favoritePagination.apps.totalItems > favoritePagination.apps.pageSize && (
+                <XPagination
+                  className="list-pagination"
+                  page={favoritePagination.apps.page}
+                  onChange={(page) => void runAction(setToast, t('favorites.loadFailed'), () => loadFavoriteApps(page, favoritePagination.apps.pageSize))}
+                  totalItems={favoritePagination.apps.totalItems}
+                  pageSize={favoritePagination.apps.pageSize}
+                  pageSizeOptions={FAVORITE_PAGE_SIZE_OPTIONS}
+                  onPageSizeChange={(pageSize) => void runAction(setToast, t('favorites.loadFailed'), () => loadFavoriteApps(1, pageSize))}
+                  variant="pages"
+                  size="sm"
+                  label={t('pagination.label')}
+                />
               )}
-            </div>
+            </>
           ) : (
             <div className="review-list">
               {favorites.submitters.length === 0 ? (
@@ -762,6 +809,20 @@ export function ProfileView({
                 ))
               )}
             </div>
+          )}
+          {favoriteTab === 'submitters' && favoritePagination.submitters.pageSize > 0 && favoritePagination.submitters.totalItems > favoritePagination.submitters.pageSize && (
+            <XPagination
+              className="list-pagination"
+              page={favoritePagination.submitters.page}
+              onChange={(page) => void runAction(setToast, t('favorites.loadFailed'), () => loadFavoriteSubmitters(page, favoritePagination.submitters.pageSize))}
+              totalItems={favoritePagination.submitters.totalItems}
+              pageSize={favoritePagination.submitters.pageSize}
+              pageSizeOptions={FAVORITE_PAGE_SIZE_OPTIONS}
+              onPageSizeChange={(pageSize) => void runAction(setToast, t('favorites.loadFailed'), () => loadFavoriteSubmitters(1, pageSize))}
+              variant="pages"
+              size="sm"
+              label={t('pagination.label')}
+            />
           )}
         </section>
       </section>

@@ -15,7 +15,7 @@ import (
 
 func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	userID := currentUserID(r)
-	page := pagination.FromRequest(r, 100, 100)
+	page := pagination.FromRequest(r, s.clientDefaultPageSize(r.Context(), userID, pagination.DefaultPageSize, 100), 100)
 	query := s.db.ClientSourceApp.Query().
 		Where(clientsourceapp.HasSourceWith(clientsource.UserIDEQ(userID))).
 		WithSource().

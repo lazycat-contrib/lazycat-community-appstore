@@ -39,7 +39,7 @@ import (
 func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	u := s.optionalUser(r)
 	q := s.db.App.Query()
-	page := pagination.FromRequest(r, 24, 100)
+	page := pagination.FromRequest(r, s.effectiveDefaultPageSize(r.Context(), pagination.DefaultPageSize, 100), 100)
 	managedList := r.URL.Query().Get("managed") == "1" || r.URL.Query().Get("managed") == "true"
 	if managedList {
 		if u == nil {

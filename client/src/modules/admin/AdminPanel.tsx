@@ -5,6 +5,7 @@ import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
 import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
@@ -18,7 +19,7 @@ import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { FilePicker } from '../../shared/components/FilePicker';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { RECOMMENDED_DOWNLOAD_MIRRORS, RECOMMENDED_RAW_MIRRORS, mirrorPresetText } from '../../shared/constants';
-import type { Category, Collection, CollectionDraft, RegistrationInvite, Review, SiteAnnouncement, SiteProfile, StorageOption, StoreApp, TagRecord, Toast, User } from '../../shared/types';
+import type { Category, Collection, CollectionDraft, PaginatedResponse, Pagination as PaginationMeta, RegistrationInvite, Review, SiteAnnouncement, SiteProfile, StorageOption, StoreApp, TagRecord, Toast, User } from '../../shared/types';
 import { cx, errorMessage, formatBytes, formatDate, localizedName, reviewKindKey, runAction, shortSHA, statusKey, stripTrailingSlash } from '../../shared/utils';
 import { StorageSettingsPanel, defaultStorageSettings, type StorageSettings } from './StorageSettingsPanel';
 
@@ -33,6 +34,9 @@ type ManagedUserDraft = {
   emailVerified: boolean;
   disabled: boolean;
 };
+
+const DEFAULT_LIST_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
+const ADMIN_PAGE_SIZE_OPTIONS = [12, 24, 48, 50, 96, 100, 200];
 
 function reviewFieldLabel(key: string, t: (key: string, options?: any) => string) {
   const labels: Record<string, string> = {
@@ -110,6 +114,8 @@ function draftFromUser(user: User): ManagedUserDraft {
 export function AdminPanel({
   user,
   reviews,
+  reviewPagination,
+  onReviewPageChange,
   onApprove,
   onSiteProfileSaved,
   onStorageOptionsChanged,
@@ -117,6 +123,8 @@ export function AdminPanel({
 }: {
   user: User;
   reviews: Review[];
+  reviewPagination: PaginationMeta;
+  onReviewPageChange: (page: number, pageSize?: number) => Promise<void>;
   onApprove: (review: Review, approve: boolean) => void;
   onSiteProfileSaved: (site?: SiteProfile) => Promise<void>;
   onStorageOptionsChanged: () => Promise<void>;
@@ -125,10 +133,12 @@ export function AdminPanel({
   const { t } = useTranslation();
   const [adminTab, setAdminTab] = useState<'reviews' | 'site' | 'users' | 'taxonomy' | 'collections'>('reviews');
   const [users, setUsers] = useState<User[]>([]);
+  const [userPagination, setUserPagination] = useState<PaginationMeta>(DEFAULT_LIST_PAGINATION);
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [reviewApps, setReviewApps] = useState<StoreApp[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [registrationInvites, setRegistrationInvites] = useState<RegistrationInvite[]>([]);
+  const [invitePagination, setInvitePagination] = useState<PaginationMeta>(DEFAULT_LIST_PAGINATION);
   const [inviteDraft, setInviteDraft] = useState({ note: '', maxUses: '1' });
   const [isInviteCreateOpen, setIsInviteCreateOpen] = useState(false);
   const [storageRecords, setStorageRecords] = useState<StorageSettings[]>([defaultStorageSettings]);
@@ -224,6 +234,7 @@ export function AdminPanel({
   const policySettingFields = [
     { key: 'max_lpk_size', label: t('admin.settings.maxLPKSize'), help: t('admin.settingsHelp.maxLPKSize'), inputMode: 'numeric' },
     { key: 'max_versions', label: t('admin.settings.maxVersions'), help: t('admin.settingsHelp.maxVersions'), inputMode: 'numeric' },
+    { key: 'default_page_size', label: t('admin.settings.defaultPageSize'), help: t('admin.settingsHelp.defaultPageSize'), inputMode: 'numeric' },
     { key: 'comments_enabled', label: t('admin.settings.commentsEnabled'), help: t('admin.settingsHelp.commentsEnabled'), type: 'boolean' },
     { key: 'allow_manual_outdated_clear', label: t('admin.settings.allowManualOutdatedClear'), help: t('admin.settingsHelp.allowManualOutdatedClear'), type: 'boolean' },
     { key: 'source_password', label: t('admin.settings.sourcePassword'), help: t('admin.settingsHelp.sourcePassword'), type: 'password' },
@@ -241,12 +252,12 @@ export function AdminPanel({
   ];
   const reviewSummary = useMemo(() => {
     return {
-      total: reviews.length,
+      total: reviewPagination.totalItems || reviews.length,
       appSubmissions: reviews.filter((review) => review.kind === 'APP_SUBMISSION').length,
       versionUploads: reviews.filter((review) => review.kind === 'VERSION_UPLOAD').length,
       infoUpdates: reviews.filter((review) => review.kind === 'APP_INFO_UPDATE').length,
     };
-  }, [reviews]);
+  }, [reviews, reviewPagination.totalItems]);
   const reviewAppByID = useMemo(() => new Map(reviewApps.map((item) => [item.id, item])), [reviewApps]);
   const catalogReady = apps.length > 0 && adminCategories.length > 0;
   const sourceProtected = isSiteAdmin ? Boolean(settings.source_password?.trim()) : true;
@@ -299,6 +310,36 @@ export function AdminPanel({
     setSelectedStorageKey((current) => (normalized.some((storage) => storage.key === current) ? current : nextDefaultKey));
   }
 
+  function paginatedPath(path: string, page: number, pageSize?: number) {
+    const params = new URLSearchParams({ page: String(page || 1) });
+    if (pageSize && pageSize > 0) params.set('pageSize', String(pageSize));
+    return `${path}?${params.toString()}`;
+  }
+
+  async function fetchUsersPage(page = userPagination.page || 1, pageSize = userPagination.pageSize) {
+    const data = await api<PaginatedResponse<User, 'users'>>(paginatedPath('/api/v1/admin/users', page, pageSize));
+    setUsers(data.users || []);
+    setUserPagination(data.pagination || { page, pageSize, totalItems: data.users?.length || 0, totalPages: 1 });
+  }
+
+  async function fetchInvitesPage(page = invitePagination.page || 1, pageSize = invitePagination.pageSize) {
+    const data = await api<PaginatedResponse<RegistrationInvite, 'invites'>>(paginatedPath('/api/v1/admin/registration-invites', page, pageSize));
+    setRegistrationInvites(data.invites || []);
+    setInvitePagination(data.pagination || { page, pageSize, totalItems: data.invites?.length || 0, totalPages: 1 });
+  }
+
+  async function loadUsersPage(page: number, pageSize?: number) {
+    await runAction(setToast, t('admin.loadFailed'), async () => {
+      await fetchUsersPage(page, pageSize);
+    });
+  }
+
+  async function loadInvitesPage(page: number, pageSize?: number) {
+    await runAction(setToast, t('admin.loadFailed'), async () => {
+      await fetchInvitesPage(page, pageSize);
+    });
+  }
+
   async function reload() {
     await runAction(setToast, t('admin.loadFailed'), async () => {
       const [categoryData, tagData, collectionData, appData] = await Promise.all([
@@ -316,16 +357,13 @@ export function AdminPanel({
       setTagDrafts({});
       setCollectionDrafts({});
       if (isSiteAdmin) {
-        const [userData, settingData, storageData, inviteData] = await Promise.all([
-          api<{ users: User[] }>('/api/v1/admin/users'),
+        const [settingData, storageData] = await Promise.all([
           api<{ settings: Record<string, string> }>('/api/v1/admin/settings'),
           api<{ storages: StorageSettings[]; defaultKey: string }>('/api/v1/admin/storage'),
-          api<{ invites: RegistrationInvite[] }>('/api/v1/admin/registration-invites'),
         ]);
-        setUsers(userData.users);
         setSettings(settingData.settings || {});
         setLoadedStorageRecords(storageData.storages || [], storageData.defaultKey);
-        setRegistrationInvites(inviteData.invites || []);
+        await Promise.all([fetchUsersPage(), fetchInvitesPage()]);
       }
     });
   }
@@ -465,17 +503,17 @@ export function AdminPanel({
   async function createRegistrationInvite() {
     const maxUses = Number.parseInt(inviteDraft.maxUses, 10);
     await runAction(setToast, t('admin.inviteCreateFailed'), async () => {
-      const data = await api<{ invite: RegistrationInvite; code: string }>('/api/v1/admin/registration-invites', {
+      await api<{ invite: RegistrationInvite; code: string }>('/api/v1/admin/registration-invites', {
         method: 'POST',
         body: JSON.stringify({
           note: inviteDraft.note,
           maxUses: Number.isFinite(maxUses) ? maxUses : 1,
         }),
       });
-      setRegistrationInvites((current) => [data.invite, ...current]);
       setInviteDraft({ note: '', maxUses: '1' });
       setIsInviteCreateOpen(false);
       setToast({ tone: 'success', message: t('admin.inviteCreated') });
+      await fetchInvitesPage(1, invitePagination.pageSize);
     });
   }
 
@@ -488,9 +526,9 @@ export function AdminPanel({
     }
     await runAction(setToast, t('admin.inviteDeleteFailed'), async () => {
       await api(`/api/v1/admin/registration-invites/${invite.id}`, { method: 'DELETE' });
-      setRegistrationInvites((current) => current.filter((item) => item.id !== invite.id));
       setConfirmDelete(null);
       setToast({ tone: 'neutral', message: t('admin.inviteDeleted') });
+      await fetchInvitesPage(invitePagination.page, invitePagination.pageSize);
     });
   }
 
@@ -977,6 +1015,20 @@ export function AdminPanel({
             })
           )}
         </div>
+        {reviewPagination.pageSize > 0 && reviewPagination.totalItems > reviewPagination.pageSize && (
+          <XPagination
+            className="list-pagination"
+            page={reviewPagination.page}
+            onChange={(page) => void onReviewPageChange(page, reviewPagination.pageSize)}
+            totalItems={reviewPagination.totalItems}
+            pageSize={reviewPagination.pageSize}
+            pageSizeOptions={ADMIN_PAGE_SIZE_OPTIONS}
+            onPageSizeChange={(pageSize) => void onReviewPageChange(1, pageSize)}
+            variant="pages"
+            size="sm"
+            label={t('pagination.label')}
+          />
+        )}
       </section>
       </>
       )}
@@ -1097,6 +1149,20 @@ export function AdminPanel({
                           ))
                         )}
                       </div>
+                      {invitePagination.pageSize > 0 && invitePagination.totalItems > invitePagination.pageSize && (
+                        <XPagination
+                          className="list-pagination"
+                          page={invitePagination.page}
+                          onChange={(page) => void loadInvitesPage(page, invitePagination.pageSize)}
+                          totalItems={invitePagination.totalItems}
+                          pageSize={invitePagination.pageSize}
+                          pageSizeOptions={ADMIN_PAGE_SIZE_OPTIONS}
+                          onPageSizeChange={(pageSize) => void loadInvitesPage(1, pageSize)}
+                          variant="pages"
+                          size="sm"
+                          label={t('pagination.label')}
+                        />
+                      )}
                     </div>
                     {isInviteCreateOpen && (
                       <ModalLayer onClose={() => setIsInviteCreateOpen(false)} purpose="form">
@@ -1250,6 +1316,20 @@ export function AdminPanel({
                 </div>
               ))}
             </div>
+            {userPagination.pageSize > 0 && userPagination.totalItems > userPagination.pageSize && (
+              <XPagination
+                className="list-pagination"
+                page={userPagination.page}
+                onChange={(page) => void loadUsersPage(page, userPagination.pageSize)}
+                totalItems={userPagination.totalItems}
+                pageSize={userPagination.pageSize}
+                pageSizeOptions={ADMIN_PAGE_SIZE_OPTIONS}
+                onPageSizeChange={(pageSize) => void loadUsersPage(1, pageSize)}
+                variant="pages"
+                size="sm"
+                label={t('pagination.label')}
+              />
+            )}
           </section>
           {userDialogMode && (
             <ModalLayer onClose={() => setUserDialogMode(null)} purpose="form">
