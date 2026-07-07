@@ -41,7 +41,7 @@ func parseUploadedLPKMetadata(file multipart.File, header *multipart.FileHeader,
 }
 
 func (s *Server) inspectLPKURL(ctx context.Context, rawURL string, maxBytes int64) (lpkInspection, error) {
-	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	parsed, err := url.Parse(normalizeGitHubRawURL(rawURL))
 	if err != nil || parsed.Host == "" {
 		return lpkInspection{}, errors.New("downloadUrl must be a valid URL")
 	}
@@ -118,6 +118,29 @@ func (s *Server) inspectLPKURL(ctx context.Context, rawURL string, maxBytes int6
 		SHA256:   hex.EncodeToString(hasher.Sum(nil)),
 		Size:     written,
 	}, nil
+}
+
+func normalizeGitHubRawURL(rawURL string) string {
+	trimmed := strings.TrimSpace(rawURL)
+	parsed, err := url.Parse(trimmed)
+	if err != nil || !strings.EqualFold(parsed.Hostname(), "github.com") {
+		return trimmed
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) < 5 || parts[2] != "raw" {
+		return trimmed
+	}
+	normalized := &url.URL{
+		Scheme:   parsed.Scheme,
+		Host:     "raw.githubusercontent.com",
+		Path:     "/" + strings.Join(append(parts[:2], parts[3:]...), "/"),
+		RawQuery: parsed.RawQuery,
+		Fragment: parsed.Fragment,
+	}
+	if normalized.Scheme == "" {
+		normalized.Scheme = "https"
+	}
+	return normalized.String()
 }
 
 func validateLPKURLHost(ctx context.Context, parsed *url.URL, allowPrivate bool) error {

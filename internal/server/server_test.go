@@ -1244,6 +1244,19 @@ func TestURLCreateAppFillsMetadataAndSHA256(t *testing.T) {
 	}
 }
 
+func TestNormalizeGitHubRawURL(t *testing.T) {
+	cases := map[string]string{
+		"https://github.com/lazycat-contrib/roon-server-lzcapp/raw/refs/heads/main/community.lazycat.app.roon-server-v2.65.1653.lpk": "https://raw.githubusercontent.com/lazycat-contrib/roon-server-lzcapp/refs/heads/main/community.lazycat.app.roon-server-v2.65.1653.lpk",
+		"https://github.com/acme/demo/raw/main/app.lpk?download=1":                                                                   "https://raw.githubusercontent.com/acme/demo/main/app.lpk?download=1",
+		"https://github.com/acme/demo/releases/download/v1/app.lpk":                                                                  "https://github.com/acme/demo/releases/download/v1/app.lpk",
+	}
+	for input, want := range cases {
+		if got := normalizeGitHubRawURL(input); got != want {
+			t.Fatalf("normalizeGitHubRawURL(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestVersionUploadRejectsPackageMismatch(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()

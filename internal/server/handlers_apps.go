@@ -172,6 +172,7 @@ func (s *Server) handleCreateApp(w http.ResponseWriter, r *http.Request, u *entg
 		badRequest(w, err)
 		return
 	}
+	input.DownloadURL = normalizeGitHubRawURL(input.DownloadURL)
 	var inspected lpkInspection
 	if input.DownloadURL != "" && appInputNeedsLPKInspection(input) {
 		var err error
@@ -531,6 +532,7 @@ func (s *Server) handleCreateVersion(w http.ResponseWriter, r *http.Request, u *
 		badRequest(w, err)
 		return
 	}
+	input.DownloadURL = normalizeGitHubRawURL(input.DownloadURL)
 	var inspected lpkInspection
 	if input.DownloadURL != "" && versionInputNeedsLPKInspection(input) {
 		inspected, err = s.inspectLPKURL(r.Context(), input.DownloadURL, s.effectiveMaxLPKSize(r.Context()))
@@ -628,7 +630,7 @@ func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *e
 
 func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *entgo.App, versionName, changelog, downloadURL, sourceType, sha256 string, fileSize int64) (*entgo.AppVersion, error) {
 	versionName = strings.TrimSpace(versionName)
-	downloadURL = strings.TrimSpace(downloadURL)
+	downloadURL = normalizeGitHubRawURL(downloadURL)
 	sha256 = strings.TrimSpace(strings.ToLower(sha256))
 	if versionName == "" || downloadURL == "" {
 		return nil, errors.New("version and downloadUrl are required")

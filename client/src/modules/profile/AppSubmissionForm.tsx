@@ -50,6 +50,7 @@ export function AppSubmissionForm({
   onMobileScreenshotCaptionChange,
   recentSubmission,
   isDirectPublishUser,
+  isSubmitting,
   onSubmit,
   onCancel,
 }: {
@@ -74,6 +75,7 @@ export function AppSubmissionForm({
   onMobileScreenshotCaptionChange: (file: File, caption: string) => void;
   recentSubmission: { name: string; status: string } | null;
   isDirectPublishUser: boolean;
+  isSubmitting: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
 }) {
@@ -321,7 +323,13 @@ export function AppSubmissionForm({
           onChange={(checked) => onDraftChange({ ...draft, allowUnreviewedUpdates: checked })}
         />
         {!canSubmitUpload && <p className="field-help">{t('submitApp.submitBlocked')}</p>}
-        <XButton type="submit" variant="primary" label={t('common.submit')} icon={<Upload size={18} />} isDisabled={!canSubmitUpload} />
+        <XButton
+          type="submit"
+          variant="primary"
+          label={isSubmitting ? t('common.submitting') : t('common.submit')}
+          icon={<Upload size={18} />}
+          isDisabled={!canSubmitUpload || isSubmitting}
+        />
       </form>
     </section>
   );

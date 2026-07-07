@@ -189,6 +189,8 @@ const clientTabs: NavItem[] = [
 ];
 
 type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string };
+type AppDetailMode = 'detail' | 'manage';
+type ProfileWorkspaceTab = 'overview' | 'apps' | 'manage' | 'tokens' | 'groups' | 'favorites';
 type ManagedUserDraft = {
   id?: number;
   username: string;
@@ -228,6 +230,15 @@ function orderedScreenshots(screenshots: Screenshot[] | undefined, preferredDevi
 
 function screenshotDeviceLabel(t: (key: string, options?: any) => string, deviceType?: string) {
   return deviceType === 'MOBILE' ? t('drawer.screenshotDeviceMobile') : t('drawer.screenshotDeviceDesktop');
+}
+
+function canUserManageApp(user: User | null | undefined, app: StoreApp) {
+  if (!user) return false;
+  return app.canManageApp ?? (user.role === 'SITE_ADMIN' || user.role === 'SOFTWARE_ADMIN' || user.id === app.ownerId);
+}
+
+function canUserUploadVersion(user: User | null | undefined, app: StoreApp) {
+  return !!user && (app.canUploadVersion || canUserManageApp(user, app));
 }
 
 function screenshotFileKey(file: File) {
@@ -319,6 +330,7 @@ export function App() {
   const [activeSubmitter, setActiveSubmitter] = useState<string>('all');
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
+  const [selectedAppMode, setSelectedAppMode] = useState<AppDetailMode>('detail');
   const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
   const [clientSettings, setClientSettings] = useState<ClientSettings>({
     commentDisplayName: '',
@@ -368,6 +380,7 @@ export function App() {
 
   function navigateTo(nextTab: TabKey) {
     setSelectedApp(null);
+    setSelectedAppMode('detail');
     setSelectedSourceApp(null);
     setTab(nextTab);
   }
@@ -628,9 +641,10 @@ export function App() {
     });
   }, [storeApps, activeCategory, activeSubmitter, query, sortMode]);
 
-  async function openApp(app: StoreApp) {
+  async function openApp(app: StoreApp, mode: AppDetailMode = 'detail') {
     await runAction(setToast, t('toast.loadAppDetailFailed'), async () => {
       const data = await api<{ app: StoreApp }>(`/api/v1/apps/${app.id}`);
+      setSelectedAppMode(mode);
       setSelectedApp(data.app);
     });
   }
@@ -965,14 +979,19 @@ export function App() {
             {HAS_API && selectedApp ? (
               <AppDrawer
                 app={selectedApp}
+                mode={selectedAppMode}
+                onModeChange={setSelectedAppMode}
                 user={user}
                 groups={groups}
                 categories={categories}
                 storageOptions={storageOptions}
-                onClose={() => setSelectedApp(null)}
+                onClose={() => {
+                  setSelectedApp(null);
+                  setSelectedAppMode('detail');
+                }}
                 onInstall={installApp}
                 onRefresh={async () => {
-                  await openApp(selectedApp);
+                  await openApp(selectedApp, selectedAppMode);
                   await refreshAll();
                 }}
                 onListRefresh={refreshAll}
@@ -1466,7 +1485,7 @@ function SearchView({
   onCategory: (category: string) => void;
   onSubmitter: (submitter: string) => void;
   onSortMode: (mode: SortMode) => void;
-  onOpen: (app: StoreApp) => void;
+  onOpen: (app: StoreApp, mode?: AppDetailMode) => void;
   onOpenSource: (app: SourceApp) => void;
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
@@ -2151,7 +2170,7 @@ function ProfileView({
   installedState: 'idle' | 'loading' | 'loaded' | 'error';
   installedError: string;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
-  onOpen: (app: StoreApp) => void;
+  onOpen: (app: StoreApp, mode?: AppDetailMode) => void;
   refreshAll: (options?: { silent?: boolean }) => Promise<void>;
   setToast: (toast: Toast) => void;
   hasAPI: boolean;
@@ -2162,7 +2181,7 @@ function ProfileView({
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
-  const [workspaceTab, setWorkspaceTab] = useState<'overview' | 'apps' | 'tokens' | 'groups' | 'favorites'>('overview');
+  const [workspaceTab, setWorkspaceTab] = useState<ProfileWorkspaceTab>('overview');
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [authForm, setAuthForm] = useState({ username: '', password: '', email: '', inviteCode: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
@@ -2181,6 +2200,7 @@ function ProfileView({
     installPassword: '',
   });
   const [recentSubmission, setRecentSubmission] = useState<{ name: string; status: string } | null>(null);
+  const [isSubmittingApp, setIsSubmittingApp] = useState(false);
   const [artifactMode, setArtifactMode] = useState<SubmissionArtifactMode>('local');
   const [uploadStorageKey, setUploadStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [file, setFile] = useState<File | null>(null);
@@ -2209,6 +2229,7 @@ function ProfileView({
   const workspaceTabs = [
     { key: 'overview', label: t('profile.tabs.overview'), icon: Gauge },
     { key: 'apps', label: t('profile.tabs.apps'), icon: PackagePlus },
+    { key: 'manage', label: t('profile.tabs.manage'), icon: Settings },
     { key: 'tokens', label: t('profile.tabs.tokens'), icon: KeyRound },
     { key: 'groups', label: t('profile.tabs.groups'), icon: Users },
     { key: 'favorites', label: t('profile.tabs.favorites'), icon: Heart },
@@ -2225,6 +2246,12 @@ function ProfileView({
       .map((status) => ({ status, count: ownedApps.filter((app) => app.status === status).length }))
       .filter((item) => item.count > 0);
   }, [ownedApps]);
+  const manageableApps = useMemo(() => {
+    if (!user) return [];
+    return apps
+      .filter((app) => canUserManageApp(user, app) || canUserUploadVersion(user, app))
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  }, [apps, user]);
   const publishSummary = useMemo(() => {
     return {
       total: ownedApps.length,
@@ -2379,6 +2406,7 @@ function ProfileView({
 
   async function submitUpload(event: FormEvent) {
     event.preventDefault();
+    if (isSubmittingApp) return;
     if (artifactMode === 'local' && !file) {
       setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
       return;
@@ -2387,51 +2415,56 @@ function ProfileView({
       setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
       return;
     }
-    await runAction(setToast, t('submitApp.failed'), async () => {
-      let created: { app?: StoreApp };
-      if (artifactMode === 'local' && file) {
-        const form = new FormData();
-        Object.entries(uploadForm).forEach(([key, value]) => form.set(key, String(value)));
-        form.set('file', file);
-        form.set('storageKey', uploadStorageKey);
-        created = await api<{ app: StoreApp }>('/api/v1/apps', { method: 'POST', body: form });
-      } else {
-        created = await api<{ app: StoreApp }>('/api/v1/apps', {
-          method: 'POST',
-          body: JSON.stringify({
-            name: uploadForm.name,
-            version: uploadForm.version,
-            summary: uploadForm.summary,
-            description: uploadForm.description,
-            categoryId: uploadForm.categoryId ? Number(uploadForm.categoryId) : undefined,
-            tags: uploadForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-            allowUnreviewedUpdates: uploadForm.allowUnreviewedUpdates,
-            emailNotificationsEnabled: uploadForm.emailNotificationsEnabled,
-            sourceType: uploadForm.sourceType,
-            downloadUrl: uploadForm.downloadUrl.trim(),
-            sha256: uploadForm.sha256.trim(),
-            ...(uploadForm.installPassword.trim() ? { installPassword: uploadForm.installPassword.trim() } : {}),
-          }),
-        });
-      }
-      if (created.app?.id) {
-        await uploadInitialScreenshots(created.app.id, desktopScreenshotFiles, desktopScreenshotCaptions, 'DESKTOP');
-        await uploadInitialScreenshots(created.app.id, mobileScreenshotFiles, mobileScreenshotCaptions, 'MOBILE');
-      }
-      setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
-      setToast({ tone: 'success', message: t('submitApp.submitted') });
-      setUploadForm({ name: '', version: '', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, emailNotificationsEnabled: true, sourceType: 'GITHUB', downloadUrl: '', sha256: '', installPassword: '' });
-      setArtifactMode('local');
-      setFile(null);
-      setDesktopScreenshotFiles([]);
-      setMobileScreenshotFiles([]);
-      setDesktopScreenshotCaptions({});
-      setMobileScreenshotCaptions({});
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      setIsSubmitOpen(false);
-      setWorkspaceTab('apps');
-      await refreshAll({ silent: true });
-    });
+    setIsSubmittingApp(true);
+    try {
+      await runAction(setToast, t('submitApp.failed'), async () => {
+        let created: { app?: StoreApp };
+        if (artifactMode === 'local' && file) {
+          const form = new FormData();
+          Object.entries(uploadForm).forEach(([key, value]) => form.set(key, String(value)));
+          form.set('file', file);
+          form.set('storageKey', uploadStorageKey);
+          created = await api<{ app: StoreApp }>('/api/v1/apps', { method: 'POST', body: form });
+        } else {
+          created = await api<{ app: StoreApp }>('/api/v1/apps', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: uploadForm.name,
+              version: uploadForm.version,
+              summary: uploadForm.summary,
+              description: uploadForm.description,
+              categoryId: uploadForm.categoryId ? Number(uploadForm.categoryId) : undefined,
+              tags: uploadForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+              allowUnreviewedUpdates: uploadForm.allowUnreviewedUpdates,
+              emailNotificationsEnabled: uploadForm.emailNotificationsEnabled,
+              sourceType: uploadForm.sourceType,
+              downloadUrl: uploadForm.downloadUrl.trim(),
+              sha256: uploadForm.sha256.trim(),
+              ...(uploadForm.installPassword.trim() ? { installPassword: uploadForm.installPassword.trim() } : {}),
+            }),
+          });
+        }
+        if (created.app?.id) {
+          await uploadInitialScreenshots(created.app.id, desktopScreenshotFiles, desktopScreenshotCaptions, 'DESKTOP');
+          await uploadInitialScreenshots(created.app.id, mobileScreenshotFiles, mobileScreenshotCaptions, 'MOBILE');
+        }
+        setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
+        setToast({ tone: 'success', message: t('submitApp.submitted') });
+        setUploadForm({ name: '', version: '', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, emailNotificationsEnabled: true, sourceType: 'GITHUB', downloadUrl: '', sha256: '', installPassword: '' });
+        setArtifactMode('local');
+        setFile(null);
+        setDesktopScreenshotFiles([]);
+        setMobileScreenshotFiles([]);
+        setDesktopScreenshotCaptions({});
+        setMobileScreenshotCaptions({});
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setIsSubmitOpen(false);
+        setWorkspaceTab('apps');
+        await refreshAll({ silent: true });
+      });
+    } finally {
+      setIsSubmittingApp(false);
+    }
   }
 
   async function uploadInitialScreenshots(appID: number, files: File[], captions: Record<string, string>, deviceType: 'DESKTOP' | 'MOBILE') {
@@ -2758,7 +2791,10 @@ function ProfileView({
                 </div>
                 <div className="row-actions">
                   <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
-                  <XButton type="button" variant="secondary" size="sm" label={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                  <XButton className="fixed-row-button" type="button" variant="secondary" size="sm" label={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                  {(canUserManageApp(user, item) || canUserUploadVersion(user, item)) && (
+                    <XButton className="fixed-row-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
+                  )}
                 </div>
               </div>
             ))
@@ -2790,9 +2826,43 @@ function ProfileView({
         onMobileScreenshotCaptionChange={updateMobileScreenshotCaption}
         recentSubmission={recentSubmission}
         isDirectPublishUser={user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN'}
+        isSubmitting={isSubmittingApp}
         onSubmit={submitUpload}
         onCancel={() => setIsSubmitOpen(false)}
       />
+      )}
+      {workspaceTab === 'manage' && (
+      <section className="workspace-pane">
+        <section className="panel">
+          <div className="section-title with-action">
+            <div>
+              <Settings size={19} />
+              <h2>{t('profile.appManagement')}</h2>
+            </div>
+            <XButton type="button" variant="secondary" size="sm" label={t('common.refresh')} icon={<RefreshCw size={17} />} onClick={() => void refreshAll({ silent: true })} />
+          </div>
+          <div className="review-list management-app-list">
+            {manageableApps.length === 0 ? (
+              <EmptyState icon={Settings} title={t('profile.appManagementEmpty')} body={t('profile.appManagementEmptyBody')} />
+            ) : (
+              manageableApps.map((item) => (
+                <div className="review-row management-app-row" key={item.id}>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.owner} · {item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
+                    <small className="workflow-hint">{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
+                  </div>
+                  <div className="row-actions management-row-actions">
+                    <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
+                    <XButton className="fixed-row-button" type="button" variant="secondary" size="sm" label={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                    <XButton className="fixed-row-button" type="button" variant="primary" size="sm" label={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </section>
       )}
       {workspaceTab === 'tokens' && (
       <section className="workspace-pane">
@@ -4470,6 +4540,8 @@ function AdminPanel({
 
 function AppDrawer({
   app,
+  mode,
+  onModeChange,
   user,
   groups,
   categories,
@@ -4481,6 +4553,8 @@ function AppDrawer({
   setToast,
 }: {
   app: StoreApp;
+  mode: AppDetailMode;
+  onModeChange: (mode: AppDetailMode) => void;
   user: User | null;
   groups: Group[];
   categories: Category[];
@@ -4503,6 +4577,7 @@ function AppDrawer({
   const [versionForm, setVersionForm] = useState({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
   const [versionArtifactMode, setVersionArtifactMode] = useState<'local' | 'external'>('local');
   const [versionFile, setVersionFile] = useState<File | null>(null);
+  const [isSubmittingVersion, setIsSubmittingVersion] = useState(false);
   const [versionStorageKey, setVersionStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [collaboratorRequests, setCollaboratorRequests] = useState<CollaboratorRequest[]>([]);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
@@ -4519,8 +4594,11 @@ function AppDrawer({
     clearInstallPassword: false,
   });
   const [visibility, setVisibility] = useState<number[]>(app.visibleGroupIds || []);
-  const canMaintain = !!user && (app.canManageApp ?? (user.role === 'SITE_ADMIN' || user.role === 'SOFTWARE_ADMIN' || user.id === app.ownerId));
-  const canUploadVersion = !!user && (app.canUploadVersion || canMaintain);
+  const canMaintain = canUserManageApp(user, app);
+  const canUploadVersion = canUserUploadVersion(user, app);
+  const canOpenManagement = canMaintain || canUploadVersion;
+  const isManageMode = mode === 'manage' && canOpenManagement;
+  const canEditScreenshots = isManageMode && canMaintain;
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const versionFileInputRef = useRef<HTMLInputElement>(null);
   const drawerTitleId = `app-drawer-title-${app.id}`;
@@ -4532,7 +4610,7 @@ function AppDrawer({
   const TrustIcon = trustState === 'ready' ? ShieldCheck : trustState === 'caution' ? Gauge : AlertCircle;
   const trustTitle = trustState === 'ready' ? t('drawer.trustReadyTitle') : trustState === 'caution' ? t('drawer.trustCautionTitle') : t('drawer.trustBlockedTitle');
   const trustBody = trustState === 'ready' ? t('drawer.trustReadyBody') : trustState === 'caution' ? t('drawer.trustCautionBody') : t('drawer.trustBlockedBody');
-  const installNextStep = canUploadVersion ? t('drawer.installBlockedMaintainer') : t('drawer.installBlockedUser');
+  const installNextStep = canUploadVersion ? t('drawer.installBlockedManage') : t('drawer.installBlockedUser');
   const displayScreenshots = orderedScreenshots(app.screenshots, preferredScreenshotDevice);
   const trustFacts = [
     { label: t('drawer.installStatus'), value: installable ? t('app.installReady') : t('app.installMissingVersion') },
@@ -4579,6 +4657,7 @@ function AppDrawer({
     setReplyText('');
     setVersionArtifactMode('local');
     setVersionFile(null);
+    setIsSubmittingVersion(false);
     setScreenshotCaptionDrafts(Object.fromEntries((app.screenshots || []).map((shot) => [shot.id, shot.caption || ''])));
     if (versionFileInputRef.current) versionFileInputRef.current.value = '';
   }, [app]);
@@ -4670,6 +4749,7 @@ function AppDrawer({
 
   async function submitExternalVersion(event: FormEvent) {
     event.preventDefault();
+    if (isSubmittingVersion) return;
     if (versionArtifactMode === 'local' && !versionFile) {
       setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
       return;
@@ -4678,32 +4758,37 @@ function AppDrawer({
       setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
       return;
     }
-    await runAction(setToast, t('drawer.versionSubmitFailed'), async () => {
-      if (versionArtifactMode === 'local' && versionFile) {
-        const form = new FormData();
-        form.set('file', versionFile);
-        form.set('version', versionForm.version.trim());
-        form.set('changelog', versionForm.changelog);
-        form.set('storageKey', versionStorageKey);
-        await api(`/api/v1/apps/${app.id}/versions`, { method: 'POST', body: form });
-      } else {
-        await api(`/api/v1/apps/${app.id}/versions`, {
-          method: 'POST',
-          body: JSON.stringify({
-            ...versionForm,
-            version: versionForm.version.trim(),
-            downloadUrl: versionForm.downloadUrl.trim(),
-            sha256: versionForm.sha256.trim(),
-          }),
-        });
-      }
-      setVersionForm({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
-      setVersionArtifactMode('local');
-      setVersionFile(null);
-      if (versionFileInputRef.current) versionFileInputRef.current.value = '';
-      setToast({ tone: 'success', message: t('drawer.versionSubmitted') });
-      await onRefresh();
-    });
+    setIsSubmittingVersion(true);
+    try {
+      await runAction(setToast, t('drawer.versionSubmitFailed'), async () => {
+        if (versionArtifactMode === 'local' && versionFile) {
+          const form = new FormData();
+          form.set('file', versionFile);
+          form.set('version', versionForm.version.trim());
+          form.set('changelog', versionForm.changelog);
+          form.set('storageKey', versionStorageKey);
+          await api(`/api/v1/apps/${app.id}/versions`, { method: 'POST', body: form });
+        } else {
+          await api(`/api/v1/apps/${app.id}/versions`, {
+            method: 'POST',
+            body: JSON.stringify({
+              ...versionForm,
+              version: versionForm.version.trim(),
+              downloadUrl: versionForm.downloadUrl.trim(),
+              sha256: versionForm.sha256.trim(),
+            }),
+          });
+        }
+        setVersionForm({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
+        setVersionArtifactMode('local');
+        setVersionFile(null);
+        if (versionFileInputRef.current) versionFileInputRef.current.value = '';
+        setToast({ tone: 'success', message: t('drawer.versionSubmitted') });
+        await onRefresh();
+      });
+    } finally {
+      setIsSubmittingVersion(false);
+    }
   }
 
   function confirmDanger(key: string, message: string) {
@@ -4852,13 +4937,22 @@ function AppDrawer({
 
   return (
     <section className="detail-page-shell">
-      <article className="detail-page server-detail-page" aria-labelledby={drawerTitleId}>
-        <XButton ref={closeButtonRef} className="detail-back-button" type="button" variant="secondary" size="sm" label={t('common.back')} icon={<ArrowLeft size={17} />} onClick={onClose} />
+      <article className={cx('detail-page server-detail-page', isManageMode && 'manage-mode')} aria-labelledby={drawerTitleId}>
+        <XButton
+          ref={closeButtonRef}
+          className="detail-back-button"
+          type="button"
+          variant="secondary"
+          size="sm"
+          label={isManageMode ? t('drawer.backToDetail') : t('common.back')}
+          icon={<ArrowLeft size={17} />}
+          onClick={isManageMode ? () => onModeChange('detail') : onClose}
+        />
         <div className="detail-head">
           <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={app.name} size={58} className="detail-avatar" />
           <div>
-            <h2 id={drawerTitleId}>{app.name}</h2>
-            <p>{app.summary || app.description}</p>
+            <h2 id={drawerTitleId}>{isManageMode ? t('drawer.manageTitle', { name: app.name }) : app.name}</h2>
+            <p>{isManageMode ? t('drawer.manageBody') : app.summary || app.description}</p>
             <div className="meta-line">
               <span>{app.owner}</span>
               <span>{localizedCategory(app, t('common.uncategorized'))}</span>
@@ -4873,94 +4967,138 @@ function AppDrawer({
           </div>
         </div>
         <div className="detail-actions">
-          <XButton
-            type="button"
-            variant="primary"
-            label={installable ? t('common.download') : t('common.unavailable')}
-            icon={<Download size={18} />}
-            isDisabled={!installable}
-            onClick={() => onInstall(app)}
-            aria-label={installable ? `${t('common.download')} ${app.name}` : t('app.installUnavailable', { name: app.name })}
-          />
-          {user && (
+          {isManageMode ? (
             <>
-              <XButton type="button" variant="secondary" label={t('drawer.favorite')} icon={<Heart size={18} />} onClick={() => void toggleAppFavorite()} />
-              <XButton type="button" variant="secondary" label={t('drawer.submitter')} icon={<Star size={18} />} onClick={() => void toggleSubmitterFavorite()} />
+              <XButton type="button" variant="secondary" label={t('drawer.backToDetail')} icon={<ArrowLeft size={18} />} onClick={() => onModeChange('detail')} />
+              {canMaintain && (
+                <>
+                  <XButton type="button" variant="secondary" label={t('drawer.unlist')} icon={<Archive size={18} />} onClick={() => void unlistApp()} />
+                  <XButton type="button" variant="destructive" label={t('common.delete')} icon={<Trash2 size={18} />} onClick={() => void deleteApp()} />
+                </>
+              )}
             </>
-          )}
-          {user && user.id !== app.ownerId && (
-            <XButton type="button" variant="secondary" label={t('drawer.collaborate')} icon={<Users size={18} />} onClick={() => void requestCollaborator()} />
-          )}
-          {canMaintain && (
+          ) : (
             <>
-              <XButton type="button" variant="secondary" label={t('drawer.unlist')} icon={<Archive size={18} />} onClick={() => void unlistApp()} />
-              <XButton type="button" variant="destructive" label={t('common.delete')} icon={<Trash2 size={18} />} onClick={() => void deleteApp()} />
+              <XButton
+                type="button"
+                variant="primary"
+                label={installable ? t('common.download') : t('common.unavailable')}
+                icon={<Download size={18} />}
+                isDisabled={!installable}
+                onClick={() => onInstall(app)}
+                aria-label={installable ? `${t('common.download')} ${app.name}` : t('app.installUnavailable', { name: app.name })}
+              />
+              {canOpenManagement && (
+                <XButton type="button" variant="secondary" label={t('drawer.manageApp')} icon={<Settings size={18} />} onClick={() => onModeChange('manage')} />
+              )}
+              {user && (
+                <>
+                  <XButton type="button" variant="secondary" label={t('drawer.favorite')} icon={<Heart size={18} />} onClick={() => void toggleAppFavorite()} />
+                  <XButton type="button" variant="secondary" label={t('drawer.submitter')} icon={<Star size={18} />} onClick={() => void toggleSubmitterFavorite()} />
+                </>
+              )}
+              {user && user.id !== app.ownerId && (
+                <XButton type="button" variant="secondary" label={t('drawer.collaborate')} icon={<Users size={18} />} onClick={() => void requestCollaborator()} />
+              )}
             </>
           )}
         </div>
-        <section className={cx('install-trust', trustState)} aria-label={t('drawer.installReadiness')}>
-          <div className="install-trust-lead">
-            <TrustIcon size={19} />
-            <div>
-              <strong>{trustTitle}</strong>
-              <span>{trustBody}</span>
-              {!installable && <small>{installNextStep}</small>}
-            </div>
-          </div>
-          <div className="trust-facts" role="list">
-            {trustFacts.map((fact) => (
-              <div role="listitem" key={fact.label}>
-                <span>{fact.label}</span>
-                <strong>{fact.value}</strong>
+        {!isManageMode && (
+          <>
+            <section className={cx('install-trust', trustState)} aria-label={t('drawer.installReadiness')}>
+              <div className="install-trust-lead">
+                <TrustIcon size={19} />
+                <div>
+                  <strong>{trustTitle}</strong>
+                  <span>{trustBody}</span>
+                  {!installable && <small>{installNextStep}</small>}
+                </div>
               </div>
-            ))}
-            <div role="listitem" className="trust-fact-wide">
-              <span>{t('drawer.communitySignals')}</span>
-              <strong>{communitySummary}</strong>
+              <div className="trust-facts" role="list">
+                {trustFacts.map((fact) => (
+                  <div role="listitem" key={fact.label}>
+                    <span>{fact.label}</span>
+                    <strong>{fact.value}</strong>
+                  </div>
+                ))}
+                <div role="listitem" className="trust-fact-wide">
+                  <span>{t('drawer.communitySignals')}</span>
+                  <strong>{communitySummary}</strong>
+                </div>
+              </div>
+            </section>
+            <section className={cx('outdated-state', hasOutdatedMarks && 'active')} aria-label={t('drawer.outdatedStatus')}>
+              <div className="outdated-state-head">
+                <AlertCircle size={19} />
+                <div>
+                  <strong>{hasOutdatedMarks ? t('drawer.outdatedActiveTitle', { count: app.outdatedMarks ?? 0 }) : t('drawer.outdatedInactiveTitle')}</strong>
+                  <span>{hasOutdatedMarks ? t('drawer.outdatedActiveBody') : t('drawer.outdatedInactiveBody')}</span>
+                </div>
+              </div>
+            </section>
+            <section className="detail-summary" aria-label={t('drawer.metadata')}>
+              <div>
+                <span>{t('drawer.latestVersion')}</span>
+                <strong>{latestVersion?.version || t('app.noPublishedVersion')}</strong>
+              </div>
+              <div>
+                <span>{t('common.download')}</span>
+                <strong>{t('app.downloads', { count: app.downloadCount })}</strong>
+              </div>
+              <div>
+                <span>{t('common.source')}</span>
+                <strong>{latestVersion?.sourceType || '-'}</strong>
+              </div>
+              <div>
+                <span>{t('app.fileSize', { size: latestVersion ? formatBytes(latestVersion.fileSize) : '-' })}</span>
+                <strong>{t('drawer.sha256', { hash: shortSHA(latestVersion?.sha256) })}</strong>
+              </div>
+            </section>
+          </>
+        )}
+        {isManageMode && (
+          <section className="panel nested-panel management-overview">
+            <div className="section-title with-action">
+              <div>
+                <Gauge size={19} />
+                <h2>{t('drawer.managementOverview')}</h2>
+              </div>
+              {hasOutdatedMarks && app.canClearOutdatedMarks && (
+                <XButton
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  label={t('drawer.clearOutdated')}
+                  icon={<Check size={17} />}
+                  onClick={() => void clearOutdatedMarks()}
+                />
+              )}
             </div>
-          </div>
-        </section>
-        <section className={cx('outdated-state', hasOutdatedMarks && 'active')} aria-label={t('drawer.outdatedStatus')}>
-          <div className="outdated-state-head">
-            <AlertCircle size={19} />
-            <div>
-              <strong>{hasOutdatedMarks ? t('drawer.outdatedActiveTitle', { count: app.outdatedMarks ?? 0 }) : t('drawer.outdatedInactiveTitle')}</strong>
-              <span>{hasOutdatedMarks ? t('drawer.outdatedActiveBody') : t('drawer.outdatedInactiveBody')}</span>
+            <div className="detail-summary management-summary" aria-label={t('drawer.metadata')}>
+              <div>
+                <span>{t('drawer.latestVersion')}</span>
+                <strong>{latestVersion?.version || t('app.noPublishedVersion')}</strong>
+              </div>
+              <div>
+                <span>{t('drawer.installStatus')}</span>
+                <strong>{installable ? t('app.installReady') : t('app.installMissingVersion')}</strong>
+              </div>
+              <div>
+                <span>{t('drawer.outdatedStatus')}</span>
+                <strong>{hasOutdatedMarks ? t('drawer.outdatedBadge', { count: app.outdatedMarks ?? 0 }) : t('drawer.outdatedInactiveTitle')}</strong>
+              </div>
+              <div>
+                <span>{t('common.source')}</span>
+                <strong>{latestVersion?.sourceType || '-'}</strong>
+              </div>
             </div>
-            {hasOutdatedMarks && app.canClearOutdatedMarks && (
-              <XButton
-                type="button"
-                variant="secondary"
-                size="sm"
-                label={t('drawer.clearOutdated')}
-                icon={<Check size={17} />}
-                onClick={() => void clearOutdatedMarks()}
-              />
-            )}
-          </div>
-        </section>
-        <section className="detail-summary" aria-label={t('drawer.metadata')}>
-          <div>
-            <span>{t('drawer.latestVersion')}</span>
-            <strong>{latestVersion?.version || t('app.noPublishedVersion')}</strong>
-          </div>
-          <div>
-            <span>{t('common.download')}</span>
-            <strong>{t('app.downloads', { count: app.downloadCount })}</strong>
-          </div>
-          <div>
-            <span>{t('common.source')}</span>
-            <strong>{latestVersion?.sourceType || '-'}</strong>
-          </div>
-          <div>
-            <span>{t('app.fileSize', { size: latestVersion ? formatBytes(latestVersion.fileSize) : '-' })}</span>
-            <strong>{t('drawer.sha256', { hash: shortSHA(latestVersion?.sha256) })}</strong>
-          </div>
-        </section>
-        {(canMaintain || canUploadVersion) && (
-          <section className="maintenance-grid">
+          </section>
+        )}
+        {isManageMode && (canMaintain || canUploadVersion) && (
+          <section className={cx('maintenance-grid', !canMaintain && 'single-column')}>
             {canMaintain && (
-              <form className="panel form-panel nested-panel" onSubmit={submitAppInfo}>
+              <div className="maintenance-main">
+              <form className="panel form-panel nested-panel app-info-panel" onSubmit={submitAppInfo}>
                 <SectionTitle icon={Settings} title={t('drawer.appInfo')} />
                 <XTextInput label={t('common.name')} value={appForm.name} onChange={(value) => setAppForm({ ...appForm, name: value })} />
                 <XTextInput label={t('common.summary')} value={appForm.summary} onChange={(value) => setAppForm({ ...appForm, summary: value })} />
@@ -5014,9 +5152,11 @@ function AppDrawer({
                 />
                 <XButton type="submit" variant="secondary" label={t('drawer.saveInfo')} icon={<Save size={18} />} />
               </form>
+              </div>
             )}
+            <div className="maintenance-side">
             {canUploadVersion && (
-              <form className="panel form-panel nested-panel" onSubmit={submitExternalVersion}>
+              <form className="panel form-panel nested-panel version-publish-panel" onSubmit={submitExternalVersion}>
                 <SectionTitle icon={Link} title={t('drawer.publishVersion')} />
                 <div className="workflow-strip">
                   <div>
@@ -5140,11 +5280,17 @@ function AppDrawer({
                   )}
                 </div>
                 {!canSubmitVersion && <p className="field-help">{t('drawer.versionSubmitBlocked')}</p>}
-                <XButton type="submit" variant="secondary" label={t('drawer.publishVersion')} icon={<Upload size={18} />} isDisabled={!canSubmitVersion} />
+                <XButton
+                  type="submit"
+                  variant="secondary"
+                  label={isSubmittingVersion ? t('common.submitting') : t('drawer.publishVersion')}
+                  icon={<Upload size={18} />}
+                  isDisabled={!canSubmitVersion || isSubmittingVersion}
+                />
               </form>
             )}
             {canMaintain && (
-              <section className="panel form-panel nested-panel">
+              <section className="panel form-panel nested-panel visibility-panel">
                 <SectionTitle icon={Users} title={t('drawer.visibilityGroups')} />
                 <div className="checkbox-list">
                   {groups.length === 0 ? (
@@ -5166,7 +5312,7 @@ function AppDrawer({
               </section>
             )}
             {canMaintain && (
-              <section className="panel nested-panel">
+              <section className="panel nested-panel collaborator-panel">
                 <SectionTitle icon={Users} title={t('drawer.collaboratorRequests')} />
                 <div className="review-list">
                   {collaboratorRequests.length === 0 ? (
@@ -5202,6 +5348,7 @@ function AppDrawer({
                 </div>
               </section>
             )}
+            </div>
           </section>
         )}
         <section>
@@ -5211,7 +5358,7 @@ function AppDrawer({
               {displayScreenshots.map((shot, index, shots) => (
                 <figure className="screenshot-item" key={shot.id}>
                   <img src={shot.imageUrl} alt={shot.caption || app.name} />
-                  {canMaintain ? (
+                  {canEditScreenshots ? (
                     <figcaption className="screenshot-caption-editor">
                       <XTextInput
                         label={t('drawer.screenshotCaptionFor', { index: index + 1 })}
@@ -5236,7 +5383,7 @@ function AppDrawer({
                       <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
                     </figcaption>
                   )}
-                  {canMaintain && (
+                  {canEditScreenshots && (
                     <div className="screenshot-actions">
                       <XIconButton type="button" variant="ghost" label={t('drawer.moveScreenshotUp')} icon={<ArrowUp size={15} />} isDisabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)} />
                       <XIconButton type="button" variant="ghost" label={t('drawer.moveScreenshotDown')} icon={<ArrowDown size={15} />} isDisabled={index === shots.length - 1} onClick={() => void moveScreenshot(shot.id, 1)} />
@@ -5249,7 +5396,7 @@ function AppDrawer({
           ) : (
             <EmptyState icon={Archive} title={t('drawer.noScreenshots')} />
           )}
-          {canMaintain && (
+          {canEditScreenshots && (
             <form className="comment-form screenshot-form" onSubmit={uploadScreenshot}>
               <FilePicker
                 label={t('drawer.uploadScreenshot')}
@@ -5298,36 +5445,38 @@ function AppDrawer({
             </div>
           )}
         </section>
-        <section>
-          <h3>{t('drawer.comments')}</h3>
-          {canComment ? (
-            <form className="comment-form rich-comment-form" onSubmit={(event) => void submitComment(event)}>
-              <XTextInput
-                label={t('drawer.commentPlaceholder')}
-                isLabelHidden
-                value={commentText}
-                placeholder={t('drawer.commentPlaceholder')}
-                onChange={setCommentText}
-              />
-              <XIconButton type="submit" variant="ghost" label={t('drawer.postComment')} icon={<MessageSquare size={17} />} isDisabled={!commentText.trim()} />
-            </form>
-          ) : !commentsAllowed ? (
-            <div className="comment-disabled-note" role="note">
-              <MessageSquareOff size={17} />
-              <span>{t('drawer.commentsDisabled')}</span>
-            </div>
-          ) : null}
-          <CommentList
-            comments={app.comments || []}
-            canReply={canComment}
-            replyTarget={replyTarget}
-            replyText={replyText}
-            onReplyTarget={setReplyTarget}
-            onReplyText={setReplyText}
-            onReply={(event, parentId) => void submitComment(event, parentId)}
-            onDelete={(commentID) => void deleteComment(commentID)}
-          />
-        </section>
+        {!isManageMode && (
+          <section>
+            <h3>{t('drawer.comments')}</h3>
+            {canComment ? (
+              <form className="comment-form rich-comment-form" onSubmit={(event) => void submitComment(event)}>
+                <XTextInput
+                  label={t('drawer.commentPlaceholder')}
+                  isLabelHidden
+                  value={commentText}
+                  placeholder={t('drawer.commentPlaceholder')}
+                  onChange={setCommentText}
+                />
+                <XIconButton type="submit" variant="ghost" label={t('drawer.postComment')} icon={<MessageSquare size={17} />} isDisabled={!commentText.trim()} />
+              </form>
+            ) : !commentsAllowed ? (
+              <div className="comment-disabled-note" role="note">
+                <MessageSquareOff size={17} />
+                <span>{t('drawer.commentsDisabled')}</span>
+              </div>
+            ) : null}
+            <CommentList
+              comments={app.comments || []}
+              canReply={canComment}
+              replyTarget={replyTarget}
+              replyText={replyText}
+              onReplyTarget={setReplyTarget}
+              onReplyText={setReplyText}
+              onReply={(event, parentId) => void submitComment(event, parentId)}
+              onDelete={(commentID) => void deleteComment(commentID)}
+            />
+          </section>
+        )}
       </article>
     </section>
   );

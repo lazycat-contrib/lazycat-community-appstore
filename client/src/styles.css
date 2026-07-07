@@ -2138,6 +2138,28 @@ body,
   max-width: 980px;
 }
 
+.management-app-list {
+  max-width: 100%;
+}
+
+.management-app-row {
+  max-width: 100%;
+}
+
+.management-row-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.fixed-row-button {
+  flex: 0 0 92px;
+  width: 92px;
+  min-width: 92px;
+  max-width: 104px;
+  height: 36px;
+  justify-content: center;
+}
+
 .horizontal-control-scroll {
   max-width: 100%;
   min-width: 0;
@@ -2938,14 +2960,89 @@ body,
   background: var(--subtle-surface);
 }
 
+.server-detail-page.manage-mode {
+  gap: 14px;
+}
+
+.management-overview {
+  display: grid;
+  gap: 12px;
+}
+
+.management-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .maintenance-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 14px;
+  align-items: start;
+}
+
+.maintenance-grid.single-column {
+  grid-template-columns: minmax(0, 760px);
+}
+
+.maintenance-main,
+.maintenance-side {
+  min-width: 0;
+  display: grid;
   gap: 12px;
+  align-content: start;
+}
+
+.app-info-panel,
+.version-publish-panel,
+.visibility-panel,
+.collaborator-panel {
+  min-width: 0;
+}
+
+.app-info-panel {
+  background: var(--surface);
+}
+
+.app-info-panel > button,
+.version-publish-panel > button,
+.visibility-panel > button {
+  justify-self: start;
+  min-width: 150px;
+}
+
+.version-publish-panel .submission-readiness {
+  grid-template-columns: 1fr;
+}
+
+.version-publish-panel .readiness-step {
+  padding: 9px 10px;
+}
+
+.version-publish-panel .artifact-mode {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.version-publish-panel .artifact-mode > * {
+  min-width: 0;
+}
+
+.visibility-panel .checkbox-list {
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.collaborator-panel .empty-state {
+  min-height: 128px;
+  padding: 16px;
 }
 
 .nested-panel {
   background: var(--field);
+}
+
+.nested-panel.app-info-panel {
+  background: var(--surface);
 }
 
 .checkbox-list {
@@ -3475,6 +3572,17 @@ code {
   .source-version-row .row-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .management-row-actions {
+    justify-content: flex-start;
+  }
+
+  .fixed-row-button {
+    flex-basis: 96px;
+    width: 96px;
+    min-width: 96px;
+    max-width: 112px;
   }
 
   .detail-summary {
