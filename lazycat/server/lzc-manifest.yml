@@ -1,5 +1,5 @@
 usage: |
-  打开应用后使用部署参数中设置的管理员账号登录。
+  打开应用后访问 /login，会自动使用部署参数中设置的管理员账号登录；如未自动完成，可手动使用该账号登录。
   软件源地址为 /source/v1/index.json，可被独立客户端或其他订阅方使用。
 
 application:
@@ -36,6 +36,25 @@ application:
     start_period: 10s
     timeout: 5s
   injects:
+    - id: appstore-admin-login-autofill
+      on: browser
+      when:
+        - /login*
+      unless:
+        - /login?mode=register
+        - /login?mode=verify
+      do:
+        - src: builtin://simple-inject-password
+          params:
+            user: "{{ .U.admin_username }}"
+            password: "{{ .U.admin_password }}"
+            userSelector: input[name="username"]
+            passwordSelector: input[name="password"]
+            formSelector: .auth-panel
+            submitSelector: .auth-panel button[type="submit"]
+            onlyFillEmpty: true
+            retryCount: 20
+            retryIntervalMs: 300
     - id: open-save-chooser
       on: browser
       when:

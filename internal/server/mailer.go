@@ -97,7 +97,7 @@ func (s *Server) sendVerificationEmail(ctx context.Context, to, token string) er
 	if !s.emailDeliveryConfigured(ctx) || strings.TrimSpace(to) == "" {
 		return nil
 	}
-	verifyURL := strings.TrimRight(s.sitePublicURL(ctx), "/") + "/verify?token=" + token
+	verifyURL := strings.TrimRight(s.sitePublicURL(ctx), "/") + "/login?mode=verify&token=" + token
 	body := fmt.Sprintf("Open this link to verify your LazyCat Private Store account:\n\n%s\n\nIf the client does not handle this link yet, paste this token in the verification form:\n\n%s\n", verifyURL, token)
 	return s.sendEmail(ctx, to, "Verify your LazyCat Private Store email", body)
 }

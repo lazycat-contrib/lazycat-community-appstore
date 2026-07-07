@@ -997,6 +997,9 @@ func TestEmailVerificationFlow(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("verify email status = %d, body = %s", rec.Code, rec.Body.String())
 	}
+	if len(rec.Result().Cookies()) == 0 {
+		t.Fatal("verify email did not set a session cookie")
+	}
 	verified := app.server.db.User.Query().Where(user.UsernameEQ("verify-me")).OnlyX(t.Context())
 	if !verified.EmailVerified {
 		t.Fatal("user email was not verified")
@@ -1334,6 +1337,50 @@ func TestInspectLPKURLRetriesConfiguredGitHubMirrors(t *testing.T) {
 		t.Fatalf("mirror hits first=%d second=%d, want 1/1", firstHits, secondHits)
 	}
 	if inspected.Metadata.PackageID != "cloud.lazycat.test.mirror-retry" || inspected.Metadata.Version != "1.0.0" {
+		t.Fatalf("unexpected metadata: %+v", inspected.Metadata)
+	}
+}
+
+func TestInspectLPKURLGivesEachCandidateSeparateTimeout(t *testing.T) {
+	originalCandidateTimeout := lpkFetchCandidateTimeout
+	originalTotalTimeout := lpkInspectionTotalTimeout
+	lpkFetchCandidateTimeout = 30 * time.Millisecond
+	lpkInspectionTotalTimeout = 2 * time.Second
+	t.Cleanup(func() {
+		lpkFetchCandidateTimeout = originalCandidateTimeout
+		lpkInspectionTotalTimeout = originalTotalTimeout
+	})
+
+	app := newTestApp(t)
+	app.server.allowPrivateLPKURLHosts = true
+	ctx := t.Context()
+	lpk := testLPKArchive(t, "cloud.lazycat.test.mirror-timeout", "1.0.0", "Mirror Timeout", "Fetched after a timed out mirror")
+	firstHits := 0
+	secondHits := 0
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		firstHits++
+		time.Sleep(200 * time.Millisecond)
+		_, _ = w.Write([]byte("late"))
+	}))
+	defer first.Close()
+	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		secondHits++
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(lpk)
+	}))
+	defer second.Close()
+	if err := app.server.setSetting(ctx, settingGitHubDownloadMirrors, "Slow=>"+first.URL+"\nFast=>"+second.URL); err != nil {
+		t.Fatalf("set mirrors: %v", err)
+	}
+
+	inspected, err := app.server.inspectLPKURL(ctx, "https://github.com/acme/retry/releases/download/v1/app.lpk", int64(len(lpk)+1024), true)
+	if err != nil {
+		t.Fatalf("inspect with per-candidate timeout: %v", err)
+	}
+	if firstHits != 1 || secondHits != 1 {
+		t.Fatalf("mirror hits first=%d second=%d, want 1/1", firstHits, secondHits)
+	}
+	if inspected.Metadata.PackageID != "cloud.lazycat.test.mirror-timeout" {
 		t.Fatalf("unexpected metadata: %+v", inspected.Metadata)
 	}
 }
@@ -2136,6 +2183,46 @@ func TestCollaboratorRequestListIncludesRequesterProfile(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, `"username":"collab-requester"`) || !strings.Contains(body, `"email":"requester@example.com"`) || !strings.Contains(body, `"userId":`) {
 		t.Fatalf("collaborator request profile missing: %s", body)
+	}
+}
+
+func TestMyCollaborationHidesOwnedAppsWithoutCollaborationRecords(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	owner := app.server.db.User.Create().SetUsername("collab-filter-owner").SetPasswordHash("x").SaveX(ctx)
+	member := app.server.db.User.Create().SetUsername("collab-filter-member").SetPasswordHash("x").SaveX(ctx)
+	app.server.db.App.Create().
+		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.empty-collab").
+		SetName("Empty Collab").
+		SetSlug("empty-collab").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	withCollaborator := app.server.db.App.Create().
+		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.with-collab").
+		SetName("With Collab").
+		SetSlug("with-collab").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	app.server.db.Collaborator.Create().SetAppID(withCollaborator.ID).SetUserID(member.ID).SaveX(ctx)
+
+	app.cookies = []*http.Cookie{app.serverCookieFor(owner.ID)}
+	rec := app.do(http.MethodGet, "/api/v1/me/collaboration", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("my collaboration status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Owned []ownedCollaborationDTO `json:"owned"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode my collaboration: %v", err)
+	}
+	if len(payload.Owned) != 1 {
+		t.Fatalf("owned collaboration count = %d, body = %s", len(payload.Owned), rec.Body.String())
+	}
+	if payload.Owned[0].App.ID != withCollaborator.ID {
+		t.Fatalf("owned collaboration app = %q, want %q", payload.Owned[0].App.Name, withCollaborator.Name)
 	}
 }
 

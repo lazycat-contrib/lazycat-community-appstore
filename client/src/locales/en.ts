@@ -28,7 +28,7 @@ const en = {
         newAnnouncement: 'Site announcement updated',
         dismissAnnouncement: 'Dismiss site announcement',
         announcementLink: 'View details',
-        footer: '© {{url}}',
+        footer: '© {{year}} {{name}}',
         serverVersion: 'Server version {{version}}',
         announcementLevels: {
           info: 'Notice',

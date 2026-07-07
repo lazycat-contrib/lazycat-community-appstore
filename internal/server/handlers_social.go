@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
-	"net/mail"
 	"net/http"
+	"net/mail"
 	"net/url"
 	"strconv"
 	"strings"
@@ -604,6 +604,9 @@ func (s *Server) handleMyCollaboration(w http.ResponseWriter, r *http.Request, u
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "COLLABORATION_LOAD_FAILED", "Could not load collaborator invites", nil)
 			return
+		}
+		if len(collaborators) == 0 && len(requests) == 0 && len(invites) == 0 {
+			continue
 		}
 		ownedRequests := make([]collaboratorRequestDTO, 0, len(requests))
 		for _, request := range requests {

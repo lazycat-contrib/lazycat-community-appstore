@@ -28,7 +28,7 @@ const zh = {
         newAnnouncement: '站点公告已更新',
         dismissAnnouncement: '关闭站点公告',
         announcementLink: '查看详情',
-        footer: '© {{url}}',
+        footer: '© {{year}} {{name}}',
         serverVersion: '服务端版本 {{version}}',
         announcementLevels: {
           info: '公告',

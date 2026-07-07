@@ -71,7 +71,7 @@ import {
   mirrorPresetText,
 } from './shared/constants';
 import { getAstryxTheme, type AstryxThemeName } from './shared/astryxThemes';
-import { AstryxThemeSelector, LanguageSelector, readAstryxThemeName, readSystemTheme, readThemeMode, ThemeToggle } from './shared/theme';
+import { AstryxThemeSelector, LanguageSelector, readAstryxThemeName, readSystemTheme, readThemeMode, ThemeToggle, type LanguageCode } from './shared/theme';
 import type {
   APITokenRecord,
   Category,
@@ -194,6 +194,7 @@ const clientTabs: NavItem[] = [
 
 type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string };
 type AppDetailMode = 'detail' | 'manage';
+type AuthMode = 'login' | 'register' | 'verify';
 type ProfileWorkspaceTab = 'overview' | 'apps' | 'collaboration' | 'manage' | 'tokens' | 'groups' | 'favorites';
 type ManagedUserDraft = {
   id?: number;
@@ -207,13 +208,31 @@ type ManagedUserDraft = {
 };
 
 function verificationTokenFromURL() {
-  if (!window.location.pathname.includes('verify')) return '';
-  return new URLSearchParams(window.location.search).get('token') || '';
+  const params = new URLSearchParams(window.location.search);
+  if (window.location.pathname.includes('verify')) return params.get('token') || '';
+  if (window.location.pathname === '/login' && params.get('mode') === 'verify') return params.get('token') || '';
+  return '';
 }
 
 function collaborationInviteTokenFromURL() {
   if (!window.location.pathname.includes('collaboration-invite')) return '';
   return new URLSearchParams(window.location.search).get('token') || '';
+}
+
+function currentRoute() {
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function authModeFromURL(): AuthMode {
+  if (verificationTokenFromURL()) return 'verify';
+  const mode = new URLSearchParams(window.location.search).get('mode');
+  return mode === 'register' || mode === 'verify' ? mode : 'login';
+}
+
+function returnToFromURL() {
+  const value = new URLSearchParams(window.location.search).get('returnTo') || '/';
+  if (!value.startsWith('/') || value.startsWith('//') || value.startsWith('/login')) return '/';
+  return value;
 }
 
 function usePreferredScreenshotDevice() {
@@ -338,6 +357,7 @@ function draftFromUser(user: User): ManagedUserDraft {
 
 export function App() {
   const { t } = useTranslation();
+  const [routeLocation, setRouteLocation] = useState(currentRoute);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readThemeMode);
   const [astryxThemeName, setAstryxThemeName] = useState(readAstryxThemeName);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(readSystemTheme);
@@ -391,8 +411,13 @@ export function App() {
   const serverNavItems = user ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : serverBaseTabs.filter((item) => item.key !== 'profile');
   const navItems = HAS_API ? serverNavItems : clientTabs;
   const siteTitle = HAS_API ? siteProfile.title : t('appName');
-  const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
+  const footerYear = new Date().getFullYear();
+  const siteFooterName = siteProfile.title || siteTitle;
+  const siteVersionTip = siteProfile.version ? t('site.serverVersion', { version: siteProfile.version }) : undefined;
+  const currentLanguage: LanguageCode = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
   const drawerOpen = false;
+  const routeURL = useMemo(() => new URL(routeLocation, window.location.origin), [routeLocation]);
+  const isLoginRoute = HAS_API && routeURL.pathname === '/login';
   const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
   const selectedAstryxTheme = useMemo(() => getAstryxTheme(astryxThemeName), [astryxThemeName]);
   const tagOptions = useMemo(() => knownAppTags(apps), [apps]);
@@ -407,7 +432,49 @@ export function App() {
 
   const [sources, setSources] = useState<SourceSubscription[]>([]);
 
+  function navigateRoute(path: string) {
+    window.history.pushState(null, '', path);
+    setRouteLocation(currentRoute());
+  }
+
+  function openLogin(returnTo = '/', options: { mode?: AuthMode; next?: 'submit' | 'admin' } = {}) {
+    const params = new URLSearchParams();
+    if (options.mode && options.mode !== 'login') params.set('mode', options.mode);
+    if (options.next) params.set('next', options.next);
+    if (returnTo && returnTo !== '/' && !returnTo.startsWith('/login')) {
+      params.set('returnTo', returnTo);
+    }
+    navigateRoute(`/login${params.size ? `?${params.toString()}` : ''}`);
+  }
+
+  function completeLogin(nextUser: User) {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get('next');
+    const returnTo = returnToFromURL();
+    navigateRoute(returnTo);
+    setSelectedApp(null);
+    setSelectedAppMode('detail');
+    setSelectedSourceApp(null);
+    if (next === 'submit') {
+      setTab('profile');
+      setOpenSubmitSignal((signal) => signal + 1);
+      return;
+    }
+    if (next === 'admin' && (nextUser.role === 'SOFTWARE_ADMIN' || nextUser.role === 'SITE_ADMIN')) {
+      setTab('admin');
+      return;
+    }
+    if (returnTo.startsWith('/collaboration-invite')) {
+      setTab('profile');
+      return;
+    }
+    setTab(returnTo.startsWith('/profile') ? 'profile' : returnTo.startsWith('/admin') ? 'admin' : 'home');
+  }
+
   function navigateTo(nextTab: TabKey) {
+    if (isLoginRoute) {
+      navigateRoute('/');
+    }
     setSelectedApp(null);
     setSelectedAppMode('detail');
     setSelectedSourceApp(null);
@@ -415,6 +482,10 @@ export function App() {
   }
 
   function openSubmitApp() {
+    if (HAS_API && !user) {
+      openLogin('/', { next: 'submit' });
+      return;
+    }
     setOpenSubmitSignal((signal) => signal + 1);
     navigateTo('profile');
   }
@@ -430,6 +501,12 @@ export function App() {
       installableSourceAppCount: sourceApps.filter(hasInstallableVersion).length,
     };
   }, [sources, sourceApps]);
+
+  useEffect(() => {
+    const handlePopState = () => setRouteLocation(currentRoute());
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     if (HAS_API && !user && tab === 'profile') {
@@ -514,6 +591,18 @@ export function App() {
   }, [toast]);
 
   useEffect(() => {
+    if (!HAS_API || isLoginRoute) return;
+    const verifyToken = verificationTokenFromURL();
+    if (verifyToken && window.location.pathname.includes('verify')) {
+      navigateRoute(`/login?mode=verify&token=${encodeURIComponent(verifyToken)}`);
+      return;
+    }
+    if (!user && collaborationInviteTokenFromURL()) {
+      openLogin(currentRoute());
+    }
+  }, [isLoginRoute, routeLocation, user]);
+
+  useEffect(() => {
     const token = collaborationInviteTokenFromURL();
     if (!HAS_API || !user || !token || acceptedCollaborationInviteRef.current === token) return;
     acceptedCollaborationInviteRef.current = token;
@@ -526,7 +615,7 @@ export function App() {
       await loadCollaborationData();
       await refreshAll({ silent: true });
     });
-  }, [user, t]);
+  }, [routeLocation, user, t]);
 
   async function refreshAll(options: { silent?: boolean } = {}) {
     if (!HAS_API) {
@@ -935,6 +1024,32 @@ export function App() {
     );
   }
 
+  if (HAS_API && isLoginRoute) {
+    return (
+      <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
+        <LoginPage
+          siteTitle={siteTitle}
+          siteProfile={siteProfile}
+          currentLanguage={currentLanguage}
+          themeMode={themeMode}
+          astryxThemeName={astryxThemeName}
+          onLanguageChange={(language) => void i18n.changeLanguage(language)}
+          onThemeModeChange={setThemeMode}
+          onAstryxThemeChange={setAstryxThemeName}
+          onBrowse={() => {
+            navigateRoute('/');
+            setTab('home');
+          }}
+          onAuthenticated={completeLogin}
+          setUser={setUser}
+          refreshAll={refreshAll}
+          setToast={setToast}
+        />
+        {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
+      </Theme>
+    );
+  }
+
   return (
     <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
     <div className="shell">
@@ -955,8 +1070,10 @@ export function App() {
           })}
         </XTabList>
         {HAS_API && siteProfile.publicUrl && (
-          <footer className="app-version" title={siteProfile.version ? t('site.serverVersion', { version: siteProfile.version }) : undefined} aria-label={siteProfile.version ? t('site.serverVersion', { version: siteProfile.version }) : undefined}>
-            {t('site.footer', { url: siteProfile.publicUrl })}
+          <footer className="app-version" title={siteVersionTip} aria-label={siteVersionTip}>
+            <a href={siteProfile.publicUrl} target="_blank" rel="noreferrer">
+              {t('site.footer', { year: footerYear, name: siteFooterName })}
+            </a>
           </footer>
         )}
       </aside>
@@ -1025,7 +1142,7 @@ export function App() {
                 )}
               </div>
             ) : HAS_API ? (
-              <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => navigateTo('profile')} />
+              <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => openLogin('/')} />
             ) : null}
           </div>
         </header>
@@ -1188,6 +1305,7 @@ export function App() {
                 onCollaborationRefresh={loadCollaborationData}
                 openSubmitSignal={openSubmitSignal}
                 onNavigate={navigateTo}
+                onLogin={() => openLogin('/profile')}
               />
             )}
             {tab === 'history' && !HAS_API && (
@@ -1214,7 +1332,7 @@ export function App() {
                   icon={ShieldCheck}
                   title={user ? t('admin.noPermission') : t('auth.loginRequired')}
                   body={user ? t('admin.noPermissionBody') : t('auth.loginRequiredBody')}
-                  action={!user ? { label: t('auth.login'), icon: LogIn, onClick: () => navigateTo('profile') } : undefined}
+                  action={!user ? { label: t('auth.login'), icon: LogIn, onClick: () => openLogin('/admin', { next: 'admin' }) } : undefined}
                 />
               )
             )}
@@ -1227,8 +1345,10 @@ export function App() {
       <MobileTabs tab={tab} setTab={navigateTo} items={navItems} inert={drawerOpen} />
 
       {HAS_API && siteProfile.publicUrl && (
-        <footer className="mobile-app-version" title={siteProfile.version ? t('site.serverVersion', { version: siteProfile.version }) : undefined} aria-label={siteProfile.version ? t('site.serverVersion', { version: siteProfile.version }) : undefined}>
-          {t('site.footer', { url: siteProfile.publicUrl })}
+        <footer className="mobile-app-version" title={siteVersionTip} aria-label={siteVersionTip}>
+          <a href={siteProfile.publicUrl} target="_blank" rel="noreferrer">
+            {t('site.footer', { year: footerYear, name: siteFooterName })}
+          </a>
         </footer>
       )}
 
@@ -2238,6 +2358,222 @@ function ProfileSettingsDialog({
   );
 }
 
+function LoginPage({
+  siteTitle,
+  siteProfile,
+  currentLanguage,
+  themeMode,
+  astryxThemeName,
+  onLanguageChange,
+  onThemeModeChange,
+  onAstryxThemeChange,
+  onBrowse,
+  onAuthenticated,
+  setUser,
+  refreshAll,
+  setToast,
+}: {
+  siteTitle: string;
+  siteProfile: SiteProfile;
+  currentLanguage: LanguageCode;
+  themeMode: ThemeMode;
+  astryxThemeName: AstryxThemeName;
+  onLanguageChange: (language: LanguageCode) => void;
+  onThemeModeChange: (mode: ThemeMode) => void;
+  onAstryxThemeChange: (name: AstryxThemeName) => void;
+  onBrowse: () => void;
+  onAuthenticated: (user: User) => void;
+  setUser: (user: User | null) => void;
+  refreshAll: (options?: { silent?: boolean }) => Promise<void>;
+  setToast: (toast: Toast) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="login-shell">
+      <header className="login-topbar">
+        <button type="button" className="brand login-brand" onClick={onBrowse}>
+          <div className="brand-mark">
+            {siteProfile.iconUrl ? <img src={siteProfile.iconUrl} alt="" /> : <Archive size={22} />}
+          </div>
+          <strong>{siteTitle}</strong>
+        </button>
+        <div className="top-actions">
+          <LanguageSelector value={currentLanguage} onChange={onLanguageChange} />
+          <ThemeToggle mode={themeMode} onChange={onThemeModeChange} />
+          <AstryxThemeSelector value={astryxThemeName} onChange={onAstryxThemeChange} />
+        </div>
+      </header>
+      <main className="login-main" id="main-content" tabIndex={-1}>
+        <AuthGateway
+          siteProfile={siteProfile}
+          setUser={setUser}
+          refreshAll={refreshAll}
+          setToast={setToast}
+          onBrowse={onBrowse}
+          onAuthenticated={onAuthenticated}
+        />
+      </main>
+    </div>
+  );
+}
+
+function AuthGateway({
+  siteProfile,
+  setUser,
+  refreshAll,
+  setToast,
+  onBrowse,
+  onAuthenticated,
+}: {
+  siteProfile: SiteProfile;
+  setUser: (user: User | null) => void;
+  refreshAll: (options?: { silent?: boolean }) => Promise<void>;
+  setToast: (toast: Toast) => void;
+  onBrowse: () => void;
+  onAuthenticated: (user: User) => void;
+}) {
+  const { t } = useTranslation();
+  const [mode, setMode] = useState<AuthMode>(authModeFromURL);
+  const [authForm, setAuthForm] = useState({ username: '', password: '', email: '', inviteCode: '' });
+  const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
+  const registrationMode = siteProfile.registration?.mode || 'open';
+  const registrationOpen = registrationMode !== 'closed';
+  const inviteRegistration = registrationMode === 'invite';
+  const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
+  const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
+  const authHint = mode === 'login'
+    ? t('auth.loginHint')
+    : mode === 'register'
+      ? t(inviteRegistration ? 'auth.registerInviteHint' : 'auth.registerHint')
+      : t('auth.verifyHint');
+  const AuthSubmitIcon = mode === 'verify' ? Check : mode === 'register' ? Plus : LogIn;
+  const requiredLabel = (label: string) => `${label} · ${t('common.required')}`;
+
+  useEffect(() => {
+    if (!registrationOpen && mode === 'register') {
+      setMode('login');
+    }
+  }, [mode, registrationOpen]);
+
+  useEffect(() => {
+    if (verifyToken) setMode('verify');
+  }, [verifyToken]);
+
+  async function submitVerification(event: FormEvent) {
+    event.preventDefault();
+    await runAction(setToast, t('auth.verifyFailed'), async () => {
+      const data = await api<{ user: User }>('/api/v1/auth/verify-email', {
+        method: 'POST',
+        body: JSON.stringify({ token: verifyToken }),
+      });
+      setUser(data.user);
+      setToast({ tone: 'success', message: t('auth.emailVerified') });
+      await refreshAll({ silent: true });
+      onAuthenticated(data.user);
+    });
+  }
+
+  async function submitAuth(event: FormEvent) {
+    event.preventDefault();
+    if (mode === 'verify') {
+      await submitVerification(event);
+      return;
+    }
+    await runAction(setToast, mode === 'login' ? t('auth.loginFailed') : t('auth.registerFailed'), async () => {
+      const body = mode === 'login' ? { username: authForm.username, password: authForm.password } : authForm;
+      const data = await api<{ user: User }>(`/api/v1/auth/${mode}`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      setUser(data.user);
+      if (data.user.emailVerified === false) {
+        setMode('verify');
+        setToast({ tone: 'neutral', message: t('auth.completeEmailVerification') });
+      } else {
+        setToast({ tone: 'success', message: mode === 'login' ? t('auth.loggedIn') : t('auth.registered') });
+        onAuthenticated(data.user);
+      }
+      await refreshAll({ silent: true });
+    });
+  }
+
+  return (
+    <section className="page-grid auth-gateway login-auth-gateway">
+      <div className="page-heading">
+        <span className="eyebrow subtle">{t('auth.entryEyebrow')}</span>
+        <h1>{t('auth.entryTitle')}</h1>
+        <p>{t('auth.entryBody')}</p>
+      </div>
+      <div className="split auth-split">
+        <form className="panel form-panel profile-panel auth-panel" onSubmit={submitAuth}>
+          <SectionTitle icon={KeyRound} title={mode === 'verify' ? t('auth.verifyEmail') : authModeLabel} />
+          <p className="inline-note">{authHint}</p>
+          <XToggleButtonGroup value={mode} onChange={(value) => value && setMode(value as AuthMode)} label={t('auth.modeSwitch')} size="sm">
+            <XToggleButton value="login" label={t('auth.login')} />
+            {registrationOpen && <XToggleButton value="register" label={t('auth.register')} />}
+            <XToggleButton value="verify" label={t('auth.verify')} />
+          </XToggleButtonGroup>
+          {mode === 'verify' ? (
+            <XTextInput htmlName="token" label={requiredLabel(t('auth.verifyToken'))} value={verifyToken} isRequired onChange={setVerifyToken} />
+          ) : (
+            <>
+              <XTextInput htmlName="username" label={requiredLabel(t('common.username'))} value={authForm.username} isRequired onChange={(value) => setAuthForm({ ...authForm, username: value })} />
+              {mode === 'register' && (
+                <XTextInput htmlName="email" type="email" label={t('common.email')} value={authForm.email} onChange={(value) => setAuthForm({ ...authForm, email: value })} />
+              )}
+              {mode === 'register' && inviteRegistration && (
+                <XTextInput htmlName="inviteCode" label={requiredLabel(t('auth.inviteCode'))} value={authForm.inviteCode} isRequired onChange={(value) => setAuthForm({ ...authForm, inviteCode: value })} />
+              )}
+              <XTextInput
+                htmlName="password"
+                type="password"
+                label={requiredLabel(t('common.password'))}
+                description={mode === 'register' ? t('auth.passwordHelp') : undefined}
+                value={authForm.password}
+                isRequired
+                onChange={(value) => setAuthForm({ ...authForm, password: value })}
+              />
+            </>
+          )}
+          <XButton type="submit" variant="primary" label={authSubmitLabel} icon={<AuthSubmitIcon size={18} />} />
+        </form>
+
+        <section className="panel auth-path-panel">
+          <SectionTitle icon={Users} title={t('auth.entryPaths')} />
+          <div className="auth-path-list">
+            <div className="auth-path-row">
+              <Search size={19} />
+              <div>
+                <strong>{t('auth.pathBrowseTitle')}</strong>
+                <span>{t('auth.pathBrowseBody')}</span>
+              </div>
+              <XButton className="auth-path-action" type="button" variant="secondary" size="sm" label={t('auth.pathBrowseAction')} icon={<Home size={17} />} onClick={onBrowse} />
+            </div>
+            {registrationOpen && (
+              <div className="auth-path-row">
+                <PackagePlus size={19} />
+                <div>
+                  <strong>{t('auth.pathSubmitTitle')}</strong>
+                  <span>{t(inviteRegistration ? 'auth.pathSubmitInviteBody' : 'auth.pathSubmitBody')}</span>
+                </div>
+                <XButton className="auth-path-action" type="button" variant="secondary" size="sm" label={t('auth.pathSubmitAction')} icon={<Plus size={17} />} onClick={() => setMode('register')} />
+              </div>
+            )}
+            <div className="auth-path-row">
+              <ShieldCheck size={19} />
+              <div>
+                <strong>{t('auth.pathAdminTitle')}</strong>
+                <span>{t('auth.pathAdminBody')}</span>
+              </div>
+              <XButton className="auth-path-action" type="button" variant="secondary" size="sm" label={t('auth.pathAdminAction')} icon={<LogIn size={17} />} onClick={() => setMode('login')} />
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
 function ProfileView({
   user,
   setUser,
@@ -2263,6 +2599,7 @@ function ProfileView({
   tagOptions,
   openSubmitSignal,
   onNavigate,
+  onLogin,
 }: {
   user: User | null;
   setUser: (user: User | null) => void;
@@ -2288,13 +2625,12 @@ function ProfileView({
   tagOptions: string[];
   openSubmitSignal: number;
   onNavigate: (tab: TabKey) => void;
+  onLogin: () => void;
 }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
   const [workspaceTab, setWorkspaceTab] = useState<ProfileWorkspaceTab>(() => (collaborationInviteTokenFromURL() ? 'collaboration' : 'overview'));
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
   const [managedSubmitter, setManagedSubmitter] = useState('all');
-  const [authForm, setAuthForm] = useState({ username: '', password: '', email: '', inviteCode: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
   const [uploadForm, setUploadForm] = useState({
     name: '',
@@ -2327,18 +2663,6 @@ function ProfileView({
   const [isTokenHelpOpen, setIsTokenHelpOpen] = useState(false);
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
   const [commentNotifications, setCommentNotifications] = useState<CommentNotification[]>([]);
-  const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
-  const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
-  const registrationMode = siteProfile.registration?.mode || 'open';
-  const registrationOpen = registrationMode !== 'closed';
-  const inviteRegistration = registrationMode === 'invite';
-  const authHint = mode === 'login'
-    ? t('auth.loginHint')
-    : mode === 'register'
-      ? t(inviteRegistration ? 'auth.registerInviteHint' : 'auth.registerHint')
-      : t('auth.verifyHint');
-  const AuthSubmitIcon = mode === 'verify' ? Check : mode === 'register' ? Plus : LogIn;
-  const requiredLabel = (label: string) => `${label} · ${t('common.required')}`;
   const canUseManagementWorkspace = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const workspaceTabs = [
     { key: 'overview' as const, label: t('profile.tabs.overview'), icon: Gauge },
@@ -2463,20 +2787,6 @@ function ProfileView({
     void loadFavorites();
   }, [user]);
 
-  useEffect(() => {
-    if (verifyToken) setMode('verify');
-  }, [verifyToken]);
-
-  useEffect(() => {
-    if (!registrationOpen && mode === 'register') {
-      setMode('login');
-    }
-  }, [mode, registrationOpen]);
-
-  useEffect(() => {
-    if (user?.emailVerified === false) setMode('verify');
-  }, [user]);
-
   async function submitVerification(event: FormEvent) {
     event.preventDefault();
     await runAction(setToast, t('auth.verifyFailed'), async () => {
@@ -2486,32 +2796,6 @@ function ProfileView({
       });
       setUser(data.user);
       setToast({ tone: 'success', message: t('auth.emailVerified') });
-      await refreshAll();
-    });
-  }
-
-  async function submitAuth(event: FormEvent) {
-    event.preventDefault();
-    if (mode === 'verify') {
-      await submitVerification(event);
-      return;
-    }
-    await runAction(setToast, mode === 'login' ? t('auth.loginFailed') : t('auth.registerFailed'), async () => {
-      const body =
-        mode === 'login'
-          ? { username: authForm.username, password: authForm.password }
-          : authForm;
-      const data = await api<{ user: User }>(`/api/v1/auth/${mode}`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-      setUser(data.user);
-      if (data.user.emailVerified === false) {
-        setMode('verify');
-        setToast({ tone: 'neutral', message: t('auth.completeEmailVerification') });
-      } else {
-        setToast({ tone: 'success', message: mode === 'login' ? t('auth.loggedIn') : t('auth.registered') });
-      }
       await refreshAll();
     });
   }
@@ -2753,77 +3037,13 @@ function ProfileView({
 
   if (!user) {
     return (
-      <section className="page-grid auth-gateway">
-        <div className="page-heading">
-          <span className="eyebrow subtle">{t('auth.entryEyebrow')}</span>
-          <h1>{t('auth.entryTitle')}</h1>
-          <p>{t('auth.entryBody')}</p>
-        </div>
-        <div className="split auth-split">
-          <form className="panel form-panel profile-panel auth-panel" onSubmit={submitAuth}>
-            <SectionTitle icon={KeyRound} title={mode === 'verify' ? t('auth.verifyEmail') : authModeLabel} />
-            <p className="inline-note">{authHint}</p>
-            <XToggleButtonGroup value={mode} onChange={(value) => value && setMode(value as typeof mode)} label={t('auth.modeSwitch')} size="sm">
-              <XToggleButton value="login" label={t('auth.login')} />
-              {registrationOpen && <XToggleButton value="register" label={t('auth.register')} />}
-              <XToggleButton value="verify" label={t('auth.verify')} />
-            </XToggleButtonGroup>
-            {mode === 'verify' ? (
-              <XTextInput label={requiredLabel(t('auth.verifyToken'))} value={verifyToken} isRequired onChange={setVerifyToken} />
-            ) : (
-              <>
-                <XTextInput label={requiredLabel(t('common.username'))} value={authForm.username} isRequired onChange={(value) => setAuthForm({ ...authForm, username: value })} />
-                {mode === 'register' && (
-                  <XTextInput type="email" label={t('common.email')} value={authForm.email} onChange={(value) => setAuthForm({ ...authForm, email: value })} />
-                )}
-                {mode === 'register' && inviteRegistration && (
-                  <XTextInput label={requiredLabel(t('auth.inviteCode'))} value={authForm.inviteCode} isRequired onChange={(value) => setAuthForm({ ...authForm, inviteCode: value })} />
-                )}
-                <XTextInput
-                  type="password"
-                  label={requiredLabel(t('common.password'))}
-                  description={mode === 'register' ? t('auth.passwordHelp') : undefined}
-                  value={authForm.password}
-                  isRequired
-                  onChange={(value) => setAuthForm({ ...authForm, password: value })}
-                />
-              </>
-            )}
-            <XButton type="submit" variant="primary" label={authSubmitLabel} icon={<AuthSubmitIcon size={18} />} />
-          </form>
-
-          <section className="panel auth-path-panel">
-            <SectionTitle icon={Users} title={t('auth.entryPaths')} />
-            <div className="auth-path-list">
-              <div className="auth-path-row">
-                <Search size={19} />
-                <div>
-                  <strong>{t('auth.pathBrowseTitle')}</strong>
-                  <span>{t('auth.pathBrowseBody')}</span>
-                </div>
-                <XButton className="auth-path-action" type="button" variant="secondary" size="sm" label={t('auth.pathBrowseAction')} icon={<Home size={17} />} onClick={() => onNavigate('home')} />
-              </div>
-              {registrationOpen && (
-                <div className="auth-path-row">
-                  <PackagePlus size={19} />
-                  <div>
-                    <strong>{t('auth.pathSubmitTitle')}</strong>
-                    <span>{t(inviteRegistration ? 'auth.pathSubmitInviteBody' : 'auth.pathSubmitBody')}</span>
-                  </div>
-                  <XButton className="auth-path-action" type="button" variant="secondary" size="sm" label={t('auth.pathSubmitAction')} icon={<Plus size={17} />} onClick={() => setMode('register')} />
-                </div>
-              )}
-              <div className="auth-path-row">
-                <ShieldCheck size={19} />
-                <div>
-                  <strong>{t('auth.pathAdminTitle')}</strong>
-                  <span>{t('auth.pathAdminBody')}</span>
-                </div>
-                <XButton className="auth-path-action" type="button" variant="secondary" size="sm" label={t('auth.pathAdminAction')} icon={<LogIn size={17} />} onClick={() => setMode('login')} />
-              </div>
-            </div>
-          </section>
-        </div>
+      <section className="page-grid">
+        <EmptyState
+          icon={LogIn}
+          title={t('auth.loginRequired')}
+          body={t('auth.loginRequiredBody')}
+          action={{ label: t('auth.login'), icon: LogIn, onClick: onLogin }}
+        />
       </section>
     );
   }
@@ -3146,6 +3366,9 @@ function CollaborationPanel({
     await onRefresh();
     await onListRefresh({ silent: true });
   };
+  const ownedCollaboration = data.owned.filter(
+    (item) => item.collaborators.length > 0 || item.requests.length > 0 || item.invites.length > 0,
+  );
 
   async function copyInvite(invite: CollaboratorInvite) {
     await runAction(setToast, t('profile.inviteCopyFailed'), async () => {
@@ -3243,10 +3466,10 @@ function CollaborationPanel({
       <section className="panel">
         <SectionTitle icon={UserPlus} title={t('profile.ownedCollaboration')} />
         <div className="collaboration-owned-list">
-          {data.owned.length === 0 ? (
+          {ownedCollaboration.length === 0 ? (
             <EmptyState icon={UserPlus} title={t('profile.noOwnedCollaboration')} />
           ) : (
-            data.owned.map((item) => {
+            ownedCollaboration.map((item) => {
               const inviteDraft = inviteDrafts[item.app.id] || { email: '', sendEmail: false };
               return (
                 <article className="nested-panel collaboration-app-panel" key={item.app.id}>

@@ -199,6 +199,7 @@ func (s *Server) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			_ = s.setSetting(r.Context(), key, "")
+			s.setSession(w, updated.ID)
 			writeJSON(w, http.StatusOK, map[string]any{"user": toPublicUser(updated)})
 			return
 		}

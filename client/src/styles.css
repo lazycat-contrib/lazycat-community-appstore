@@ -18,12 +18,12 @@
   --surface: var(--color-background-card);
   --field: var(--color-background-surface);
   --subtle-surface: var(--color-background-muted);
-  --green: var(--color-success);
+  --green: var(--color-text-green);
   --green-strong: var(--color-accent);
-  --mint: var(--color-success-muted);
+  --mint: var(--color-background-green);
   --blue: var(--color-text-blue);
-  --red: var(--color-error);
-  --amber: var(--color-warning);
+  --red: var(--color-text-red);
+  --amber: var(--color-text-yellow);
   --on-strong: var(--color-on-accent);
   --sidebar-bg: var(--color-background-surface);
   --sidebar-ink: var(--color-text-primary);
@@ -43,14 +43,18 @@
   --hero-stripe-a: var(--color-background-card);
   --hero-stripe-b: var(--color-background-muted);
   --hero-glass: var(--color-background-surface);
-  --status-success-bg: var(--color-success-muted);
-  --status-success-line: var(--color-success);
+  --status-success-bg: var(--color-background-green);
+  --status-success-ink: var(--color-text-green);
+  --status-success-line: var(--color-border-green);
   --status-info-bg: var(--color-background-blue);
+  --status-info-ink: var(--color-text-blue);
   --status-info-line: var(--color-border-blue);
-  --status-warning-bg: var(--color-warning-muted);
-  --status-warning-line: var(--color-warning);
-  --status-danger-bg: var(--color-error-muted);
-  --status-danger-line: var(--color-error);
+  --status-warning-bg: var(--color-background-yellow);
+  --status-warning-ink: var(--color-text-yellow);
+  --status-warning-line: var(--color-border-yellow);
+  --status-danger-bg: var(--color-background-red);
+  --status-danger-ink: var(--color-text-red);
+  --status-danger-line: var(--color-border-red);
   --avatar-bg: var(--color-accent-muted);
   --avatar-line: var(--color-border);
   --backdrop: var(--color-overlay);
@@ -238,6 +242,22 @@ body,
 
 .mobile-app-version {
   display: none;
+}
+
+.app-version a,
+.mobile-app-version a {
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.app-version a:hover,
+.app-version a:focus-visible,
+.mobile-app-version a:hover,
+.mobile-app-version a:focus-visible {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .main {
@@ -652,6 +672,7 @@ body,
   border: 1px solid var(--status-info-line);
   border-radius: 8px;
   background: var(--status-info-bg);
+  color: var(--status-info-ink);
   padding: 14px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -672,11 +693,13 @@ body,
 .announcement-banner.warning {
   border-color: var(--status-warning-line);
   background: var(--status-warning-bg);
+  color: var(--status-warning-ink);
 }
 
 .announcement-banner.success {
   border-color: var(--status-success-line);
   background: var(--status-success-bg);
+  color: var(--status-success-ink);
 }
 
 .announcement-banner strong,
@@ -1328,25 +1351,25 @@ body,
 }
 
 .status-badge.approved {
-  color: var(--green);
+  color: var(--status-success-ink);
   border-color: var(--status-success-line);
   background: var(--status-success-bg);
 }
 
 .status-badge.synced {
-  color: var(--green);
+  color: var(--status-success-ink);
   border-color: var(--status-success-line);
   background: var(--status-success-bg);
 }
 
 .status-badge.pending {
-  color: var(--blue);
+  color: var(--status-info-ink);
   border-color: var(--status-info-line);
   background: var(--status-info-bg);
 }
 
 .status-badge.syncing {
-  color: var(--blue);
+  color: var(--status-info-ink);
   border-color: var(--status-info-line);
   background: var(--status-info-bg);
 }
@@ -1354,7 +1377,7 @@ body,
 .status-badge.rejected,
 .status-badge.blocked,
 .status-badge.failed {
-  color: var(--red);
+  color: var(--status-danger-ink);
   border-color: var(--status-danger-line);
   background: var(--status-danger-bg);
 }
@@ -1364,7 +1387,7 @@ body,
 .status-badge.auth,
 .status-badge.stale,
 .status-badge.unsynced {
-  color: var(--amber);
+  color: var(--status-warning-ink);
   border-color: var(--status-warning-line);
   background: var(--status-warning-bg);
 }
@@ -1794,6 +1817,7 @@ body,
   border: 1px solid var(--status-warning-line);
   border-radius: 8px;
   background: var(--status-warning-bg);
+  color: var(--status-warning-ink);
   padding: 10px;
   display: grid;
   gap: 6px;
@@ -1803,6 +1827,7 @@ body,
 .readiness-step.ready {
   border-color: var(--status-success-line);
   background: var(--status-success-bg);
+  color: var(--status-success-ink);
 }
 
 .readiness-step strong {
@@ -1811,7 +1836,7 @@ body,
 }
 
 .readiness-step small {
-  color: var(--muted);
+  color: inherit;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -1897,12 +1922,62 @@ body,
   max-width: 460px;
 }
 
+.login-shell {
+  min-height: 100dvh;
+  background: var(--app-bg);
+  color: var(--ink);
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.login-topbar {
+  min-height: 68px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  padding: 12px clamp(16px, 3vw, 34px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.login-brand {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.login-brand strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.login-main {
+  width: min(1120px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: clamp(22px, 5vw, 58px) 0;
+}
+
 .auth-gateway .page-heading {
   max-width: 760px;
 }
 
+.login-auth-gateway {
+  align-content: center;
+}
+
 .auth-panel {
   align-content: start;
+}
+
+.auth-panel .inline-note {
+  color: var(--ink);
 }
 
 .auth-panel .astryx-field-label > span:has(> span[aria-hidden='true']) {
@@ -1949,7 +2024,7 @@ body,
 .auth-path-row span {
   display: block;
   margin-top: 4px;
-  color: var(--muted);
+  color: var(--ink);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -2239,13 +2314,13 @@ body,
 }
 
 .history-result.success {
-  color: var(--green);
+  color: var(--status-success-ink);
   border-color: var(--status-success-line);
   background: var(--status-success-bg);
 }
 
 .history-result.failed {
-  color: var(--red);
+  color: var(--status-danger-ink);
   border-color: var(--status-danger-line);
   background: var(--status-danger-bg);
 }
@@ -2447,7 +2522,7 @@ body,
   border-radius: 8px;
   display: grid;
   place-items: center;
-  color: var(--green);
+  color: var(--status-success-ink);
   background: var(--status-success-bg);
   border: 1px solid var(--status-success-line);
 }
@@ -2554,16 +2629,19 @@ body,
 .install-trust.ready {
   border-color: var(--status-success-line);
   background: var(--status-success-bg);
+  color: var(--status-success-ink);
 }
 
 .install-trust.caution {
   border-color: var(--status-warning-line);
   background: var(--status-warning-bg);
+  color: var(--status-warning-ink);
 }
 
 .install-trust.blocked {
   border-color: var(--status-danger-line);
   background: var(--status-danger-bg);
+  color: var(--status-danger-ink);
 }
 
 .install-trust-lead {
@@ -2574,16 +2652,16 @@ body,
 }
 
 .install-trust-lead > svg {
-  color: var(--green);
+  color: var(--status-success-ink);
   margin-top: 2px;
 }
 
 .install-trust.caution .install-trust-lead > svg {
-  color: var(--amber);
+  color: var(--status-warning-ink);
 }
 
 .install-trust.blocked .install-trust-lead > svg {
-  color: var(--red);
+  color: var(--status-danger-ink);
 }
 
 .install-trust-lead strong,
@@ -2600,7 +2678,7 @@ body,
 .install-trust-lead span {
   display: block;
   margin-top: 4px;
-  color: var(--muted);
+  color: inherit;
   font-size: 13px;
   line-height: 1.45;
 }
@@ -2608,7 +2686,7 @@ body,
 .install-trust-lead small {
   display: block;
   margin-top: 6px;
-  color: var(--ink);
+  color: inherit;
   font-size: 12px;
   line-height: 1.45;
 }
@@ -2625,6 +2703,7 @@ body,
 .outdated-state.active {
   border-color: var(--status-warning-line);
   background: var(--status-warning-bg);
+  color: var(--status-warning-ink);
 }
 
 .outdated-state-head {
@@ -2635,7 +2714,7 @@ body,
 }
 
 .outdated-state-head > svg {
-  color: var(--amber);
+  color: var(--status-warning-ink);
   margin-top: 2px;
 }
 
@@ -2646,13 +2725,12 @@ body,
 }
 
 .outdated-state-head strong {
-  color: var(--ink);
   line-height: 1.25;
 }
 
 .outdated-state-head span {
   margin-top: 4px;
-  color: var(--muted);
+  color: inherit;
   font-size: 13px;
   line-height: 1.45;
 }
@@ -3437,15 +3515,15 @@ body,
 }
 
 .toast.success {
-  background: var(--color-success-muted);
-  border-color: var(--color-success);
-  color: var(--color-text-primary);
+  background: var(--status-success-bg);
+  border-color: var(--status-success-line);
+  color: var(--status-success-ink);
 }
 
 .toast.error {
-  background: var(--color-error-muted);
-  border-color: var(--color-error);
-  color: var(--color-text-primary);
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger-line);
+  color: var(--status-danger-ink);
 }
 
 .toast.neutral {

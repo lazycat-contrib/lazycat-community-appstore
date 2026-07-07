@@ -27,6 +27,11 @@ type lpkInspection struct {
 	Size     int64
 }
 
+var (
+	lpkInspectionTotalTimeout = 90 * time.Second
+	lpkFetchCandidateTimeout  = 8 * time.Second
+)
+
 func parseUploadedLPKMetadata(file multipart.File, header *multipart.FileHeader, maxBytes int64) (lpkmeta.Metadata, error) {
 	if strings.ToLower(filepath.Ext(header.Filename)) != ".lpk" {
 		return lpkmeta.Metadata{}, storage.ErrInvalidLPK
@@ -46,7 +51,7 @@ func (s *Server) inspectLPKURL(ctx context.Context, rawURL string, maxBytes int6
 		return lpkInspection{}, errors.New("max LPK size must be positive")
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, lpkInspectionTotalTimeout)
 	defer cancel()
 	candidates, err := s.lpkFetchURLs(ctx, rawURL, useMirrorDownload)
 	if err != nil {
@@ -54,13 +59,19 @@ func (s *Server) inspectLPKURL(ctx context.Context, rawURL string, maxBytes int6
 	}
 	failures := make([]string, 0, len(candidates))
 	for _, parsed := range candidates {
-		inspected, err := s.inspectLPKFetchCandidate(ctx, parsed, maxBytes)
+		if err := ctx.Err(); err != nil {
+			failures = append(failures, fmt.Sprintf("%s: %v", parsed.Host, err))
+			break
+		}
+		candidateCtx, cancelCandidate := context.WithTimeout(ctx, lpkFetchCandidateTimeout)
+		inspected, err := s.inspectLPKFetchCandidate(candidateCtx, parsed, maxBytes)
+		cancelCandidate()
 		if err == nil {
 			return inspected, nil
 		}
 		failures = append(failures, fmt.Sprintf("%s: %v", parsed.Host, err))
 	}
-	return lpkInspection{}, fmt.Errorf("could not fetch LPK URL after trying %d candidate(s): %s", len(candidates), strings.Join(failures, "; "))
+	return lpkInspection{}, fmt.Errorf("could not fetch LPK URL after trying %d candidate(s): %s", len(candidates), summarizeLPKFetchFailures(failures))
 }
 
 func (s *Server) inspectLPKFetchCandidate(ctx context.Context, parsed *url.URL, maxBytes int64) (lpkInspection, error) {
@@ -170,6 +181,14 @@ func (s *Server) lpkFetchURLs(ctx context.Context, rawURL string, useMirrorDownl
 		return nil, err
 	}
 	return candidates, nil
+}
+
+func summarizeLPKFetchFailures(failures []string) string {
+	const maxVisible = 4
+	if len(failures) <= maxVisible {
+		return strings.Join(failures, "; ")
+	}
+	return strings.Join(failures[:maxVisible], "; ") + fmt.Sprintf("; ... %d more", len(failures)-maxVisible)
 }
 
 func parseHTTPDownloadURL(rawURL string) (*url.URL, error) {
