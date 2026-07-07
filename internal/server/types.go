@@ -33,6 +33,11 @@ type siteProfile struct {
 	PublicURL    string           `json:"publicUrl"`
 	SourceURL    string           `json:"sourceUrl"`
 	Announcement siteAnnouncement `json:"announcement"`
+	Registration siteRegistration `json:"registration"`
+}
+
+type siteRegistration struct {
+	Mode string `json:"mode"`
 }
 
 type siteAnnouncement struct {
@@ -98,6 +103,7 @@ type appDetail struct {
 	Comments         []comment    `json:"comments"`
 	Favorites        int          `json:"favorites"`
 	OutdatedMarks    int          `json:"outdatedMarks"`
+	OutdatedMarked   bool         `json:"outdatedMarked"`
 	CanManageApp     bool         `json:"canManageApp"`
 	CanUploadVersion bool         `json:"canUploadVersion"`
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -200,6 +202,62 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	wantURL := "https://ghproxy.example/https://github.com/org/notes/releases/download/a/notes.lpk"
 	if pm.req.DownloadURL != wantURL {
 		t.Fatalf("mirrored install URL = %q, want %q", pm.req.DownloadURL, wantURL)
+	}
+}
+
+func TestOutdatedMarkProxyForwardsClientIdentityAndBody(t *testing.T) {
+	var gotPath, gotProxy, gotDevice, gotPassword, gotBody string
+	sourceServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotProxy = r.Header.Get("X-LazyCat-Client-Proxy")
+		gotDevice = r.Header.Get("X-LazyCat-Client-Device-ID")
+		gotPassword = r.Header.Get("X-Source-Password")
+		raw, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read source request body: %v", err)
+		}
+		gotBody = string(raw)
+		writeJSON(w, http.StatusCreated, map[string]any{"outdatedMarks": 2})
+	}))
+	defer sourceServer.Close()
+
+	app := testServer(t)
+	ctx := context.Background()
+	source := app.server.db.ClientSource.Create().
+		SetUserID("alice").
+		SetName("Feed").
+		SetURL(sourceServer.URL + "/source/v1/index.json").
+		SetPassword("pw").
+		SaveX(ctx)
+	sourceApp := app.server.db.ClientSourceApp.Create().
+		SetSourceID(source.ID).
+		SetExternalID("7").
+		SetPackageID("cloud.lazycat.app.notes").
+		SetName("Notes").
+		SetSlug("notes").
+		SaveX(ctx)
+
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/client/v1/apps/%d/outdated-marks", sourceApp.ID), strings.NewReader(`{"note":"new upstream","installedVersion":"1.0.0"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-hc-user-id", "alice")
+	req.Header.Set("x-hc-device-id", "device-1")
+	rec := httptest.NewRecorder()
+	app.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("proxy outdated status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if gotPath != "/api/v1/apps/7/outdated-marks" {
+		t.Fatalf("source path = %q", gotPath)
+	}
+	if gotProxy != "lazycat-appstore-client" || gotDevice != "device-1" || gotPassword != "pw" {
+		t.Fatalf("missing forwarded headers: proxy=%q device=%q password=%q", gotProxy, gotDevice, gotPassword)
+	}
+	if !strings.Contains(gotBody, `"note":"new upstream"`) || !strings.Contains(gotBody, `"installedVersion":"1.0.0"`) {
+		t.Fatalf("source body = %q", gotBody)
+	}
+	if !strings.Contains(rec.Body.String(), `"outdatedMarks":2`) {
+		t.Fatalf("proxy response body = %s", rec.Body.String())
 	}
 }
 

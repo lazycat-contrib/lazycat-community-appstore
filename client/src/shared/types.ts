@@ -142,6 +142,17 @@ export type APITokenRecord = {
   createdAt?: string;
 };
 
+export type RegistrationInvite = {
+  id: number;
+  codePrefix: string;
+  note: string;
+  maxUses: number;
+  remainingUses: number;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SourceID = number | string;
 
 export type GitHubMirror = {
@@ -214,6 +225,7 @@ export type SourceApp = {
   categoryI18n?: Record<string, string>;
   iconUrl?: string;
   installProtected?: boolean;
+  outdatedMarks?: number;
   screenshots?: Screenshot[];
   latestVersion?: SourceVersion;
   versions?: SourceVersion[];
@@ -238,12 +250,19 @@ export type SiteAnnouncement = {
   updatedAt?: string;
 };
 
+export type RegistrationMode = 'open' | 'invite' | 'closed';
+
+export type SiteRegistration = {
+  mode: RegistrationMode;
+};
+
 export type SiteProfile = {
   title: string;
   iconUrl?: string;
   publicUrl: string;
   sourceUrl: string;
   announcement: SiteAnnouncement;
+  registration: SiteRegistration;
 };
 
 export type Toast = {

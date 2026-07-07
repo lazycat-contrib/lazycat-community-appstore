@@ -8,6 +8,7 @@ import (
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/appversion"
+	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/feed"
 )
@@ -70,6 +71,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 			Tags:             s.tagNames(r, record.ID),
 			InstallProtected: record.InstallPasswordHash != "",
 		}
+		appInput.OutdatedMarks, _ = s.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID)).Count(r.Context())
 		if record.IconURL != nil {
 			appInput.IconURL = *record.IconURL
 		}

@@ -29,11 +29,18 @@ const (
 	settingAnnouncementLinkLabel  = "announcement_link_label"
 	settingAnnouncementLinkURL    = "announcement_link_url"
 	settingAnnouncementUpdatedAt  = "announcement_updated_at"
+	settingRegistrationMode       = "registration_mode"
 	settingSMTPHost               = "smtp_host"
 	settingSMTPPort               = "smtp_port"
 	settingSMTPUser               = "smtp_user"
 	settingSMTPPass               = "smtp_pass"
 	settingSMTPFrom               = "smtp_from"
+)
+
+const (
+	registrationModeOpen   = "open"
+	registrationModeInvite = "invite"
+	registrationModeClosed = "closed"
 )
 
 func (s *Server) setting(ctx context.Context, key, fallback string) string {
@@ -125,6 +132,14 @@ func (s *Server) effectiveRequireEmailVerify(ctx context.Context) bool {
 	return value
 }
 
+func (s *Server) registrationMode(ctx context.Context) string {
+	mode := strings.ToLower(strings.TrimSpace(s.setting(ctx, settingRegistrationMode, registrationModeOpen)))
+	if validRegistrationMode(mode) {
+		return mode
+	}
+	return registrationModeOpen
+}
+
 func (s *Server) siteProfile(ctx context.Context) siteProfile {
 	publicURL := s.sitePublicURL(ctx)
 	title := strings.TrimSpace(s.setting(ctx, settingSiteTitle, ""))
@@ -150,6 +165,7 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 		PublicURL:    publicURL,
 		SourceURL:    publicURL + "/source/v1/index.json",
 		Announcement: announcement,
+		Registration: siteRegistration{Mode: s.registrationMode(ctx)},
 	}
 }
 
@@ -192,6 +208,15 @@ func isHTTPURLOrEmpty(value string) bool {
 func validAnnouncementLevel(value string) bool {
 	switch value {
 	case "info", "warning", "success":
+		return true
+	default:
+		return false
+	}
+}
+
+func validRegistrationMode(value string) bool {
+	switch value {
+	case registrationModeOpen, registrationModeInvite, registrationModeClosed:
 		return true
 	default:
 		return false

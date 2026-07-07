@@ -15,8 +15,8 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.DBDriver != "sqlite3" {
 		t.Fatalf("DBDriver = %q, want sqlite3", cfg.DBDriver)
 	}
-	if cfg.DBDSN != "./data/store.db" {
-		t.Fatalf("DBDSN = %q, want ./data/store.db", cfg.DBDSN)
+	if cfg.DBDSN != DefaultSQLiteDSN {
+		t.Fatalf("DBDSN = %q, want %q", cfg.DBDSN, DefaultSQLiteDSN)
 	}
 	if cfg.MaxLPKSize != 524288000 {
 		t.Fatalf("MaxLPKSize = %d, want 524288000", cfg.MaxLPKSize)

@@ -54,6 +54,8 @@ type Tx struct {
 	GroupMember *GroupMemberClient
 	// OutdatedMark is the client for interacting with the OutdatedMark builders.
 	OutdatedMark *OutdatedMarkClient
+	// RegistrationInvite is the client for interacting with the RegistrationInvite builders.
+	RegistrationInvite *RegistrationInviteClient
 	// ReviewRequest is the client for interacting with the ReviewRequest builders.
 	ReviewRequest *ReviewRequestClient
 	// SiteSetting is the client for interacting with the SiteSetting builders.
@@ -218,6 +220,7 @@ func (tx *Tx) init() {
 	tx.Favorite = NewFavoriteClient(tx.config)
 	tx.GroupMember = NewGroupMemberClient(tx.config)
 	tx.OutdatedMark = NewOutdatedMarkClient(tx.config)
+	tx.RegistrationInvite = NewRegistrationInviteClient(tx.config)
 	tx.ReviewRequest = NewReviewRequestClient(tx.config)
 	tx.SiteSetting = NewSiteSettingClient(tx.config)
 	tx.StorageConfig = NewStorageConfigClient(tx.config)

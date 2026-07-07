@@ -66,6 +66,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/client/v1/apps/{id}/comments", s.handleListSourceAppComments)
 	s.mux.HandleFunc("POST /api/client/v1/apps/{id}/comments", s.handleCreateSourceAppComment)
 	s.mux.HandleFunc("DELETE /api/client/v1/apps/{id}/comments/{commentId}", s.handleDeleteSourceAppComment)
+	s.mux.HandleFunc("POST /api/client/v1/apps/{id}/outdated-marks", s.handleMarkSourceAppOutdated)
+	s.mux.HandleFunc("DELETE /api/client/v1/apps/{id}/outdated-marks", s.handleClearSourceAppOutdated)
 	s.mux.HandleFunc("GET /api/client/v1/installed", s.handleInstalled)
 	s.mux.HandleFunc("POST /api/client/v1/install", s.handleInstall)
 	s.mux.HandleFunc("GET /api/client/v1/history", s.handleInstallHistory)

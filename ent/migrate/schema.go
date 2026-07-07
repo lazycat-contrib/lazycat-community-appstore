@@ -333,6 +333,7 @@ var (
 		{Name: "category_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "icon_url", Type: field.TypeString, Default: ""},
 		{Name: "install_protected", Type: field.TypeBool, Default: false},
+		{Name: "outdated_marks", Type: field.TypeInt, Default: 0},
 		{Name: "screenshots_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "latest_version_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "versions_json", Type: field.TypeString, Size: 2147483647, Default: ""},
@@ -348,7 +349,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "client_source_apps_client_sources_apps",
-				Columns:    []*schema.Column{ClientSourceAppsColumns[15]},
+				Columns:    []*schema.Column{ClientSourceAppsColumns[16]},
 				RefColumns: []*schema.Column{ClientSourcesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -357,17 +358,17 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_package_id",
 				Unique:  true,
-				Columns: []*schema.Column{ClientSourceAppsColumns[15], ClientSourceAppsColumns[2]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[16], ClientSourceAppsColumns[2]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_slug",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[15], ClientSourceAppsColumns[4]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[16], ClientSourceAppsColumns[4]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[15], ClientSourceAppsColumns[14]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[16], ClientSourceAppsColumns[15]},
 			},
 		},
 	}
@@ -672,6 +673,36 @@ var (
 			},
 		},
 	}
+	// RegistrationInvitesColumns holds the columns for the "registration_invites" table.
+	RegistrationInvitesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "code_hash", Type: field.TypeString, Unique: true},
+		{Name: "code_prefix", Type: field.TypeString},
+		{Name: "note", Type: field.TypeString, Default: ""},
+		{Name: "max_uses", Type: field.TypeInt, Default: 1},
+		{Name: "remaining_uses", Type: field.TypeInt, Default: 1},
+		{Name: "created_by", Type: field.TypeInt},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// RegistrationInvitesTable holds the schema information for the "registration_invites" table.
+	RegistrationInvitesTable = &schema.Table{
+		Name:       "registration_invites",
+		Columns:    RegistrationInvitesColumns,
+		PrimaryKey: []*schema.Column{RegistrationInvitesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "registrationinvite_code_prefix",
+				Unique:  false,
+				Columns: []*schema.Column{RegistrationInvitesColumns[2]},
+			},
+			{
+				Name:    "registrationinvite_created_by",
+				Unique:  false,
+				Columns: []*schema.Column{RegistrationInvitesColumns[6]},
+			},
+		},
+	}
 	// ReviewRequestsColumns holds the columns for the "review_requests" table.
 	ReviewRequestsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -841,6 +872,7 @@ var (
 		FavoritesTable,
 		GroupMembersTable,
 		OutdatedMarksTable,
+		RegistrationInvitesTable,
 		ReviewRequestsTable,
 		SiteSettingsTable,
 		StorageConfigsTable,

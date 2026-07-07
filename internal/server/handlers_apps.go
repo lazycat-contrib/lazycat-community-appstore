@@ -102,12 +102,11 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 	comments, _ := s.loadComments(r, record.ID)
 	detail.Comments = comments
 	detail.Favorites, _ = s.db.Favorite.Query().Where(favoritepkg.TargetTypeEQ(favoritepkg.TargetTypeAPP), favoritepkg.TargetIDEQ(record.ID)).Count(r.Context())
+	detail.OutdatedMarks, _ = s.db.OutdatedMark.Query().Where(outdatedpkg.AppIDEQ(record.ID)).Count(r.Context())
 	if u != nil {
 		detail.CanManageApp = isAdmin(u) || record.OwnerID == u.ID
 		detail.CanUploadVersion = detail.CanManageApp || s.isCollaborator(r, record.ID, u.ID)
-	}
-	if detail.CanUploadVersion {
-		detail.OutdatedMarks, _ = s.db.OutdatedMark.Query().Where(outdatedpkg.AppIDEQ(record.ID)).Count(r.Context())
+		detail.OutdatedMarked, _ = s.db.OutdatedMark.Query().Where(outdatedpkg.AppIDEQ(record.ID), outdatedpkg.UserIDEQ(u.ID)).Exist(r.Context())
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"app": detail})
 }
@@ -615,6 +614,7 @@ func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *e
 			Save(r.Context())
 	} else {
 		_ = s.db.App.UpdateOneID(record.ID).SetStatus(app.StatusAPPROVED).SaveX(r.Context())
+		s.clearAppOutdatedMarks(r, record.ID)
 		s.enforceVersionRetention(r, record.ID)
 	}
 	return created, nil
@@ -677,6 +677,7 @@ func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *e
 			Save(r.Context())
 	} else {
 		_, _ = s.db.App.UpdateOneID(record.ID).SetStatus(app.StatusAPPROVED).Save(r.Context())
+		s.clearAppOutdatedMarks(r, record.ID)
 		s.enforceVersionRetention(r, record.ID)
 	}
 	return created, nil
@@ -960,6 +961,10 @@ type screenshotOrderRequest struct {
 	} `json:"items"`
 }
 
+type screenshotUpdateRequest struct {
+	Caption string `json:"caption"`
+}
+
 func (s *Server) handleReorderScreenshots(w http.ResponseWriter, r *http.Request, u *entgo.User) {
 	appID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
@@ -997,6 +1002,46 @@ func (s *Server) handleReorderScreenshots(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"screenshots": shots})
+}
+
+func (s *Server) handleUpdateScreenshot(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	appID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		badRequest(w, err)
+		return
+	}
+	screenshotID, err := strconv.Atoi(r.PathValue("screenshotId"))
+	if err != nil {
+		badRequest(w, err)
+		return
+	}
+	record, err := s.db.App.Get(r.Context(), appID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+		return
+	}
+	if !s.canManageAppAssets(record, u) {
+		writeError(w, http.StatusForbidden, "FORBIDDEN", "Only app maintainers can update screenshots", nil)
+		return
+	}
+	var input screenshotUpdateRequest
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	shot, err := s.db.AppScreenshot.Get(r.Context(), screenshotID)
+	if err != nil || shot.AppID != appID {
+		writeError(w, http.StatusNotFound, "SCREENSHOT_NOT_FOUND", "Screenshot not found", nil)
+		return
+	}
+	updated, err := s.db.AppScreenshot.UpdateOneID(screenshotID).
+		SetCaption(strings.TrimSpace(input.Caption)).
+		Save(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "SCREENSHOT_UPDATE_FAILED", "Could not update screenshot", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"screenshot": toScreenshotDTO(updated)})
 }
 
 func (s *Server) handleDeleteScreenshot(w http.ResponseWriter, r *http.Request, u *entgo.User) {

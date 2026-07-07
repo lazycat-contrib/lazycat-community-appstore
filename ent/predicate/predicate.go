@@ -69,6 +69,9 @@ type GroupMember func(*sql.Selector)
 // OutdatedMark is the predicate function for outdatedmark builders.
 type OutdatedMark func(*sql.Selector)
 
+// RegistrationInvite is the predicate function for registrationinvite builders.
+type RegistrationInvite func(*sql.Selector)
+
 // ReviewRequest is the predicate function for reviewrequest builders.
 type ReviewRequest func(*sql.Selector)
 

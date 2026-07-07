@@ -105,6 +105,11 @@ func InstallProtected(v bool) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldInstallProtected, v))
 }
 
+// OutdatedMarks applies equality check predicate on the "outdated_marks" field. It's identical to OutdatedMarksEQ.
+func OutdatedMarks(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldOutdatedMarks, v))
+}
+
 // ScreenshotsJSON applies equality check predicate on the "screenshots_json" field. It's identical to ScreenshotsJSONEQ.
 func ScreenshotsJSON(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldScreenshotsJSON, v))
@@ -678,6 +683,46 @@ func InstallProtectedEQ(v bool) predicate.ClientSourceApp {
 // InstallProtectedNEQ applies the NEQ predicate on the "install_protected" field.
 func InstallProtectedNEQ(v bool) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldNEQ(FieldInstallProtected, v))
+}
+
+// OutdatedMarksEQ applies the EQ predicate on the "outdated_marks" field.
+func OutdatedMarksEQ(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldOutdatedMarks, v))
+}
+
+// OutdatedMarksNEQ applies the NEQ predicate on the "outdated_marks" field.
+func OutdatedMarksNEQ(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldOutdatedMarks, v))
+}
+
+// OutdatedMarksIn applies the In predicate on the "outdated_marks" field.
+func OutdatedMarksIn(vs ...int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldOutdatedMarks, vs...))
+}
+
+// OutdatedMarksNotIn applies the NotIn predicate on the "outdated_marks" field.
+func OutdatedMarksNotIn(vs ...int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldOutdatedMarks, vs...))
+}
+
+// OutdatedMarksGT applies the GT predicate on the "outdated_marks" field.
+func OutdatedMarksGT(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldOutdatedMarks, v))
+}
+
+// OutdatedMarksGTE applies the GTE predicate on the "outdated_marks" field.
+func OutdatedMarksGTE(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldOutdatedMarks, v))
+}
+
+// OutdatedMarksLT applies the LT predicate on the "outdated_marks" field.
+func OutdatedMarksLT(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldOutdatedMarks, v))
+}
+
+// OutdatedMarksLTE applies the LTE predicate on the "outdated_marks" field.
+func OutdatedMarksLTE(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldOutdatedMarks, v))
 }
 
 // ScreenshotsJSONEQ applies the EQ predicate on the "screenshots_json" field.

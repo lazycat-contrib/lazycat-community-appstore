@@ -169,6 +169,27 @@ func (_u *ClientSourceAppUpdate) SetNillableInstallProtected(v *bool) *ClientSou
 	return _u
 }
 
+// SetOutdatedMarks sets the "outdated_marks" field.
+func (_u *ClientSourceAppUpdate) SetOutdatedMarks(v int) *ClientSourceAppUpdate {
+	_u.mutation.ResetOutdatedMarks()
+	_u.mutation.SetOutdatedMarks(v)
+	return _u
+}
+
+// SetNillableOutdatedMarks sets the "outdated_marks" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableOutdatedMarks(v *int) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetOutdatedMarks(*v)
+	}
+	return _u
+}
+
+// AddOutdatedMarks adds value to the "outdated_marks" field.
+func (_u *ClientSourceAppUpdate) AddOutdatedMarks(v int) *ClientSourceAppUpdate {
+	_u.mutation.AddOutdatedMarks(v)
+	return _u
+}
+
 // SetScreenshotsJSON sets the "screenshots_json" field.
 func (_u *ClientSourceAppUpdate) SetScreenshotsJSON(v string) *ClientSourceAppUpdate {
 	_u.mutation.SetScreenshotsJSON(v)
@@ -344,6 +365,12 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.OutdatedMarks(); ok {
+		_spec.SetField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedOutdatedMarks(); ok {
+		_spec.AddField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ScreenshotsJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldScreenshotsJSON, field.TypeString, value)
@@ -546,6 +573,27 @@ func (_u *ClientSourceAppUpdateOne) SetNillableInstallProtected(v *bool) *Client
 	if v != nil {
 		_u.SetInstallProtected(*v)
 	}
+	return _u
+}
+
+// SetOutdatedMarks sets the "outdated_marks" field.
+func (_u *ClientSourceAppUpdateOne) SetOutdatedMarks(v int) *ClientSourceAppUpdateOne {
+	_u.mutation.ResetOutdatedMarks()
+	_u.mutation.SetOutdatedMarks(v)
+	return _u
+}
+
+// SetNillableOutdatedMarks sets the "outdated_marks" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableOutdatedMarks(v *int) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetOutdatedMarks(*v)
+	}
+	return _u
+}
+
+// AddOutdatedMarks adds value to the "outdated_marks" field.
+func (_u *ClientSourceAppUpdateOne) AddOutdatedMarks(v int) *ClientSourceAppUpdateOne {
+	_u.mutation.AddOutdatedMarks(v)
 	return _u
 }
 
@@ -754,6 +802,12 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	}
 	if value, ok := _u.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.OutdatedMarks(); ok {
+		_spec.SetField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedOutdatedMarks(); ok {
+		_spec.AddField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ScreenshotsJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldScreenshotsJSON, field.TypeString, value)

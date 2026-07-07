@@ -1,6 +1,7 @@
 package server
 
 import (
+	"hash/fnv"
 	"net/http"
 	"strconv"
 	"strings"
@@ -409,13 +410,20 @@ func (s *Server) handleListFavorites(w http.ResponseWriter, r *http.Request, u *
 }
 
 type outdatedRequest struct {
-	Note string `json:"note"`
+	Note             string `json:"note"`
+	InstalledVersion string `json:"installedVersion"`
+	ExpectedVersion  string `json:"expectedVersion"`
 }
 
-func (s *Server) handleMarkOutdated(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+func (s *Server) handleMarkOutdated(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		badRequest(w, err)
+		return
+	}
+	actor, status, code, message := s.resolveOutdatedActor(r)
+	if status != 0 {
+		writeError(w, status, code, message, nil)
 		return
 	}
 	record, err := s.db.App.Get(r.Context(), id)
@@ -423,38 +431,52 @@ func (s *Server) handleMarkOutdated(w http.ResponseWriter, r *http.Request, u *e
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
 		return
 	}
-	if !s.userCanSeeApp(r, record, u) {
+	if !s.userCanSeeApp(r, record, actor.User) {
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
 		return
 	}
 	var input outdatedRequest
-	_ = decodeJSON(r, &input)
-	existing, err := s.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(id), outdatedmark.UserIDEQ(u.ID)).Only(r.Context())
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	note, ok := validateOutdatedNote(w, input)
+	if !ok {
+		return
+	}
+	existing, err := s.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(id), outdatedmark.UserIDEQ(actor.UserID)).Only(r.Context())
 	if err == nil {
-		updated, err := s.db.OutdatedMark.UpdateOneID(existing.ID).SetNote(input.Note).Save(r.Context())
+		updated, err := s.db.OutdatedMark.UpdateOneID(existing.ID).SetNote(note).Save(r.Context())
 		if err == nil {
-			if record.OwnerID != u.ID {
-				s.emailAppOwnerNotification(r, record, u.Username, "Outdated mark on "+record.Name, input.Note)
+			if actor.User == nil || record.OwnerID != actor.User.ID {
+				s.emailAppOwnerNotification(r, record, actor.DisplayName, "Update requested for "+record.Name, note)
 			}
-			writeJSON(w, http.StatusOK, map[string]any{"outdatedMark": updated})
+			count, _ := s.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(id)).Count(r.Context())
+			writeJSON(w, http.StatusOK, map[string]any{"outdatedMark": updated, "outdatedMarked": true, "outdatedMarks": count})
 			return
 		}
 	}
-	created, err := s.db.OutdatedMark.Create().SetAppID(id).SetUserID(u.ID).SetNote(input.Note).Save(r.Context())
+	created, err := s.db.OutdatedMark.Create().SetAppID(id).SetUserID(actor.UserID).SetNote(note).Save(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "OUTDATED_MARK_FAILED", "Could not mark app as outdated", nil)
 		return
 	}
-	if record.OwnerID != u.ID {
-		s.emailAppOwnerNotification(r, record, u.Username, "Outdated mark on "+record.Name, input.Note)
+	if actor.User == nil || record.OwnerID != actor.User.ID {
+		s.emailAppOwnerNotification(r, record, actor.DisplayName, "Update requested for "+record.Name, note)
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"outdatedMark": created})
+	count, _ := s.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(id)).Count(r.Context())
+	writeJSON(w, http.StatusCreated, map[string]any{"outdatedMark": created, "outdatedMarked": true, "outdatedMarks": count})
 }
 
-func (s *Server) handleClearOutdated(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+func (s *Server) handleClearOutdated(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		badRequest(w, err)
+		return
+	}
+	actor, status, code, message := s.resolveOutdatedActor(r)
+	if status != 0 {
+		writeError(w, status, code, message, nil)
 		return
 	}
 	record, err := s.db.App.Get(r.Context(), id)
@@ -462,12 +484,59 @@ func (s *Server) handleClearOutdated(w http.ResponseWriter, r *http.Request, u *
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
 		return
 	}
-	if !s.userCanSeeApp(r, record, u) {
+	if !s.userCanSeeApp(r, record, actor.User) {
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
 		return
 	}
-	_, _ = s.db.OutdatedMark.Delete().Where(outdatedmark.AppIDEQ(id), outdatedmark.UserIDEQ(u.ID)).Exec(r.Context())
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	_, _ = s.db.OutdatedMark.Delete().Where(outdatedmark.AppIDEQ(id), outdatedmark.UserIDEQ(actor.UserID)).Exec(r.Context())
+	count, _ := s.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(id)).Count(r.Context())
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "outdatedMarked": false, "outdatedMarks": count})
+}
+
+func (s *Server) resolveOutdatedActor(r *http.Request) (commentActor, int, string, string) {
+	if u, ok := s.authenticate(r); ok && !s.emailVerificationRequiredForUser(r.Context(), u) {
+		return commentActor{User: u, UserID: u.ID, DisplayName: u.Username}, 0, "", ""
+	}
+	if !s.cfg.TrustLazyCatClientComments || r.Header.Get("X-LazyCat-Client-Proxy") != "lazycat-appstore-client" || sanitizeIdentity(r.Header.Get("X-LazyCat-Client-Device-ID")) == "" {
+		return commentActor{}, http.StatusUnauthorized, "LAZYCAT_CLIENT_REQUIRED", "Outdated marks require the LazyCat app store client"
+	}
+	clientUserID := sanitizeIdentity(r.Header.Get("X-LazyCat-Client-User-ID"))
+	if clientUserID == "" {
+		return commentActor{}, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required"
+	}
+	if !s.sourcePasswordAllowsClientComment(r) {
+		return commentActor{}, http.StatusUnauthorized, "SOURCE_PASSWORD_REQUIRED", "A valid source password is required"
+	}
+	displayName := sanitizeDisplayName(r.Header.Get("X-LazyCat-Client-Display-Name"))
+	if displayName == "" {
+		displayName = "LazyCat " + trimRunes(clientUserID, 12)
+	}
+	return commentActor{UserID: outdatedClientUserID(clientUserID), ClientUserID: clientUserID, DisplayName: displayName, IsClient: true}, 0, "", ""
+}
+
+func validateOutdatedNote(w http.ResponseWriter, input outdatedRequest) (string, bool) {
+	reason := strings.TrimSpace(input.Note)
+	if reason == "" {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Outdated reason is required", nil)
+		return "", false
+	}
+	reason = trimRunes(reason, 1000)
+	installedVersion := trimRunes(strings.TrimSpace(input.InstalledVersion), 80)
+	expectedVersion := trimRunes(strings.TrimSpace(input.ExpectedVersion), 80)
+	parts := []string{"Reason:\n" + reason}
+	if installedVersion != "" {
+		parts = append(parts, "Current or installed version: "+installedVersion)
+	}
+	if expectedVersion != "" {
+		parts = append(parts, "Expected newer version or source: "+expectedVersion)
+	}
+	return strings.Join(parts, "\n\n"), true
+}
+
+func outdatedClientUserID(clientUserID string) int {
+	hash := fnv.New32a()
+	_, _ = hash.Write([]byte(clientUserID))
+	return -int(hash.Sum32()&0x3fffffff) - 1
 }
 
 type collaboratorRequestBody struct {

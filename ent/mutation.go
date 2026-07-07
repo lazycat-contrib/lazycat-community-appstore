@@ -33,6 +33,7 @@ import (
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/predicate"
+	"lazycat.community/appstore/ent/registrationinvite"
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/ent/storageconfig"
@@ -71,6 +72,7 @@ const (
 	TypeFavorite             = "Favorite"
 	TypeGroupMember          = "GroupMember"
 	TypeOutdatedMark         = "OutdatedMark"
+	TypeRegistrationInvite   = "RegistrationInvite"
 	TypeReviewRequest        = "ReviewRequest"
 	TypeSiteSetting          = "SiteSetting"
 	TypeStorageConfig        = "StorageConfig"
@@ -8504,6 +8506,8 @@ type ClientSourceAppMutation struct {
 	category_i18n_json  *string
 	icon_url            *string
 	install_protected   *bool
+	outdated_marks      *int
+	addoutdated_marks   *int
 	screenshots_json    *string
 	latest_version_json *string
 	versions_json       *string
@@ -8975,6 +8979,62 @@ func (m *ClientSourceAppMutation) ResetInstallProtected() {
 	m.install_protected = nil
 }
 
+// SetOutdatedMarks sets the "outdated_marks" field.
+func (m *ClientSourceAppMutation) SetOutdatedMarks(i int) {
+	m.outdated_marks = &i
+	m.addoutdated_marks = nil
+}
+
+// OutdatedMarks returns the value of the "outdated_marks" field in the mutation.
+func (m *ClientSourceAppMutation) OutdatedMarks() (r int, exists bool) {
+	v := m.outdated_marks
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutdatedMarks returns the old "outdated_marks" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldOutdatedMarks(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutdatedMarks is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutdatedMarks requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutdatedMarks: %w", err)
+	}
+	return oldValue.OutdatedMarks, nil
+}
+
+// AddOutdatedMarks adds i to the "outdated_marks" field.
+func (m *ClientSourceAppMutation) AddOutdatedMarks(i int) {
+	if m.addoutdated_marks != nil {
+		*m.addoutdated_marks += i
+	} else {
+		m.addoutdated_marks = &i
+	}
+}
+
+// AddedOutdatedMarks returns the value that was added to the "outdated_marks" field in this mutation.
+func (m *ClientSourceAppMutation) AddedOutdatedMarks() (r int, exists bool) {
+	v := m.addoutdated_marks
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOutdatedMarks resets all changes to the "outdated_marks" field.
+func (m *ClientSourceAppMutation) ResetOutdatedMarks() {
+	m.outdated_marks = nil
+	m.addoutdated_marks = nil
+}
+
 // SetScreenshotsJSON sets the "screenshots_json" field.
 func (m *ClientSourceAppMutation) SetScreenshotsJSON(s string) {
 	m.screenshots_json = &s
@@ -9216,7 +9276,7 @@ func (m *ClientSourceAppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceAppMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 16)
 	if m.source != nil {
 		fields = append(fields, clientsourceapp.FieldSourceID)
 	}
@@ -9246,6 +9306,9 @@ func (m *ClientSourceAppMutation) Fields() []string {
 	}
 	if m.install_protected != nil {
 		fields = append(fields, clientsourceapp.FieldInstallProtected)
+	}
+	if m.outdated_marks != nil {
+		fields = append(fields, clientsourceapp.FieldOutdatedMarks)
 	}
 	if m.screenshots_json != nil {
 		fields = append(fields, clientsourceapp.FieldScreenshotsJSON)
@@ -9290,6 +9353,8 @@ func (m *ClientSourceAppMutation) Field(name string) (ent.Value, bool) {
 		return m.IconURL()
 	case clientsourceapp.FieldInstallProtected:
 		return m.InstallProtected()
+	case clientsourceapp.FieldOutdatedMarks:
+		return m.OutdatedMarks()
 	case clientsourceapp.FieldScreenshotsJSON:
 		return m.ScreenshotsJSON()
 	case clientsourceapp.FieldLatestVersionJSON:
@@ -9329,6 +9394,8 @@ func (m *ClientSourceAppMutation) OldField(ctx context.Context, name string) (en
 		return m.OldIconURL(ctx)
 	case clientsourceapp.FieldInstallProtected:
 		return m.OldInstallProtected(ctx)
+	case clientsourceapp.FieldOutdatedMarks:
+		return m.OldOutdatedMarks(ctx)
 	case clientsourceapp.FieldScreenshotsJSON:
 		return m.OldScreenshotsJSON(ctx)
 	case clientsourceapp.FieldLatestVersionJSON:
@@ -9418,6 +9485,13 @@ func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetInstallProtected(v)
 		return nil
+	case clientsourceapp.FieldOutdatedMarks:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutdatedMarks(v)
+		return nil
 	case clientsourceapp.FieldScreenshotsJSON:
 		v, ok := value.(string)
 		if !ok {
@@ -9461,6 +9535,9 @@ func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *ClientSourceAppMutation) AddedFields() []string {
 	var fields []string
+	if m.addoutdated_marks != nil {
+		fields = append(fields, clientsourceapp.FieldOutdatedMarks)
+	}
 	return fields
 }
 
@@ -9469,6 +9546,8 @@ func (m *ClientSourceAppMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *ClientSourceAppMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case clientsourceapp.FieldOutdatedMarks:
+		return m.AddedOutdatedMarks()
 	}
 	return nil, false
 }
@@ -9478,6 +9557,13 @@ func (m *ClientSourceAppMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *ClientSourceAppMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case clientsourceapp.FieldOutdatedMarks:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOutdatedMarks(v)
+		return nil
 	}
 	return fmt.Errorf("unknown ClientSourceApp numeric field %s", name)
 }
@@ -9534,6 +9620,9 @@ func (m *ClientSourceAppMutation) ResetField(name string) error {
 		return nil
 	case clientsourceapp.FieldInstallProtected:
 		m.ResetInstallProtected()
+		return nil
+	case clientsourceapp.FieldOutdatedMarks:
+		m.ResetOutdatedMarks()
 		return nil
 	case clientsourceapp.FieldScreenshotsJSON:
 		m.ResetScreenshotsJSON()
@@ -16501,6 +16590,812 @@ func (m *OutdatedMarkMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *OutdatedMarkMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown OutdatedMark edge %s", name)
+}
+
+// RegistrationInviteMutation represents an operation that mutates the RegistrationInvite nodes in the graph.
+type RegistrationInviteMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int
+	code_hash         *string
+	code_prefix       *string
+	note              *string
+	max_uses          *int
+	addmax_uses       *int
+	remaining_uses    *int
+	addremaining_uses *int
+	created_by        *int
+	addcreated_by     *int
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*RegistrationInvite, error)
+	predicates        []predicate.RegistrationInvite
+}
+
+var _ ent.Mutation = (*RegistrationInviteMutation)(nil)
+
+// registrationinviteOption allows management of the mutation configuration using functional options.
+type registrationinviteOption func(*RegistrationInviteMutation)
+
+// newRegistrationInviteMutation creates new mutation for the RegistrationInvite entity.
+func newRegistrationInviteMutation(c config, op Op, opts ...registrationinviteOption) *RegistrationInviteMutation {
+	m := &RegistrationInviteMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeRegistrationInvite,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withRegistrationInviteID sets the ID field of the mutation.
+func withRegistrationInviteID(id int) registrationinviteOption {
+	return func(m *RegistrationInviteMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *RegistrationInvite
+		)
+		m.oldValue = func(ctx context.Context) (*RegistrationInvite, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().RegistrationInvite.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withRegistrationInvite sets the old RegistrationInvite of the mutation.
+func withRegistrationInvite(node *RegistrationInvite) registrationinviteOption {
+	return func(m *RegistrationInviteMutation) {
+		m.oldValue = func(context.Context) (*RegistrationInvite, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m RegistrationInviteMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m RegistrationInviteMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *RegistrationInviteMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *RegistrationInviteMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().RegistrationInvite.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCodeHash sets the "code_hash" field.
+func (m *RegistrationInviteMutation) SetCodeHash(s string) {
+	m.code_hash = &s
+}
+
+// CodeHash returns the value of the "code_hash" field in the mutation.
+func (m *RegistrationInviteMutation) CodeHash() (r string, exists bool) {
+	v := m.code_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCodeHash returns the old "code_hash" field's value of the RegistrationInvite entity.
+// If the RegistrationInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RegistrationInviteMutation) OldCodeHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCodeHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCodeHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCodeHash: %w", err)
+	}
+	return oldValue.CodeHash, nil
+}
+
+// ResetCodeHash resets all changes to the "code_hash" field.
+func (m *RegistrationInviteMutation) ResetCodeHash() {
+	m.code_hash = nil
+}
+
+// SetCodePrefix sets the "code_prefix" field.
+func (m *RegistrationInviteMutation) SetCodePrefix(s string) {
+	m.code_prefix = &s
+}
+
+// CodePrefix returns the value of the "code_prefix" field in the mutation.
+func (m *RegistrationInviteMutation) CodePrefix() (r string, exists bool) {
+	v := m.code_prefix
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCodePrefix returns the old "code_prefix" field's value of the RegistrationInvite entity.
+// If the RegistrationInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RegistrationInviteMutation) OldCodePrefix(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCodePrefix is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCodePrefix requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCodePrefix: %w", err)
+	}
+	return oldValue.CodePrefix, nil
+}
+
+// ResetCodePrefix resets all changes to the "code_prefix" field.
+func (m *RegistrationInviteMutation) ResetCodePrefix() {
+	m.code_prefix = nil
+}
+
+// SetNote sets the "note" field.
+func (m *RegistrationInviteMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *RegistrationInviteMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the RegistrationInvite entity.
+// If the RegistrationInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RegistrationInviteMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *RegistrationInviteMutation) ResetNote() {
+	m.note = nil
+}
+
+// SetMaxUses sets the "max_uses" field.
+func (m *RegistrationInviteMutation) SetMaxUses(i int) {
+	m.max_uses = &i
+	m.addmax_uses = nil
+}
+
+// MaxUses returns the value of the "max_uses" field in the mutation.
+func (m *RegistrationInviteMutation) MaxUses() (r int, exists bool) {
+	v := m.max_uses
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxUses returns the old "max_uses" field's value of the RegistrationInvite entity.
+// If the RegistrationInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RegistrationInviteMutation) OldMaxUses(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxUses is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxUses requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxUses: %w", err)
+	}
+	return oldValue.MaxUses, nil
+}
+
+// AddMaxUses adds i to the "max_uses" field.
+func (m *RegistrationInviteMutation) AddMaxUses(i int) {
+	if m.addmax_uses != nil {
+		*m.addmax_uses += i
+	} else {
+		m.addmax_uses = &i
+	}
+}
+
+// AddedMaxUses returns the value that was added to the "max_uses" field in this mutation.
+func (m *RegistrationInviteMutation) AddedMaxUses() (r int, exists bool) {
+	v := m.addmax_uses
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMaxUses resets all changes to the "max_uses" field.
+func (m *RegistrationInviteMutation) ResetMaxUses() {
+	m.max_uses = nil
+	m.addmax_uses = nil
+}
+
+// SetRemainingUses sets the "remaining_uses" field.
+func (m *RegistrationInviteMutation) SetRemainingUses(i int) {
+	m.remaining_uses = &i
+	m.addremaining_uses = nil
+}
+
+// RemainingUses returns the value of the "remaining_uses" field in the mutation.
+func (m *RegistrationInviteMutation) RemainingUses() (r int, exists bool) {
+	v := m.remaining_uses
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemainingUses returns the old "remaining_uses" field's value of the RegistrationInvite entity.
+// If the RegistrationInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RegistrationInviteMutation) OldRemainingUses(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemainingUses is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemainingUses requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemainingUses: %w", err)
+	}
+	return oldValue.RemainingUses, nil
+}
+
+// AddRemainingUses adds i to the "remaining_uses" field.
+func (m *RegistrationInviteMutation) AddRemainingUses(i int) {
+	if m.addremaining_uses != nil {
+		*m.addremaining_uses += i
+	} else {
+		m.addremaining_uses = &i
+	}
+}
+
+// AddedRemainingUses returns the value that was added to the "remaining_uses" field in this mutation.
+func (m *RegistrationInviteMutation) AddedRemainingUses() (r int, exists bool) {
+	v := m.addremaining_uses
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRemainingUses resets all changes to the "remaining_uses" field.
+func (m *RegistrationInviteMutation) ResetRemainingUses() {
+	m.remaining_uses = nil
+	m.addremaining_uses = nil
+}
+
+// SetCreatedBy sets the "created_by" field.
+func (m *RegistrationInviteMutation) SetCreatedBy(i int) {
+	m.created_by = &i
+	m.addcreated_by = nil
+}
+
+// CreatedBy returns the value of the "created_by" field in the mutation.
+func (m *RegistrationInviteMutation) CreatedBy() (r int, exists bool) {
+	v := m.created_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedBy returns the old "created_by" field's value of the RegistrationInvite entity.
+// If the RegistrationInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RegistrationInviteMutation) OldCreatedBy(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedBy: %w", err)
+	}
+	return oldValue.CreatedBy, nil
+}
+
+// AddCreatedBy adds i to the "created_by" field.
+func (m *RegistrationInviteMutation) AddCreatedBy(i int) {
+	if m.addcreated_by != nil {
+		*m.addcreated_by += i
+	} else {
+		m.addcreated_by = &i
+	}
+}
+
+// AddedCreatedBy returns the value that was added to the "created_by" field in this mutation.
+func (m *RegistrationInviteMutation) AddedCreatedBy() (r int, exists bool) {
+	v := m.addcreated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCreatedBy resets all changes to the "created_by" field.
+func (m *RegistrationInviteMutation) ResetCreatedBy() {
+	m.created_by = nil
+	m.addcreated_by = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *RegistrationInviteMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *RegistrationInviteMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the RegistrationInvite entity.
+// If the RegistrationInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RegistrationInviteMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *RegistrationInviteMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *RegistrationInviteMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *RegistrationInviteMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the RegistrationInvite entity.
+// If the RegistrationInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RegistrationInviteMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *RegistrationInviteMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the RegistrationInviteMutation builder.
+func (m *RegistrationInviteMutation) Where(ps ...predicate.RegistrationInvite) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the RegistrationInviteMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *RegistrationInviteMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.RegistrationInvite, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *RegistrationInviteMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *RegistrationInviteMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (RegistrationInvite).
+func (m *RegistrationInviteMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *RegistrationInviteMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.code_hash != nil {
+		fields = append(fields, registrationinvite.FieldCodeHash)
+	}
+	if m.code_prefix != nil {
+		fields = append(fields, registrationinvite.FieldCodePrefix)
+	}
+	if m.note != nil {
+		fields = append(fields, registrationinvite.FieldNote)
+	}
+	if m.max_uses != nil {
+		fields = append(fields, registrationinvite.FieldMaxUses)
+	}
+	if m.remaining_uses != nil {
+		fields = append(fields, registrationinvite.FieldRemainingUses)
+	}
+	if m.created_by != nil {
+		fields = append(fields, registrationinvite.FieldCreatedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, registrationinvite.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, registrationinvite.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *RegistrationInviteMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case registrationinvite.FieldCodeHash:
+		return m.CodeHash()
+	case registrationinvite.FieldCodePrefix:
+		return m.CodePrefix()
+	case registrationinvite.FieldNote:
+		return m.Note()
+	case registrationinvite.FieldMaxUses:
+		return m.MaxUses()
+	case registrationinvite.FieldRemainingUses:
+		return m.RemainingUses()
+	case registrationinvite.FieldCreatedBy:
+		return m.CreatedBy()
+	case registrationinvite.FieldCreatedAt:
+		return m.CreatedAt()
+	case registrationinvite.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *RegistrationInviteMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case registrationinvite.FieldCodeHash:
+		return m.OldCodeHash(ctx)
+	case registrationinvite.FieldCodePrefix:
+		return m.OldCodePrefix(ctx)
+	case registrationinvite.FieldNote:
+		return m.OldNote(ctx)
+	case registrationinvite.FieldMaxUses:
+		return m.OldMaxUses(ctx)
+	case registrationinvite.FieldRemainingUses:
+		return m.OldRemainingUses(ctx)
+	case registrationinvite.FieldCreatedBy:
+		return m.OldCreatedBy(ctx)
+	case registrationinvite.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case registrationinvite.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown RegistrationInvite field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RegistrationInviteMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case registrationinvite.FieldCodeHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCodeHash(v)
+		return nil
+	case registrationinvite.FieldCodePrefix:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCodePrefix(v)
+		return nil
+	case registrationinvite.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case registrationinvite.FieldMaxUses:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxUses(v)
+		return nil
+	case registrationinvite.FieldRemainingUses:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemainingUses(v)
+		return nil
+	case registrationinvite.FieldCreatedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedBy(v)
+		return nil
+	case registrationinvite.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case registrationinvite.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RegistrationInvite field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *RegistrationInviteMutation) AddedFields() []string {
+	var fields []string
+	if m.addmax_uses != nil {
+		fields = append(fields, registrationinvite.FieldMaxUses)
+	}
+	if m.addremaining_uses != nil {
+		fields = append(fields, registrationinvite.FieldRemainingUses)
+	}
+	if m.addcreated_by != nil {
+		fields = append(fields, registrationinvite.FieldCreatedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *RegistrationInviteMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case registrationinvite.FieldMaxUses:
+		return m.AddedMaxUses()
+	case registrationinvite.FieldRemainingUses:
+		return m.AddedRemainingUses()
+	case registrationinvite.FieldCreatedBy:
+		return m.AddedCreatedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *RegistrationInviteMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case registrationinvite.FieldMaxUses:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxUses(v)
+		return nil
+	case registrationinvite.FieldRemainingUses:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRemainingUses(v)
+		return nil
+	case registrationinvite.FieldCreatedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreatedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown RegistrationInvite numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *RegistrationInviteMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *RegistrationInviteMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *RegistrationInviteMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown RegistrationInvite nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *RegistrationInviteMutation) ResetField(name string) error {
+	switch name {
+	case registrationinvite.FieldCodeHash:
+		m.ResetCodeHash()
+		return nil
+	case registrationinvite.FieldCodePrefix:
+		m.ResetCodePrefix()
+		return nil
+	case registrationinvite.FieldNote:
+		m.ResetNote()
+		return nil
+	case registrationinvite.FieldMaxUses:
+		m.ResetMaxUses()
+		return nil
+	case registrationinvite.FieldRemainingUses:
+		m.ResetRemainingUses()
+		return nil
+	case registrationinvite.FieldCreatedBy:
+		m.ResetCreatedBy()
+		return nil
+	case registrationinvite.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case registrationinvite.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown RegistrationInvite field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *RegistrationInviteMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *RegistrationInviteMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *RegistrationInviteMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *RegistrationInviteMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *RegistrationInviteMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *RegistrationInviteMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *RegistrationInviteMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown RegistrationInvite unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *RegistrationInviteMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown RegistrationInvite edge %s", name)
 }
 
 // ReviewRequestMutation represents an operation that mutates the ReviewRequest nodes in the graph.

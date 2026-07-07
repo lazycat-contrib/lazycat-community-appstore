@@ -25,6 +25,7 @@ func (ClientSourceApp) Fields() []ent.Field {
 		field.Text("category_i18n_json").Default("{}"),
 		field.String("icon_url").Default(""),
 		field.Bool("install_protected").Default(false),
+		field.Int("outdated_marks").Default(0),
 		field.Text("screenshots_json").Default(""),
 		field.Text("latest_version_json").Default(""),
 		field.Text("versions_json").Default(""),

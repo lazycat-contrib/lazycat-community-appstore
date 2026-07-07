@@ -26,6 +26,7 @@ import (
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/outdatedmark"
+	"lazycat.community/appstore/ent/registrationinvite"
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/schema"
 	"lazycat.community/appstore/ent/sitesetting"
@@ -355,24 +356,28 @@ func init() {
 	clientsourceappDescInstallProtected := clientsourceappFields[9].Descriptor()
 	// clientsourceapp.DefaultInstallProtected holds the default value on creation for the install_protected field.
 	clientsourceapp.DefaultInstallProtected = clientsourceappDescInstallProtected.Default.(bool)
+	// clientsourceappDescOutdatedMarks is the schema descriptor for outdated_marks field.
+	clientsourceappDescOutdatedMarks := clientsourceappFields[10].Descriptor()
+	// clientsourceapp.DefaultOutdatedMarks holds the default value on creation for the outdated_marks field.
+	clientsourceapp.DefaultOutdatedMarks = clientsourceappDescOutdatedMarks.Default.(int)
 	// clientsourceappDescScreenshotsJSON is the schema descriptor for screenshots_json field.
-	clientsourceappDescScreenshotsJSON := clientsourceappFields[10].Descriptor()
+	clientsourceappDescScreenshotsJSON := clientsourceappFields[11].Descriptor()
 	// clientsourceapp.DefaultScreenshotsJSON holds the default value on creation for the screenshots_json field.
 	clientsourceapp.DefaultScreenshotsJSON = clientsourceappDescScreenshotsJSON.Default.(string)
 	// clientsourceappDescLatestVersionJSON is the schema descriptor for latest_version_json field.
-	clientsourceappDescLatestVersionJSON := clientsourceappFields[11].Descriptor()
+	clientsourceappDescLatestVersionJSON := clientsourceappFields[12].Descriptor()
 	// clientsourceapp.DefaultLatestVersionJSON holds the default value on creation for the latest_version_json field.
 	clientsourceapp.DefaultLatestVersionJSON = clientsourceappDescLatestVersionJSON.Default.(string)
 	// clientsourceappDescVersionsJSON is the schema descriptor for versions_json field.
-	clientsourceappDescVersionsJSON := clientsourceappFields[12].Descriptor()
+	clientsourceappDescVersionsJSON := clientsourceappFields[13].Descriptor()
 	// clientsourceapp.DefaultVersionsJSON holds the default value on creation for the versions_json field.
 	clientsourceapp.DefaultVersionsJSON = clientsourceappDescVersionsJSON.Default.(string)
 	// clientsourceappDescCreatedAt is the schema descriptor for created_at field.
-	clientsourceappDescCreatedAt := clientsourceappFields[13].Descriptor()
+	clientsourceappDescCreatedAt := clientsourceappFields[14].Descriptor()
 	// clientsourceapp.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsourceapp.DefaultCreatedAt = clientsourceappDescCreatedAt.Default.(func() time.Time)
 	// clientsourceappDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsourceappDescUpdatedAt := clientsourceappFields[14].Descriptor()
+	clientsourceappDescUpdatedAt := clientsourceappFields[15].Descriptor()
 	// clientsourceapp.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsourceapp.DefaultUpdatedAt = clientsourceappDescUpdatedAt.Default.(func() time.Time)
 	// clientsourceapp.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -543,6 +548,42 @@ func init() {
 	outdatedmark.DefaultUpdatedAt = outdatedmarkDescUpdatedAt.Default.(func() time.Time)
 	// outdatedmark.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	outdatedmark.UpdateDefaultUpdatedAt = outdatedmarkDescUpdatedAt.UpdateDefault.(func() time.Time)
+	registrationinviteFields := schema.RegistrationInvite{}.Fields()
+	_ = registrationinviteFields
+	// registrationinviteDescCodeHash is the schema descriptor for code_hash field.
+	registrationinviteDescCodeHash := registrationinviteFields[0].Descriptor()
+	// registrationinvite.CodeHashValidator is a validator for the "code_hash" field. It is called by the builders before save.
+	registrationinvite.CodeHashValidator = registrationinviteDescCodeHash.Validators[0].(func(string) error)
+	// registrationinviteDescCodePrefix is the schema descriptor for code_prefix field.
+	registrationinviteDescCodePrefix := registrationinviteFields[1].Descriptor()
+	// registrationinvite.CodePrefixValidator is a validator for the "code_prefix" field. It is called by the builders before save.
+	registrationinvite.CodePrefixValidator = registrationinviteDescCodePrefix.Validators[0].(func(string) error)
+	// registrationinviteDescNote is the schema descriptor for note field.
+	registrationinviteDescNote := registrationinviteFields[2].Descriptor()
+	// registrationinvite.DefaultNote holds the default value on creation for the note field.
+	registrationinvite.DefaultNote = registrationinviteDescNote.Default.(string)
+	// registrationinviteDescMaxUses is the schema descriptor for max_uses field.
+	registrationinviteDescMaxUses := registrationinviteFields[3].Descriptor()
+	// registrationinvite.DefaultMaxUses holds the default value on creation for the max_uses field.
+	registrationinvite.DefaultMaxUses = registrationinviteDescMaxUses.Default.(int)
+	// registrationinvite.MaxUsesValidator is a validator for the "max_uses" field. It is called by the builders before save.
+	registrationinvite.MaxUsesValidator = registrationinviteDescMaxUses.Validators[0].(func(int) error)
+	// registrationinviteDescRemainingUses is the schema descriptor for remaining_uses field.
+	registrationinviteDescRemainingUses := registrationinviteFields[4].Descriptor()
+	// registrationinvite.DefaultRemainingUses holds the default value on creation for the remaining_uses field.
+	registrationinvite.DefaultRemainingUses = registrationinviteDescRemainingUses.Default.(int)
+	// registrationinvite.RemainingUsesValidator is a validator for the "remaining_uses" field. It is called by the builders before save.
+	registrationinvite.RemainingUsesValidator = registrationinviteDescRemainingUses.Validators[0].(func(int) error)
+	// registrationinviteDescCreatedAt is the schema descriptor for created_at field.
+	registrationinviteDescCreatedAt := registrationinviteFields[6].Descriptor()
+	// registrationinvite.DefaultCreatedAt holds the default value on creation for the created_at field.
+	registrationinvite.DefaultCreatedAt = registrationinviteDescCreatedAt.Default.(func() time.Time)
+	// registrationinviteDescUpdatedAt is the schema descriptor for updated_at field.
+	registrationinviteDescUpdatedAt := registrationinviteFields[7].Descriptor()
+	// registrationinvite.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	registrationinvite.DefaultUpdatedAt = registrationinviteDescUpdatedAt.Default.(func() time.Time)
+	// registrationinvite.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	registrationinvite.UpdateDefaultUpdatedAt = registrationinviteDescUpdatedAt.UpdateDefault.(func() time.Time)
 	reviewrequestFields := schema.ReviewRequest{}.Fields()
 	_ = reviewrequestFields
 	// reviewrequestDescNote is the schema descriptor for note field.

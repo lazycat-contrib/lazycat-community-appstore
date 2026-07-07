@@ -48,6 +48,7 @@ type AppInput struct {
 	Tags             []string                 `json:"tags,omitempty"`
 	Submitter        string                   `json:"submitter,omitempty"`
 	InstallProtected bool                     `json:"installProtected"`
+	OutdatedMarks    int                      `json:"outdatedMarks,omitempty"`
 	UpdatedAt        time.Time                `json:"updatedAt"`
 	Versions         []VersionInput           `json:"versions"`
 }
@@ -88,6 +89,7 @@ type App struct {
 	Tags             []string                 `json:"tags,omitempty"`
 	Submitter        string                   `json:"submitter,omitempty"`
 	InstallProtected bool                     `json:"installProtected"`
+	OutdatedMarks    int                      `json:"outdatedMarks,omitempty"`
 	UpdatedAt        time.Time                `json:"updatedAt"`
 	LatestVersion    Version                  `json:"latestVersion"`
 	Versions         []Version                `json:"versions"`
@@ -145,6 +147,7 @@ func BuildIndex(input Input) Index {
 			Tags:             inApp.Tags,
 			Submitter:        inApp.Submitter,
 			InstallProtected: inApp.InstallProtected,
+			OutdatedMarks:    inApp.OutdatedMarks,
 			UpdatedAt:        inApp.UpdatedAt,
 			LatestVersion:    versions[0],
 			Versions:         versions,

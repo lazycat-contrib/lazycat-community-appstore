@@ -17,7 +17,7 @@ import (
 )
 
 func (s *Server) handleListSourceAppComments(w http.ResponseWriter, r *http.Request) {
-	if !requireLazyCatClientForComments(w, r) {
+	if !requireLazyCatClient(w, r, "Comments") {
 		return
 	}
 	appRecord, source, ok := s.sourceAppForComment(w, r)
@@ -32,7 +32,7 @@ func (s *Server) handleListSourceAppComments(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *Server) handleCreateSourceAppComment(w http.ResponseWriter, r *http.Request) {
-	if !requireLazyCatClientForComments(w, r) {
+	if !requireLazyCatClient(w, r, "Comments") {
 		return
 	}
 	appRecord, source, ok := s.sourceAppForComment(w, r)
@@ -57,7 +57,7 @@ func (s *Server) handleCreateSourceAppComment(w http.ResponseWriter, r *http.Req
 }
 
 func (s *Server) handleDeleteSourceAppComment(w http.ResponseWriter, r *http.Request) {
-	if !requireLazyCatClientForComments(w, r) {
+	if !requireLazyCatClient(w, r, "Comments") {
 		return
 	}
 	_, source, ok := s.sourceAppForComment(w, r)
@@ -70,6 +70,41 @@ func (s *Server) handleDeleteSourceAppComment(w http.ResponseWriter, r *http.Req
 		return
 	}
 	endpoint, ok := sourceCommentEndpoint(w, source.URL, strconv.Itoa(commentID), "delete")
+	if !ok {
+		return
+	}
+	s.proxySourceCommentRequest(w, r, source, http.MethodDelete, endpoint, nil)
+}
+
+func (s *Server) handleMarkSourceAppOutdated(w http.ResponseWriter, r *http.Request) {
+	if !requireLazyCatClient(w, r, "Outdated marks") {
+		return
+	}
+	appRecord, source, ok := s.sourceAppForComment(w, r)
+	if !ok {
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_BODY", "Invalid request body")
+		return
+	}
+	endpoint, ok := sourceOutdatedEndpoint(w, source.URL, appRecord.ExternalID)
+	if !ok {
+		return
+	}
+	s.proxySourceCommentRequest(w, r, source, http.MethodPost, endpoint, bytes.NewReader(body))
+}
+
+func (s *Server) handleClearSourceAppOutdated(w http.ResponseWriter, r *http.Request) {
+	if !requireLazyCatClient(w, r, "Outdated marks") {
+		return
+	}
+	appRecord, source, ok := s.sourceAppForComment(w, r)
+	if !ok {
+		return
+	}
+	endpoint, ok := sourceOutdatedEndpoint(w, source.URL, appRecord.ExternalID)
 	if !ok {
 		return
 	}
@@ -119,6 +154,20 @@ func sourceCommentEndpoint(w http.ResponseWriter, sourceURL, id, kind string) (s
 	return base + "/api/v1/apps/" + url.PathEscape(id) + "/comments", true
 }
 
+func sourceOutdatedEndpoint(w http.ResponseWriter, sourceURL, id string) (string, bool) {
+	base, err := sourceAPIBase(sourceURL)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "SOURCE_URL_INVALID", "Source URL is invalid")
+		return "", false
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		writeError(w, http.StatusUnprocessableEntity, "SOURCE_APP_ID_MISSING", "Source app id is missing")
+		return "", false
+	}
+	return base + "/api/v1/apps/" + url.PathEscape(id) + "/outdated-marks", true
+}
+
 func sourceAPIBase(rawURL string) (string, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
@@ -163,9 +212,9 @@ func pseudonymousClientUserID(sourceURL, userID string) string {
 	return "lc_" + hex.EncodeToString(sum[:])[:24]
 }
 
-func requireLazyCatClientForComments(w http.ResponseWriter, r *http.Request) bool {
+func requireLazyCatClient(w http.ResponseWriter, r *http.Request, action string) bool {
 	if currentUserID(r) == "local" || strings.TrimSpace(r.Header.Get("x-hc-device-id")) == "" {
-		writeError(w, http.StatusForbidden, "LAZYCAT_CLIENT_REQUIRED", "Comments require the LazyCat client")
+		writeError(w, http.StatusForbidden, "LAZYCAT_CLIENT_REQUIRED", action+" require the LazyCat client")
 		return false
 	}
 	return true

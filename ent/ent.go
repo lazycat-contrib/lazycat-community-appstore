@@ -33,6 +33,7 @@ import (
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/outdatedmark"
+	"lazycat.community/appstore/ent/registrationinvite"
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/ent/storageconfig"
@@ -120,6 +121,7 @@ func checkColumn(t, c string) error {
 			favorite.Table:             favorite.ValidColumn,
 			groupmember.Table:          groupmember.ValidColumn,
 			outdatedmark.Table:         outdatedmark.ValidColumn,
+			registrationinvite.Table:   registrationinvite.ValidColumn,
 			reviewrequest.Table:        reviewrequest.ValidColumn,
 			sitesetting.Table:          sitesetting.ValidColumn,
 			storageconfig.Table:        storageconfig.ValidColumn,

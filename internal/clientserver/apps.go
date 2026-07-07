@@ -138,6 +138,7 @@ func sourceAppDTO(app *ent.ClientSourceApp) (SourceAppDTO, error) {
 		CategoryI18n:     catalogmeta.DecodeLocalizedText(app.CategoryI18nJSON),
 		IconURL:          app.IconURL,
 		InstallProtected: app.InstallProtected,
+		OutdatedMarks:    app.OutdatedMarks,
 		Screenshots:      screenshots,
 		LatestVersion:    version,
 		Versions:         versions,

@@ -3,20 +3,25 @@ package server
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/apitoken"
+	"lazycat.community/appstore/ent/registrationinvite"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/auth"
 )
 
+var errInvalidRegistrationInvite = errors.New("invalid registration invite")
+
 type registerRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Username   string `json:"username"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	InviteCode string `json:"inviteCode"`
 }
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -27,8 +32,18 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	input.Username = strings.TrimSpace(input.Username)
 	input.Email = strings.TrimSpace(input.Email)
+	input.InviteCode = strings.TrimSpace(input.InviteCode)
+	registrationMode := s.registrationMode(r.Context())
+	if registrationMode == registrationModeClosed {
+		writeError(w, http.StatusForbidden, "REGISTRATION_CLOSED", "Registration is closed", nil)
+		return
+	}
 	if input.Username == "" || len(input.Password) < 8 {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Username and a password of at least 8 characters are required", nil)
+		return
+	}
+	if registrationMode == registrationModeInvite && input.InviteCode == "" {
+		writeError(w, http.StatusUnprocessableEntity, "INVITE_REQUIRED", "Invite code is required", nil)
 		return
 	}
 	requireEmailVerify := s.effectiveRequireEmailVerify(r.Context())
@@ -39,6 +54,30 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	hash, err := auth.HashPassword(input.Password)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "PASSWORD_HASH_FAILED", "Could not create user", nil)
+		return
+	}
+	if registrationMode == registrationModeInvite {
+		u, token, err := s.createUserWithInvite(r, input, hash, requireEmailVerify)
+		if errors.Is(err, errInvalidRegistrationInvite) {
+			writeError(w, http.StatusUnprocessableEntity, "INVALID_INVITE", "Invite code is invalid or has no remaining uses", nil)
+			return
+		}
+		if ent.IsConstraintError(err) {
+			writeError(w, http.StatusConflict, "USER_EXISTS", "Username or email is already registered", nil)
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "REGISTER_FAILED", "Could not create user", nil)
+			return
+		}
+		if requireEmailVerify && input.Email != "" {
+			if err := s.sendVerificationEmail(r.Context(), input.Email, token); err != nil {
+				writeError(w, http.StatusInternalServerError, "EMAIL_SEND_FAILED", "Could not send verification email", nil)
+				return
+			}
+		}
+		s.setSession(w, u.ID)
+		writeJSON(w, http.StatusCreated, map[string]any{"user": toPublicUser(u)})
 		return
 	}
 	create := s.db.User.Create().
@@ -67,6 +106,68 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	s.setSession(w, u.ID)
 	writeJSON(w, http.StatusCreated, map[string]any{"user": toPublicUser(u)})
+}
+
+func (s *Server) createUserWithInvite(r *http.Request, input registerRequest, passwordHash string, requireEmailVerify bool) (*ent.User, string, error) {
+	ctx := r.Context()
+	verificationToken := ""
+	if requireEmailVerify {
+		token, err := emailVerificationToken()
+		if err != nil {
+			return nil, "", err
+		}
+		verificationToken = token
+	}
+
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	codeHash := tokenHash(input.InviteCode)
+	affected, err := tx.RegistrationInvite.Update().
+		Where(registrationinvite.CodeHashEQ(codeHash), registrationinvite.RemainingUsesGT(0)).
+		AddRemainingUses(-1).
+		Save(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	if affected != 1 {
+		return nil, "", errInvalidRegistrationInvite
+	}
+
+	create := tx.User.Create().
+		SetUsername(input.Username).
+		SetPasswordHash(passwordHash).
+		SetEmailVerified(!requireEmailVerify)
+	if input.Email != "" {
+		create.SetEmail(input.Email)
+	}
+	u, err := create.Save(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	if requireEmailVerify {
+		if err := setSettingTx(ctx, tx, "email_verify:"+u.Username, verificationToken); err != nil {
+			return nil, "", err
+		}
+	}
+	if _, err := tx.RegistrationInvite.Delete().
+		Where(registrationinvite.CodeHashEQ(codeHash), registrationinvite.RemainingUsesLTE(0)).
+		Exec(ctx); err != nil {
+		return nil, "", err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, "", err
+	}
+	committed = true
+	return u, verificationToken, nil
 }
 
 type verifyEmailRequest struct {

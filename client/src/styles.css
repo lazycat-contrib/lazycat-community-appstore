@@ -10,62 +10,62 @@
     sans-serif;
   background: var(--app-bg);
   color: var(--ink);
-  --app-bg: #edf0ec;
-  --ink: #1d2421;
-  --muted: #63706a;
-  --line: #d5ddd4;
-  --paper: #fbfcf8;
-  --surface: #ffffff;
-  --field: #fbfcf8;
-  --subtle-surface: #f7faf5;
-  --green: #0f6b4d;
-  --green-strong: #084a36;
-  --mint: #cfeee0;
-  --blue: #225c9b;
-  --red: #b83333;
-  --amber: #b7781b;
-  --on-strong: #ffffff;
-  --sidebar-bg: #fbfcf8;
-  --sidebar-ink: #1d2421;
-  --sidebar-muted: #63706a;
-  --sidebar-item: #34423b;
-  --sidebar-hover: #edf3ec;
-  --sidebar-line: #d5ddd4;
-  --brand-mark-bg: #b9e6cf;
-  --brand-mark-ink: #0b3c2c;
-  --hero-ink: #ffffff;
-  --hero-muted: #d7e5dc;
-  --hero-accent: #a9e3c5;
-  --hero-overlay-start: rgba(17, 35, 29, 0.96);
-  --hero-overlay-end: rgba(17, 35, 29, 0.82);
-  --hero-overlay-soft-start: rgba(17, 35, 29, 0.94);
-  --hero-overlay-soft-end: rgba(17, 35, 29, 0.78);
-  --hero-stripe-a: #1b3329;
-  --hero-stripe-b: #213b31;
-  --hero-glass: rgba(255, 255, 255, 0.11);
-  --status-success-bg: #f1faf5;
-  --status-success-line: #b8dfca;
-  --status-info-bg: #f3f7fc;
-  --status-info-line: #bed2e8;
-  --status-warning-bg: #fffaf0;
-  --status-warning-line: #ead3ad;
-  --status-danger-bg: #fff8f8;
-  --status-danger-line: #e4b8b8;
-  --avatar-bg: #e6f4ed;
-  --avatar-line: #c8e7d7;
-  --backdrop: rgba(22, 35, 29, 0.44);
-  --disabled-bg: #e9eee8;
-  --install-panel-bg: #16231d;
-  --install-panel-line: #2f4a3e;
-  --install-panel-success: #6eb58d;
-  --install-panel-error: #c86d6d;
-  --install-panel-muted: #d7e5dc;
-  --install-panel-control: rgba(255, 255, 255, 0.08);
-  --install-panel-control-line: #3f5b4e;
-  --progress-track: #30453b;
-  --progress-fill: #b9e6cf;
-  --toast-bg: #1d2421;
-  --modal-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+  --app-bg: var(--color-background-body);
+  --ink: var(--color-text-primary);
+  --muted: var(--color-text-secondary);
+  --line: var(--color-border);
+  --paper: var(--color-background-body);
+  --surface: var(--color-background-card);
+  --field: var(--color-background-surface);
+  --subtle-surface: var(--color-background-muted);
+  --green: var(--color-success);
+  --green-strong: var(--color-accent);
+  --mint: var(--color-success-muted);
+  --blue: var(--color-text-blue);
+  --red: var(--color-error);
+  --amber: var(--color-warning);
+  --on-strong: var(--color-on-accent);
+  --sidebar-bg: var(--color-background-surface);
+  --sidebar-ink: var(--color-text-primary);
+  --sidebar-muted: var(--color-text-secondary);
+  --sidebar-item: var(--color-text-primary);
+  --sidebar-hover: var(--color-background-muted);
+  --sidebar-line: var(--color-border);
+  --brand-mark-bg: var(--color-accent-muted);
+  --brand-mark-ink: var(--color-accent);
+  --hero-ink: var(--color-text-primary);
+  --hero-muted: var(--color-text-secondary);
+  --hero-accent: var(--color-text-accent);
+  --hero-overlay-start: var(--color-background-card);
+  --hero-overlay-end: var(--color-background-surface);
+  --hero-overlay-soft-start: var(--color-background-card);
+  --hero-overlay-soft-end: var(--color-background-muted);
+  --hero-stripe-a: var(--color-background-card);
+  --hero-stripe-b: var(--color-background-muted);
+  --hero-glass: var(--color-background-surface);
+  --status-success-bg: var(--color-success-muted);
+  --status-success-line: var(--color-success);
+  --status-info-bg: var(--color-background-blue);
+  --status-info-line: var(--color-border-blue);
+  --status-warning-bg: var(--color-warning-muted);
+  --status-warning-line: var(--color-warning);
+  --status-danger-bg: var(--color-error-muted);
+  --status-danger-line: var(--color-error);
+  --avatar-bg: var(--color-accent-muted);
+  --avatar-line: var(--color-border);
+  --backdrop: var(--color-overlay);
+  --disabled-bg: var(--color-background-muted);
+  --install-panel-bg: var(--color-background-inverted);
+  --install-panel-line: var(--color-border-emphasized);
+  --install-panel-success: var(--color-success);
+  --install-panel-error: var(--color-error);
+  --install-panel-muted: var(--color-text-secondary);
+  --install-panel-control: var(--color-overlay-hover);
+  --install-panel-control-line: var(--color-border);
+  --progress-track: var(--color-track);
+  --progress-fill: var(--color-accent);
+  --toast-bg: var(--color-background-inverted);
+  --modal-shadow: 0 24px 80px var(--color-shadow);
   --catalog-card-max-width: 380px;
   --catalog-card-max-height: 360px;
   --list-card-max-width: 640px;
@@ -80,62 +80,6 @@
 
 :root[data-app-theme='dark'] {
   color-scheme: dark;
-  --app-bg: #0f1512;
-  --ink: #e9f0eb;
-  --muted: #a8b5ae;
-  --line: #2c3932;
-  --paper: #111a15;
-  --surface: #17211b;
-  --field: #111a15;
-  --subtle-surface: #132018;
-  --green: #68d39e;
-  --green-strong: #96e3b8;
-  --mint: #174c38;
-  --blue: #7ab2f3;
-  --red: #ff8a8a;
-  --amber: #f2bd66;
-  --on-strong: #07110c;
-  --sidebar-bg: #0b120f;
-  --sidebar-ink: #f3f8f5;
-  --sidebar-muted: #9aaba2;
-  --sidebar-item: #d8e4dd;
-  --sidebar-hover: #1c2b23;
-  --sidebar-line: #2b4035;
-  --brand-mark-bg: #164a37;
-  --brand-mark-ink: #d8f5e6;
-  --hero-ink: #f5fbf7;
-  --hero-muted: #bbcbc2;
-  --hero-accent: #7cddb0;
-  --hero-overlay-start: rgba(6, 14, 10, 0.98);
-  --hero-overlay-end: rgba(6, 14, 10, 0.88);
-  --hero-overlay-soft-start: rgba(6, 14, 10, 0.96);
-  --hero-overlay-soft-end: rgba(6, 14, 10, 0.82);
-  --hero-stripe-a: #10251c;
-  --hero-stripe-b: #173026;
-  --hero-glass: rgba(255, 255, 255, 0.08);
-  --status-success-bg: #10261b;
-  --status-success-line: #2d6949;
-  --status-info-bg: #102033;
-  --status-info-line: #315b86;
-  --status-warning-bg: #2b2110;
-  --status-warning-line: #71511c;
-  --status-danger-bg: #301818;
-  --status-danger-line: #7d3939;
-  --avatar-bg: #10281d;
-  --avatar-line: #25573d;
-  --backdrop: rgba(0, 0, 0, 0.58);
-  --disabled-bg: #1a241e;
-  --install-panel-bg: #0b120f;
-  --install-panel-line: #284537;
-  --install-panel-success: #3f9865;
-  --install-panel-error: #944444;
-  --install-panel-muted: #bbcbc2;
-  --install-panel-control: rgba(255, 255, 255, 0.07);
-  --install-panel-control-line: #314f42;
-  --progress-track: #203329;
-  --progress-fill: #65d99d;
-  --toast-bg: #e9f0eb;
-  --modal-shadow: 0 24px 80px rgba(0, 0, 0, 0.46);
 }
 
 * {
@@ -164,7 +108,7 @@ body,
 }
 
 :focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--green) 72%, white);
+  outline: 3px solid var(--color-accent);
   outline-offset: 2px;
 }
 
@@ -696,6 +640,49 @@ body,
     opacity: 0;
     transform: translateY(6px);
   }
+}
+
+.invite-manager {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.invite-create-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 180px) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.invite-code-output {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.invite-code-output > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.invite-code-output code {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.invite-row {
+  align-items: center;
 }
 
 .storage-settings-panel {
@@ -1630,6 +1617,10 @@ body,
   align-content: start;
 }
 
+.auth-panel .astryx-field-label > span:has(> span[aria-hidden='true']) {
+  display: none;
+}
+
 .auth-path-panel {
   display: grid;
   align-content: start;
@@ -1673,6 +1664,24 @@ body,
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.auth-path-action {
+  justify-self: end;
+  min-width: 118px;
+  white-space: nowrap;
+}
+
+.auth-path-action > span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.auth-path-action > span > span:last-child {
+  white-space: nowrap;
 }
 
 .profile-card {
@@ -2035,6 +2044,10 @@ body,
   gap: 14px;
 }
 
+.token-help-panel {
+  width: min(760px, 100%);
+}
+
 .install-password-dialog .close {
   position: absolute;
   top: 12px;
@@ -2088,6 +2101,71 @@ body,
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.token-help-head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding-right: 48px;
+}
+
+.token-help-head h2,
+.token-help-head p {
+  margin: 0;
+}
+
+.token-help-head h2 {
+  font-size: 19px;
+  line-height: 1.25;
+}
+
+.token-help-head p {
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: 5px;
+}
+
+.token-help-content,
+.token-help-section {
+  display: grid;
+  gap: 12px;
+}
+
+.token-help-section {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.token-help-section strong,
+.token-help-section span {
+  display: block;
+}
+
+.token-help-section span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.code-example {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink);
+  padding: 12px;
+  overflow: auto;
+  white-space: pre;
+  max-width: 100%;
+}
+
+.code-example code {
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .detail-head {
@@ -2177,6 +2255,63 @@ body,
   color: var(--ink);
   font-size: 12px;
   line-height: 1.45;
+}
+
+.outdated-state {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.outdated-state.active {
+  border-color: var(--status-warning-line);
+  background: var(--status-warning-bg);
+}
+
+.outdated-state-head {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.outdated-state-head > svg {
+  color: var(--amber);
+  margin-top: 2px;
+}
+
+.outdated-state-head strong,
+.outdated-state-head span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.outdated-state-head strong {
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.outdated-state-head span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.outdated-form {
+  border-top: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  padding-top: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.outdated-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .trust-facts {
@@ -2286,7 +2421,7 @@ body,
 }
 
 .screenshot-form {
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) minmax(140px, 180px) 44px;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 180px) 44px;
 }
 
 .screenshot-upload-grid {
@@ -2568,6 +2703,15 @@ body,
   border-top: 1px solid var(--line);
 }
 
+.screenshot-caption-editor {
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: center;
+}
+
+.screenshot-caption-editor small {
+  grid-column: 1 / -1;
+}
+
 .comment-head {
   padding: 0;
 }
@@ -2724,7 +2868,7 @@ body,
   border-radius: 8px;
   padding: 10px 14px;
   background: var(--toast-bg);
-  color: var(--on-strong);
+  color: var(--app-bg);
   opacity: 1;
   transition:
     transform 180ms var(--ease-out),
@@ -2739,15 +2883,18 @@ body,
 }
 
 .toast.success {
-  background: var(--green);
+  background: var(--color-success);
+  color: var(--color-on-success);
 }
 
 .toast.error {
-  background: var(--red);
+  background: var(--color-error);
+  color: var(--color-on-error);
 }
 
 .toast.neutral {
-  background: var(--blue);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 .mobile-tab-list {
@@ -2843,6 +2990,11 @@ code {
     align-items: start;
   }
 
+  .auth-path-action {
+    grid-column: 2;
+    justify-self: start;
+  }
+
   .hero-band {
     display: grid;
     align-items: start;
@@ -2879,6 +3031,15 @@ code {
     grid-template-columns: 1fr;
   }
 
+  .outdated-state-head {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .outdated-state-head > button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
   .screenshot-upload-grid {
     grid-template-columns: 1fr;
   }
@@ -2890,7 +3051,8 @@ code {
   .taxonomy-list-grid,
   .taxonomy-edit-fields,
   .collection-edit-row,
-  .storage-provider-grid {
+  .storage-provider-grid,
+  .invite-create-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2946,6 +3108,10 @@ code {
   }
 
   .artifact-mode {
+    grid-template-columns: 1fr;
+  }
+
+  .outdated-form-grid {
     grid-template-columns: 1fr;
   }
 

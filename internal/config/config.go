@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const DefaultSQLiteDSN = "file:./data/store.db?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)"
+
 type Config struct {
 	Addr                       string
 	BaseURL                    string
@@ -53,7 +55,7 @@ func Load() Config {
 		BaseURL:                    strings.TrimRight(env("BASE_URL", "http://localhost:8080"), "/"),
 		ClientOrigins:              splitEnv("CLIENT_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"),
 		DBDriver:                   normalizeDriver(env("DB_DRIVER", "sqlite3")),
-		DBDSN:                      env("DB_DSN", "./data/store.db"),
+		DBDSN:                      env("DB_DSN", DefaultSQLiteDSN),
 		StorageBackend:             env("STORAGE_BACKEND", "local"),
 		LocalStoragePath:           env("LOCAL_STORAGE_PATH", "./data/files"),
 		WebDAVURL:                  os.Getenv("WEBDAV_URL"),

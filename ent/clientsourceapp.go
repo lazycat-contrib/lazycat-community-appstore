@@ -38,6 +38,8 @@ type ClientSourceApp struct {
 	IconURL string `json:"icon_url,omitempty"`
 	// InstallProtected holds the value of the "install_protected" field.
 	InstallProtected bool `json:"install_protected,omitempty"`
+	// OutdatedMarks holds the value of the "outdated_marks" field.
+	OutdatedMarks int `json:"outdated_marks,omitempty"`
 	// ScreenshotsJSON holds the value of the "screenshots_json" field.
 	ScreenshotsJSON string `json:"screenshots_json,omitempty"`
 	// LatestVersionJSON holds the value of the "latest_version_json" field.
@@ -81,7 +83,7 @@ func (*ClientSourceApp) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case clientsourceapp.FieldInstallProtected:
 			values[i] = new(sql.NullBool)
-		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID:
+		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID, clientsourceapp.FieldOutdatedMarks:
 			values[i] = new(sql.NullInt64)
 		case clientsourceapp.FieldExternalID, clientsourceapp.FieldPackageID, clientsourceapp.FieldName, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldCategory, clientsourceapp.FieldCategoryI18nJSON, clientsourceapp.FieldIconURL, clientsourceapp.FieldScreenshotsJSON, clientsourceapp.FieldLatestVersionJSON, clientsourceapp.FieldVersionsJSON:
 			values[i] = new(sql.NullString)
@@ -167,6 +169,12 @@ func (_m *ClientSourceApp) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field install_protected", values[i])
 			} else if value.Valid {
 				_m.InstallProtected = value.Bool
+			}
+		case clientsourceapp.FieldOutdatedMarks:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field outdated_marks", values[i])
+			} else if value.Valid {
+				_m.OutdatedMarks = int(value.Int64)
 			}
 		case clientsourceapp.FieldScreenshotsJSON:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -268,6 +276,9 @@ func (_m *ClientSourceApp) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("install_protected=")
 	builder.WriteString(fmt.Sprintf("%v", _m.InstallProtected))
+	builder.WriteString(", ")
+	builder.WriteString("outdated_marks=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OutdatedMarks))
 	builder.WriteString(", ")
 	builder.WriteString("screenshots_json=")
 	builder.WriteString(_m.ScreenshotsJSON)

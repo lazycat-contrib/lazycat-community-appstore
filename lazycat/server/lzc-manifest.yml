@@ -17,8 +17,8 @@ application:
     - SITE_PUBLIC_URL=https://${LAZYCAT_APP_DOMAIN}
     - CLIENT_ORIGINS=https://${LAZYCAT_APP_DOMAIN}
     - TRUST_LAZYCAT_CLIENT_COMMENTS=true
-    - DB_DRIVER=sqlite3
-    - DB_DSN=/lzcapp/var/data/store.db
+    - DB_DRIVER={{ .U.db_driver }}
+    - DB_DSN={{ .U.db_dsn }}
     - STORAGE_BACKEND=local
     - LOCAL_STORAGE_PATH=/lzcapp/var/files
     - SITE_MAX_LPK_SIZE=524288000

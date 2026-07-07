@@ -1,12 +1,10 @@
 import { Copy, Download, History, Layers3, LogIn, PackagePlus, Search, Tag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
-import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { API_BASE } from '../../config';
-import { AppIcon } from '../../components/AppIcon';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { Category, Collection, SiteProfile, StoreApp, Toast } from '../../shared/types';
-import { errorMessage, localizedCategory, localizedName } from '../../shared/utils';
+import { errorMessage, localizedName } from '../../shared/utils';
 import { AppGrid } from './AppGrid';
 
 export function StorefrontHome({
@@ -61,26 +59,6 @@ export function StorefrontHome({
             <XButton type="button" variant="primary" label={backstageLabel} icon={<BackstageIcon size={18} />} onClick={() => onNavigate('profile')} />
           </div>
         </div>
-        {latest.length > 0 && (
-          <div className="hero-app-shelf" aria-label={t('home.featuredApps')}>
-            {latest.slice(0, 4).map((app) => (
-              <XClickableCard className="featured-app-tile" key={app.id} label={t('app.open', { name: app.name })} onClick={() => void onOpen(app)} padding={3}>
-                <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={app.name} size={52} />
-                <span>
-                  <strong>{app.name}</strong>
-                  <small>{localizedCategory(app, t('common.uncategorized'))}</small>
-                </span>
-              </XClickableCard>
-            ))}
-            <XClickableCard className="featured-app-tile browse-tile" label={t('home.browseInstallable')} onClick={() => onNavigate('search')} padding={3}>
-              <Search size={24} />
-              <span>
-                <strong>{t('home.browseInstallable')}</strong>
-                <small>{t('home.featuredHint')}</small>
-              </span>
-            </XClickableCard>
-          </div>
-        )}
       </div>
 
       <section className="store-metrics" aria-label={t('nav.store')}>

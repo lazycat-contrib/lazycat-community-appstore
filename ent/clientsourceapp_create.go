@@ -129,6 +129,20 @@ func (_c *ClientSourceAppCreate) SetNillableInstallProtected(v *bool) *ClientSou
 	return _c
 }
 
+// SetOutdatedMarks sets the "outdated_marks" field.
+func (_c *ClientSourceAppCreate) SetOutdatedMarks(v int) *ClientSourceAppCreate {
+	_c.mutation.SetOutdatedMarks(v)
+	return _c
+}
+
+// SetNillableOutdatedMarks sets the "outdated_marks" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableOutdatedMarks(v *int) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetOutdatedMarks(*v)
+	}
+	return _c
+}
+
 // SetScreenshotsJSON sets the "screenshots_json" field.
 func (_c *ClientSourceAppCreate) SetScreenshotsJSON(v string) *ClientSourceAppCreate {
 	_c.mutation.SetScreenshotsJSON(v)
@@ -263,6 +277,10 @@ func (_c *ClientSourceAppCreate) defaults() {
 		v := clientsourceapp.DefaultInstallProtected
 		_c.mutation.SetInstallProtected(v)
 	}
+	if _, ok := _c.mutation.OutdatedMarks(); !ok {
+		v := clientsourceapp.DefaultOutdatedMarks
+		_c.mutation.SetOutdatedMarks(v)
+	}
 	if _, ok := _c.mutation.ScreenshotsJSON(); !ok {
 		v := clientsourceapp.DefaultScreenshotsJSON
 		_c.mutation.SetScreenshotsJSON(v)
@@ -331,6 +349,9 @@ func (_c *ClientSourceAppCreate) check() error {
 	}
 	if _, ok := _c.mutation.InstallProtected(); !ok {
 		return &ValidationError{Name: "install_protected", err: errors.New(`ent: missing required field "ClientSourceApp.install_protected"`)}
+	}
+	if _, ok := _c.mutation.OutdatedMarks(); !ok {
+		return &ValidationError{Name: "outdated_marks", err: errors.New(`ent: missing required field "ClientSourceApp.outdated_marks"`)}
 	}
 	if _, ok := _c.mutation.ScreenshotsJSON(); !ok {
 		return &ValidationError{Name: "screenshots_json", err: errors.New(`ent: missing required field "ClientSourceApp.screenshots_json"`)}
@@ -411,6 +432,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 	if value, ok := _c.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
 		_node.InstallProtected = value
+	}
+	if value, ok := _c.mutation.OutdatedMarks(); ok {
+		_spec.SetField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)
+		_node.OutdatedMarks = value
 	}
 	if value, ok := _c.mutation.ScreenshotsJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldScreenshotsJSON, field.TypeString, value)

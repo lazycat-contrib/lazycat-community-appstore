@@ -16,6 +16,18 @@ params:
     name: "Source Password"
     description: "Optional password for /source/v1/index.json"
     optional: true
+  - id: db_driver
+    type: string
+    name: "Database Driver"
+    description: "Database driver: sqlite3, postgres, or mysql"
+    default_value: "sqlite3"
+    optional: false
+  - id: db_dsn
+    type: string
+    name: "Database DSN"
+    description: "Database connection string. The default sqlite3 DSN uses entsqlite recommended WAL settings."
+    default_value: "file:/lzcapp/var/data/store.db?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)"
+    optional: false
   - id: github_download_mirrors
     type: string
     name: "GitHub Download Mirrors"
@@ -38,6 +50,12 @@ locales:
     source_password:
       name: "软件源密码"
       description: "可选的 /source/v1/index.json 访问密码"
+    db_driver:
+      name: "数据库类型"
+      description: "数据库驱动：sqlite3、postgres 或 mysql"
+    db_dsn:
+      name: "数据库连接字符串"
+      description: "数据库连接字符串。默认 sqlite3 使用 entsqlite 推荐的 WAL 配置。"
     github_download_mirrors:
       name: "GitHub 下载镜像"
       description: "可选的 GitHub Release/Code ZIP 下载镜像，一行一个，格式：名称=>地址"

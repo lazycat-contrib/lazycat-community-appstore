@@ -15,6 +15,10 @@ go run ./cmd/store-server
 
 Default server URL: `http://localhost:8080`
 
+Default server database: `DB_DRIVER=sqlite3` with
+`DB_DSN=file:./data/store.db?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)`.
+The server also accepts `postgres` and `mysql` through `DB_DRIVER` and `DB_DSN`.
+
 First-run initialization supports two paths:
 
 - Web setup wizard: when no site administrator exists and no admin environment variables are set, open the server URL and create the first administrator from the browser.

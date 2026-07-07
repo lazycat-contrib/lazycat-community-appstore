@@ -38,6 +38,7 @@ type feedApp struct {
 	CategoryI18n     map[string]string        `json:"categoryI18n"`
 	IconURL          string                   `json:"iconUrl"`
 	InstallProtected bool                     `json:"installProtected"`
+	OutdatedMarks    int                      `json:"outdatedMarks"`
 	Screenshots      []catalogmeta.Screenshot `json:"screenshots"`
 	LatestVersion    *VersionDTO              `json:"latestVersion"`
 	Versions         []VersionDTO             `json:"versions"`
@@ -163,6 +164,7 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 			SetCategoryI18nJSON(catalogmeta.EncodeLocalizedText(app.CategoryI18n)).
 			SetIconURL(app.IconURL).
 			SetInstallProtected(app.InstallProtected).
+			SetOutdatedMarks(app.OutdatedMarks).
 			SetScreenshotsJSON(screenshotsJSON).
 			SetLatestVersionJSON(versionJSON).
 			SetVersionsJSON(versionsJSON).

@@ -122,24 +122,50 @@ func openEnt(cfg config.Config) (*ent.Client, error) {
 }
 
 func sqliteDSN(dsn string) string {
-	if strings.Contains(dsn, "_pragma=foreign_keys") {
-		return dsn
+	dsn = strings.TrimSpace(dsn)
+	if dsn == "" {
+		dsn = config.DefaultSQLiteDSN
 	}
-	separator := "?"
-	if strings.Contains(dsn, "?") {
-		separator = "&"
+	if dsn == ":memory:" {
+		dsn = "file::memory:"
 	}
-	return dsn + separator + "_pragma=foreign_keys(1)"
+	if !strings.HasPrefix(dsn, "file:") {
+		dsn = "file:" + dsn
+	}
+	for _, option := range []struct {
+		key   string
+		value string
+	}{
+		{key: "cache=", value: "cache=shared"},
+		{key: "_pragma=foreign_keys", value: "_pragma=foreign_keys(1)"},
+		{key: "_pragma=journal_mode", value: "_pragma=journal_mode(WAL)"},
+		{key: "_pragma=synchronous", value: "_pragma=synchronous(NORMAL)"},
+		{key: "_pragma=busy_timeout", value: "_pragma=busy_timeout(10000)"},
+	} {
+		if strings.Contains(dsn, option.key) {
+			continue
+		}
+		separator := "?"
+		if strings.Contains(dsn, "?") {
+			separator = "&"
+		}
+		dsn += separator + option.value
+	}
+	return dsn
 }
 
 func ensureSQLiteDir(cfg config.Config) error {
 	if cfg.DBDriver != "sqlite3" {
 		return nil
 	}
-	if strings.HasPrefix(cfg.DBDSN, "file:") || strings.Contains(cfg.DBDSN, "?") {
+	dsn := strings.TrimPrefix(strings.TrimSpace(cfg.DBDSN), "file:")
+	if idx := strings.IndexByte(dsn, '?'); idx >= 0 {
+		dsn = dsn[:idx]
+	}
+	if dsn == "" || dsn == ":memory:" {
 		return nil
 	}
-	dir := filepath.Dir(cfg.DBDSN)
+	dir := filepath.Dir(dsn)
 	if dir == "." || dir == "" {
 		return nil
 	}
@@ -179,14 +205,15 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/apps/{id}/versions/{versionId}/download", s.handleDownloadVersion)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/screenshots", s.withAuth(s.handleUploadScreenshot))
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/screenshots/reorder", s.withAuth(s.handleReorderScreenshots))
+	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/screenshots/{screenshotId}", s.withAuth(s.handleUpdateScreenshot))
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/screenshots/{screenshotId}", s.withAuth(s.handleDeleteScreenshot))
 	s.mux.HandleFunc("GET /api/v1/apps/{id}/comments", s.handleListComments)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/comments", s.handleCreateComment)
 	s.mux.HandleFunc("DELETE /api/v1/comments/{id}", s.handleDeleteComment)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/favorites", s.withAuth(s.handleToggleFavorite))
 	s.mux.HandleFunc("POST /api/v1/submitters/{id}/favorites", s.withAuth(s.handleToggleSubmitterFavorite))
-	s.mux.HandleFunc("POST /api/v1/apps/{id}/outdated-marks", s.withAuth(s.handleMarkOutdated))
-	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/outdated-marks", s.withAuth(s.handleClearOutdated))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/outdated-marks", s.handleMarkOutdated)
+	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/outdated-marks", s.handleClearOutdated)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/collaborator-requests", s.withAuth(s.handleCreateCollaboratorRequest))
 	s.mux.HandleFunc("GET /api/v1/apps/{id}/collaborator-requests", s.withAuth(s.handleListCollaboratorRequests))
 	s.mux.HandleFunc("POST /api/v1/collaborator-requests/{id}/approve", s.withAuth(s.handleApproveCollaboratorRequest))
@@ -221,6 +248,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleGetSettings))
 	s.mux.HandleFunc("PATCH /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleUpdateSettings))
 	s.mux.HandleFunc("POST /api/v1/admin/settings/test-email", s.withRole(userRoleSiteAdmin)(s.handleSendTestEmail))
+	s.mux.HandleFunc("GET /api/v1/admin/registration-invites", s.withRole(userRoleSiteAdmin)(s.handleListRegistrationInvites))
+	s.mux.HandleFunc("POST /api/v1/admin/registration-invites", s.withRole(userRoleSiteAdmin)(s.handleCreateRegistrationInvite))
+	s.mux.HandleFunc("DELETE /api/v1/admin/registration-invites/{id}", s.withRole(userRoleSiteAdmin)(s.handleDeleteRegistrationInvite))
 	s.mux.HandleFunc("GET /api/v1/admin/storage", s.withRole(userRoleSiteAdmin)(s.handleGetStorageConfig))
 	s.mux.HandleFunc("PATCH /api/v1/admin/storage", s.withRole(userRoleSiteAdmin)(s.handleUpdateStorageConfig))
 	s.mux.HandleFunc("POST /api/v1/admin/storage/test", s.withRole(userRoleSiteAdmin)(s.handleTestStorageConfig))

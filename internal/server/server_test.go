@@ -30,6 +30,7 @@ import (
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/outdatedmark"
+	"lazycat.community/appstore/ent/registrationinvite"
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/config"
@@ -121,6 +122,24 @@ func TestEmbeddedAppConfigUsesSameOriginAPI(t *testing.T) {
 	}
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+}
+
+func TestServerSQLiteDSNAddsEntSQLitePragmas(t *testing.T) {
+	dsn := sqliteDSN("./tmp/server.db")
+	if !strings.HasPrefix(dsn, "file:./tmp/server.db?") {
+		t.Fatalf("sqliteDSN = %q, want file URI", dsn)
+	}
+	for _, part := range []string{
+		"cache=shared",
+		"_pragma=foreign_keys(1)",
+		"_pragma=journal_mode(WAL)",
+		"_pragma=synchronous(NORMAL)",
+		"_pragma=busy_timeout(10000)",
+	} {
+		if !strings.Contains(dsn, part) {
+			t.Fatalf("sqliteDSN missing %s in %q", part, dsn)
+		}
 	}
 }
 
@@ -357,6 +376,17 @@ func TestMaintainerCanReorderAndDeleteScreenshots(t *testing.T) {
 		AllX(ctx)
 	if reordered[0].ID != second.ID || reordered[1].ID != first.ID {
 		t.Fatalf("screenshot order = [%d,%d], want [%d,%d]", reordered[0].ID, reordered[1].ID, second.ID, first.ID)
+	}
+
+	rec = app.do(http.MethodPatch, fmt.Sprintf("/api/v1/apps/%d/screenshots/%d", record.ID, second.ID), map[string]any{
+		"caption": " updated caption ",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update screenshot status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	updated := app.server.db.AppScreenshot.GetX(ctx, second.ID)
+	if updated.Caption != "updated caption" {
+		t.Fatalf("caption = %q, want trimmed updated caption", updated.Caption)
 	}
 
 	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/apps/%d/screenshots/%d", record.ID, first.ID), nil)
@@ -654,6 +684,128 @@ func TestDynamicSettingsAffectRegistrationAndLPKUpload(t *testing.T) {
 	app.handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "exceeds") {
 		t.Fatalf("upload over dynamic max status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRegistrationModeAndInvites(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+
+	rec := app.do(http.MethodGet, "/api/v1/site/profile", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"registration":{"mode":"open"}`) {
+		t.Fatalf("default registration profile status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	app.login("admin", "changeme")
+	rec = app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{"registration_mode": "closed"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("close registration status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	app.cookies = nil
+	rec = app.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
+		"username": "closed-user",
+		"password": "long-password",
+	})
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "REGISTRATION_CLOSED") {
+		t.Fatalf("closed registration status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	app.login("admin", "changeme")
+	rec = app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{"registration_mode": "invite"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("invite registration status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	rec = app.do(http.MethodPost, "/api/v1/admin/registration-invites", map[string]any{
+		"note":    "beta testers",
+		"maxUses": 2,
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create invite status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var created struct {
+		Invite registrationInviteDTO `json:"invite"`
+		Code   string                `json:"code"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode invite: %v", err)
+	}
+	if created.Code == "" || created.Invite.MaxUses != 2 || created.Invite.RemainingUses != 2 {
+		t.Fatalf("created invite = %#v code=%q", created.Invite, created.Code)
+	}
+
+	app.cookies = nil
+	rec = app.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
+		"username": "missing-invite",
+		"password": "long-password",
+	})
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "INVITE_REQUIRED") {
+		t.Fatalf("missing invite status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = app.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
+		"username":   "invite-one",
+		"password":   "long-password",
+		"inviteCode": created.Code,
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("first invited registration status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	record := app.server.db.RegistrationInvite.Query().
+		Where(registrationinvite.CodeHashEQ(tokenHash(created.Code))).
+		OnlyX(ctx)
+	if record.RemainingUses != 1 {
+		t.Fatalf("remaining uses after first registration = %d, want 1", record.RemainingUses)
+	}
+
+	rec = app.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
+		"username":   "invite-two",
+		"password":   "long-password",
+		"inviteCode": created.Code,
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("second invited registration status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if exists := app.server.db.RegistrationInvite.Query().Where(registrationinvite.CodeHashEQ(tokenHash(created.Code))).ExistX(ctx); exists {
+		t.Fatal("invite still exists after remaining uses reached zero")
+	}
+
+	rec = app.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
+		"username":   "invite-three",
+		"password":   "long-password",
+		"inviteCode": created.Code,
+	})
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "INVALID_INVITE") {
+		t.Fatalf("exhausted invite status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	app.login("admin", "changeme")
+	rec = app.do(http.MethodPost, "/api/v1/admin/registration-invites", map[string]any{
+		"note":    "delete me",
+		"maxUses": 3,
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create second invite status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var second struct {
+		Invite registrationInviteDTO `json:"invite"`
+		Code   string                `json:"code"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &second); err != nil {
+		t.Fatalf("decode second invite: %v", err)
+	}
+	rec = app.do(http.MethodGet, "/api/v1/admin/registration-invites", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list invites status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), second.Invite.CodePrefix) || strings.Contains(rec.Body.String(), second.Code) {
+		t.Fatalf("invite list should expose prefix only, body = %s", rec.Body.String())
+	}
+	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/registration-invites/%d", second.Invite.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete invite status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if exists := app.server.db.RegistrationInvite.Query().Where(registrationinvite.IDEQ(second.Invite.ID)).ExistX(ctx); exists {
+		t.Fatal("deleted invite still exists")
 	}
 }
 
@@ -1277,6 +1429,7 @@ func TestAdminSettingsRejectInvalidValues(t *testing.T) {
 		{"announcement_link_url": "javascript:alert(1)"},
 		{"announcement_level": "danger"},
 		{"announcement_enabled": "yes"},
+		{"registration_mode": "members-only"},
 	}
 	for _, body := range tests {
 		rec := app.do(http.MethodPatch, "/api/v1/admin/settings", body)
@@ -1671,6 +1824,97 @@ func TestSocialActionsRequireVisibleApprovedApp(t *testing.T) {
 	}
 	if app.server.db.CollaboratorRequest.Query().Where(collaboratorrequest.UserIDEQ(viewer.ID), collaboratorrequest.AppIDEQ(privateApp.ID)).ExistX(ctx) {
 		t.Fatal("collaborator request was created for hidden app")
+	}
+}
+
+func TestMarkOutdatedRequiresReasonAndNotifiesOwner(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	mailer := &captureMailer{}
+	app.server.mailer = mailer
+	if err := app.server.setSetting(ctx, settingSMTPHost, "smtp.test"); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.server.setSetting(ctx, settingSMTPFrom, "store@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	owner := app.server.db.User.Create().SetUsername("outdated-owner").SetEmail("owner@example.com").SetPasswordHash("x").SaveX(ctx)
+	viewer := app.server.db.User.Create().SetUsername("outdated-viewer").SetPasswordHash("x").SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.outdated-app").
+		SetName("Outdated App").
+		SetSlug("outdated-app").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	app.cookies = []*http.Cookie{app.serverCookieFor(viewer.ID)}
+
+	rec := app.do(http.MethodPost, fmt.Sprintf("/api/v1/apps/%d/outdated-marks", record.ID), map[string]string{"note": " "})
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("empty outdated note status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID)).CountX(ctx); count != 0 {
+		t.Fatalf("outdated marks after empty note = %d, want 0", count)
+	}
+
+	rec = app.do(http.MethodPost, fmt.Sprintf("/api/v1/apps/%d/outdated-marks", record.ID), map[string]string{
+		"note":             "Upstream released a newer build.",
+		"installedVersion": "1.0.0",
+		"expectedVersion":  "1.2.0",
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("mark outdated status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	mark := app.server.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID), outdatedmark.UserIDEQ(viewer.ID)).OnlyX(ctx)
+	for _, want := range []string{
+		"Reason:\nUpstream released a newer build.",
+		"Current or installed version: 1.0.0",
+		"Expected newer version or source: 1.2.0",
+	} {
+		if !strings.Contains(mark.Note, want) {
+			t.Fatalf("outdated note missing %q: %q", want, mark.Note)
+		}
+		if !strings.Contains(mailer.body, want) {
+			t.Fatalf("outdated mail missing %q: %q", want, mailer.body)
+		}
+	}
+	if mailer.to != "owner@example.com" || mailer.subject != "Update requested for Outdated App" {
+		t.Fatalf("unexpected outdated mail: to=%q subject=%q body=%q", mailer.to, mailer.subject, mailer.body)
+	}
+
+	rec = app.do(http.MethodGet, fmt.Sprintf("/api/v1/apps/%d", record.ID), nil)
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || !strings.Contains(body, `"outdatedMarks":1`) || !strings.Contains(body, `"outdatedMarked":true`) {
+		t.Fatalf("detail outdated state missing: status=%d body=%s", rec.Code, body)
+	}
+}
+
+func TestApprovedVersionClearsOutdatedMarks(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	viewer := app.server.db.User.Create().SetUsername("outdated-clear-viewer").SetPasswordHash("x").SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.outdated-clear").
+		SetName("Outdated Clear").
+		SetSlug("outdated-clear").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	app.server.db.OutdatedMark.Create().SetAppID(record.ID).SetUserID(viewer.ID).SetNote("needs update").SaveX(ctx)
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodPost, fmt.Sprintf("/api/v1/apps/%d/versions", record.ID), map[string]any{
+		"version":     "2.0.0",
+		"sourceType":  "GITHUB",
+		"downloadUrl": "https://github.com/acme/outdated-clear/releases/download/v2/app.lpk",
+		"sha256":      strings.Repeat("c", 64),
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create clearing version status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID)).CountX(ctx); count != 0 {
+		t.Fatalf("outdated marks after approved version = %d, want 0", count)
 	}
 }
 

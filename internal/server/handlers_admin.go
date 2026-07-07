@@ -15,6 +15,7 @@ import (
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/category"
+	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/ent/tag"
@@ -123,6 +124,7 @@ func (s *Server) decideReview(w http.ResponseWriter, r *http.Request, u *entgo.U
 		updatedVersion, err := update.SetStatus(versionStatus).Save(r.Context())
 		if err == nil && approve {
 			_, _ = s.db.App.UpdateOneID(updatedVersion.AppID).SetStatus(app.StatusAPPROVED).Save(r.Context())
+			s.clearAppOutdatedMarks(r, updatedVersion.AppID)
 			s.enforceVersionRetention(r, updatedVersion.AppID)
 		}
 	}
@@ -398,6 +400,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingAnnouncementLinkLabel:  "",
 		settingAnnouncementLinkURL:    "",
 		settingAnnouncementUpdatedAt:  "",
+		settingRegistrationMode:       registrationModeOpen,
 		settingSMTPHost:               s.cfg.SMTPHost,
 		settingSMTPPort:               strconv.Itoa(s.cfg.SMTPPort),
 		settingSMTPUser:               s.cfg.SMTPUser,
@@ -536,6 +539,10 @@ func validateSetting(key, value string) error {
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("%s must be a boolean", key)
 		}
+	case settingRegistrationMode:
+		if !validRegistrationMode(value) {
+			return fmt.Errorf("%s must be open, invite, or closed", key)
+		}
 	case settingSMTPPort:
 		parsed, err := strconv.Atoi(value)
 		if err != nil || parsed <= 0 || parsed > 65535 {
@@ -601,6 +608,7 @@ func isPublicSetting(key string) bool {
 		settingAnnouncementLinkLabel,
 		settingAnnouncementLinkURL,
 		settingAnnouncementUpdatedAt,
+		settingRegistrationMode,
 		settingSMTPHost,
 		settingSMTPPort,
 		settingSMTPUser,
@@ -622,6 +630,8 @@ func normalizeSettingValue(key, value string) string {
 		return normalized
 	case settingSitePublicURL, settingSiteIconURL, settingAnnouncementLinkURL:
 		return cleanURLSetting(value)
+	case settingRegistrationMode:
+		return strings.ToLower(value)
 	default:
 		return value
 	}
@@ -680,4 +690,8 @@ func (s *Server) enforceVersionRetention(r *http.Request, appID int) {
 		}
 		_ = s.db.AppVersion.DeleteOneID(old.ID).Exec(r.Context())
 	}
+}
+
+func (s *Server) clearAppOutdatedMarks(r *http.Request, appID int) {
+	_, _ = s.db.OutdatedMark.Delete().Where(outdatedmark.AppIDEQ(appID)).Exec(r.Context())
 }

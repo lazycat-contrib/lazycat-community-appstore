@@ -161,7 +161,7 @@
 关键环境变量：
 
 - `DB_DRIVER=sqlite3|postgres|mysql`
-- `DB_DSN=...`
+- `DB_DSN=...`（sqlite3 默认使用 `file:./data/store.db?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)`）
 - `STORAGE_BACKEND=local|webdav|s3|github`
 - `SITE_MAX_LPK_SIZE`
 - `SITE_MAX_VERSIONS`

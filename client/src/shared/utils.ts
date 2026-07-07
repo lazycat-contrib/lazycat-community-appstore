@@ -159,6 +159,7 @@ export function defaultSiteProfile(title: string): SiteProfile {
     publicUrl,
     sourceUrl: `${publicUrl}/source/v1/index.json`,
     announcement: { enabled: false, level: 'info' },
+    registration: { mode: 'open' },
   };
 }
 

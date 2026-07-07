@@ -11,6 +11,7 @@ import {
   Download,
   Gauge,
   Heart,
+  HelpCircle,
   History,
   Home,
   KeyRound,
@@ -86,6 +87,7 @@ import type {
   InstallHistoryEntry,
   InstallOptions,
   InstallPasswordRequest,
+  RegistrationInvite,
   ResolvedTheme,
   Review,
   Screenshot,
@@ -261,7 +263,7 @@ export function App() {
   const navItems = HAS_API ? serverNavItems : clientTabs;
   const siteTitle = HAS_API ? siteProfile.title : t('appName');
   const currentLanguage = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
-  const drawerOpen = Boolean(selectedApp);
+  const drawerOpen = false;
   const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
   const selectedAstryxTheme = useMemo(() => getAstryxTheme(astryxThemeName), [astryxThemeName]);
   const announcementKey =
@@ -274,6 +276,12 @@ export function App() {
     announcementKey !== dismissedAnnouncement;
 
   const [sources, setSources] = useState<SourceSubscription[]>([]);
+
+  function navigateTo(nextTab: TabKey) {
+    setSelectedApp(null);
+    setSelectedSourceApp(null);
+    setTab(nextTab);
+  }
 
   const sourceStats = useMemo<ClientSourceStats>(() => {
     return {
@@ -636,7 +644,7 @@ export function App() {
 
   async function syncAllSources() {
     if (sources.length === 0) {
-      setTab('sources');
+      navigateTo('sources');
       setToast({ tone: 'neutral', message: t('toast.addSourceFirst') });
       return;
     }
@@ -657,7 +665,7 @@ export function App() {
       setToast({ tone: 'success', message: t('toast.allSourcesSynced', { count: sources.length }) });
     }
     if (success > 0) {
-      setTab('search');
+      navigateTo('search');
     }
   }
 
@@ -704,7 +712,7 @@ export function App() {
           onComplete={async (nextUser) => {
             setUser(nextUser);
             setSetupRequired(false);
-            setTab('profile');
+            navigateTo('profile');
             await refreshAll();
           }}
           setToast={setToast}
@@ -731,7 +739,7 @@ export function App() {
             <strong>{siteTitle}</strong>
           </div>
         </div>
-        <XTabList className="nav" value={tab} onChange={(value) => setTab(value as TabKey)} orientation="vertical" aria-label={t('common.navigation')}>
+        <XTabList className="nav" value={tab} onChange={(value) => navigateTo(value as TabKey)} orientation="vertical" aria-label={t('common.navigation')}>
           {navItems.map((item) => {
             const Icon = item.icon;
             return <XTab key={item.key} value={item.key} label={t(item.labelKey)} icon={<Icon size={19} />} />;
@@ -778,7 +786,7 @@ export function App() {
                 }
               />
             ) : HAS_API ? (
-              <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => setTab('profile')} />
+              <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => navigateTo('profile')} />
             ) : null}
           </div>
         </header>
@@ -806,7 +814,22 @@ export function App() {
                 }}
               />
             )}
-            {!HAS_API && selectedSourceApp ? (
+            {HAS_API && selectedApp ? (
+              <AppDrawer
+                app={selectedApp}
+                user={user}
+                groups={groups}
+                categories={categories}
+                onClose={() => setSelectedApp(null)}
+                onInstall={installApp}
+                onRefresh={async () => {
+                  await openApp(selectedApp);
+                  await refreshAll();
+                }}
+                onListRefresh={refreshAll}
+                setToast={setToast}
+              />
+            ) : !HAS_API && selectedSourceApp ? (
               <SourceAppDetailPage
                 app={selectedSourceApp}
                 installedMatch={findInstalledApplication(selectedSourceApp, installedApps)}
@@ -818,6 +841,7 @@ export function App() {
                   const data = await clientApi<{ app: SourceApp }>(`/apps/${selectedSourceApp.id}`);
                   setSelectedSourceApp(data.app);
                 }}
+                setToast={setToast}
               />
             ) : (
             <>
@@ -829,10 +853,10 @@ export function App() {
                 siteProfile={siteProfile}
                 onOpen={openApp}
                 onInstall={installApp}
-                onNavigate={setTab}
+                onNavigate={navigateTo}
                 onCategory={(category) => {
                   setActiveCategory(category);
-                  setTab('search');
+                  navigateTo('search');
                 }}
                 setToast={setToast}
                 isAuthenticated={Boolean(user)}
@@ -858,7 +882,7 @@ export function App() {
                 onOpen={openApp}
                 onOpenSource={setSelectedSourceApp}
                 onInstall={installApp}
-                onGoSources={() => setTab('sources')}
+                onGoSources={() => navigateTo('sources')}
               />
             )}
             {tab === 'sources' && (
@@ -895,7 +919,8 @@ export function App() {
                 refreshAll={refreshAll}
                 setToast={setToast}
                 hasAPI={HAS_API}
-                onNavigate={setTab}
+                siteProfile={siteProfile}
+                onNavigate={navigateTo}
               />
             )}
             {tab === 'history' && !HAS_API && (
@@ -922,7 +947,7 @@ export function App() {
                   icon={ShieldCheck}
                   title={user ? t('admin.noPermission') : t('auth.loginRequired')}
                   body={user ? t('admin.noPermissionBody') : t('auth.loginRequiredBody')}
-                  action={!user ? { label: t('auth.login'), icon: LogIn, onClick: () => setTab('profile') } : undefined}
+                  action={!user ? { label: t('auth.login'), icon: LogIn, onClick: () => navigateTo('profile') } : undefined}
                 />
               )
             )}
@@ -932,24 +957,7 @@ export function App() {
         )}
       </main>
 
-      <MobileTabs tab={tab} setTab={setTab} items={navItems} inert={drawerOpen} />
-
-      {selectedApp && (
-        <AppDrawer
-          app={selectedApp}
-          user={user}
-          groups={groups}
-          categories={categories}
-          onClose={() => setSelectedApp(null)}
-          onInstall={installApp}
-          onRefresh={async () => {
-            await openApp(selectedApp);
-            await refreshAll();
-          }}
-          onListRefresh={refreshAll}
-          setToast={setToast}
-        />
-      )}
+      <MobileTabs tab={tab} setTab={navigateTo} items={navItems} inert={drawerOpen} />
 
       {installPasswordRequest && (
         <InstallOptionsDialog
@@ -1354,6 +1362,7 @@ function SourceAppDetailPage({
   onInstall,
   onLoadInstalled,
   onRefreshSourceApp,
+  setToast,
 }: {
   app: SourceApp;
   installedMatch?: InstalledApplication;
@@ -1362,8 +1371,10 @@ function SourceAppDetailPage({
   onInstall: (app: SourceApp, options?: { version?: string }) => void;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
   onRefreshSourceApp: () => Promise<void>;
+  setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
+  const requiredLabel = (label: string) => `${label} · ${t('common.required')}`;
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const detailTitleId = `source-app-detail-title-${app.sourceId || app.sourceName}-${app.id}`;
   const [comments, setComments] = useState<Comment[]>([]);
@@ -1371,6 +1382,13 @@ function SourceAppDetailPage({
   const [commentText, setCommentText] = useState('');
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [isOutdatedFormOpen, setIsOutdatedFormOpen] = useState(false);
+  const [outdatedCount, setOutdatedCount] = useState(app.outdatedMarks ?? 0);
+  const [outdatedForm, setOutdatedForm] = useState({
+    note: '',
+    installedVersion: installedMatch?.version || app.latestVersion?.version || '',
+    expectedVersion: '',
+  });
   const preferredScreenshotDevice = usePreferredScreenshotDevice();
   const latestVersion = app.latestVersion;
   const sourceVersions = app.versions && app.versions.length > 0 ? app.versions : latestVersion ? [latestVersion] : [];
@@ -1380,6 +1398,7 @@ function SourceAppDetailPage({
   const isUpdateAvailable = installAction === 'update';
   const hasChecksum = Boolean(latestVersion?.sha256);
   const hasSize = Boolean(latestVersion?.size && latestVersion.size > 0);
+  const hasOutdatedMarks = outdatedCount > 0;
   const trustState: 'ready' | 'caution' | 'blocked' = !installable ? 'blocked' : hasChecksum && hasSize ? 'ready' : 'caution';
   const TrustIcon = trustState === 'ready' ? ShieldCheck : trustState === 'caution' ? Gauge : AlertCircle;
   const trustTitle = trustState === 'ready' ? t('sourceDetail.trustReadyTitle') : trustState === 'caution' ? t('sourceDetail.trustCautionTitle') : t('sourceDetail.trustBlockedTitle');
@@ -1406,7 +1425,18 @@ function SourceAppDetailPage({
     setCommentText('');
     setReplyTarget(null);
     setReplyText('');
+    setIsOutdatedFormOpen(false);
+    setOutdatedCount(app.outdatedMarks ?? 0);
+    setOutdatedForm({
+      note: '',
+      installedVersion: installedMatch?.version || app.latestVersion?.version || '',
+      expectedVersion: '',
+    });
   }, [app.id]);
+
+  useEffect(() => {
+    setOutdatedCount(app.outdatedMarks ?? 0);
+  }, [app.outdatedMarks]);
 
   async function loadSourceComments() {
     setCommentsState('loading');
@@ -1448,6 +1478,29 @@ function SourceAppDetailPage({
     await loadSourceComments();
   }
 
+  async function submitSourceOutdated(event: FormEvent) {
+    event.preventDefault();
+    const note = outdatedForm.note.trim();
+    if (!note) return;
+    try {
+      const data = await clientApi<{ outdatedMarks?: number }>(`/apps/${app.id}/outdated-marks`, {
+        method: 'POST',
+        body: JSON.stringify({
+          note,
+          installedVersion: outdatedForm.installedVersion.trim(),
+          expectedVersion: outdatedForm.expectedVersion.trim(),
+        }),
+      });
+      setOutdatedCount(typeof data.outdatedMarks === 'number' ? data.outdatedMarks : Math.max(outdatedCount, 1));
+      setOutdatedForm((current) => ({ ...current, note: '', expectedVersion: '' }));
+      setIsOutdatedFormOpen(false);
+      setToast({ tone: 'success', message: t('sourceDetail.outdatedSubmitted') });
+      await onRefreshSourceApp();
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('sourceDetail.outdatedSubmitFailed')) });
+    }
+  }
+
   return (
     <section className="detail-page-shell">
       <article className="detail-page" aria-labelledby={detailTitleId}>
@@ -1466,6 +1519,12 @@ function SourceAppDetailPage({
                 <span className={cx('status-badge', isUpdateAvailable ? 'pending' : 'synced')}>
                   {isUpdateAvailable ? <RefreshCw size={13} /> : <Check size={13} />}
                   {isUpdateAvailable ? t('app.updateAvailable') : t('app.installed')}
+                </span>
+              )}
+              {hasOutdatedMarks && (
+                <span className="status-badge stale">
+                  <AlertCircle size={13} />
+                  {t('sourceDetail.outdatedBadge', { count: outdatedCount })}
                 </span>
               )}
             </div>
@@ -1518,6 +1577,52 @@ function SourceAppDetailPage({
               {installedMatch?.appid && <small>{installedMatch.appid}</small>}
             </div>
           </div>
+        </section>
+
+        <section className={cx('outdated-state', hasOutdatedMarks && 'active')} aria-label={t('sourceDetail.outdatedTitle')}>
+          <div className="outdated-state-head">
+            <AlertCircle size={19} />
+            <div>
+              <strong>{hasOutdatedMarks ? t('sourceDetail.outdatedActiveTitle', { count: outdatedCount }) : t('sourceDetail.outdatedTitle')}</strong>
+              <span>{hasOutdatedMarks ? t('sourceDetail.outdatedActiveBody') : t('sourceDetail.outdatedBody')}</span>
+            </div>
+            <XButton
+              type="button"
+              variant="secondary"
+              size="sm"
+              label={hasOutdatedMarks ? t('sourceDetail.updateOutdatedInfo') : t('sourceDetail.markOutdated')}
+              icon={<AlertCircle size={17} />}
+              onClick={() => setIsOutdatedFormOpen((open) => !open)}
+            />
+          </div>
+          {isOutdatedFormOpen && (
+            <form className="outdated-form" onSubmit={(event) => void submitSourceOutdated(event)}>
+              <XTextArea
+                label={requiredLabel(t('sourceDetail.outdatedReason'))}
+                value={outdatedForm.note}
+                rows={3}
+                isRequired
+                onChange={(value) => setOutdatedForm({ ...outdatedForm, note: value })}
+              />
+              <div className="outdated-form-grid">
+                <XTextInput
+                  label={t('sourceDetail.currentVersion')}
+                  value={outdatedForm.installedVersion}
+                  onChange={(value) => setOutdatedForm({ ...outdatedForm, installedVersion: value })}
+                />
+                <XTextInput
+                  label={t('sourceDetail.expectedVersion')}
+                  value={outdatedForm.expectedVersion}
+                  onChange={(value) => setOutdatedForm({ ...outdatedForm, expectedVersion: value })}
+                />
+              </div>
+              <p className="field-help">{t('sourceDetail.outdatedHelp')}</p>
+              <div className="dialog-actions">
+                <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={() => setIsOutdatedFormOpen(false)} />
+                <XButton type="submit" variant="primary" label={t('sourceDetail.submitOutdated')} icon={<AlertCircle size={18} />} isDisabled={!outdatedForm.note.trim()} />
+              </div>
+            </form>
+          )}
         </section>
 
         <section className="detail-summary" aria-label={t('drawer.metadata')}>
@@ -1753,6 +1858,7 @@ function ProfileView({
   refreshAll,
   setToast,
   hasAPI,
+  siteProfile,
   onNavigate,
 }: {
   user: User | null;
@@ -1771,13 +1877,14 @@ function ProfileView({
   refreshAll: (options?: { silent?: boolean }) => Promise<void>;
   setToast: (toast: Toast) => void;
   hasAPI: boolean;
+  siteProfile: SiteProfile;
   onNavigate: (tab: TabKey) => void;
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
   const [workspaceTab, setWorkspaceTab] = useState<'overview' | 'apps' | 'tokens' | 'groups' | 'favorites'>('overview');
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
-  const [authForm, setAuthForm] = useState({ username: '', password: '', email: '' });
+  const [authForm, setAuthForm] = useState({ username: '', password: '', email: '', inviteCode: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
   const [uploadForm, setUploadForm] = useState({
     name: '',
@@ -1801,12 +1908,21 @@ function ProfileView({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [tokens, setTokens] = useState<APITokenRecord[]>([]);
   const [newToken, setNewToken] = useState('');
+  const [isTokenHelpOpen, setIsTokenHelpOpen] = useState(false);
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
   const [commentNotifications, setCommentNotifications] = useState<CommentNotification[]>([]);
   const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
   const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
-  const authHint = mode === 'login' ? t('auth.loginHint') : mode === 'register' ? t('auth.registerHint') : t('auth.verifyHint');
+  const registrationMode = siteProfile.registration?.mode || 'open';
+  const registrationOpen = registrationMode !== 'closed';
+  const inviteRegistration = registrationMode === 'invite';
+  const authHint = mode === 'login'
+    ? t('auth.loginHint')
+    : mode === 'register'
+      ? t(inviteRegistration ? 'auth.registerInviteHint' : 'auth.registerHint')
+      : t('auth.verifyHint');
   const AuthSubmitIcon = mode === 'verify' ? Check : mode === 'register' ? Plus : LogIn;
+  const requiredLabel = (label: string) => `${label} · ${t('common.required')}`;
   const workspaceTabs = [
     { key: 'overview', label: t('profile.tabs.overview'), icon: Gauge },
     { key: 'apps', label: t('profile.tabs.apps'), icon: PackagePlus },
@@ -1890,6 +2006,12 @@ function ProfileView({
   useEffect(() => {
     if (verifyToken) setMode('verify');
   }, [verifyToken]);
+
+  useEffect(() => {
+    if (!registrationOpen && mode === 'register') {
+      setMode('login');
+    }
+  }, [mode, registrationOpen]);
 
   useEffect(() => {
     if (user?.emailVerified === false) setMode('verify');
@@ -2119,20 +2241,23 @@ function ProfileView({
             <p className="inline-note">{authHint}</p>
             <XToggleButtonGroup value={mode} onChange={(value) => value && setMode(value as typeof mode)} label={t('auth.modeSwitch')} size="sm">
               <XToggleButton value="login" label={t('auth.login')} />
-              <XToggleButton value="register" label={t('auth.register')} />
+              {registrationOpen && <XToggleButton value="register" label={t('auth.register')} />}
               <XToggleButton value="verify" label={t('auth.verify')} />
             </XToggleButtonGroup>
             {mode === 'verify' ? (
-              <XTextInput label={t('auth.verifyToken')} value={verifyToken} isRequired onChange={setVerifyToken} />
+              <XTextInput label={requiredLabel(t('auth.verifyToken'))} value={verifyToken} isRequired onChange={setVerifyToken} />
             ) : (
               <>
-                <XTextInput label={t('common.username')} value={authForm.username} isRequired onChange={(value) => setAuthForm({ ...authForm, username: value })} />
+                <XTextInput label={requiredLabel(t('common.username'))} value={authForm.username} isRequired onChange={(value) => setAuthForm({ ...authForm, username: value })} />
                 {mode === 'register' && (
                   <XTextInput type="email" label={t('common.email')} value={authForm.email} onChange={(value) => setAuthForm({ ...authForm, email: value })} />
                 )}
+                {mode === 'register' && inviteRegistration && (
+                  <XTextInput label={requiredLabel(t('auth.inviteCode'))} value={authForm.inviteCode} isRequired onChange={(value) => setAuthForm({ ...authForm, inviteCode: value })} />
+                )}
                 <XTextInput
                   type="password"
-                  label={t('common.password')}
+                  label={requiredLabel(t('common.password'))}
                   description={mode === 'register' ? t('auth.passwordHelp') : undefined}
                   value={authForm.password}
                   isRequired
@@ -2152,23 +2277,25 @@ function ProfileView({
                   <strong>{t('auth.pathBrowseTitle')}</strong>
                   <span>{t('auth.pathBrowseBody')}</span>
                 </div>
-                <XButton type="button" variant="secondary" size="sm" label={t('auth.pathBrowseAction')} icon={<Home size={17} />} onClick={() => onNavigate('home')} />
+                <XButton className="auth-path-action" type="button" variant="secondary" size="sm" label={t('auth.pathBrowseAction')} icon={<Home size={17} />} onClick={() => onNavigate('home')} />
               </div>
-              <div className="auth-path-row">
-                <PackagePlus size={19} />
-                <div>
-                  <strong>{t('auth.pathSubmitTitle')}</strong>
-                  <span>{t('auth.pathSubmitBody')}</span>
+              {registrationOpen && (
+                <div className="auth-path-row">
+                  <PackagePlus size={19} />
+                  <div>
+                    <strong>{t('auth.pathSubmitTitle')}</strong>
+                    <span>{t(inviteRegistration ? 'auth.pathSubmitInviteBody' : 'auth.pathSubmitBody')}</span>
+                  </div>
+                  <XButton className="auth-path-action" type="button" variant="secondary" size="sm" label={t('auth.pathSubmitAction')} icon={<Plus size={17} />} onClick={() => setMode('register')} />
                 </div>
-                <XButton type="button" variant="secondary" size="sm" label={t('auth.pathSubmitAction')} icon={<Plus size={17} />} onClick={() => setMode('register')} />
-              </div>
+              )}
               <div className="auth-path-row">
                 <ShieldCheck size={19} />
                 <div>
                   <strong>{t('auth.pathAdminTitle')}</strong>
                   <span>{t('auth.pathAdminBody')}</span>
                 </div>
-                <XButton type="button" variant="secondary" size="sm" label={t('auth.pathAdminAction')} icon={<LogIn size={17} />} onClick={() => setMode('login')} />
+                <XButton className="auth-path-action" type="button" variant="secondary" size="sm" label={t('auth.pathAdminAction')} icon={<LogIn size={17} />} onClick={() => setMode('login')} />
               </div>
             </div>
           </section>
@@ -2344,7 +2471,13 @@ function ProfileView({
       {workspaceTab === 'tokens' && (
       <section className="workspace-pane">
         <section className="panel">
-          <SectionTitle icon={KeyRound} title={t('token.title')} />
+          <div className="section-title with-action">
+            <div>
+              <KeyRound size={19} />
+              <h2>{t('token.title')}</h2>
+            </div>
+            <XIconButton type="button" variant="ghost" label={t('token.help')} icon={<HelpCircle size={17} />} onClick={() => setIsTokenHelpOpen(true)} />
+          </div>
           <div className="review-list">
             {tokens.map((token) => (
               <div className="review-row" key={token.id}>
@@ -2358,6 +2491,7 @@ function ProfileView({
           {newToken && <code className="token-output">{newToken}</code>}
           <XButton type="button" variant="secondary" label={t('token.generate')} icon={<KeyRound size={18} />} onClick={() => void createToken()} />
         </section>
+        {isTokenHelpOpen && <TokenHelpDialog onClose={() => setIsTokenHelpOpen(false)} />}
       </section>
       )}
 
@@ -2398,6 +2532,116 @@ function ProfileView({
         </section>
       </section>
       )}
+    </section>
+  );
+}
+
+const tokenCreateAppCurlExample = [
+  'export APPSTORE_URL="https://store.example.com"',
+  'export APPSTORE_TOKEN="lcst_..."',
+  '',
+  'curl -fsS -X POST "$APPSTORE_URL/api/v1/apps" \\',
+  '  -H "Authorization: Bearer $APPSTORE_TOKEN" \\',
+  '  -H "Content-Type: application/json" \\',
+  "  -d '{",
+  '    "packageId": "cloud.lazycat.example.app",',
+  '    "name": "Example App",',
+  '    "summary": "Published from CI",',
+  '    "version": "1.2.3",',
+  '    "sourceType": "GITHUB",',
+  '    "downloadUrl": "https://github.com/acme/app/releases/download/v1.2.3/app.lpk",',
+  '    "sha256": "REPLACE_WITH_64_CHAR_SHA256"',
+  "  }'",
+].join('\n');
+
+const tokenPublishVersionCurlExample = [
+  'export APPSTORE_URL="https://store.example.com"',
+  'export APPSTORE_TOKEN="lcst_..."',
+  'export APP_ID="123"',
+  '',
+  'curl -fsS -X POST "$APPSTORE_URL/api/v1/apps/$APP_ID/versions" \\',
+  '  -H "Authorization: Bearer $APPSTORE_TOKEN" \\',
+  '  -F "version=1.2.4" \\',
+  '  -F "changelog=Automated release" \\',
+  '  -F "file=@dist/app.lpk"',
+].join('\n');
+
+const tokenGithubActionsExample = [
+  'name: Publish LazyCat LPK',
+  '',
+  'on:',
+  '  release:',
+  '    types: [published]',
+  '',
+  'jobs:',
+  '  publish:',
+  '    runs-on: ubuntu-latest',
+  '    steps:',
+  '      - uses: actions/checkout@v4',
+  '      - name: Build LPK',
+  '        run: lzc-cli project release -o dist/app.lpk',
+  '      - name: Publish version',
+  '        env:',
+  '          APPSTORE_URL: ${{ secrets.APPSTORE_URL }}',
+  '          APPSTORE_TOKEN: ${{ secrets.APPSTORE_TOKEN }}',
+  '          APP_ID: ${{ secrets.APP_ID }}',
+  '        run: |',
+  '          curl -fsS -X POST "$APPSTORE_URL/api/v1/apps/$APP_ID/versions" \\',
+  '            -H "Authorization: Bearer $APPSTORE_TOKEN" \\',
+  '            -F "version=${GITHUB_REF_NAME#v}" \\',
+  '            -F "changelog=${{ github.event.release.body }}" \\',
+  '            -F "file=@dist/app.lpk"',
+].join('\n');
+
+function TokenHelpDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const titleId = 'token-help-title';
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section
+        className="modal-panel token-help-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onClose} />
+        <div className="token-help-head">
+          <span className="install-password-icon">
+            <KeyRound size={21} />
+          </span>
+          <div>
+            <h2 id={titleId}>{t('token.helpTitle')}</h2>
+            <p>{t('token.helpBody')}</p>
+          </div>
+        </div>
+        <div className="token-help-content">
+          <TokenHelpExample title={t('token.helpCreateAppTitle')} body={t('token.helpCreateAppBody')} code={tokenCreateAppCurlExample} />
+          <TokenHelpExample title={t('token.helpPublishVersionTitle')} body={t('token.helpPublishVersionBody')} code={tokenPublishVersionCurlExample} />
+          <TokenHelpExample title={t('token.helpGithubActionsTitle')} body={t('token.helpGithubActionsBody')} code={tokenGithubActionsExample} />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function TokenHelpExample({ title, body, code }: { title: string; body: string; code: string }) {
+  return (
+    <section className="token-help-section">
+      <div>
+        <strong>{title}</strong>
+        <span>{body}</span>
+      </div>
+      <pre className="code-example"><code>{code}</code></pre>
     </section>
   );
 }
@@ -2503,6 +2747,9 @@ function AdminPanel({
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [reviewApps, setReviewApps] = useState<StoreApp[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [registrationInvites, setRegistrationInvites] = useState<RegistrationInvite[]>([]);
+  const [inviteDraft, setInviteDraft] = useState({ note: '', maxUses: '1' });
+  const [newInviteCode, setNewInviteCode] = useState('');
   const [storageSettings, setStorageSettings] = useState<StorageSettings>(defaultStorageSettings);
   const [adminCategories, setAdminCategories] = useState<Category[]>([]);
   const [adminTags, setAdminTags] = useState<TagRecord[]>([]);
@@ -2510,7 +2757,7 @@ function AdminPanel({
   const [categoryForm, setCategoryForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' });
   const [tagForm, setTagForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' });
   const [collectionForm, setCollectionForm] = useState<{ name: string; kind: string; appIds: number[] }>({ name: '', kind: 'MANUAL', appIds: [] });
-  const [siteSettingsTab, setSiteSettingsTab] = useState<'identity' | 'announcement' | 'policy' | 'storage' | 'mail'>('identity');
+  const [siteSettingsTab, setSiteSettingsTab] = useState<'identity' | 'announcement' | 'registration' | 'policy' | 'storage' | 'mail'>('identity');
   const [isCollectionCreateOpen, setIsCollectionCreateOpen] = useState(false);
   const [taxonomyCreateMode, setTaxonomyCreateMode] = useState<'category' | 'tag' | null>(null);
   const [editingCategoryID, setEditingCategoryID] = useState<number | null>(null);
@@ -2542,6 +2789,7 @@ function AdminPanel({
   const siteSettingsTabs = [
     { key: 'identity', label: t('admin.siteSettingTabs.identity'), icon: Archive },
     { key: 'announcement', label: t('admin.siteSettingTabs.announcement'), icon: MessageSquare },
+    { key: 'registration', label: t('admin.siteSettingTabs.registration'), icon: KeyRound },
     { key: 'policy', label: t('admin.siteSettingTabs.policy'), icon: ShieldCheck },
     { key: 'storage', label: t('admin.siteSettingTabs.storage'), icon: Server },
     { key: 'mail', label: t('admin.siteSettingTabs.mail'), icon: MessageSquare },
@@ -2568,6 +2816,19 @@ function AdminPanel({
     { key: 'announcement_body', label: t('admin.settings.announcementBody'), help: t('admin.settingsHelp.announcementBody'), type: 'textarea' },
     { key: 'announcement_link_label', label: t('admin.settings.announcementLinkLabel'), help: t('admin.settingsHelp.announcementLinkLabel') },
     { key: 'announcement_link_url', label: t('admin.settings.announcementLinkURL'), help: t('admin.settingsHelp.announcementLinkURL'), type: 'url' },
+  ];
+  const registrationSettingFields = [
+    {
+      key: 'registration_mode',
+      label: t('admin.settings.registrationMode'),
+      help: t('admin.settingsHelp.registrationMode'),
+      type: 'select',
+      options: [
+        { value: 'open', label: t('admin.registrationModes.open') },
+        { value: 'invite', label: t('admin.registrationModes.invite') },
+        { value: 'closed', label: t('admin.registrationModes.closed') },
+      ],
+    },
   ];
   const policySettingFields = [
     { key: 'max_lpk_size', label: t('admin.settings.maxLPKSize'), help: t('admin.settingsHelp.maxLPKSize'), inputMode: 'numeric' },
@@ -2643,14 +2904,16 @@ function AdminPanel({
       setTagDrafts({});
       setCollectionDrafts({});
       if (isSiteAdmin) {
-        const [userData, settingData, storageData] = await Promise.all([
+        const [userData, settingData, storageData, inviteData] = await Promise.all([
           api<{ users: User[] }>('/api/v1/admin/users'),
           api<{ settings: Record<string, string> }>('/api/v1/admin/settings'),
           api<{ storage: StorageSettings }>('/api/v1/admin/storage'),
+          api<{ invites: RegistrationInvite[] }>('/api/v1/admin/registration-invites'),
         ]);
         setUsers(userData.users);
         setSettings(settingData.settings || {});
         setStorageSettings({ ...defaultStorageSettings, ...(storageData.storage || {}) });
+        setRegistrationInvites(inviteData.invites || []);
       }
     });
   }
@@ -2724,6 +2987,48 @@ function AdminPanel({
       });
       setToast({ tone: 'success', message: t('admin.storageTested') });
     });
+  }
+
+  async function createRegistrationInvite() {
+    const maxUses = Number.parseInt(inviteDraft.maxUses, 10);
+    await runAction(setToast, t('admin.inviteCreateFailed'), async () => {
+      const data = await api<{ invite: RegistrationInvite; code: string }>('/api/v1/admin/registration-invites', {
+        method: 'POST',
+        body: JSON.stringify({
+          note: inviteDraft.note,
+          maxUses: Number.isFinite(maxUses) ? maxUses : 1,
+        }),
+      });
+      setRegistrationInvites((current) => [data.invite, ...current]);
+      setNewInviteCode(data.code);
+      setInviteDraft({ note: '', maxUses: '1' });
+      setToast({ tone: 'success', message: t('admin.inviteCreated') });
+    });
+  }
+
+  async function deleteRegistrationInvite(invite: RegistrationInvite) {
+    const confirmKey = `invite:${invite.id}`;
+    if (confirmDelete !== confirmKey) {
+      setConfirmDelete(confirmKey);
+      setToast({ tone: 'neutral', message: t('admin.confirmDeleteInvite', { code: invite.codePrefix }) });
+      return;
+    }
+    await runAction(setToast, t('admin.inviteDeleteFailed'), async () => {
+      await api(`/api/v1/admin/registration-invites/${invite.id}`, { method: 'DELETE' });
+      setRegistrationInvites((current) => current.filter((item) => item.id !== invite.id));
+      setConfirmDelete(null);
+      setToast({ tone: 'neutral', message: t('admin.inviteDeleted') });
+    });
+  }
+
+  async function copyInviteCode() {
+    try {
+      if (!newInviteCode || !navigator.clipboard?.writeText) throw new Error(t('home.copySourceUnsupported'));
+      await navigator.clipboard.writeText(newInviteCode);
+      setToast({ tone: 'success', message: t('admin.inviteCopied') });
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('admin.inviteCopyFailed')) });
+    }
   }
 
   function updateSetting(key: string, value: string) {
@@ -3180,6 +3485,75 @@ function AdminPanel({
                   </div>
                 )}
 
+                {siteSettingsTab === 'registration' && (
+                  <div className="settings-section">
+                    <div className="settings-section-head">
+                      <strong>{t('admin.registrationSettings')}</strong>
+                      <span>{t('admin.registrationSettingsBody')}</span>
+                    </div>
+                    <XFormLayout>
+                      {registrationSettingFields.map(renderSettingField)}
+                    </XFormLayout>
+                    <div className="invite-manager">
+                      <div className="settings-section-head">
+                        <strong>{t('admin.inviteManagement')}</strong>
+                        <span>{t('admin.inviteManagementBody')}</span>
+                      </div>
+                      <div className="invite-create-grid">
+                        <XTextInput
+                          label={t('admin.inviteNote')}
+                          description={t('admin.inviteNoteHelp')}
+                          value={inviteDraft.note}
+                          onChange={(value) => setInviteDraft((current) => ({ ...current, note: value }))}
+                        />
+                        <XTextInput
+                          label={t('admin.inviteMaxUses')}
+                          description={t('admin.inviteMaxUsesHelp')}
+                          value={inviteDraft.maxUses}
+                          onChange={(value) => setInviteDraft((current) => ({ ...current, maxUses: value }))}
+                        />
+                        <XButton type="button" variant="secondary" label={t('admin.createInvite')} icon={<KeyRound size={17} />} onClick={() => void createRegistrationInvite()} />
+                      </div>
+                      {newInviteCode && (
+                        <div className="invite-code-output">
+                          <div>
+                            <strong>{t('admin.latestInviteCode')}</strong>
+                            <code>{newInviteCode}</code>
+                          </div>
+                          <XButton type="button" variant="secondary" size="sm" label={t('admin.copyInviteCode')} icon={<Copy size={16} />} onClick={() => void copyInviteCode()} />
+                        </div>
+                      )}
+                      <div className="review-list invite-list">
+                        {registrationInvites.length === 0 ? (
+                          <EmptyState icon={KeyRound} title={t('admin.noInvites')} body={t('admin.noInvitesBody')} />
+                        ) : (
+                          registrationInvites.map((invite) => (
+                            <div className="review-row invite-row" key={invite.id}>
+                              <div>
+                                <strong>{invite.note || t('admin.inviteCodePrefix', { code: invite.codePrefix })}</strong>
+                                <span>
+                                  {t('admin.inviteUsage', { remaining: invite.remainingUses, max: invite.maxUses })} · {invite.codePrefix} · {formatDate(invite.createdAt)}
+                                </span>
+                              </div>
+                              <div className="row-actions">
+                                <XBadge label={invite.remainingUses > 0 ? t('admin.inviteUsable') : t('admin.inviteExhausted')} variant={invite.remainingUses > 0 ? 'success' : 'neutral'} />
+                                <XButton
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  label={t('admin.deleteInvite', { code: invite.codePrefix })}
+                                  icon={<Trash2 size={16} />}
+                                  onClick={() => void deleteRegistrationInvite(invite)}
+                                />
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {siteSettingsTab === 'policy' && (
                   <div className="settings-section">
                     <div className="settings-section-head">
@@ -3557,8 +3931,8 @@ function AppDrawer({
   const [replyTarget, setReplyTarget] = useState<number | null>(null);
   const [replyText, setReplyText] = useState('');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
-  const [screenshotCaption, setScreenshotCaption] = useState('');
   const [screenshotDeviceType, setScreenshotDeviceType] = useState<'DESKTOP' | 'MOBILE'>('DESKTOP');
+  const [screenshotCaptionDrafts, setScreenshotCaptionDrafts] = useState<Record<number, string>>({});
   const preferredScreenshotDevice = usePreferredScreenshotDevice();
   const [versionForm, setVersionForm] = useState({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
   const [versionArtifactMode, setVersionArtifactMode] = useState<'local' | 'external'>('local');
@@ -3606,6 +3980,7 @@ function AppDrawer({
     outdated: app.outdatedMarks ?? 0,
     screenshots: (app.screenshots || []).length,
   });
+  const hasOutdatedMarks = (app.outdatedMarks ?? 0) > 0;
   const versionNumberReady = Boolean(versionForm.version.trim());
   const versionExternalDownloadReady = Boolean(versionForm.downloadUrl.trim());
   const versionExternalChecksumReady = Boolean(versionForm.sha256.trim());
@@ -3634,6 +4009,7 @@ function AppDrawer({
     setReplyText('');
     setVersionArtifactMode('local');
     setVersionFile(null);
+    setScreenshotCaptionDrafts(Object.fromEntries((app.screenshots || []).map((shot) => [shot.id, shot.caption || ''])));
     if (versionFileInputRef.current) versionFileInputRef.current.value = '';
   }, [app]);
 
@@ -3675,22 +4051,6 @@ function AppDrawer({
         setCommentText('');
       }
       setToast({ tone: 'success', message: t('drawer.commentPosted') });
-      await onRefresh();
-    });
-  }
-
-  async function markOutdated() {
-    await runAction(setToast, t('drawer.markOutdatedFailed'), async () => {
-      await api(`/api/v1/apps/${app.id}/outdated-marks`, { method: 'POST', body: JSON.stringify({ note: t('drawer.defaultOutdatedNote') }) });
-      setToast({ tone: 'neutral', message: t('drawer.outdatedMarked') });
-      await onRefresh();
-    });
-  }
-
-  async function clearOutdated() {
-    await runAction(setToast, t('drawer.clearOutdatedFailed'), async () => {
-      await api(`/api/v1/apps/${app.id}/outdated-marks`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: t('drawer.outdatedCleared') });
       await onRefresh();
     });
   }
@@ -3799,14 +4159,24 @@ function AppDrawer({
     if (!screenshotFile) return;
     const form = new FormData();
     form.set('file', screenshotFile);
-    form.set('caption', screenshotCaption);
+    form.set('caption', '');
     form.set('deviceType', screenshotDeviceType);
     await runAction(setToast, t('drawer.screenshotUploadFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/screenshots`, { method: 'POST', body: form });
       setScreenshotFile(null);
-      setScreenshotCaption('');
       setScreenshotDeviceType('DESKTOP');
       setToast({ tone: 'success', message: t('drawer.screenshotUploaded') });
+      await onRefresh();
+    });
+  }
+
+  async function saveScreenshotCaption(screenshotID: number) {
+    await runAction(setToast, t('drawer.screenshotCaptionSaveFailed'), async () => {
+      await api(`/api/v1/apps/${app.id}/screenshots/${screenshotID}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ caption: screenshotCaptionDrafts[screenshotID] || '' }),
+      });
+      setToast({ tone: 'success', message: t('drawer.screenshotCaptionSaved') });
       await onRefresh();
     });
   }
@@ -3890,15 +4260,9 @@ function AppDrawer({
   }
 
   return (
-    <div className="drawer-backdrop" onClick={onClose}>
-      <article
-        className="drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={drawerTitleId}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <XIconButton ref={closeButtonRef} type="button" variant="ghost" label={t('common.close')} icon={<X size={18} />} className="close" onClick={onClose} />
+    <section className="detail-page-shell">
+      <article className="detail-page server-detail-page" aria-labelledby={drawerTitleId}>
+        <XButton ref={closeButtonRef} className="detail-back-button" type="button" variant="secondary" size="sm" label={t('common.back')} icon={<ArrowLeft size={17} />} onClick={onClose} />
         <div className="detail-head">
           <AvatarIcon seed={app.slug || app.name} title={app.name} size={58} className="detail-avatar" />
           <div>
@@ -3908,6 +4272,12 @@ function AppDrawer({
               <span>{app.owner}</span>
               <span>{localizedCategory(app, t('common.uncategorized'))}</span>
               <span>{app.latestVersion?.version || '-'}</span>
+              {hasOutdatedMarks && (
+                <span className="status-badge stale">
+                  <AlertCircle size={13} />
+                  {t('drawer.outdatedBadge', { count: app.outdatedMarks ?? 0 })}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -3925,8 +4295,6 @@ function AppDrawer({
             <>
               <XButton type="button" variant="secondary" label={t('drawer.favorite')} icon={<Heart size={18} />} onClick={() => void toggleAppFavorite()} />
               <XButton type="button" variant="secondary" label={t('drawer.submitter')} icon={<Star size={18} />} onClick={() => void toggleSubmitterFavorite()} />
-              <XButton type="button" variant="secondary" label={t('drawer.outdated')} icon={<AlertCircle size={18} />} onClick={() => void markOutdated()} />
-              <XButton type="button" variant="secondary" label={t('drawer.clearOutdated')} icon={<Check size={18} />} onClick={() => void clearOutdated()} />
             </>
           )}
           {user && user.id !== app.ownerId && (
@@ -3958,6 +4326,15 @@ function AppDrawer({
             <div role="listitem" className="trust-fact-wide">
               <span>{t('drawer.communitySignals')}</span>
               <strong>{communitySummary}</strong>
+            </div>
+          </div>
+        </section>
+        <section className={cx('outdated-state', hasOutdatedMarks && 'active')} aria-label={t('drawer.outdatedStatus')}>
+          <div className="outdated-state-head">
+            <AlertCircle size={19} />
+            <div>
+              <strong>{hasOutdatedMarks ? t('drawer.outdatedActiveTitle', { count: app.outdatedMarks ?? 0 }) : t('drawer.outdatedInactiveTitle')}</strong>
+              <span>{hasOutdatedMarks ? t('drawer.outdatedActiveBody') : t('drawer.outdatedInactiveBody')}</span>
             </div>
           </div>
         </section>
@@ -4222,10 +4599,31 @@ function AppDrawer({
               {displayScreenshots.map((shot, index, shots) => (
                 <figure className="screenshot-item" key={shot.id}>
                   <img src={shot.imageUrl} alt={shot.caption || app.name} />
-                  <figcaption>
-                    <span>{shot.caption || app.name}</span>
-                    <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
-                  </figcaption>
+                  {canMaintain ? (
+                    <figcaption className="screenshot-caption-editor">
+                      <XTextInput
+                        label={t('drawer.screenshotCaptionFor', { index: index + 1 })}
+                        isLabelHidden
+                        value={screenshotCaptionDrafts[shot.id] ?? shot.caption ?? ''}
+                        placeholder={t('drawer.screenshotCaption')}
+                        onChange={(value) => setScreenshotCaptionDrafts((current) => ({ ...current, [shot.id]: value }))}
+                      />
+                      <XIconButton
+                        type="button"
+                        variant="ghost"
+                        label={t('drawer.saveScreenshotCaption')}
+                        icon={<Save size={16} />}
+                        isDisabled={(screenshotCaptionDrafts[shot.id] ?? '') === (shot.caption || '')}
+                        onClick={() => void saveScreenshotCaption(shot.id)}
+                      />
+                      <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
+                    </figcaption>
+                  ) : (
+                    <figcaption>
+                      <span>{shot.caption || app.name}</span>
+                      <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
+                    </figcaption>
+                  )}
                   {canMaintain && (
                     <div className="screenshot-actions">
                       <XIconButton type="button" variant="ghost" label={t('drawer.moveScreenshotUp')} icon={<ArrowUp size={15} />} isDisabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)} />
@@ -4241,7 +4639,6 @@ function AppDrawer({
           )}
           {canMaintain && (
             <form className="comment-form screenshot-form" onSubmit={uploadScreenshot}>
-              <XTextInput label={t('drawer.screenshotCaption')} isLabelHidden value={screenshotCaption} placeholder={t('drawer.screenshotCaption')} onChange={setScreenshotCaption} />
               <FilePicker
                 label={t('drawer.uploadScreenshot')}
                 value={screenshotFile}
@@ -4306,7 +4703,7 @@ function AppDrawer({
           />
         </section>
       </article>
-    </div>
+    </section>
   );
 }
 

@@ -261,6 +261,18 @@ func (f OutdatedMarkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OutdatedMarkMutation", m)
 }
 
+// The RegistrationInviteFunc type is an adapter to allow the use of ordinary
+// function as RegistrationInvite mutator.
+type RegistrationInviteFunc func(context.Context, *ent.RegistrationInviteMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RegistrationInviteFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RegistrationInviteMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RegistrationInviteMutation", m)
+}
+
 // The ReviewRequestFunc type is an adapter to allow the use of ordinary
 // function as ReviewRequest mutator.
 type ReviewRequestFunc func(context.Context, *ent.ReviewRequestMutation) (ent.Value, error)
