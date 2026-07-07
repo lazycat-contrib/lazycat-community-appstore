@@ -208,6 +208,7 @@ export type MCPPrincipalType = 'USER' | 'ADMIN';
 
 export type MCPProfile = {
   endpoint: string;
+  sourceUrl?: string;
   principalTypes: MCPPrincipalType[];
 };
 

@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { Plus, Trash2, Users } from 'lucide-react';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../shared/api';
@@ -65,27 +66,32 @@ export function GroupPanel({
         <XTextInput label={t('groups.name')} isLabelHidden placeholder={t('groups.name')} value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
         <XIconButton type="submit" variant="secondary" label={t('groups.create')} icon={<Plus size={17} />} />
       </form>
-      <div className="review-list">
-        {groups.length === 0 ? <EmptyState icon={Users} title={t('groups.empty')} /> : groups.map((group) => (
-          <div className="review-row" key={group.id}>
-            <div>
-              <strong>{group.name}</strong>
-              <span>{group.slug}</span>
-            </div>
-            <div className="inline-form compact-line group-member-actions">
-              <XTextInput
-                label={t('groups.userId')}
-                isLabelHidden
-                placeholder={t('groups.userId')}
-                value={memberDrafts[group.id] || ''}
-                onChange={(value) => setMemberDrafts((current) => ({ ...current, [group.id]: value }))}
-              />
-              <XIconButton type="button" variant="secondary" label={t('groups.addMember')} icon={<Plus size={17} />} onClick={() => void addMember(group.id)} />
-              <XIconButton type="button" variant="destructive" label={t('groups.removeMember')} icon={<Trash2 size={17} />} onClick={() => void removeMember(group.id)} />
-            </div>
-          </div>
-        ))}
-      </div>
+      {groups.length === 0 ? (
+        <EmptyState icon={Users} title={t('groups.empty')} />
+      ) : (
+        <XList className="action-list" density="compact" hasDividers>
+          {groups.map((group) => (
+            <XListItem
+              key={group.id}
+              label={group.name}
+              description={group.slug}
+              endContent={(
+                <div className="inline-form compact-line group-member-actions">
+                  <XTextInput
+                    label={t('groups.userId')}
+                    isLabelHidden
+                    placeholder={t('groups.userId')}
+                    value={memberDrafts[group.id] || ''}
+                    onChange={(value) => setMemberDrafts((current) => ({ ...current, [group.id]: value }))}
+                  />
+                  <XIconButton type="button" variant="secondary" label={t('groups.addMember')} icon={<Plus size={17} />} onClick={() => void addMember(group.id)} />
+                  <XIconButton type="button" variant="destructive" label={t('groups.removeMember')} icon={<Trash2 size={17} />} onClick={() => void removeMember(group.id)} />
+                </div>
+              )}
+            />
+          ))}
+        </XList>
+      )}
     </section>
   );
 }

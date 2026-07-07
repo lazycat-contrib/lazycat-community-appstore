@@ -91,12 +91,25 @@ func (s *Server) authenticateToken(ctx context.Context, tokenValue string) (*ent
 	if err != nil {
 		return nil, false
 	}
-	_, _ = s.db.APIToken.UpdateOneID(record.ID).SetLastUsedAt(time.Now()).Save(ctx)
+	s.touchAPITokenLastUsedAt(ctx, record.ID, time.Now())
 	u, err := s.db.User.Get(ctx, record.UserID)
 	if err != nil || u.Disabled {
 		return nil, false
 	}
 	return u, true
+}
+
+func (s *Server) touchAPITokenLastUsedAt(ctx context.Context, tokenID int, now time.Time) {
+	_, _ = s.db.APIToken.Update().
+		Where(
+			apitoken.IDEQ(tokenID),
+			apitoken.Or(
+				apitoken.LastUsedAtIsNil(),
+				apitoken.LastUsedAtLT(now.Add(-tokenLastUsedAtUpdateInterval)),
+			),
+		).
+		SetLastUsedAt(now).
+		Save(ctx)
 }
 
 func bearerToken(r *http.Request) string {

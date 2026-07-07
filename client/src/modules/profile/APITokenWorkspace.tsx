@@ -3,9 +3,11 @@ import { HelpCircle, KeyRound, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { useTranslation } from 'react-i18next';
 import { HAS_API } from '../../config';
 import { api } from '../../shared/api';
+import { EmptyState } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import type { APITokenRecord, Toast, User } from '../../shared/types';
 import { formatDate, runAction } from '../../shared/utils';
@@ -44,16 +46,19 @@ export function APITokenWorkspace({ user, setToast }: { user: User; setToast: (t
           </div>
           <XIconButton type="button" variant="ghost" label={t('token.help')} icon={<HelpCircle size={17} />} onClick={() => setIsHelpOpen(true)} />
         </div>
-        <div className="review-list">
-          {tokens.map((token) => (
-            <div className="review-row" key={token.id}>
-              <div>
-                <strong>{token.name}</strong>
-                <span>{token.prefix} · {formatDate(token.createdAt || token.created_at)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+        {tokens.length === 0 ? (
+          <EmptyState icon={KeyRound} title={t('token.empty')} />
+        ) : (
+          <XList className="action-list" density="compact" hasDividers>
+            {tokens.map((token) => (
+              <XListItem
+                key={token.id}
+                label={token.name}
+                description={`${token.prefix} · ${formatDate(token.createdAt || token.created_at)}`}
+              />
+            ))}
+          </XList>
+        )}
         {newToken && <XCodeBlock code={newToken} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" />}
         <XButton type="button" variant="secondary" label={t('token.generate')} icon={<KeyRound size={18} />} onClick={() => void createToken()} />
       </section>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, ChevronRight, Copy, History, Link, LogOut, RefreshCw, Settings, Trash2, UserPlus, Users, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
@@ -113,28 +114,30 @@ export function CollaborationPanel({
           </div>
           <XButton type="button" variant="secondary" size="sm" label={t('common.refresh')} icon={<RefreshCw size={17} />} onClick={() => void refreshCollaboration()} />
         </div>
-        <div className="review-list">
-          {data.collaborating.length === 0 ? (
-            <EmptyState icon={Users} title={t('profile.noCollaboratingApps')} />
-          ) : (
-            data.collaborating.map((item) => {
+        {data.collaborating.length === 0 ? (
+          <EmptyState icon={Users} title={t('profile.noCollaboratingApps')} />
+        ) : (
+          <XList className="action-list" density="compact" hasDividers>
+            {data.collaborating.map((item) => {
               const appName = localizedAppName(item);
               return (
-                <div className="review-row collaboration-row" key={item.id}>
-                  <div>
-                    <strong>{appName}</strong>
-                    <span>{item.owner} · {item.latestVersion?.version || t('app.noPublishedVersion')}</span>
-                  </div>
-                  <div className="row-actions">
-                    <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
-                    <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
-                    <XIconButton className="fixed-row-icon-button" type="button" variant="destructive" size="sm" label={t('profile.leaveCollaboration')} tooltip={t('profile.leaveCollaboration')} icon={<LogOut size={17} />} onClick={() => void removeCollaborator(item.id, currentUser.id, true)} />
-                  </div>
-                </div>
+                <XListItem
+                  className="collaboration-row"
+                  key={item.id}
+                  label={appName}
+                  description={`${item.owner} · ${item.latestVersion?.version || t('app.noPublishedVersion')}`}
+                  endContent={(
+                    <div className="row-actions">
+                      <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                      <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
+                      <XIconButton className="fixed-row-icon-button" type="button" variant="destructive" size="sm" label={t('profile.leaveCollaboration')} tooltip={t('profile.leaveCollaboration')} icon={<LogOut size={17} />} onClick={() => void removeCollaborator(item.id, currentUser.id, true)} />
+                    </div>
+                  )}
+                />
               );
-            })
-          )}
-        </div>
+            })}
+          </XList>
+        )}
       </section>
 
       <section className="panel">
@@ -172,19 +175,21 @@ export function CollaborationPanel({
 
                   <section className="collaboration-block">
                     <h4>{t('profile.collaboratorMembers')}</h4>
-                    <div className="review-list compact-review-list">
-                      {item.collaborators.length === 0 ? (
-                        <span className="muted-text">{t('profile.noCollaborators')}</span>
-                      ) : item.collaborators.map((collaborator) => (
-                        <div className="review-row compact-row" key={collaborator.id}>
-                          <div>
-                            <strong>{collaborator.username || t('drawer.userLabel', { id: collaborator.userId })}</strong>
-                            <span>{collaborator.email || formatDate(collaborator.createdAt)}</span>
-                          </div>
-                          <XIconButton className="fixed-row-icon-button" type="button" variant="destructive" size="sm" label={t('profile.removeCollaborator')} tooltip={t('profile.removeCollaborator')} icon={<Trash2 size={17} />} onClick={() => void removeCollaborator(item.app.id, collaborator.userId)} />
-                        </div>
-                      ))}
-                    </div>
+                    {item.collaborators.length === 0 ? (
+                      <span className="muted-text">{t('profile.noCollaborators')}</span>
+                    ) : (
+                      <XList className="action-list compact-review-list" density="compact" hasDividers>
+                        {item.collaborators.map((collaborator) => (
+                          <XListItem
+                            className="compact-row"
+                            key={collaborator.id}
+                            label={collaborator.username || t('drawer.userLabel', { id: collaborator.userId })}
+                            description={collaborator.email || formatDate(collaborator.createdAt)}
+                            endContent={<XIconButton className="fixed-row-icon-button" type="button" variant="destructive" size="sm" label={t('profile.removeCollaborator')} tooltip={t('profile.removeCollaborator')} icon={<Trash2 size={17} />} onClick={() => void removeCollaborator(item.app.id, collaborator.userId)} />}
+                          />
+                        ))}
+                      </XList>
+                    )}
                   </section>
 
                   <section className="collaboration-block">
@@ -206,39 +211,45 @@ export function CollaborationPanel({
                       />
                       <XButton type="button" variant="secondary" size="sm" label={t('profile.createInvite')} icon={<Link size={17} />} onClick={() => void createInvite(item)} />
                     </div>
-                    <div className="review-list compact-review-list">
-                      {item.invites.length === 0 ? (
-                        <span className="muted-text">{t('profile.noActiveInvites')}</span>
-                      ) : item.invites.map((invite) => (
-                        <div className="review-row compact-row" key={invite.id}>
-                          <div>
-                            <strong>{invite.email || invite.tokenPrefix}</strong>
-                            <span>{t('profile.inviteExpires', { date: formatDate(invite.expiresAt) })}</span>
-                          </div>
-                          <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.copyInvite')} tooltip={t('profile.copyInvite')} icon={<Copy size={17} />} onClick={() => void copyInvite(invite)} />
-                        </div>
-                      ))}
-                    </div>
+                    {item.invites.length === 0 ? (
+                      <span className="muted-text">{t('profile.noActiveInvites')}</span>
+                    ) : (
+                      <XList className="action-list compact-review-list" density="compact" hasDividers>
+                        {item.invites.map((invite) => (
+                          <XListItem
+                            className="compact-row"
+                            key={invite.id}
+                            label={invite.email || invite.tokenPrefix}
+                            description={t('profile.inviteExpires', { date: formatDate(invite.expiresAt) })}
+                            endContent={<XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.copyInvite')} tooltip={t('profile.copyInvite')} icon={<Copy size={17} />} onClick={() => void copyInvite(invite)} />}
+                          />
+                        ))}
+                      </XList>
+                    )}
                   </section>
 
                   <section className="collaboration-block">
                     <h4>{t('profile.collaboratorRequests')}</h4>
-                    <div className="review-list compact-review-list">
-                      {item.requests.length === 0 ? (
-                        <span className="muted-text">{t('drawer.noCollaboratorRequests')}</span>
-                      ) : item.requests.map((request) => (
-                        <div className="review-row compact-row" key={request.id}>
-                          <div>
-                            <strong>{request.username || t('drawer.userLabel', { id: request.userId || request.user_id || '-' })}</strong>
-                            <span>{request.message || request.email || t('drawer.noMessage')}</span>
-                          </div>
-                          <div className="row-actions">
-                            <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('drawer.approveCollaborator')} tooltip={t('drawer.approveCollaborator')} icon={<Check size={17} />} onClick={() => void decideRequest(request, true)} />
-                            <XIconButton className="fixed-row-icon-button" type="button" variant="destructive" size="sm" label={t('drawer.rejectCollaborator')} tooltip={t('drawer.rejectCollaborator')} icon={<X size={17} />} onClick={() => void decideRequest(request, false)} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    {item.requests.length === 0 ? (
+                      <span className="muted-text">{t('drawer.noCollaboratorRequests')}</span>
+                    ) : (
+                      <XList className="action-list compact-review-list" density="compact" hasDividers>
+                        {item.requests.map((request) => (
+                          <XListItem
+                            className="compact-row"
+                            key={request.id}
+                            label={request.username || t('drawer.userLabel', { id: request.userId || request.user_id || '-' })}
+                            description={request.message || request.email || t('drawer.noMessage')}
+                            endContent={(
+                              <div className="row-actions">
+                                <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('drawer.approveCollaborator')} tooltip={t('drawer.approveCollaborator')} icon={<Check size={17} />} onClick={() => void decideRequest(request, true)} />
+                                <XIconButton className="fixed-row-icon-button" type="button" variant="destructive" size="sm" label={t('drawer.rejectCollaborator')} tooltip={t('drawer.rejectCollaborator')} icon={<X size={17} />} onClick={() => void decideRequest(request, false)} />
+                              </div>
+                            )}
+                          />
+                        ))}
+                      </XList>
+                    )}
                   </section>
                 </article>
               );
@@ -249,21 +260,20 @@ export function CollaborationPanel({
 
       <section className="panel">
         <SectionTitle icon={History} title={t('profile.outgoingRequests')} />
-        <div className="review-list">
-          {data.outgoingRequests.length === 0 ? (
-            <EmptyState icon={History} title={t('profile.noOutgoingRequests')} />
-          ) : (
-            data.outgoingRequests.map((request) => (
-              <div className="review-row" key={request.id}>
-                <div>
-                  <strong>{request.appName || t('common.app')}</strong>
-                  <span>{request.message || t('drawer.noMessage')}</span>
-                </div>
-                <StatusBadge tone={statusKey(request.status)} label={t(`statusLabels.${statusKey(request.status)}`)} />
-              </div>
-            ))
-          )}
-        </div>
+        {data.outgoingRequests.length === 0 ? (
+          <EmptyState icon={History} title={t('profile.noOutgoingRequests')} />
+        ) : (
+          <XList className="action-list" density="compact" hasDividers>
+            {data.outgoingRequests.map((request) => (
+              <XListItem
+                key={request.id}
+                label={request.appName || t('common.app')}
+                description={request.message || t('drawer.noMessage')}
+                endContent={<StatusBadge tone={statusKey(request.status)} label={t(`statusLabels.${statusKey(request.status)}`)} />}
+              />
+            ))}
+          </XList>
+        )}
       </section>
     </section>
   );

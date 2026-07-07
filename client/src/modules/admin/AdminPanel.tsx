@@ -5,6 +5,7 @@ import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
 import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
@@ -955,66 +956,66 @@ export function AdminPanel({
             variant: 'neutral',
           })}
         </div>
-        <div className="review-list">
-          {reviews.length === 0 ? (
-            <EmptyState icon={ShieldCheck} title={t('admin.noPendingReviews')} body={t('admin.noPendingReviewsBody')} />
-          ) : (
-            reviews.map((review) => {
+        {reviews.length === 0 ? (
+          <EmptyState icon={ShieldCheck} title={t('admin.noPendingReviews')} body={t('admin.noPendingReviewsBody')} />
+        ) : (
+          <XList className="action-list" density="compact" hasDividers>
+            {reviews.map((review) => {
               const reviewApp = review.appId ? reviewAppByID.get(review.appId) : undefined;
               const reviewVersion = reviewApp?.latestVersion;
               const noteSummary = summarizeReviewNote(review.note);
               return (
-                <div className="review-row review-workflow-row" key={review.id}>
-                  <div>
-                    <strong>{reviewApp ? reviewApp.name : t('admin.unknownApp')}</strong>
-                    <span>
-                      {t(`reviewKinds.${reviewKindKey(review.kind)}`)} · {t('admin.reviewTarget', { target: review.appId ? `#${review.appId}` : review.versionId ? `v#${review.versionId}` : '-' })} · {t('admin.requester', { id: review.requesterId })} · {formatDate(review.createdAt)}
+                <XListItem
+                  className="review-workflow-row"
+                  key={review.id}
+                  label={reviewApp ? reviewApp.name : t('admin.unknownApp')}
+                  description={(
+                    <span className="action-list-description">
+                      <span>
+                        {t(`reviewKinds.${reviewKindKey(review.kind)}`)} · {t('admin.reviewTarget', { target: review.appId ? `#${review.appId}` : review.versionId ? `v#${review.versionId}` : '-' })} · {t('admin.requester', { id: review.requesterId })} · {formatDate(review.createdAt)}
+                      </span>
+                      {reviewApp && <small>{reviewApp.summary || reviewApp.latestVersion?.version || t('common.lpkApp')}</small>}
+                      {reviewApp && (
+                        <span className="review-facts">
+                          {reviewVersion ? (
+                            <>
+                              <span>{t('admin.reviewArtifact', { source: reviewVersion.sourceType || '-', size: formatBytes(reviewVersion.fileSize) })}</span>
+                              <span>{t('admin.reviewChecksum', { hash: shortSHA(reviewVersion.sha256) })}</span>
+                            </>
+                          ) : (
+                            <span>{t('admin.reviewArtifactPending')}</span>
+                          )}
+                        </span>
+                      )}
+                      {noteSummary && <span className="review-note">{noteSummary}</span>}
                     </span>
-                    {reviewApp && (
-                      <small className="workflow-hint">
-                        {reviewApp.summary || reviewApp.latestVersion?.version || t('common.lpkApp')}
-                      </small>
-                    )}
-                    {reviewApp && (
-                      <div className="review-facts">
-                        {reviewVersion ? (
-                          <>
-                            <span>{t('admin.reviewArtifact', { source: reviewVersion.sourceType || '-', size: formatBytes(reviewVersion.fileSize) })}</span>
-                            <span>{t('admin.reviewChecksum', { hash: shortSHA(reviewVersion.sha256) })}</span>
-                          </>
-                        ) : (
-                          <span>{t('admin.reviewArtifactPending')}</span>
-                        )}
-                      </div>
-                    )}
-                    {noteSummary && (
-                      <p className="review-note">{noteSummary}</p>
-                    )}
-                  </div>
-                  <div className="row-actions">
-                    <XBadge label={t(`statusLabels.${statusKey(review.status)}`)} variant={statusBadgeVariant(review.status)} />
-                    <XButton
-                      label={t('admin.approveReview', { id: review.id })}
-                      icon={<Check size={16} />}
-                      isIconOnly
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => void onApprove(review, true)}
-                    />
-                    <XButton
-                      label={t('admin.rejectReview', { id: review.id })}
-                      icon={<X size={16} />}
-                      isIconOnly
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => void onApprove(review, false)}
-                    />
-                  </div>
-                </div>
+                  )}
+                  endContent={(
+                    <div className="row-actions">
+                      <XBadge label={t(`statusLabels.${statusKey(review.status)}`)} variant={statusBadgeVariant(review.status)} />
+                      <XButton
+                        label={t('admin.approveReview', { id: review.id })}
+                        icon={<Check size={16} />}
+                        isIconOnly
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => void onApprove(review, true)}
+                      />
+                      <XButton
+                        label={t('admin.rejectReview', { id: review.id })}
+                        icon={<X size={16} />}
+                        isIconOnly
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => void onApprove(review, false)}
+                      />
+                    </div>
+                  )}
+                />
               );
-            })
-          )}
-        </div>
+            })}
+          </XList>
+        )}
         {reviewPagination.pageSize > 0 && reviewPagination.totalItems > reviewPagination.pageSize && (
           <XPagination
             className="list-pagination"
@@ -1113,42 +1114,46 @@ export function AdminPanel({
                         </div>
                         <XButton type="button" variant="secondary" size="sm" label={t('admin.createInvite')} icon={<KeyRound size={17} />} onClick={() => setIsInviteCreateOpen(true)} />
                       </div>
-                      <div className="review-list invite-list">
-                        {registrationInvites.length === 0 ? (
-                          <EmptyState icon={KeyRound} title={t('admin.noInvites')} body={t('admin.noInvitesBody')} />
-                        ) : (
-                          registrationInvites.map((invite) => (
-                            <div className="review-row invite-row" key={invite.id}>
-                              <div>
-                                <strong>{invite.note || t('admin.inviteUntitled')}</strong>
-                                <span>
-                                  {t('admin.inviteUsage', { remaining: invite.remainingUses, max: invite.maxUses })} · {formatDate(invite.createdAt)}
+                      {registrationInvites.length === 0 ? (
+                        <EmptyState icon={KeyRound} title={t('admin.noInvites')} body={t('admin.noInvitesBody')} />
+                      ) : (
+                        <XList className="action-list invite-list" density="compact" hasDividers>
+                          {registrationInvites.map((invite) => (
+                            <XListItem
+                              className="invite-row"
+                              key={invite.id}
+                              label={invite.note || t('admin.inviteUntitled')}
+                              description={(
+                                <span className="action-list-description">
+                                  <span>{t('admin.inviteUsage', { remaining: invite.remainingUses, max: invite.maxUses })} · {formatDate(invite.createdAt)}</span>
+                                  <code className="invite-code-inline">{invite.code}</code>
                                 </span>
-                                <code className="invite-code-inline">{invite.code}</code>
-                              </div>
-                              <div className="row-actions">
-                                <XBadge label={invite.remainingUses > 0 ? t('admin.inviteUsable') : t('admin.inviteExhausted')} variant={invite.remainingUses > 0 ? 'success' : 'neutral'} />
-                                <XIconButton
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  label={t('admin.copyInviteCode')}
-                                  icon={<Copy size={16} />}
-                                  onClick={() => void copyInviteCode(invite)}
-                                />
-                                <XIconButton
-                                  type="button"
-                                  variant="destructive"
-                                  size="sm"
-                                  label={t('admin.deleteInvite')}
-                                  icon={<Trash2 size={16} />}
-                                  onClick={() => void deleteRegistrationInvite(invite)}
-                                />
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
+                              )}
+                              endContent={(
+                                <div className="row-actions">
+                                  <XBadge label={invite.remainingUses > 0 ? t('admin.inviteUsable') : t('admin.inviteExhausted')} variant={invite.remainingUses > 0 ? 'success' : 'neutral'} />
+                                  <XIconButton
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    label={t('admin.copyInviteCode')}
+                                    icon={<Copy size={16} />}
+                                    onClick={() => void copyInviteCode(invite)}
+                                  />
+                                  <XIconButton
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    label={t('admin.deleteInvite')}
+                                    icon={<Trash2 size={16} />}
+                                    onClick={() => void deleteRegistrationInvite(invite)}
+                                  />
+                                </div>
+                              )}
+                            />
+                          ))}
+                        </XList>
+                      )}
                       {invitePagination.pageSize > 0 && invitePagination.totalItems > invitePagination.pageSize && (
                         <XPagination
                           className="list-pagination"
@@ -1296,26 +1301,30 @@ export function AdminPanel({
               </div>
               <XButton type="button" variant="primary" size="sm" label={t('admin.createUser')} icon={<UserPlus size={17} />} onClick={openCreateUserDialog} />
             </div>
-            <div className="review-list user-management-list">
-              {users.length === 0 ? (
-                <EmptyState icon={Users} title={t('admin.noUsers')} />
-              ) : users.map((item) => (
-                <div className="review-row user-row" key={item.id}>
-                  <UserAvatar user={item} size={42} />
-                  <div>
-                    <strong>{displayUserName(item)}</strong>
-                    <span>{item.username} · {item.email || t('admin.noEmail')}</span>
-                  </div>
-                  <div className="row-actions">
-                    <XBadge label={t(`admin.roles.${item.role === 'SITE_ADMIN' ? 'siteAdmin' : item.role === 'SOFTWARE_ADMIN' ? 'softwareAdmin' : 'user'}`)} variant={item.role === 'SITE_ADMIN' ? 'info' : item.role === 'SOFTWARE_ADMIN' ? 'success' : 'neutral'} />
-                    {item.disabled && <XBadge label={t('admin.userDisabledBadge')} variant="error" />}
-                    <XIconButton type="button" variant="ghost" size="sm" label={t('admin.editUserNamed', { name: displayUserName(item) })} icon={<Pencil size={16} />} onClick={() => openEditUserDialog(item)} />
-                    <XIconButton type="button" variant="ghost" size="sm" label={item.disabled ? t('admin.enableUserNamed', { name: displayUserName(item) }) : t('admin.disableUserNamed', { name: displayUserName(item) })} icon={<UserRound size={16} />} onClick={() => void toggleUserDisabled(item)} />
-                    <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteUserNamed', { name: displayUserName(item) })} icon={<Trash2 size={16} />} onClick={() => void deleteManagedUser(item)} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            {users.length === 0 ? (
+              <EmptyState icon={Users} title={t('admin.noUsers')} />
+            ) : (
+              <XList className="action-list user-management-list" density="compact" hasDividers>
+                {users.map((item) => (
+                  <XListItem
+                    className="user-row"
+                    key={item.id}
+                    startContent={<UserAvatar user={item} size={42} />}
+                    label={displayUserName(item)}
+                    description={`${item.username} · ${item.email || t('admin.noEmail')}`}
+                    endContent={(
+                      <div className="row-actions">
+                        <XBadge label={t(`admin.roles.${item.role === 'SITE_ADMIN' ? 'siteAdmin' : item.role === 'SOFTWARE_ADMIN' ? 'softwareAdmin' : 'user'}`)} variant={item.role === 'SITE_ADMIN' ? 'info' : item.role === 'SOFTWARE_ADMIN' ? 'success' : 'neutral'} />
+                        {item.disabled && <XBadge label={t('admin.userDisabledBadge')} variant="error" />}
+                        <XIconButton type="button" variant="ghost" size="sm" label={t('admin.editUserNamed', { name: displayUserName(item) })} icon={<Pencil size={16} />} onClick={() => openEditUserDialog(item)} />
+                        <XIconButton type="button" variant="ghost" size="sm" label={item.disabled ? t('admin.enableUserNamed', { name: displayUserName(item) }) : t('admin.disableUserNamed', { name: displayUserName(item) })} icon={<UserRound size={16} />} onClick={() => void toggleUserDisabled(item)} />
+                        <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteUserNamed', { name: displayUserName(item) })} icon={<Trash2 size={16} />} onClick={() => void deleteManagedUser(item)} />
+                      </div>
+                    )}
+                  />
+                ))}
+              </XList>
+            )}
             {userPagination.pageSize > 0 && userPagination.totalItems > userPagination.pageSize && (
               <XPagination
                 className="list-pagination"

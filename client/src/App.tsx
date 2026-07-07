@@ -1151,6 +1151,7 @@ export function App() {
                 storageOptions={storageOptions}
                 collaborationData={collaborationData}
                 onCollaborationRefresh={loadCollaborationData}
+                siteProfile={siteProfile}
                 openSubmitSignal={openSubmitSignal}
                 onNavigate={navigateTo}
                 onLogin={() => openLogin('/profile')}

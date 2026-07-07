@@ -257,6 +257,96 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	}
 }
 
+func TestMCPProfileUsesSitePublicURLSettings(t *testing.T) {
+	app := newTestApp(t)
+	app.server.cfg.SitePublicURL = "https://env.example.com"
+	if err := app.server.setSetting(t.Context(), settingSitePublicURL, "https://actual.example.com/"); err != nil {
+		t.Fatalf("set site_public_url: %v", err)
+	}
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodGet, "/api/v1/me/mcp", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("mcp profile status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response mcpProfileResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode mcp profile: %v", err)
+	}
+	if response.Endpoint != "https://actual.example.com/mcp" {
+		t.Fatalf("mcp endpoint = %q", response.Endpoint)
+	}
+	if response.SourceURL != "https://actual.example.com/source/v1/index.json" {
+		t.Fatalf("mcp source url = %q", response.SourceURL)
+	}
+	if got := app.server.mcpImplementation(t.Context()).WebsiteURL; got != "https://actual.example.com" {
+		t.Fatalf("mcp website url = %q", got)
+	}
+}
+
+func TestTouchMCPTokenLastUsedAtThrottlesWrites(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	record := app.server.db.MCPToken.Create().
+		SetUserID(admin.ID).
+		SetPrefix("lcmcp_test").
+		SetTokenHash("mcp-test-token-hash").
+		SaveX(ctx)
+	first := time.Date(2026, 7, 8, 12, 0, 0, 0, time.UTC)
+
+	app.server.touchMCPTokenLastUsedAt(ctx, record.ID, first)
+	record = app.server.db.MCPToken.GetX(ctx, record.ID)
+	if record.LastUsedAt == nil || !record.LastUsedAt.Equal(first) {
+		t.Fatalf("first lastUsedAt = %v, want %v", record.LastUsedAt, first)
+	}
+
+	app.server.touchMCPTokenLastUsedAt(ctx, record.ID, first.Add(30*time.Second))
+	record = app.server.db.MCPToken.GetX(ctx, record.ID)
+	if record.LastUsedAt == nil || !record.LastUsedAt.Equal(first) {
+		t.Fatalf("throttled lastUsedAt = %v, want %v", record.LastUsedAt, first)
+	}
+
+	next := first.Add(2 * time.Minute)
+	app.server.touchMCPTokenLastUsedAt(ctx, record.ID, next)
+	record = app.server.db.MCPToken.GetX(ctx, record.ID)
+	if record.LastUsedAt == nil || !record.LastUsedAt.Equal(next) {
+		t.Fatalf("refreshed lastUsedAt = %v, want %v", record.LastUsedAt, next)
+	}
+}
+
+func TestTouchAPITokenLastUsedAtThrottlesWrites(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	record := app.server.db.APIToken.Create().
+		SetUserID(admin.ID).
+		SetName("CI token").
+		SetPrefix("lcst_test").
+		SetTokenHash("api-test-token-hash").
+		SaveX(ctx)
+	first := time.Date(2026, 7, 8, 12, 0, 0, 0, time.UTC)
+
+	app.server.touchAPITokenLastUsedAt(ctx, record.ID, first)
+	record = app.server.db.APIToken.GetX(ctx, record.ID)
+	if record.LastUsedAt == nil || !record.LastUsedAt.Equal(first) {
+		t.Fatalf("first lastUsedAt = %v, want %v", record.LastUsedAt, first)
+	}
+
+	app.server.touchAPITokenLastUsedAt(ctx, record.ID, first.Add(30*time.Second))
+	record = app.server.db.APIToken.GetX(ctx, record.ID)
+	if record.LastUsedAt == nil || !record.LastUsedAt.Equal(first) {
+		t.Fatalf("throttled lastUsedAt = %v, want %v", record.LastUsedAt, first)
+	}
+
+	next := first.Add(2 * time.Minute)
+	app.server.touchAPITokenLastUsedAt(ctx, record.ID, next)
+	record = app.server.db.APIToken.GetX(ctx, record.ID)
+	if record.LastUsedAt == nil || !record.LastUsedAt.Equal(next) {
+		t.Fatalf("refreshed lastUsedAt = %v, want %v", record.LastUsedAt, next)
+	}
+}
+
 func TestServerDoesNotExposeClientInstalledEndpoint(t *testing.T) {
 	app := newTestApp(t)
 

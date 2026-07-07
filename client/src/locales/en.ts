@@ -714,6 +714,7 @@ const en = {
         helpGithubActionsTitle: 'GitHub Actions example',
         helpGithubActionsBody: 'Store the app store URL, token, and app ID in repository secrets, then upload a new version from a release.',
         generate: 'Generate token',
+        empty: 'No API tokens yet',
         createFailed: 'Token creation failed',
       },
       mcp: {

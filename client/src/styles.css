@@ -1399,6 +1399,31 @@ body,
   gap: 10px;
 }
 
+.action-list {
+  width: 100%;
+  min-width: 0;
+}
+
+.action-list-description {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.action-list-description > span,
+.action-list-description > small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.action-list-description > small {
+  color: var(--muted);
+}
+
+.action-list .row-actions {
+  flex-wrap: nowrap;
+}
+
 .source-list {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 340px));
   justify-content: start;

@@ -714,6 +714,7 @@ const zh = {
         helpGithubActionsTitle: 'GitHub Actions 示例',
         helpGithubActionsBody: '把商店地址、Token 和应用 ID 放到仓库 Secrets，发布 Release 时自动上传新版本。',
         generate: '生成 Token',
+        empty: '暂无 API Token',
         createFailed: 'Token 生成失败',
       },
       mcp: {

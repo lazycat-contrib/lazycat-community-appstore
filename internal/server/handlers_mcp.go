@@ -22,9 +22,21 @@ const mcpScope = "appstore:mcp"
 
 var mcpPermanentExpiry = time.Date(5000, 1, 1, 0, 0, 0, 0, time.UTC)
 
+const tokenLastUsedAtUpdateInterval = time.Minute
+
 type mcpProfileResponse struct {
 	Endpoint       string                   `json:"endpoint"`
+	SourceURL      string                   `json:"sourceUrl"`
 	PrincipalTypes []mcptoken.PrincipalType `json:"principalTypes"`
+}
+
+type mcpTokensResponse struct {
+	Tokens []mcpTokenDTO `json:"tokens"`
+}
+
+type mcpTokenCreateResponse struct {
+	Token  string      `json:"token"`
+	Record mcpTokenDTO `json:"record"`
 }
 
 func (s *Server) handleMCPProfile(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -32,8 +44,10 @@ func (s *Server) handleMCPProfile(w http.ResponseWriter, r *http.Request, u *ent
 	if isAdmin(u) {
 		principalTypes = append(principalTypes, mcptoken.PrincipalTypeADMIN)
 	}
+	profile := s.siteProfile(r.Context())
 	writeJSON(w, http.StatusOK, mcpProfileResponse{
-		Endpoint:       strings.TrimRight(s.sitePublicURL(r.Context()), "/") + "/mcp",
+		Endpoint:       profile.PublicURL + "/mcp",
+		SourceURL:      profile.SourceURL,
 		PrincipalTypes: principalTypes,
 	})
 }
@@ -51,7 +65,7 @@ func (s *Server) handleListMCPTokens(w http.ResponseWriter, r *http.Request, u *
 	for _, record := range records {
 		out = append(out, toMCPTokenDTO(record))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"tokens": out})
+	writeJSON(w, http.StatusOK, mcpTokensResponse{Tokens: out})
 }
 
 type createMCPTokenRequest struct {
@@ -110,7 +124,7 @@ func (s *Server) handleCreateMCPToken(w http.ResponseWriter, r *http.Request, u 
 		writeError(w, http.StatusInternalServerError, "MCP_TOKEN_CREATE_FAILED", "Could not create MCP token", nil)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"token": token, "record": toMCPTokenDTO(record)})
+	writeJSON(w, http.StatusCreated, mcpTokenCreateResponse{Token: token, Record: toMCPTokenDTO(record)})
 }
 
 func (s *Server) handleDeleteMCPToken(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -132,7 +146,7 @@ func (s *Server) handleDeleteMCPToken(w http.ResponseWriter, r *http.Request, u 
 		writeError(w, http.StatusInternalServerError, "MCP_TOKEN_DELETE_FAILED", "Could not delete MCP token", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	writeJSON(w, http.StatusOK, okResponse{OK: true})
 }
 
 func (s *Server) mcpHandler() http.Handler {
@@ -141,7 +155,7 @@ func (s *Server) mcpHandler() http.Handler {
 		if info := mcpauth.TokenInfoFromContext(r.Context()); info != nil {
 			principalType = mcpPrincipalTypeFromInfo(info)
 		}
-		return s.newMCPServer(principalType)
+		return s.newMCPServer(r.Context(), principalType)
 	}, &mcp.StreamableHTTPOptions{
 		SessionTimeout: 30 * time.Minute,
 	})
@@ -169,7 +183,7 @@ func (s *Server) verifyMCPBearerToken(ctx context.Context, tokenValue string, _ 
 	if record.PrincipalType == mcptoken.PrincipalTypeADMIN && !isAdmin(u) {
 		return nil, mcpauth.ErrInvalidToken
 	}
-	_, _ = s.db.MCPToken.UpdateOneID(record.ID).SetLastUsedAt(now).Save(ctx)
+	s.touchMCPTokenLastUsedAt(ctx, record.ID, now)
 	expiration := mcpPermanentExpiry
 	if record.ExpiresAt != nil {
 		expiration = *record.ExpiresAt
@@ -186,13 +200,21 @@ func (s *Server) verifyMCPBearerToken(ctx context.Context, tokenValue string, _ 
 	}, nil
 }
 
-func (s *Server) newMCPServer(principalType mcptoken.PrincipalType) *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{
-		Name:       "lazycat-community-appstore",
-		Title:      "LazyCat Community App Store",
-		Version:    appVersion(),
-		WebsiteURL: strings.TrimRight(s.cfg.SitePublicURL, "/"),
-	}, &mcp.ServerOptions{
+func (s *Server) touchMCPTokenLastUsedAt(ctx context.Context, tokenID int, now time.Time) {
+	_, _ = s.db.MCPToken.Update().
+		Where(
+			mcptoken.IDEQ(tokenID),
+			mcptoken.Or(
+				mcptoken.LastUsedAtIsNil(),
+				mcptoken.LastUsedAtLT(now.Add(-tokenLastUsedAtUpdateInterval)),
+			),
+		).
+		SetLastUsedAt(now).
+		Save(ctx)
+}
+
+func (s *Server) newMCPServer(ctx context.Context, principalType mcptoken.PrincipalType) *mcp.Server {
+	server := mcp.NewServer(s.mcpImplementation(ctx), &mcp.ServerOptions{
 		Instructions: "Use these tools to publish and update LazyCat LPK apps in this app store. Tool permissions are scoped by the MCP token type and the bound user.",
 	})
 	s.registerUserMCPTools(server)
@@ -200,6 +222,15 @@ func (s *Server) newMCPServer(principalType mcptoken.PrincipalType) *mcp.Server 
 		s.registerAdminMCPTools(server)
 	}
 	return server
+}
+
+func (s *Server) mcpImplementation(ctx context.Context) *mcp.Implementation {
+	return &mcp.Implementation{
+		Name:       "lazycat-community-appstore",
+		Title:      "LazyCat Community App Store",
+		Version:    appVersion(),
+		WebsiteURL: s.sitePublicURL(ctx),
+	}
 }
 
 func (s *Server) registerUserMCPTools(server *mcp.Server) {

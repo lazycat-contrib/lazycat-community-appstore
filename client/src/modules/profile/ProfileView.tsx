@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Check, ChevronRight, Cloud, Gauge, Heart, KeyRound, LogIn, LogOut, PackagePlus, RefreshCw, Search, Server, Settings, Upload, Users, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
@@ -13,7 +14,7 @@ import { canUserManageApp, canUserUploadVersion, defaultUploadStorageKey, displa
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { Category, ClientSourceStats, CollaborationData, FavoriteData, Group, InstalledApplication, PaginatedResponse, Pagination as PaginationMeta, SourceApp, StorageOption, StoreApp, Toast, User } from '../../shared/types';
+import type { Category, ClientSourceStats, CollaborationData, FavoriteData, Group, InstalledApplication, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, StorageOption, StoreApp, Toast, User } from '../../shared/types';
 import { cx, formatDate, hasInstallableVersion, runAction, statusKey } from '../../shared/utils';
 import { InstalledAppsView } from '../client/InstalledAppsView';
 import type { AppDetailMode } from '../storefront/AppDrawer';
@@ -63,6 +64,7 @@ export function ProfileView({
   collaborationData,
   onCollaborationRefresh,
   tagOptions,
+  siteProfile,
   openSubmitSignal,
   onNavigate,
   onLogin,
@@ -88,6 +90,7 @@ export function ProfileView({
   collaborationData: CollaborationData;
   onCollaborationRefresh: () => Promise<void>;
   tagOptions: string[];
+  siteProfile: SiteProfile;
   openSubmitSignal: number;
   onNavigate: (tab: ProfileNavigationTarget) => void;
   onLogin: () => void;
@@ -628,28 +631,33 @@ export function ProfileView({
             onClick={() => setIsSubmitOpen((open) => !open)}
           />
         </div>
-        <div className="review-list">
-          {ownedApps.length === 0 ? (
-            <EmptyState icon={PackagePlus} title={t('profile.mySubmissionsEmpty')} body={t('profile.mySubmissionsEmptyBody')} />
-          ) : (
-            ownedApps.map((item) => (
-              <div className="review-row" key={item.id}>
-                <div>
-                  <strong>{item.name}</strong>
-                  <span>{item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
-                  <small className="workflow-hint">{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
-                </div>
-                <div className="row-actions">
-                  <StatusBadge tone={submissionStep(item).tone} label={t(`statusLabels.${statusKey(item.status)}`)} />
-                  <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
-                  {(canUserManageApp(user, item) || canUserUploadVersion(user, item)) && (
-                    <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        {ownedApps.length === 0 ? (
+          <EmptyState icon={PackagePlus} title={t('profile.mySubmissionsEmpty')} body={t('profile.mySubmissionsEmptyBody')} />
+        ) : (
+          <XList className="action-list" density="compact" hasDividers>
+            {ownedApps.map((item) => (
+              <XListItem
+                key={item.id}
+                label={item.name}
+                description={(
+                  <span className="action-list-description">
+                    <span>{item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
+                    <small>{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
+                  </span>
+                )}
+                endContent={(
+                  <div className="row-actions">
+                    <StatusBadge tone={submissionStep(item).tone} label={t(`statusLabels.${statusKey(item.status)}`)} />
+                    <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                    {(canUserManageApp(user, item) || canUserUploadVersion(user, item)) && (
+                      <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
+                    )}
+                  </div>
+                )}
+              />
+            ))}
+          </XList>
+        )}
       </section>
       )}
 
@@ -716,31 +724,37 @@ export function ProfileView({
               onChange={setManagedSubmitter}
             />
           </div>
-          <div className="review-list management-app-list">
-            {manageableApps.length === 0 ? (
-              <EmptyState icon={Settings} title={t('profile.appManagementEmpty')} body={t('profile.appManagementEmptyBody')} />
-            ) : (
-              manageableApps.map((item) => (
-                <div className="review-row management-app-row" key={item.id}>
-                  <div>
-                    <strong>{item.name}</strong>
-                    <span>{item.owner} · {item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
-                    <small className="workflow-hint">{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
-                  </div>
-                  <div className="row-actions management-row-actions">
-                    <StatusBadge tone={submissionStep(item).tone} label={t(`statusLabels.${statusKey(item.status)}`)} />
-                    <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
-                    <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          {manageableApps.length === 0 ? (
+            <EmptyState icon={Settings} title={t('profile.appManagementEmpty')} body={t('profile.appManagementEmptyBody')} />
+          ) : (
+            <XList className="action-list management-app-list" density="compact" hasDividers>
+              {manageableApps.map((item) => (
+                <XListItem
+                  className="management-app-row"
+                  key={item.id}
+                  label={item.name}
+                  description={(
+                    <span className="action-list-description">
+                      <span>{item.owner} · {item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
+                      <small>{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
+                    </span>
+                  )}
+                  endContent={(
+                    <div className="row-actions management-row-actions">
+                      <StatusBadge tone={submissionStep(item).tone} label={t(`statusLabels.${statusKey(item.status)}`)} />
+                      <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                      <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
+                    </div>
+                  )}
+                />
+              ))}
+            </XList>
+          )}
         </section>
       </section>
       )}
       {workspaceTab === 'mcp' && (
-        <MCPWorkspace user={user} setToast={setToast} />
+        <MCPWorkspace user={user} siteSourceUrl={siteProfile.sourceUrl} setToast={setToast} />
       )}
       {workspaceTab === 'tokens' && (
         <APITokenWorkspace user={user} setToast={setToast} />
@@ -764,21 +778,21 @@ export function ProfileView({
           </div>
           {favoriteTab === 'apps' ? (
             <>
-              <div className="review-list">
-                {favorites.apps.length === 0 ? (
-                  <EmptyState icon={Heart} title={t('favorites.emptyApps')} />
-                ) : (
-                  favorites.apps.map((item) => (
-                    <XButton type="button" variant="ghost" label={item.name} className="review-row interactive-row" key={`app-${item.id}`} onClick={() => void onOpen(item)}>
-                      <div>
-                        <strong>{item.name}</strong>
-                        <span>{item.owner} · {item.latestVersion?.version || item.status}</span>
-                      </div>
-                      <ChevronRight size={17} aria-hidden="true" />
-                    </XButton>
-                  ))
-                )}
-              </div>
+              {favorites.apps.length === 0 ? (
+                <EmptyState icon={Heart} title={t('favorites.emptyApps')} />
+              ) : (
+                <XList className="action-list" density="compact" hasDividers>
+                  {favorites.apps.map((item) => (
+                    <XListItem
+                      key={`app-${item.id}`}
+                      label={item.name}
+                      description={`${item.owner} · ${item.latestVersion?.version || item.status}`}
+                      onClick={() => void onOpen(item)}
+                      endContent={<ChevronRight size={17} aria-hidden="true" />}
+                    />
+                  ))}
+                </XList>
+              )}
               {favoritePagination.apps.pageSize > 0 && favoritePagination.apps.totalItems > favoritePagination.apps.pageSize && (
                 <XPagination
                   className="list-pagination"
@@ -795,20 +809,19 @@ export function ProfileView({
               )}
             </>
           ) : (
-            <div className="review-list">
-              {favorites.submitters.length === 0 ? (
-                <EmptyState icon={Users} title={t('favorites.emptySubmitters')} />
-              ) : (
-                favorites.submitters.map((item) => (
-                  <div className="review-row" key={`submitter-${item.id}`}>
-                    <div>
-                      <strong>{displayUserName(item)}</strong>
-                      <span>{item.email || t('favorites.submitter')}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            favorites.submitters.length === 0 ? (
+              <EmptyState icon={Users} title={t('favorites.emptySubmitters')} />
+            ) : (
+              <XList className="action-list" density="compact" hasDividers>
+                {favorites.submitters.map((item) => (
+                  <XListItem
+                    key={`submitter-${item.id}`}
+                    label={displayUserName(item)}
+                    description={item.email || t('favorites.submitter')}
+                  />
+                ))}
+              </XList>
+            )
           )}
           {favoriteTab === 'submitters' && favoritePagination.submitters.pageSize > 0 && favoritePagination.submitters.totalItems > favoritePagination.submitters.pageSize && (
             <XPagination

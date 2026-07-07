@@ -4,6 +4,7 @@ import { Button as XButton } from '@astryxdesign/core/Button';
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
@@ -29,7 +30,7 @@ const initialMCPTokenDraft: MCPTokenDraft = {
   expiresAt: '',
 };
 
-export function MCPWorkspace({ user, setToast }: { user: User; setToast: (toast: Toast) => void }) {
+export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; siteSourceUrl?: string; setToast: (toast: Toast) => void }) {
   const { t } = useTranslation();
   const [mcpProfile, setMcpProfile] = useState<MCPProfile | null>(null);
   const [mcpTokens, setMcpTokens] = useState<MCPTokenRecord[]>([]);
@@ -37,7 +38,7 @@ export function MCPWorkspace({ user, setToast }: { user: User; setToast: (toast:
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [draft, setDraft] = useState<MCPTokenDraft>(initialMCPTokenDraft);
-  const endpoint = mcpProfile?.endpoint || `${window.location.origin}/mcp`;
+  const endpoint = mcpEndpointFromSourceURL(mcpProfile?.sourceUrl || siteSourceUrl) || mcpProfile?.endpoint || `${window.location.origin}/mcp`;
   const canCreateAdminToken = Boolean(mcpProfile?.principalTypes.includes('ADMIN'));
 
   useEffect(() => {
@@ -148,37 +149,43 @@ export function MCPWorkspace({ user, setToast }: { user: User; setToast: (toast:
           </div>
         )}
 
-        <div className="review-list">
-          {mcpTokens.length === 0 ? (
-            <EmptyState icon={Server} title={t('mcp.empty')} body={t('mcp.emptyBody')} />
-          ) : (
-            mcpTokens.map((token) => (
-              <div className="review-row mcp-token-row" key={token.id}>
-                <div>
-                  <strong>{token.note || t('mcp.untitledToken')}</strong>
-                  <span>{token.prefix} · {t(`mcp.principal.${token.principalType.toLowerCase()}`)} · {mcpExpiryLabel(token, t)}</span>
-                  <small className="workflow-hint">{token.lastUsedAt ? t('mcp.lastUsedAt', { date: formatDate(token.lastUsedAt) }) : t('mcp.neverUsed')}</small>
-                </div>
-                <div className="row-actions">
-                  <StatusBadge
-                    tone={mcpTokenExpired(token) ? 'failed' : token.principalType === 'ADMIN' ? 'approved' : 'synced'}
-                    label={mcpTokenExpired(token) ? t('mcp.expired') : t(`mcp.principal.${token.principalType.toLowerCase()}`)}
-                  />
-                  <XIconButton
-                    className="fixed-row-icon-button"
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    label={t('mcp.deleteToken')}
-                    tooltip={t('mcp.deleteToken')}
-                    icon={<Trash2 size={17} />}
-                    onClick={() => void deleteToken(token.id)}
-                  />
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        {mcpTokens.length === 0 ? (
+          <EmptyState icon={Server} title={t('mcp.empty')} body={t('mcp.emptyBody')} />
+        ) : (
+          <XList className="action-list" density="compact" hasDividers>
+            {mcpTokens.map((token) => (
+              <XListItem
+                key={token.id}
+                className="mcp-token-row"
+                label={token.note || t('mcp.untitledToken')}
+                description={(
+                  <span className="action-list-description">
+                    <span>{token.prefix} · {t(`mcp.principal.${token.principalType.toLowerCase()}`)} · {mcpExpiryLabel(token, t)}</span>
+                    <small>{token.lastUsedAt ? t('mcp.lastUsedAt', { date: formatDate(token.lastUsedAt) }) : t('mcp.neverUsed')}</small>
+                  </span>
+                )}
+                endContent={(
+                  <div className="row-actions">
+                    <StatusBadge
+                      tone={mcpTokenExpired(token) ? 'failed' : token.principalType === 'ADMIN' ? 'approved' : 'synced'}
+                      label={mcpTokenExpired(token) ? t('mcp.expired') : t(`mcp.principal.${token.principalType.toLowerCase()}`)}
+                    />
+                    <XIconButton
+                      className="fixed-row-icon-button"
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      label={t('mcp.deleteToken')}
+                      tooltip={t('mcp.deleteToken')}
+                      icon={<Trash2 size={17} />}
+                      onClick={() => void deleteToken(token.id)}
+                    />
+                  </div>
+                )}
+              />
+            ))}
+          </XList>
+        )}
       </section>
 
       {isHelpOpen && <MCPHelpDialog endpoint={endpoint} onClose={() => setIsHelpOpen(false)} />}
@@ -197,6 +204,23 @@ export function MCPWorkspace({ user, setToast }: { user: User; setToast: (toast:
 
 function mcpTokenExpired(token: MCPTokenRecord) {
   return Boolean(token.expiresAt && Date.parse(token.expiresAt) <= Date.now());
+}
+
+function mcpEndpointFromSourceURL(sourceURL?: string) {
+  if (!sourceURL) return '';
+  try {
+    const url = new URL(sourceURL, window.location.origin);
+    url.search = '';
+    url.hash = '';
+    url.pathname = url.pathname.replace(/\/source\/v1\/index\.json\/?$/, '/mcp');
+    if (!url.pathname.endsWith('/mcp')) {
+      url.pathname = '/mcp';
+    }
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    const endpoint = sourceURL.replace(/\/source\/v1\/index\.json\/?$/, '/mcp').replace(/\/$/, '');
+    return endpoint.endsWith('/mcp') ? endpoint : '';
+  }
 }
 
 function mcpExpiryLabel(token: MCPTokenRecord, t: (key: string, options?: any) => string) {
