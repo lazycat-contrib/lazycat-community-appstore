@@ -1,11 +1,15 @@
 import { Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { Category, InstallOptions, SortMode, SourceApp, StoreApp } from '../../shared/types';
 import { localizedName } from '../../shared/utils';
 import { AppGrid } from './AppGrid';
+
+const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
 export function StorefrontSearch({
   apps,
@@ -33,6 +37,19 @@ export function StorefrontSearch({
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
 }) {
   const { t } = useTranslation();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(24);
+  const totalPages = Math.max(1, Math.ceil(apps.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedApps = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return apps.slice(start, start + pageSize);
+  }, [apps, currentPage, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [apps]);
+
   return (
     <section className="page-grid">
       <div className="page-heading">
@@ -71,11 +88,25 @@ export function StorefrontSearch({
           />
         </div>
         <AppGrid
-          apps={apps}
+          apps={pagedApps}
           onOpen={onOpen}
           onInstall={onInstall}
           empty={{ title: t('search.noResultsTitle'), body: t('search.noResultsBody') }}
         />
+        {apps.length > pageSize && (
+          <XPagination
+            className="list-pagination"
+            page={currentPage}
+            onChange={setPage}
+            totalItems={apps.length}
+            pageSize={pageSize}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            onPageSizeChange={setPageSize}
+            variant="pages"
+            size="sm"
+            label={t('pagination.label')}
+          />
+        )}
       </section>
     </section>
   );

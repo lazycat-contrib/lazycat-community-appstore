@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { AvatarIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
+import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { InstalledApplication, SourceApp } from '../../shared/types';
 import { cx, findSourceForInstalled } from '../../shared/utils';
 
@@ -45,9 +46,7 @@ export function InstalledAppsView({
         </div>
         <div className="install-center-actions">
           <div className={cx('installed-state', installedState)}>
-            <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loaded' ? 'synced' : installedState === 'loading' ? 'pending' : 'unsynced')}>
-              {t(`profile.installedState.${installedState}`)}
-            </span>
+            <StatusBadge tone={installedState === 'error' ? 'failed' : installedState === 'loaded' ? 'synced' : installedState === 'loading' ? 'pending' : 'unsynced'} label={t(`profile.installedState.${installedState}`)} />
             <small>{installedReadinessBody}</small>
           </div>
           <XButton

@@ -58,12 +58,12 @@ export function LoginPage({
   return (
     <div className="login-shell">
       <header className="login-topbar">
-        <button type="button" className="brand login-brand" onClick={onBrowse}>
+        <XButton type="button" variant="ghost" label={siteTitle} className="brand login-brand" onClick={onBrowse}>
           <div className="brand-mark">
             {siteProfile.iconUrl ? <img src={siteProfile.iconUrl} alt="" /> : <Archive size={22} />}
           </div>
           <strong>{siteTitle}</strong>
-        </button>
+        </XButton>
         <div className="top-actions">
           <LanguageSelector value={currentLanguage} onChange={onLanguageChange} />
           <ThemeToggle mode={themeMode} onChange={onThemeModeChange} />
@@ -114,7 +114,6 @@ function AuthGateway({
       ? t(inviteRegistration ? 'auth.registerInviteHint' : 'auth.registerHint')
       : t('auth.verifyHint');
   const AuthSubmitIcon = mode === 'verify' ? Check : mode === 'register' ? Plus : LogIn;
-  const requiredLabel = (label: string) => `${label} · ${t('common.required')}`;
 
   useEffect(() => {
     if (!registrationOpen && mode === 'register') {
@@ -192,20 +191,20 @@ function AuthGateway({
             <XToggleButton value="verify" label={t('auth.verify')} />
           </XToggleButtonGroup>
           {mode === 'verify' ? (
-            <XTextInput htmlName="token" label={requiredLabel(t('auth.verifyToken'))} value={verifyToken} isRequired onChange={setVerifyToken} />
+            <XTextInput htmlName="token" label={t('auth.verifyToken')} value={verifyToken} isRequired onChange={setVerifyToken} />
           ) : (
             <>
-              <XTextInput htmlName="username" label={requiredLabel(t('common.username'))} value={authForm.username} isRequired onChange={(value) => setAuthForm({ ...authForm, username: value })} />
+              <XTextInput htmlName="username" label={t('common.username')} value={authForm.username} isRequired onChange={(value) => setAuthForm({ ...authForm, username: value })} />
               {mode === 'register' && (
                 <XTextInput htmlName="email" type="email" label={t('common.email')} value={authForm.email} onChange={(value) => setAuthForm({ ...authForm, email: value })} />
               )}
               {mode === 'register' && inviteRegistration && (
-                <XTextInput htmlName="inviteCode" label={requiredLabel(t('auth.inviteCode'))} value={authForm.inviteCode} isRequired onChange={(value) => setAuthForm({ ...authForm, inviteCode: value })} />
+                <XTextInput htmlName="inviteCode" label={t('auth.inviteCode')} value={authForm.inviteCode} isRequired onChange={(value) => setAuthForm({ ...authForm, inviteCode: value })} />
               )}
               <XTextInput
                 htmlName="password"
                 type="password"
-                label={requiredLabel(t('common.password'))}
+                label={t('common.password')}
                 description={mode === 'register' ? t('auth.passwordHelp') : undefined}
                 value={authForm.password}
                 isRequired

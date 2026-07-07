@@ -1,7 +1,8 @@
 import { Cloud, Download, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { SourceAppGrid } from './SourceAppGrid';
@@ -34,6 +35,8 @@ import {
   sourceAppSourceOptions,
 } from './sourceAppFilters';
 
+const PAGE_SIZE_OPTIONS = [12, 24, 48];
+
 export function ClientCatalog({
   sourceApps,
   sources,
@@ -57,6 +60,8 @@ export function ClientCatalog({
   const [sourceAppFilter, setSourceAppFilter] = useState<SourceAppFilter>('all');
   const [selectedSourceFilter, setSelectedSourceFilter] = useState('all');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(24);
   const sourceNeedle = query.trim().toLowerCase();
   const searchableSourceApps = sourceApps.filter((app) => {
     if (!sourceNeedle) return true;
@@ -98,6 +103,16 @@ export function ClientCatalog({
     if (effectiveSourceAppFilter === 'incomplete') return !hasInstallableVersion(app) || !app.latestVersion?.sha256 || !app.latestVersion?.size;
     return true;
   });
+  const totalPages = Math.max(1, Math.ceil(filteredSourceApps.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedSourceApps = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSourceApps.slice(start, start + pageSize);
+  }, [filteredSourceApps, currentPage, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [sourceNeedle, selectedSourceFilter, selectedCategoryFilter, effectiveSourceAppFilter, sourceApps.length, installedApps.length]);
 
   async function updateAllSourceApps() {
     for (const app of updateSourceApps) {
@@ -191,7 +206,7 @@ export function ClientCatalog({
           ))}
         </XToggleButtonGroup>
         <SourceAppGrid
-          apps={filteredSourceApps}
+          apps={pagedSourceApps}
           installedApps={installedApps}
           onOpen={onOpenSource}
           onInstall={onInstall}
@@ -199,6 +214,20 @@ export function ClientCatalog({
           emptyTitle={sourceEmptyTitle}
           emptyBody={sourceEmptyBody}
         />
+        {filteredSourceApps.length > pageSize && (
+          <XPagination
+            className="list-pagination"
+            page={currentPage}
+            onChange={setPage}
+            totalItems={filteredSourceApps.length}
+            pageSize={pageSize}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            onPageSizeChange={setPageSize}
+            variant="pages"
+            size="sm"
+            label={t('pagination.label')}
+          />
+        )}
       </section>
     </section>
   );

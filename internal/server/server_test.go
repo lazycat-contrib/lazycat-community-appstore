@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1417,15 +1418,15 @@ func TestInspectLPKURLRetriesConfiguredGitHubMirrors(t *testing.T) {
 	app.server.allowPrivateLPKURLHosts = true
 	ctx := t.Context()
 	lpk := testLPKArchive(t, "cloud.lazycat.test.mirror-retry", "1.0.0", "Mirror Retry", "Fetched from second mirror")
-	firstHits := 0
-	secondHits := 0
+	var firstHits atomic.Int64
+	var secondHits atomic.Int64
 	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		firstHits++
+		firstHits.Add(1)
 		http.Error(w, "bad mirror", http.StatusBadGateway)
 	}))
 	defer first.Close()
 	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		secondHits++
+		secondHits.Add(1)
 		w.Header().Set("Content-Type", "application/octet-stream")
 		_, _ = w.Write(lpk)
 	}))
@@ -1438,8 +1439,8 @@ func TestInspectLPKURLRetriesConfiguredGitHubMirrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("inspect with retry: %v", err)
 	}
-	if firstHits != 1 || secondHits != 1 {
-		t.Fatalf("mirror hits first=%d second=%d, want 1/1", firstHits, secondHits)
+	if firstHits.Load() != 1 || secondHits.Load() != 1 {
+		t.Fatalf("mirror hits first=%d second=%d, want 1/1", firstHits.Load(), secondHits.Load())
 	}
 	if inspected.Metadata.PackageID != "cloud.lazycat.test.mirror-retry" || inspected.Metadata.Version != "1.0.0" {
 		t.Fatalf("unexpected metadata: %+v", inspected.Metadata)
@@ -1460,16 +1461,16 @@ func TestInspectLPKURLGivesEachCandidateSeparateTimeout(t *testing.T) {
 	app.server.allowPrivateLPKURLHosts = true
 	ctx := t.Context()
 	lpk := testLPKArchive(t, "cloud.lazycat.test.mirror-timeout", "1.0.0", "Mirror Timeout", "Fetched after a timed out mirror")
-	firstHits := 0
-	secondHits := 0
+	var firstHits atomic.Int64
+	var secondHits atomic.Int64
 	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		firstHits++
+		firstHits.Add(1)
 		time.Sleep(200 * time.Millisecond)
 		_, _ = w.Write([]byte("late"))
 	}))
 	defer first.Close()
 	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		secondHits++
+		secondHits.Add(1)
 		w.Header().Set("Content-Type", "application/octet-stream")
 		_, _ = w.Write(lpk)
 	}))
@@ -1482,8 +1483,8 @@ func TestInspectLPKURLGivesEachCandidateSeparateTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("inspect with per-candidate timeout: %v", err)
 	}
-	if firstHits != 1 || secondHits != 1 {
-		t.Fatalf("mirror hits first=%d second=%d, want 1/1", firstHits, secondHits)
+	if firstHits.Load() != 1 || secondHits.Load() != 1 {
+		t.Fatalf("mirror hits first=%d second=%d, want 1/1", firstHits.Load(), secondHits.Load())
 	}
 	if inspected.Metadata.PackageID != "cloud.lazycat.test.mirror-timeout" {
 		t.Fatalf("unexpected metadata: %+v", inspected.Metadata)

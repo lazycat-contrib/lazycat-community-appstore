@@ -19,6 +19,7 @@ profile.cov
 
 # Dependency directories
 # vendor/
+node_modules/
 client/node_modules/
 
 # Go workspace file
@@ -40,6 +41,7 @@ web/dist/*
 
 # Logs and OS metadata
 *.log
+.firecrawl/
 .DS_Store
 
 # Editor/IDE

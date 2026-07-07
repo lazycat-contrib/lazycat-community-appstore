@@ -27,16 +27,19 @@ import (
 	outdatedpkg "lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/tag"
+	userpkg "lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/auth"
 	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/lpkmeta"
 	"lazycat.community/appstore/internal/mirror"
+	"lazycat.community/appstore/internal/pagination"
 	"lazycat.community/appstore/internal/storage"
 )
 
 func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	u := s.optionalUser(r)
-	q := s.db.App.Query().Order(entgo.Desc(app.FieldUpdatedAt)).Limit(100)
+	q := s.db.App.Query()
+	page := pagination.FromRequest(r, 24, 100)
 	managedList := r.URL.Query().Get("managed") == "1" || r.URL.Query().Get("managed") == "true"
 	if managedList {
 		if u == nil {
@@ -48,11 +51,12 @@ func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	var collaboratorAppIDs []int
 	if !isAdmin(u) {
 		if u == nil {
 			q.Where(app.StatusEQ(app.StatusAPPROVED))
 		} else {
-			collaboratorAppIDs := s.collaboratorAppIDs(r.Context(), u.ID)
+			collaboratorAppIDs = s.collaboratorAppIDs(r.Context(), u.ID)
 			if len(collaboratorAppIDs) > 0 {
 				q.Where(app.Or(app.StatusEQ(app.StatusAPPROVED), app.OwnerIDEQ(u.ID), app.IDIn(collaboratorAppIDs...)))
 			} else {
@@ -60,31 +64,70 @@ func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if err := s.applyAppListVisibility(r.Context(), q, u, collaboratorAppIDs); err != nil {
+		writeError(w, http.StatusInternalServerError, "APP_LIST_FAILED", "Could not list apps", nil)
+		return
+	}
 	if search := strings.TrimSpace(r.URL.Query().Get("q")); search != "" {
-		q.Where(app.Or(app.NameContainsFold(search), app.SummaryContainsFold(search), app.DescriptionContainsFold(search)))
+		q.Where(app.Or(app.PackageIDContainsFold(search), app.NameContainsFold(search), app.SummaryContainsFold(search), app.DescriptionContainsFold(search)))
 	}
 	if status := strings.TrimSpace(r.URL.Query().Get("status")); status != "" && isAdmin(u) {
 		q.Where(app.StatusEQ(app.Status(status)))
 	}
-	if owner := strings.TrimSpace(r.URL.Query().Get("submitter")); owner != "" {
-		if ownerID, err := strconv.Atoi(owner); err == nil {
-			q.Where(app.OwnerIDEQ(ownerID))
-		}
+	if categoryID, err := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("categoryId"))); err == nil && categoryID > 0 {
+		q.Where(app.CategoryIDEQ(categoryID))
 	}
-	apps, err := q.All(r.Context())
+	if owner := strings.TrimSpace(r.URL.Query().Get("submitter")); owner != "" && owner != "all" {
+		s.applyAppListSubmitterFilter(r.Context(), q, owner)
+	}
+	total, err := q.Clone().Count(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "APP_LIST_FAILED", "Could not list apps", nil)
+		return
+	}
+	switch strings.TrimSpace(r.URL.Query().Get("sort")) {
+	case "downloads":
+		q.Order(entgo.Desc(app.FieldDownloadCount), entgo.Desc(app.FieldUpdatedAt))
+	case "name":
+		q.Order(entgo.Asc(app.FieldName), entgo.Desc(app.FieldUpdatedAt))
+	default:
+		q.Order(entgo.Desc(app.FieldUpdatedAt))
+	}
+	apps, err := q.Offset(page.Offset()).Limit(page.PageSize).All(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "APP_LIST_FAILED", "Could not list apps", nil)
+		return
+	}
+	preload, err := s.preloadAppSummaries(r.Context(), apps, u)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "APP_LIST_FAILED", "Could not list apps", nil)
 		return
 	}
 	out := make([]appSummary, 0, len(apps))
 	for _, record := range apps {
-		if !s.userCanSeeApp(r, record, u) {
-			continue
-		}
-		dto := s.appSummaryDTO(r, record, u)
+		dto := s.appSummaryDTOFromPreload(r.Context(), record, u, preload)
 		out = append(out, dto)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"apps": out})
+	writeJSON(w, http.StatusOK, pagination.NewAppsPage(out, page, total))
+}
+
+func (s *Server) applyAppListSubmitterFilter(ctx context.Context, q *entgo.AppQuery, value string) {
+	if ownerID, err := strconv.Atoi(value); err == nil {
+		q.Where(app.OwnerIDEQ(ownerID))
+		return
+	}
+	records, err := s.db.User.Query().
+		Where(userpkg.Or(userpkg.UsernameEQ(value), userpkg.NicknameEQ(value))).
+		All(ctx)
+	if err != nil || len(records) == 0 {
+		q.Where(app.OwnerIDEQ(-1))
+		return
+	}
+	ids := make([]int, 0, len(records))
+	for _, record := range records {
+		ids = append(ids, record.ID)
+	}
+	q.Where(app.OwnerIDIn(ids...))
 }
 
 func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {

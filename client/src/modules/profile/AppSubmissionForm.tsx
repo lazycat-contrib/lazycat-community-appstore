@@ -8,6 +8,7 @@ import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { ArtifactModeOption } from '../../shared/components/ArtifactModeOption';
 import { FilePicker } from '../../shared/components/FilePicker';
+import { StatusBadge } from '../../shared/components/StatusBadge';
 import { TagTokenizer } from '../../shared/components/TagTokenizer';
 import type { Category } from '../../shared/types';
 import { cx, formatBytes, githubMirrorKindForURL, localizedName } from '../../shared/utils';
@@ -134,10 +135,7 @@ export function AppSubmissionForm({
   return (
       <form
         className={cx('form-panel app-submission-form', presentation === 'modal' && 'modal-panel app-submission-dialog')}
-        role={presentation === 'modal' ? 'dialog' : undefined}
-        aria-modal={presentation === 'modal' ? true : undefined}
         aria-label={presentation === 'modal' ? t('submitApp.title') : undefined}
-        onClick={(event) => event.stopPropagation()}
         onSubmit={onSubmit}
       >
         <div className="section-title with-action">
@@ -163,10 +161,11 @@ export function AppSubmissionForm({
         </div>
         <div className="submission-readiness" aria-label={t('submitApp.readiness')}>
           <div className={cx('readiness-step', artifactReady && 'ready')}>
-            <span className={cx('status-badge', artifactReady ? 'approved' : 'unlisted')}>
-              {artifactReady ? <Check size={14} /> : <AlertCircle size={14} />}
-              {artifactReady ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
-            </span>
+            <StatusBadge
+              tone={artifactReady ? 'approved' : 'unlisted'}
+              icon={artifactReady ? <Check size={14} /> : <AlertCircle size={14} />}
+              label={artifactReady ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
+            />
             <strong>{t('submitApp.readinessArtifact')}</strong>
             <small>
               {artifactMode === 'local'
@@ -181,10 +180,11 @@ export function AppSubmissionForm({
             </small>
           </div>
           <div className={cx('readiness-step', appInfoComplete && 'ready')}>
-            <span className={cx('status-badge', appInfoComplete ? 'approved' : appInfoReady ? 'pending' : 'unlisted')}>
-              {appInfoComplete ? <Check size={14} /> : <AlertCircle size={14} />}
-              {appInfoComplete ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
-            </span>
+            <StatusBadge
+              tone={appInfoComplete ? 'approved' : appInfoReady ? 'pending' : 'unlisted'}
+              icon={appInfoComplete ? <Check size={14} /> : <AlertCircle size={14} />}
+              label={appInfoComplete ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
+            />
             <strong>{t('submitApp.readinessAppInfo')}</strong>
             <small>
               {appInfoReady
@@ -195,10 +195,7 @@ export function AppSubmissionForm({
             </small>
           </div>
           <div className="readiness-step ready">
-            <span className="status-badge synced">
-              <ShieldCheck size={14} />
-              {isDirectPublishUser ? t('submitApp.readinessDirect') : t('submitApp.readinessQueued')}
-            </span>
+            <StatusBadge tone="synced" icon={<ShieldCheck size={14} />} label={isDirectPublishUser ? t('submitApp.readinessDirect') : t('submitApp.readinessQueued')} />
             <strong>{t('submitApp.readinessReview')}</strong>
             <small>{isDirectPublishUser ? t('submitApp.readinessReviewDirect') : t('submitApp.readinessReviewQueued')}</small>
           </div>

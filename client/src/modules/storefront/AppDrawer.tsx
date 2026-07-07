@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   ArrowUp,
   Check,
-  ChevronRight,
   Download,
   Gauge,
   Heart,
@@ -22,21 +21,29 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { BreadcrumbItem, Breadcrumbs } from '@astryxdesign/core/Breadcrumbs';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { Card as XCard, type CardVariant } from '@astryxdesign/core/Card';
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
+import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
+import { MetadataList as XMetadataList, MetadataListItem as XMetadataListItem } from '@astryxdesign/core/MetadataList';
+import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
-import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiWithUploadProgress } from '../../shared/api';
 import { canUserManageApp, canUserUploadVersion, defaultUploadStorageKey, storageSelectOptions } from '../../shared/appHelpers';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ArtifactModeOption } from '../../shared/components/ArtifactModeOption';
 import { FilePicker } from '../../shared/components/FilePicker';
+import { ModalLayer } from '../../shared/components/ModalLayer';
+import { StatusBadge } from '../../shared/components/StatusBadge';
 import { TagTokenizer } from '../../shared/components/TagTokenizer';
+import { VersionHistoryTable } from '../../shared/components/VersionHistoryTable';
 import { AppIcon } from '../../components/AppIcon';
 import { CommentList } from '../../components/CommentList';
 import type { Category, CollaboratorRequest, Group, Review, StorageOption, StoreApp, Toast, User } from '../../shared/types';
@@ -58,6 +65,7 @@ import {
 import type { SubmissionProgress } from '../profile/AppSubmissionForm';
 
 export type AppDetailMode = 'detail' | 'manage';
+type ManagementDialog = 'app-info' | 'publish-version' | 'screenshots' | 'visibility' | 'collaborators';
 
 export function AppDrawer({
   app,
@@ -105,6 +113,7 @@ export function AppDrawer({
   const [versionStorageKey, setVersionStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [collaboratorRequests, setCollaboratorRequests] = useState<CollaboratorRequest[]>([]);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
+  const [managementDialog, setManagementDialog] = useState<ManagementDialog | null>(null);
   const [appForm, setAppForm] = useState({
     name: app.name,
     summary: app.summary,
@@ -133,6 +142,7 @@ export function AppDrawer({
   const hasChecksum = Boolean(latestVersion?.sha256);
   const hasFileSize = Boolean(latestVersion && latestVersion.fileSize > 0);
   const trustState: 'ready' | 'caution' | 'blocked' = !installable ? 'blocked' : hasChecksum && hasFileSize ? 'ready' : 'caution';
+  const trustCardVariant: CardVariant = trustState === 'ready' ? 'green' : trustState === 'caution' ? 'yellow' : 'red';
   const TrustIcon = trustState === 'ready' ? ShieldCheck : trustState === 'caution' ? Gauge : AlertCircle;
   const trustTitle = trustState === 'ready' ? t('drawer.trustReadyTitle') : trustState === 'caution' ? t('drawer.trustCautionTitle') : t('drawer.trustBlockedTitle');
   const trustBody = trustState === 'ready' ? t('drawer.trustReadyBody') : trustState === 'caution' ? t('drawer.trustCautionBody') : t('drawer.trustBlockedBody');
@@ -168,7 +178,7 @@ export function AppDrawer({
         : t('submitApp.mirrorDownloadHelp');
   const versionExternalArtifactReady = versionExternalDownloadReady;
   const versionArtifactReady = versionArtifactMode === 'local' ? Boolean(versionFile) : versionExternalArtifactReady;
-  const canSubmitVersion = versionArtifactReady;
+  const canSubmitVersion = versionNumberReady && versionArtifactReady;
   const versionPublishesDirectly = user?.role === 'SITE_ADMIN' || user?.role === 'SOFTWARE_ADMIN' || app.allowUnreviewedUpdates;
   const storageChoices = storageSelectOptions(storageOptions);
   const appNeedsResubmission = app.status === 'REJECTED';
@@ -191,6 +201,7 @@ export function AppDrawer({
     setCommentText('');
     setReplyTarget(null);
     setReplyText('');
+    setManagementDialog(null);
     setVersionArtifactMode('local');
     setVersionFile(null);
     setIsSubmittingVersion(false);
@@ -209,6 +220,10 @@ export function AppDrawer({
     if (!canMaintain) return;
     void loadCollaboratorRequests();
   }, [app.id, canMaintain]);
+
+  useEffect(() => {
+    if (!isManageMode) setManagementDialog(null);
+  }, [isManageMode]);
 
   useEffect(() => {
     closeButtonRef.current?.focus();
@@ -281,6 +296,7 @@ export function AppDrawer({
             : t('drawer.appInfoSaved'),
       });
       await onRefresh();
+      setManagementDialog(null);
     });
   }
 
@@ -364,6 +380,7 @@ export function AppDrawer({
         if (versionFileInputRef.current) versionFileInputRef.current.value = '';
         setToast({ tone: 'success', message: t('drawer.versionSubmitted') });
         await onRefresh();
+        setManagementDialog(null);
       });
     } finally {
       stopStageProgress?.();
@@ -480,6 +497,7 @@ export function AppDrawer({
       });
       setToast({ tone: 'success', message: visibility.length === 0 ? t('drawer.visibilityPublic') : t('drawer.visibilityUpdated') });
       await onRefresh();
+      setManagementDialog(null);
     });
   }
 
@@ -517,9 +535,461 @@ export function AppDrawer({
     });
   }
 
+  function renderScreenshotGallery(canEdit: boolean) {
+    return (
+      <>
+        {displayScreenshots.length > 0 ? (
+          <div className="screenshot-grid">
+            {displayScreenshots.map((shot, index, shots) => (
+              <figure className="screenshot-item" key={shot.id}>
+                <img src={shot.imageUrl} alt={shot.caption || appName} />
+                {canEdit ? (
+                  <figcaption className="screenshot-caption-editor">
+                    <XTextInput
+                      label={t('drawer.screenshotCaptionFor', { index: index + 1 })}
+                      isLabelHidden
+                      value={screenshotCaptionDrafts[shot.id] ?? shot.caption ?? ''}
+                      placeholder={t('drawer.screenshotCaption')}
+                      onChange={(value) => setScreenshotCaptionDrafts((current) => ({ ...current, [shot.id]: value }))}
+                    />
+                    <XIconButton
+                      type="button"
+                      variant="ghost"
+                      label={t('drawer.saveScreenshotCaption')}
+                      icon={<Save size={16} />}
+                      isDisabled={(screenshotCaptionDrafts[shot.id] ?? '') === (shot.caption || '')}
+                      onClick={() => void saveScreenshotCaption(shot.id)}
+                    />
+                    <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
+                  </figcaption>
+                ) : (
+                  <figcaption>
+                    <span>{shot.caption || appName}</span>
+                    <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
+                  </figcaption>
+                )}
+                {canEdit && (
+                  <div className="screenshot-actions">
+                    <XIconButton type="button" variant="ghost" label={t('drawer.moveScreenshotUp')} icon={<ArrowUp size={15} />} isDisabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)} />
+                    <XIconButton type="button" variant="ghost" label={t('drawer.moveScreenshotDown')} icon={<ArrowDown size={15} />} isDisabled={index === shots.length - 1} onClick={() => void moveScreenshot(shot.id, 1)} />
+                    <XIconButton type="button" variant="destructive" label={t('drawer.deleteScreenshot')} icon={<Trash2 size={15} />} onClick={() => void deleteScreenshot(shot.id)} />
+                  </div>
+                )}
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <EmptyState icon={Archive} title={t('drawer.noScreenshots')} />
+        )}
+        {canEdit && (
+          <form className="comment-form screenshot-form" onSubmit={uploadScreenshot}>
+            <FilePicker
+              label={t('drawer.uploadScreenshot')}
+              value={screenshotFile}
+              accept=".png,.jpg,.jpeg,.webp"
+              onChange={(nextFile) => setScreenshotFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
+            />
+            <XSelector
+              label={t('drawer.screenshotDevice')}
+              isLabelHidden
+              value={screenshotDeviceType}
+              options={[
+                { value: 'DESKTOP', label: t('drawer.screenshotDeviceDesktop') },
+                { value: 'MOBILE', label: t('drawer.screenshotDeviceMobile') },
+              ]}
+              onChange={(value) => setScreenshotDeviceType(value as 'DESKTOP' | 'MOBILE')}
+            />
+            {storageChoices.length > 0 && (
+              <XSelector
+                label={t('common.storage')}
+                isLabelHidden
+                value={screenshotStorageKey}
+                options={storageChoices}
+                onChange={setScreenshotStorageKey}
+              />
+            )}
+            <XIconButton type="submit" variant="ghost" label={t('drawer.uploadScreenshot')} icon={<Upload size={17} />} />
+          </form>
+        )}
+      </>
+    );
+  }
+
+  function renderMetadataCard() {
+    return (
+      <XCard className="detail-metadata-card" padding={4}>
+        <XMetadataList columns="multi">
+          <XMetadataListItem label={t('drawer.latestVersion')}>
+            {latestVersion?.version || t('app.noPublishedVersion')}
+          </XMetadataListItem>
+          <XMetadataListItem label={t('common.download')}>
+            {t('app.downloads', { count: app.downloadCount })}
+          </XMetadataListItem>
+          <XMetadataListItem label={t('common.source')}>
+            {latestVersion?.sourceType || '-'}
+          </XMetadataListItem>
+          <XMetadataListItem label={t('drawer.artifactSize')}>
+            {latestVersion ? formatBytes(latestVersion.fileSize) : '-'}
+          </XMetadataListItem>
+          <XMetadataListItem label={t('common.checksum')}>
+            {t('drawer.sha256', { hash: shortSHA(latestVersion?.sha256) })}
+          </XMetadataListItem>
+        </XMetadataList>
+      </XCard>
+    );
+  }
+
+  function renderManagementMetadataCard() {
+    return (
+      <XCard className="detail-metadata-card management-summary-card" padding={4}>
+        <XMetadataList columns="multi">
+          <XMetadataListItem label={t('drawer.latestVersion')}>
+            {latestVersion?.version || t('app.noPublishedVersion')}
+          </XMetadataListItem>
+          <XMetadataListItem label={t('drawer.installStatus')}>
+            {installable ? t('app.installReady') : t('app.installMissingVersion')}
+          </XMetadataListItem>
+          <XMetadataListItem label={t('drawer.outdatedStatus')}>
+            {hasOutdatedMarks ? t('drawer.outdatedBadge', { count: app.outdatedMarks ?? 0 }) : t('drawer.outdatedInactiveTitle')}
+          </XMetadataListItem>
+          <XMetadataListItem label={t('common.source')}>
+            {latestVersion?.sourceType || '-'}
+          </XMetadataListItem>
+        </XMetadataList>
+      </XCard>
+    );
+  }
+
+  function renderManagementDialogs() {
+    if (!managementDialog) return null;
+
+    if (managementDialog === 'app-info') {
+      return (
+        <ModalLayer purpose="form" width="min(760px, calc(100vw - 32px))" onClose={() => setManagementDialog(null)}>
+          <form className="modal-panel app-info-panel" onSubmit={(event) => void submitAppInfo(event)}>
+            <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={() => setManagementDialog(null)} />
+            <SectionTitle icon={Settings} title={t('drawer.appInfo')} />
+            <XFormLayout>
+              <XTextInput label={t('common.name')} value={appForm.name} onChange={(name) => setAppForm((current) => ({ ...current, name }))} />
+              <XTextInput label={t('common.summary')} value={appForm.summary} onChange={(summary) => setAppForm((current) => ({ ...current, summary }))} />
+              <XTextArea label={t('common.description')} value={appForm.description} rows={5} onChange={(description) => setAppForm((current) => ({ ...current, description }))} />
+              <XSelector
+                label={t('common.category')}
+                value={appForm.categoryId}
+                options={[
+                  { value: '', label: t('common.uncategorized') },
+                  ...categories.map((category) => ({ value: String(category.id), label: localizedName(category) })),
+                ]}
+                onChange={(categoryId) => setAppForm((current) => ({ ...current, categoryId }))}
+              />
+              <TagTokenizer label={t('common.tags')} value={appForm.tags} knownTags={tagOptions} onChange={(tags) => setAppForm((current) => ({ ...current, tags }))} />
+              <XTextInput
+                type="password"
+                label={t('drawer.installPassword')}
+                description={app.installProtected ? t('drawer.installPasswordUpdateHelp') : t('drawer.installPasswordHelp')}
+                value={appForm.installPassword}
+                onChange={(installPassword) => setAppForm((current) => ({ ...current, installPassword }))}
+              />
+              {app.installProtected && (
+                <XCheckboxInput
+                  label={t('drawer.clearInstallPassword')}
+                  value={appForm.clearInstallPassword}
+                  onChange={(clearInstallPassword) => setAppForm((current) => ({ ...current, clearInstallPassword }))}
+                />
+              )}
+              <XCheckboxInput
+                label={t('drawer.commentsEnabled')}
+                value={appForm.commentsEnabled}
+                onChange={(commentsEnabled) => setAppForm((current) => ({ ...current, commentsEnabled }))}
+              />
+              <XCheckboxInput
+                label={t('drawer.emailNotificationsEnabled')}
+                value={appForm.emailNotificationsEnabled}
+                onChange={(emailNotificationsEnabled) => setAppForm((current) => ({ ...current, emailNotificationsEnabled }))}
+              />
+              <XCheckboxInput
+                label={t('submitApp.allowUnreviewedUpdates')}
+                value={appForm.allowUnreviewedUpdates}
+                onChange={(allowUnreviewedUpdates) => setAppForm((current) => ({ ...current, allowUnreviewedUpdates }))}
+              />
+            </XFormLayout>
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setManagementDialog(null)} />
+              <XButton type="submit" variant="primary" label={appNeedsResubmission ? t('drawer.resubmitApp') : t('drawer.saveInfo')} icon={<Save size={17} />} />
+            </div>
+          </form>
+        </ModalLayer>
+      );
+    }
+
+    if (managementDialog === 'publish-version') {
+      return (
+        <ModalLayer purpose="form" width="min(820px, calc(100vw - 32px))" onClose={() => setManagementDialog(null)}>
+          <form className="modal-panel version-publish-panel" onSubmit={(event) => void submitExternalVersion(event)}>
+            <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={() => setManagementDialog(null)} />
+            <SectionTitle icon={Upload} title={t('drawer.publishVersion')} />
+            <XCard variant={versionPublishesDirectly ? 'green' : 'yellow'} padding={3} className="version-route-card">
+              <strong>{t('drawer.versionPublishPath')}</strong>
+              <span>{versionPublishesDirectly ? t('drawer.versionDirectHint') : t('drawer.versionReviewHint')}</span>
+            </XCard>
+            <div className="submission-readiness" aria-label={t('drawer.versionReadiness')}>
+              <div className={cx('readiness-step', versionNumberReady && 'ready')}>
+                <StatusBadge
+                  tone={versionNumberReady ? 'approved' : 'unlisted'}
+                  icon={versionNumberReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                  label={versionNumberReady ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
+                />
+                <strong>{t('drawer.readinessVersion')}</strong>
+                <small>{versionNumberReady ? t('drawer.readinessVersionReady') : t('drawer.readinessVersionMissing')}</small>
+              </div>
+              <div className={cx('readiness-step', versionArtifactReady && 'ready')}>
+                <StatusBadge
+                  tone={versionArtifactReady ? 'approved' : 'unlisted'}
+                  icon={versionArtifactReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                  label={versionArtifactReady ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
+                />
+                <strong>{t('submitApp.readinessArtifact')}</strong>
+                <small>
+                  {versionArtifactMode === 'local'
+                    ? versionFile
+                      ? t('submitApp.readinessArtifactLocalReady', { name: versionFile.name, size: formatBytes(versionFile.size) })
+                      : t('submitApp.readinessArtifactLocalMissing')
+                    : versionExternalDownloadReady
+                      ? versionExternalChecksumReady
+                        ? t('submitApp.readinessArtifactExternalReady')
+                        : t('submitApp.readinessArtifactExternalPartial')
+                      : t('submitApp.readinessArtifactExternalMissing')}
+                </small>
+              </div>
+              <div className="readiness-step ready">
+                <StatusBadge tone="synced" icon={<ShieldCheck size={14} />} label={versionPublishesDirectly ? t('submitApp.readinessDirect') : t('submitApp.readinessQueued')} />
+                <strong>{t('submitApp.readinessReview')}</strong>
+                <small>{versionPublishesDirectly ? t('drawer.readinessVersionDirect') : t('drawer.readinessVersionQueued')}</small>
+              </div>
+            </div>
+            <XFormLayout>
+              <XTextInput
+                label={t('common.version')}
+                description={t('drawer.versionRequired')}
+                value={versionForm.version}
+                onChange={(version) => setVersionForm((current) => ({ ...current, version }))}
+              />
+              <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
+                <ArtifactModeOption
+                  icon={<Upload size={17} />}
+                  title={t('submitApp.localArtifact')}
+                  hint={t('drawer.versionLocalArtifactHint')}
+                  isSelected={versionArtifactMode === 'local'}
+                  onSelect={() => selectVersionArtifactMode('local')}
+                />
+                <ArtifactModeOption
+                  icon={<Link size={17} />}
+                  title={t('submitApp.externalArtifact')}
+                  hint={t('drawer.versionExternalArtifactHint')}
+                  isSelected={versionArtifactMode === 'external'}
+                  onSelect={() => selectVersionArtifactMode('external')}
+                />
+              </div>
+              {versionArtifactMode === 'local' ? (
+                <>
+                  {storageChoices.length > 0 && (
+                    <XSelector
+                      label={t('common.storage')}
+                      description={t('drawer.versionStorageHelp')}
+                      value={versionStorageKey}
+                      options={storageChoices}
+                      onChange={setVersionStorageKey}
+                    />
+                  )}
+                  <FilePicker
+                    label={t('common.lpkFile')}
+                    help={t('drawer.versionLocalFileHelp')}
+                    value={versionFile}
+                    inputRef={versionFileInputRef}
+                    accept=".lpk"
+                    required
+                    onChange={(nextFile) => setVersionFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
+                  />
+                </>
+              ) : (
+                <>
+                  <XSelector
+                    label={t('submitApp.externalSource')}
+                    value={versionForm.sourceType}
+                    options={[
+                      { value: 'GITHUB', label: 'GitHub Release' },
+                      { value: 'WEBDAV', label: 'WebDAV URL' },
+                      { value: 'S3', label: 'S3 URL' },
+                    ]}
+                    onChange={(sourceType) => setVersionForm((current) => ({ ...current, sourceType }))}
+                  />
+                  <XTextInput
+                    label={t('common.downloadUrl')}
+                    description={t('submitApp.externalDownloadHelp')}
+                    value={versionForm.downloadUrl}
+                    onChange={(downloadUrl) => setVersionForm((current) => ({ ...current, downloadUrl }))}
+                  />
+                  <XTextInput
+                    label={t('common.sha256')}
+                    description={t('submitApp.sha256Help')}
+                    value={versionForm.sha256}
+                    onChange={(sha256) => setVersionForm((current) => ({ ...current, sha256 }))}
+                  />
+                  {versionForm.sourceType === 'GITHUB' && (
+                    <XCheckboxInput
+                      label={t('submitApp.useMirrorDownload')}
+                      description={versionMirrorDownloadHelp}
+                      value={versionForm.useMirrorDownload}
+                      onChange={(useMirrorDownload) => setVersionForm((current) => ({ ...current, useMirrorDownload }))}
+                    />
+                  )}
+                </>
+              )}
+              <XTextArea
+                label={t('common.changelog')}
+                value={versionForm.changelog}
+                rows={4}
+                onChange={(changelog) => setVersionForm((current) => ({ ...current, changelog }))}
+              />
+            </XFormLayout>
+            {versionProgress && (
+              <XProgressBar
+                label={versionProgress.label}
+                value={versionProgress.percent}
+                hasValueLabel
+                variant={versionProgress.percent >= 100 ? 'success' : 'accent'}
+              />
+            )}
+            {!canSubmitVersion && <p className="field-help">{t('drawer.versionSubmitBlocked')}</p>}
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setManagementDialog(null)} />
+              <XButton
+                type="submit"
+                variant="primary"
+                label={isSubmittingVersion ? t('common.submitting') : t('drawer.publishVersion')}
+                icon={<Upload size={17} />}
+                isDisabled={!canSubmitVersion || isSubmittingVersion}
+              />
+            </div>
+          </form>
+        </ModalLayer>
+      );
+    }
+
+    if (managementDialog === 'screenshots') {
+      return (
+        <ModalLayer purpose="form" width="min(920px, calc(100vw - 32px))" onClose={() => setManagementDialog(null)}>
+          <div className="modal-panel screenshots-panel">
+            <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={() => setManagementDialog(null)} />
+            <SectionTitle icon={Archive} title={t('drawer.screenshots')} />
+            {renderScreenshotGallery(canEditScreenshots)}
+          </div>
+        </ModalLayer>
+      );
+    }
+
+    if (managementDialog === 'visibility') {
+      return (
+        <ModalLayer purpose="form" width="min(620px, calc(100vw - 32px))" onClose={() => setManagementDialog(null)}>
+          <form
+            className="modal-panel visibility-panel"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveVisibility();
+            }}
+          >
+            <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={() => setManagementDialog(null)} />
+            <SectionTitle icon={Users} title={t('drawer.visibilityGroups')} />
+            {groups.length === 0 ? (
+              <EmptyState icon={Users} title={t('drawer.noGroupsPublic')} />
+            ) : (
+              <div className="checkbox-list">
+                {groups.map((group) => (
+                  <XCheckboxInput
+                    key={group.id}
+                    label={group.name}
+                    description={group.description}
+                    value={visibility.includes(group.id)}
+                    onChange={(checked) => {
+                      setVisibility((current) => (
+                        checked
+                          ? Array.from(new Set([...current, group.id]))
+                          : current.filter((id) => id !== group.id)
+                      ));
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setManagementDialog(null)} />
+              <XButton type="submit" variant="primary" label={t('drawer.saveVisibility')} icon={<Save size={17} />} />
+            </div>
+          </form>
+        </ModalLayer>
+      );
+    }
+
+    return (
+      <ModalLayer purpose="form" width="min(700px, calc(100vw - 32px))" onClose={() => setManagementDialog(null)}>
+        <div className="modal-panel collaborator-panel">
+          <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={() => setManagementDialog(null)} />
+          <SectionTitle icon={Users} title={t('drawer.collaboratorRequests')} />
+          {collaboratorRequests.length === 0 ? (
+            <EmptyState icon={Users} title={t('drawer.noCollaboratorRequests')} />
+          ) : (
+            <XList density="compact" hasDividers>
+              {collaboratorRequests.map((request) => {
+                const requesterName = request.username || t('drawer.userLabel', { id: request.userId || request.user_id || '-' });
+                return (
+                  <XListItem
+                    key={request.id}
+                    label={requesterName}
+                    description={request.message || request.email || t('drawer.noMessage')}
+                    endContent={(
+                      <div className="row-actions">
+                        <XIconButton
+                          className="fixed-row-icon-button"
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          label={t('drawer.approveCollaboratorFor', { name: requesterName })}
+                          tooltip={t('drawer.approveCollaborator')}
+                          icon={<Check size={17} />}
+                          onClick={() => void decideCollaboratorRequest(request.id, true)}
+                        />
+                        <XIconButton
+                          className="fixed-row-icon-button"
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          label={t('drawer.rejectCollaboratorFor', { name: requesterName })}
+                          tooltip={t('drawer.rejectCollaborator')}
+                          icon={<X size={17} />}
+                          onClick={() => void decideCollaboratorRequest(request.id, false)}
+                        />
+                      </div>
+                    )}
+                  />
+                );
+              })}
+            </XList>
+          )}
+        </div>
+      </ModalLayer>
+    );
+  }
+
   return (
     <section className="detail-page-shell">
       <article className={cx('detail-page server-detail-page', isManageMode && 'manage-mode')} aria-labelledby={drawerTitleId}>
+        <Breadcrumbs className="detail-breadcrumbs" variant="supporting" label={t('common.navigation')}>
+          <BreadcrumbItem onClick={onClose}>{t('nav.store')}</BreadcrumbItem>
+          <BreadcrumbItem isCurrent={!isManageMode} onClick={isManageMode ? () => onModeChange('detail') : undefined}>
+            {appName}
+          </BreadcrumbItem>
+          {isManageMode && <BreadcrumbItem isCurrent>{t('drawer.management')}</BreadcrumbItem>}
+        </Breadcrumbs>
         <XButton
           ref={closeButtonRef}
           className="detail-back-button"
@@ -540,10 +1010,7 @@ export function AppDrawer({
               <span>{localizedCategory(app, t('common.uncategorized'))}</span>
               <span>{app.latestVersion?.version || '-'}</span>
               {hasOutdatedMarks && (
-                <span className="status-badge stale">
-                  <AlertCircle size={13} />
-                  {t('drawer.outdatedBadge', { count: app.outdatedMarks ?? 0 })}
-                </span>
+                <StatusBadge tone="stale" icon={<AlertCircle size={13} />} label={t('drawer.outdatedBadge', { count: app.outdatedMarks ?? 0 })} />
               )}
             </div>
           </div>
@@ -599,7 +1066,7 @@ export function AppDrawer({
         </div>
         {!isManageMode && (
           <>
-            <section className={cx('install-trust', trustState)} aria-label={t('drawer.installReadiness')}>
+            <XCard className={cx('install-trust', trustState)} variant={trustCardVariant} padding={4} aria-label={t('drawer.installReadiness')}>
               <div className="install-trust-lead">
                 <TrustIcon size={19} />
                 <div>
@@ -620,8 +1087,8 @@ export function AppDrawer({
                   <strong>{communitySummary}</strong>
                 </div>
               </div>
-            </section>
-            <section className={cx('outdated-state', hasOutdatedMarks && 'active')} aria-label={t('drawer.outdatedStatus')}>
+            </XCard>
+            <XCard className={cx('outdated-state', hasOutdatedMarks && 'active')} variant={hasOutdatedMarks ? 'yellow' : 'muted'} padding={4} aria-label={t('drawer.outdatedStatus')}>
               <div className="outdated-state-head">
                 <AlertCircle size={19} />
                 <div>
@@ -629,29 +1096,12 @@ export function AppDrawer({
                   <span>{hasOutdatedMarks ? t('drawer.outdatedActiveBody') : t('drawer.outdatedInactiveBody')}</span>
                 </div>
               </div>
-            </section>
-            <section className="detail-summary" aria-label={t('drawer.metadata')}>
-              <div>
-                <span>{t('drawer.latestVersion')}</span>
-                <strong>{latestVersion?.version || t('app.noPublishedVersion')}</strong>
-              </div>
-              <div>
-                <span>{t('common.download')}</span>
-                <strong>{t('app.downloads', { count: app.downloadCount })}</strong>
-              </div>
-              <div>
-                <span>{t('common.source')}</span>
-                <strong>{latestVersion?.sourceType || '-'}</strong>
-              </div>
-              <div>
-                <span>{t('app.fileSize', { size: latestVersion ? formatBytes(latestVersion.fileSize) : '-' })}</span>
-                <strong>{t('drawer.sha256', { hash: shortSHA(latestVersion?.sha256) })}</strong>
-              </div>
-            </section>
+            </XCard>
+            {renderMetadataCard()}
           </>
         )}
         {isManageMode && (
-          <section className="panel nested-panel management-overview">
+          <XCard className="management-overview" padding={4}>
             <div className="section-title with-action">
               <div>
                 <Gauge size={19} />
@@ -668,398 +1118,78 @@ export function AppDrawer({
                 />
               )}
             </div>
-            <div className="detail-summary management-summary" aria-label={t('drawer.metadata')}>
-              <div>
-                <span>{t('drawer.latestVersion')}</span>
-                <strong>{latestVersion?.version || t('app.noPublishedVersion')}</strong>
-              </div>
-              <div>
-                <span>{t('drawer.installStatus')}</span>
-                <strong>{installable ? t('app.installReady') : t('app.installMissingVersion')}</strong>
-              </div>
-              <div>
-                <span>{t('drawer.outdatedStatus')}</span>
-                <strong>{hasOutdatedMarks ? t('drawer.outdatedBadge', { count: app.outdatedMarks ?? 0 }) : t('drawer.outdatedInactiveTitle')}</strong>
-              </div>
-              <div>
-                <span>{t('common.source')}</span>
-                <strong>{latestVersion?.sourceType || '-'}</strong>
-              </div>
-            </div>
-          </section>
+            {renderManagementMetadataCard()}
+          </XCard>
         )}
         {isManageMode && (canMaintain || canUploadVersion) && (
-          <section className={cx('maintenance-grid', !canMaintain && 'single-column')}>
-            {canMaintain && (
-              <div className="maintenance-main">
-              <form className="panel form-panel nested-panel app-info-panel" onSubmit={submitAppInfo}>
-                <SectionTitle icon={Settings} title={t('drawer.appInfo')} />
-                <XTextInput label={t('common.name')} value={appForm.name} onChange={(value) => setAppForm({ ...appForm, name: value })} />
-                <XTextInput label={t('common.summary')} value={appForm.summary} onChange={(value) => setAppForm({ ...appForm, summary: value })} />
-                <XTextArea label={t('common.description')} value={appForm.description} rows={4} onChange={(value) => setAppForm({ ...appForm, description: value })} />
-                <XSelector
-                  label={t('common.category')}
-                  value={appForm.categoryId}
-                  options={[
-                    { value: '', label: t('common.uncategorized') },
-                    ...categories.map((category) => ({ value: String(category.id), label: localizedName(category) })),
-                  ]}
-                  onChange={(value) => setAppForm({ ...appForm, categoryId: value })}
+          <section className="management-actions">
+            <SectionTitle icon={Settings} title={t('drawer.managementActions')} />
+            <div className="management-action-grid">
+              {canMaintain && (
+                <ManagementActionCard
+                  icon={<Settings size={19} />}
+                  title={t('drawer.appInfo')}
+                  body={t('drawer.appInfoActionBody')}
+                  action={<XButton type="button" variant="secondary" size="sm" label={t('common.edit')} icon={<Settings size={17} />} onClick={() => setManagementDialog('app-info')} />}
                 />
-                <TagTokenizer label={t('common.tags')} value={appForm.tags} knownTags={tagOptions} onChange={(value) => setAppForm({ ...appForm, tags: value })} />
-                <XTextInput
-                  type="password"
-                  label={t('drawer.installPassword')}
-                  description={app.installProtected ? t('drawer.installPasswordUpdateHelp') : t('drawer.installPasswordHelp')}
-                  value={appForm.installPassword}
-                  onChange={(value) => setAppForm({ ...appForm, installPassword: value, clearInstallPassword: false })}
+              )}
+              {canUploadVersion && (
+                <ManagementActionCard
+                  icon={<Upload size={19} />}
+                  title={t('drawer.publishVersion')}
+                  body={t('drawer.publishVersionActionBody')}
+                  action={<XButton type="button" variant="primary" size="sm" label={t('drawer.publishVersion')} icon={<Upload size={17} />} onClick={() => setManagementDialog('publish-version')} />}
                 />
-                {app.installProtected && (
-                  <XSwitch
-                    label={t('drawer.clearInstallPassword')}
-                    value={appForm.clearInstallPassword}
-                    labelSpacing="spread"
-                    width="100%"
-                    onChange={(checked) => setAppForm({ ...appForm, clearInstallPassword: checked, installPassword: checked ? '' : appForm.installPassword })}
-                  />
-                )}
-                <XSwitch
-                  label={t('drawer.commentsEnabled')}
-                  value={appForm.commentsEnabled}
-                  labelSpacing="spread"
-                  width="100%"
-                  onChange={(checked) => setAppForm({ ...appForm, commentsEnabled: checked })}
+              )}
+              {canMaintain && (
+                <ManagementActionCard
+                  icon={<Archive size={19} />}
+                  title={t('drawer.screenshots')}
+                  body={t('drawer.screenshotsActionBody')}
+                  action={<XButton type="button" variant="secondary" size="sm" label={t('drawer.manageScreenshots')} icon={<Archive size={17} />} onClick={() => setManagementDialog('screenshots')} />}
                 />
-                <XSwitch
-                  label={t('drawer.emailNotificationsEnabled')}
-                  value={appForm.emailNotificationsEnabled}
-                  labelSpacing="spread"
-                  width="100%"
-                  onChange={(checked) => setAppForm({ ...appForm, emailNotificationsEnabled: checked })}
+              )}
+              {canMaintain && (
+                <ManagementActionCard
+                  icon={<Users size={19} />}
+                  title={t('drawer.visibilityGroups')}
+                  body={t('drawer.visibilityActionBody')}
+                  action={<XButton type="button" variant="secondary" size="sm" label={t('drawer.manageVisibility')} icon={<Users size={17} />} onClick={() => setManagementDialog('visibility')} />}
                 />
-                <XSwitch
-                  label={t('submitApp.allowUnreviewedUpdates')}
-                  value={appForm.allowUnreviewedUpdates}
-                  labelSpacing="spread"
-                  width="100%"
-                  onChange={(checked) => setAppForm({ ...appForm, allowUnreviewedUpdates: checked })}
+              )}
+              {canMaintain && (
+                <ManagementActionCard
+                  icon={<Users size={19} />}
+                  title={t('drawer.collaboratorRequests')}
+                  body={t('drawer.collaboratorActionBody', { count: collaboratorRequests.length })}
+                  action={<XButton type="button" variant="secondary" size="sm" label={t('drawer.reviewCollaborators')} icon={<Users size={17} />} onClick={() => setManagementDialog('collaborators')} />}
                 />
-                <XButton type="submit" variant="secondary" label={appNeedsResubmission ? t('drawer.resubmitApp') : t('drawer.saveInfo')} icon={<Save size={18} />} />
-              </form>
-              </div>
-            )}
-            <div className="maintenance-side">
-            {canUploadVersion && (
-              <form className="panel form-panel nested-panel version-publish-panel" onSubmit={submitExternalVersion}>
-                <SectionTitle icon={Link} title={t('drawer.publishVersion')} />
-                <div className="workflow-strip">
-                  <div>
-                    <strong>{t('drawer.versionPublishPath')}</strong>
-                    <span>{versionPublishesDirectly ? t('drawer.versionDirectHint') : t('drawer.versionReviewHint')}</span>
-                  </div>
-                  <div className="workflow-steps" aria-label={t('drawer.versionPublishPath')}>
-                    <span>{t('common.version')}</span>
-                    <ChevronRight size={14} />
-                    <span>{t('submitApp.stepArtifact')}</span>
-                    <ChevronRight size={14} />
-                    <span>{versionPublishesDirectly ? t('submitApp.readinessDirect') : t('submitApp.stepReview')}</span>
-                  </div>
-                </div>
-                <div className="submission-readiness" aria-label={t('drawer.versionReadiness')}>
-                  <div className={cx('readiness-step', versionNumberReady && 'ready')}>
-                    <span className={cx('status-badge', versionNumberReady ? 'approved' : 'unlisted')}>
-                      {versionNumberReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                      {versionNumberReady ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
-                    </span>
-                    <strong>{t('drawer.readinessVersion')}</strong>
-                    <small>{versionNumberReady ? t('drawer.readinessVersionReady') : t('drawer.readinessVersionMissing')}</small>
-                  </div>
-                  <div className={cx('readiness-step', versionArtifactReady && 'ready')}>
-                    <span className={cx('status-badge', versionArtifactReady ? 'approved' : 'unlisted')}>
-                      {versionArtifactReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                      {versionArtifactReady ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
-                    </span>
-                    <strong>{t('submitApp.readinessArtifact')}</strong>
-                    <small>
-                      {versionArtifactMode === 'local'
-                        ? versionFile
-                          ? t('submitApp.readinessArtifactLocalReady', { name: versionFile.name, size: formatBytes(versionFile.size) })
-                          : t('submitApp.readinessArtifactLocalMissing')
-                        : versionExternalArtifactReady
-                          ? t('submitApp.readinessArtifactExternalReady')
-                          : versionExternalDownloadReady || versionExternalChecksumReady
-                            ? t('submitApp.readinessArtifactExternalPartial')
-                            : t('submitApp.readinessArtifactExternalMissing')}
-                    </small>
-                  </div>
-                  <div className="readiness-step ready">
-                    <span className="status-badge synced">
-                      <ShieldCheck size={14} />
-                      {versionPublishesDirectly ? t('submitApp.readinessDirect') : t('submitApp.readinessQueued')}
-                    </span>
-                    <strong>{t('submitApp.readinessReview')}</strong>
-                    <small>{versionPublishesDirectly ? t('drawer.readinessVersionDirect') : t('drawer.readinessVersionQueued')}</small>
-                  </div>
-                </div>
-                <XTextInput label={t('common.version')} value={versionForm.version} onChange={(value) => setVersionForm({ ...versionForm, version: value })} />
-                <XTextInput label={t('common.changelog')} value={versionForm.changelog} onChange={(value) => setVersionForm({ ...versionForm, changelog: value })} />
-                <div className="artifact-section">
-                  <div className="artifact-section-head">
-                    <strong>{t('submitApp.artifactMode')}</strong>
-                    <span>{versionArtifactMode === 'local' ? t('drawer.versionLocalArtifactHint') : t('drawer.versionExternalArtifactHint')}</span>
-                  </div>
-                  <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
-                    <ArtifactModeOption
-                      icon={<Upload size={17} />}
-                      title={t('submitApp.localArtifact')}
-                      hint={t('drawer.versionLocalArtifactHint')}
-                      isSelected={versionArtifactMode === 'local'}
-                      onSelect={() => selectVersionArtifactMode('local')}
-                    />
-                    <ArtifactModeOption
-                      icon={<Link size={17} />}
-                      title={t('submitApp.externalArtifact')}
-                      hint={t('drawer.versionExternalArtifactHint')}
-                      isSelected={versionArtifactMode === 'external'}
-                      onSelect={() => selectVersionArtifactMode('external')}
-                    />
-                  </div>
-                  {versionArtifactMode === 'local' ? (
-                    <div className="artifact-fields">
-                      <FilePicker
-                        label={t('common.lpkFile')}
-                        help={t('drawer.versionLocalFileHelp')}
-                        value={versionFile}
-                        inputRef={versionFileInputRef}
-                        accept=".lpk"
-                        required
-                        onChange={(nextFile) => setVersionFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
-                      />
-                      {storageChoices.length > 0 && (
-                        <XSelector
-                          label={t('common.storage')}
-                          description={t('drawer.versionStorageHelp')}
-                          value={versionStorageKey}
-                          options={storageChoices}
-                          onChange={setVersionStorageKey}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="artifact-fields">
-                      <p className="field-help">{t('submitApp.externalFieldsHelp')}</p>
-                      <XSelector
-                        label={t('submitApp.externalSource')}
-                        value={versionForm.sourceType}
-                        options={[
-                          { value: 'GITHUB', label: 'GitHub Release' },
-                          { value: 'WEBDAV', label: 'WebDAV URL' },
-                          { value: 'S3', label: 'S3 URL' },
-                        ]}
-                        onChange={(value) => setVersionForm({ ...versionForm, sourceType: value })}
-                      />
-                      <XTextInput
-                        label={t('submitApp.externalDownloadUrl')}
-                        description={t('submitApp.externalDownloadHelp')}
-                        value={versionForm.downloadUrl}
-                        onChange={(value) => setVersionForm({ ...versionForm, downloadUrl: value })}
-                      />
-                      <XTextInput
-                        label={t('common.sha256')}
-                        description={t('submitApp.sha256Help')}
-                        value={versionForm.sha256}
-                        onChange={(value) => setVersionForm({ ...versionForm, sha256: value })}
-                      />
-                      {versionForm.sourceType === 'GITHUB' && (
-                        <div className="mirror-download-option">
-                          <XSwitch
-                            label={t('submitApp.useMirrorDownload')}
-                            value={versionForm.useMirrorDownload}
-                            labelSpacing="spread"
-                            width="100%"
-                            onChange={(checked) => setVersionForm({ ...versionForm, useMirrorDownload: checked })}
-                          />
-                          <p className="field-help">{versionMirrorDownloadHelp}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {!canSubmitVersion && <p className="field-help">{t('drawer.versionSubmitBlocked')}</p>}
-                {versionProgress && (
-                  <div className="submit-progress" role="status" aria-live="polite">
-                    <div className="submit-progress-row">
-                      <strong>{versionProgress.label}</strong>
-                      <span>{Math.round(versionProgress.percent)}%</span>
-                    </div>
-                    <div className="progress">
-                      <span style={{ width: `${Math.max(4, Math.min(100, versionProgress.percent))}%` }} />
-                    </div>
-                  </div>
-                )}
-                <XButton
-                  type="submit"
-                  variant="secondary"
-                  label={isSubmittingVersion ? t('common.submitting') : t('drawer.publishVersion')}
-                  icon={<Upload size={18} />}
-                  isDisabled={!canSubmitVersion || isSubmittingVersion}
-                />
-              </form>
-            )}
-            {canMaintain && (
-              <section className="panel form-panel nested-panel visibility-panel">
-                <SectionTitle icon={Users} title={t('drawer.visibilityGroups')} />
-                <div className="checkbox-list">
-                  {groups.length === 0 ? (
-                    <span className="muted-text">{t('drawer.noGroupsPublic')}</span>
-                  ) : (
-                    groups.map((group) => (
-                      <XCheckboxInput
-                        key={group.id}
-                        label={group.name}
-                        value={visibility.includes(group.id)}
-                        onChange={(checked) =>
-                          setVisibility((current) => (checked ? [...current, group.id] : current.filter((id) => id !== group.id)))
-                        }
-                      />
-                    ))
-                  )}
-                </div>
-                <XButton type="button" variant="secondary" label={t('drawer.saveVisibility')} icon={<Users size={18} />} onClick={() => void saveVisibility()} />
-              </section>
-            )}
-            {canMaintain && (
-              <section className="panel nested-panel collaborator-panel">
-                <SectionTitle icon={Users} title={t('drawer.collaboratorRequests')} />
-                <div className="review-list">
-                  {collaboratorRequests.length === 0 ? (
-                    <EmptyState icon={Users} title={t('drawer.noCollaboratorRequests')} />
-                  ) : (
-                    collaboratorRequests.map((request) => (
-                      <div className="review-row" key={request.id}>
-                        <div>
-                          <strong>{request.username || t('drawer.userLabel', { id: request.user_id || request.userId || '-' })}</strong>
-                          <span>{request.status} · {request.message || request.email || t('drawer.noMessage')}</span>
-                        </div>
-                        {request.status === 'PENDING' && (
-                          <div className="row-actions">
-                            <XIconButton
-                              type="button"
-                              variant="ghost"
-                              label={t('drawer.approveCollaboratorFor', { name: request.username || request.email || request.id })}
-                              icon={<Check size={17} />}
-                              onClick={() => void decideCollaboratorRequest(request.id, true)}
-                            />
-                            <XIconButton
-                              type="button"
-                              variant="destructive"
-                              label={t('drawer.rejectCollaboratorFor', { name: request.username || request.email || request.id })}
-                              icon={<X size={17} />}
-                              onClick={() => void decideCollaboratorRequest(request.id, false)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
-            )}
+              )}
             </div>
           </section>
         )}
-        <section>
-          <h3>{t('drawer.screenshots')}</h3>
-          {displayScreenshots.length > 0 ? (
-            <div className="screenshot-grid">
-              {displayScreenshots.map((shot, index, shots) => (
-                <figure className="screenshot-item" key={shot.id}>
-                  <img src={shot.imageUrl} alt={shot.caption || appName} />
-                  {canEditScreenshots ? (
-                    <figcaption className="screenshot-caption-editor">
-                      <XTextInput
-                        label={t('drawer.screenshotCaptionFor', { index: index + 1 })}
-                        isLabelHidden
-                        value={screenshotCaptionDrafts[shot.id] ?? shot.caption ?? ''}
-                        placeholder={t('drawer.screenshotCaption')}
-                        onChange={(value) => setScreenshotCaptionDrafts((current) => ({ ...current, [shot.id]: value }))}
-                      />
-                      <XIconButton
-                        type="button"
-                        variant="ghost"
-                        label={t('drawer.saveScreenshotCaption')}
-                        icon={<Save size={16} />}
-                        isDisabled={(screenshotCaptionDrafts[shot.id] ?? '') === (shot.caption || '')}
-                        onClick={() => void saveScreenshotCaption(shot.id)}
-                      />
-                      <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
-                    </figcaption>
-                  ) : (
-                    <figcaption>
-                      <span>{shot.caption || appName}</span>
-                      <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
-                    </figcaption>
-                  )}
-                  {canEditScreenshots && (
-                    <div className="screenshot-actions">
-                      <XIconButton type="button" variant="ghost" label={t('drawer.moveScreenshotUp')} icon={<ArrowUp size={15} />} isDisabled={index === 0} onClick={() => void moveScreenshot(shot.id, -1)} />
-                      <XIconButton type="button" variant="ghost" label={t('drawer.moveScreenshotDown')} icon={<ArrowDown size={15} />} isDisabled={index === shots.length - 1} onClick={() => void moveScreenshot(shot.id, 1)} />
-                      <XIconButton type="button" variant="destructive" label={t('drawer.deleteScreenshot')} icon={<Trash2 size={15} />} onClick={() => void deleteScreenshot(shot.id)} />
-                    </div>
-                  )}
-                </figure>
-              ))}
-            </div>
-          ) : (
-            <EmptyState icon={Archive} title={t('drawer.noScreenshots')} />
-          )}
-          {canEditScreenshots && (
-            <form className="comment-form screenshot-form" onSubmit={uploadScreenshot}>
-              <FilePicker
-                label={t('drawer.uploadScreenshot')}
-                value={screenshotFile}
-                accept=".png,.jpg,.jpeg,.webp"
-                onChange={(nextFile) => setScreenshotFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
-              />
-              <XSelector
-                label={t('drawer.screenshotDevice')}
-                isLabelHidden
-                value={screenshotDeviceType}
-                options={[
-                  { value: 'DESKTOP', label: t('drawer.screenshotDeviceDesktop') },
-                  { value: 'MOBILE', label: t('drawer.screenshotDeviceMobile') },
-                ]}
-                onChange={(value) => setScreenshotDeviceType(value as 'DESKTOP' | 'MOBILE')}
-              />
-              {storageChoices.length > 0 && (
-                <XSelector
-                  label={t('common.storage')}
-                  isLabelHidden
-                  value={screenshotStorageKey}
-                  options={storageChoices}
-                  onChange={setScreenshotStorageKey}
-                />
-              )}
-              <XIconButton type="submit" variant="ghost" label={t('drawer.uploadScreenshot')} icon={<Upload size={17} />} />
-            </form>
-          )}
-        </section>
+        {renderManagementDialogs()}
+        {!isManageMode && (
+          <section>
+            <h3>{t('drawer.screenshots')}</h3>
+            {renderScreenshotGallery(false)}
+          </section>
+        )}
         <section>
           <h3>{t('drawer.versionHistory')}</h3>
           {(app.versions || []).length === 0 ? (
             <EmptyState icon={History} title={t('drawer.noVersions')} body={t('drawer.installBlocked')} />
           ) : (
-            <div className="version-list">
-              {(app.versions || []).map((version) => (
-                <div className="version-row" key={version.id}>
-                  <div>
-                    <strong>{version.version}</strong>
-                    <span>{version.sourceType} · {formatBytes(version.fileSize)} · {formatDate(version.publishedAt || version.createdAt)}</span>
-                  </div>
-                  <code>{shortSHA(version.sha256)}</code>
-                </div>
-              ))}
-            </div>
+            <VersionHistoryTable
+              rows={(app.versions || []).map((version) => ({
+                id: version.id,
+                version: version.version,
+                sourceType: version.sourceType,
+                sizeBytes: version.fileSize,
+                sha256: version.sha256,
+                publishedAt: version.publishedAt || version.createdAt,
+              }))}
+            />
           )}
         </section>
         {!isManageMode && (
@@ -1096,5 +1226,34 @@ export function AppDrawer({
         )}
       </article>
     </section>
+  );
+}
+
+function ManagementActionCard({
+  icon,
+  title,
+  body,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  body: string;
+  action: ReactNode;
+}) {
+  return (
+    <XCard className="management-action-card" variant="muted" padding={4}>
+      <div className="management-action-card-head">
+        <span className="management-action-card-icon" aria-hidden="true">
+          {icon}
+        </span>
+        <div>
+          <strong>{title}</strong>
+          <span>{body}</span>
+        </div>
+      </div>
+      <div className="management-action-card-action">
+        {action}
+      </div>
+    </XCard>
   );
 }

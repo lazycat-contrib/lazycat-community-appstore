@@ -10,6 +10,7 @@ import { UserAvatar } from '../../components/AppIcon';
 import { api } from '../../shared/api';
 import { defaultUploadStorageKey, displayUserName, storageSelectOptions } from '../../shared/appHelpers';
 import { FilePicker } from '../../shared/components/FilePicker';
+import { ModalLayer } from '../../shared/components/ModalLayer';
 import type { StorageOption, Toast, User } from '../../shared/types';
 import { runAction } from '../../shared/utils';
 
@@ -78,8 +79,8 @@ export function ProfileSettingsDialog({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <form className="modal-panel form-panel profile-dialog" role="dialog" aria-modal="true" aria-label={t('profile.personalProfile')} onClick={(event) => event.stopPropagation()} onSubmit={saveProfile}>
+    <ModalLayer onClose={onClose} purpose="form">
+      <form className="modal-panel form-panel profile-dialog" aria-label={t('profile.personalProfile')} onSubmit={saveProfile}>
         <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={onClose} />
         <div className="profile-dialog-head">
           <UserAvatar user={user} size={72} className="avatar-large" />
@@ -116,6 +117,6 @@ export function ProfileSettingsDialog({
           <XButton type="submit" variant="primary" label={t('profile.saveProfile')} icon={<Save size={17} />} />
         </div>
       </form>
-    </div>
+    </ModalLayer>
   );
 }

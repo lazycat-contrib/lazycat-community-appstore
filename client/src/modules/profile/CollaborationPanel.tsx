@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { AppIcon } from '../../components/AppIcon';
 import { api } from '../../shared/api';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
+import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { CollaborationData, CollaboratorInvite, CollaboratorRequest, OwnedCollaboration, StoreApp, Toast, User } from '../../shared/types';
 import { cx, formatDate, localizedAppName, runAction, statusKey } from '../../shared/utils';
 
@@ -258,7 +259,7 @@ export function CollaborationPanel({
                   <strong>{request.appName || t('common.app')}</strong>
                   <span>{request.message || t('drawer.noMessage')}</span>
                 </div>
-                <span className={cx('status-badge', statusKey(request.status))}>{t(`statusLabels.${statusKey(request.status)}`)}</span>
+                <StatusBadge tone={statusKey(request.status)} label={t(`statusLabels.${statusKey(request.status)}`)} />
               </div>
             ))
           )}

@@ -10,10 +10,12 @@ import (
 	"lazycat.community/appstore/ent/clientsource"
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/internal/catalogmeta"
+	"lazycat.community/appstore/internal/pagination"
 )
 
 func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	userID := currentUserID(r)
+	page := pagination.FromRequest(r, 100, 100)
 	query := s.db.ClientSourceApp.Query().
 		Where(clientsourceapp.HasSourceWith(clientsource.UserIDEQ(userID))).
 		WithSource().
@@ -36,7 +38,12 @@ func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 			),
 		)
 	}
-	items, err := query.All(r.Context())
+	total, err := query.Clone().Count(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "APP_LIST_FAILED", "Could not list apps")
+		return
+	}
+	items, err := query.Offset(page.Offset()).Limit(page.PageSize).All(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "APP_LIST_FAILED", "Could not list apps")
 		return
@@ -50,7 +57,7 @@ func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, dto)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"apps": out})
+	writeJSON(w, http.StatusOK, pagination.NewAppsPage(out, page, total))
 }
 
 func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {

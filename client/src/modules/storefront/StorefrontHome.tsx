@@ -1,6 +1,8 @@
 import { Copy, Download, History, Layers3, LogIn, PackagePlus, Search, Tag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { Card as XCard } from '@astryxdesign/core/Card';
+import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { API_BASE } from '../../config';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { Category, Collection, SiteProfile, StoreApp, Toast } from '../../shared/types';
@@ -64,25 +66,25 @@ export function StorefrontHome({
       </div>
 
       <section className="store-metrics" aria-label={t('nav.store')}>
-        <div className="metric-card">
+        <XCard className="metric-card" padding={4}>
           <span>{t('common.apps')}</span>
           <strong>{approvedCount}</strong>
           <small>{t('home.approvedCount', { count: approvedCount })}</small>
-        </div>
-        <div className="metric-card">
+        </XCard>
+        <XCard className="metric-card" padding={4}>
           <span>{t('common.category')}</span>
           <strong>{categories.length}</strong>
           <small>{t('home.categoryCount', { count: categories.length })}</small>
-        </div>
-        <div className="metric-card source-feed-card">
+        </XCard>
+        <XCard className="metric-card source-feed-card" padding={4}>
           <span>{t('home.sourceUrl')}</span>
-          <code className="source-feed-code" title={sourceFeedURL}>{sourceFeedURL}</code>
+          <XCodeBlock code={sourceFeedURL} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" />
           <small>{t('home.openSourceFeed')}</small>
           <div className="source-feed-actions">
             <XButton type="button" variant="secondary" size="sm" label={t('home.copySourceFeed')} icon={<Copy size={16} />} onClick={() => void copySourceFeed()} />
             <XButton type="button" variant="secondary" size="sm" label={t('home.browseInstallable')} icon={<Download size={16} />} onClick={() => onNavigate('search')} />
           </div>
-        </div>
+        </XCard>
       </section>
 
       {categories.length > 0 && (

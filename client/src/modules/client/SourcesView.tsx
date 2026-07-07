@@ -11,15 +11,18 @@ import {
   Server,
   X,
 } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { DEFAULT_SOURCE_URL } from '../../config';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
+import { ModalLayer } from '../../shared/components/ModalLayer';
+import { StatusBadge } from '../../shared/components/StatusBadge';
 import type {
   ClientSourceStats,
   InstalledApplication,
@@ -48,6 +51,8 @@ import {
   sourceAppCategoryOptions,
   sourceAppSourceOptions,
 } from './sourceAppFilters';
+
+const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
 export function SourcesView({
   sources,
@@ -87,6 +92,8 @@ export function SourcesView({
   const [editDraft, setEditDraft] = useState<SourceInput>(emptyDraft);
   const [selectedSyncedSource, setSelectedSyncedSource] = useState('all');
   const [selectedSyncedCategory, setSelectedSyncedCategory] = useState('all');
+  const [syncedPage, setSyncedPage] = useState(1);
+  const [syncedPageSize, setSyncedPageSize] = useState(24);
 
   function normalizedSourceURL(rawURL: string) {
     try {
@@ -193,6 +200,16 @@ export function SourcesView({
   const filteredSyncedSourceApps = sourceApps.filter(
     (app) => matchesSourceAppSource(app, selectedSyncedSource) && matchesSourceAppCategory(app, selectedSyncedCategory),
   );
+  const syncedTotalPages = Math.max(1, Math.ceil(filteredSyncedSourceApps.length / syncedPageSize));
+  const currentSyncedPage = Math.min(syncedPage, syncedTotalPages);
+  const pagedSyncedSourceApps = useMemo(() => {
+    const start = (currentSyncedPage - 1) * syncedPageSize;
+    return filteredSyncedSourceApps.slice(start, start + syncedPageSize);
+  }, [filteredSyncedSourceApps, currentSyncedPage, syncedPageSize]);
+
+  useEffect(() => {
+    setSyncedPage(1);
+  }, [sourceApps.length, selectedSyncedSource, selectedSyncedCategory]);
 
   async function deleteSource(source: SourceSubscription) {
     if (confirmDeleteSource !== source.id) {
@@ -251,13 +268,10 @@ export function SourcesView({
       </div>
 
       {isAddSourceOpen && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setIsAddSourceOpen(false)}>
+        <ModalLayer onClose={() => setIsAddSourceOpen(false)} purpose="form">
           <form
             className="modal-panel form-panel source-add-dialog"
-            role="dialog"
-            aria-modal="true"
             aria-label={t('sources.addTitle')}
-            onClick={(event) => event.stopPropagation()}
             onSubmit={addSource}
             noValidate
           >
@@ -265,26 +279,25 @@ export function SourcesView({
             <SectionTitle icon={Cloud} title={t('sources.addTitle')} />
             <div className="source-readiness" aria-label={t('sources.addReadiness')}>
               <div className={cx('readiness-step', sourceNameReady && 'ready')}>
-                <span className={cx('status-badge', sourceNameReady ? 'approved' : 'unlisted')}>
-                  {sourceNameReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                  {sourceNameReady ? t('sources.ready') : t('sources.needsValue')}
-                </span>
+                <StatusBadge
+                  tone={sourceNameReady ? 'approved' : 'unlisted'}
+                  icon={sourceNameReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                  label={sourceNameReady ? t('sources.ready') : t('sources.needsValue')}
+                />
                 <strong>{t('sources.readinessName')}</strong>
                 <small>{sourceNameReady ? t('sources.readinessNameReady') : t('sources.readinessNameMissing')}</small>
               </div>
               <div className={cx('readiness-step', sourceURLReady && 'ready')}>
-                <span className={cx('status-badge', sourceURLReady ? 'approved' : 'unlisted')}>
-                  {sourceURLReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                  {sourceURLReady ? t('sources.ready') : t('sources.needsValue')}
-                </span>
+                <StatusBadge
+                  tone={sourceURLReady ? 'approved' : 'unlisted'}
+                  icon={sourceURLReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                  label={sourceURLReady ? t('sources.ready') : t('sources.needsValue')}
+                />
                 <strong>{t('sources.readinessUrl')}</strong>
                 <small>{sourceURLReady ? t('sources.readinessUrlReady') : t('sources.readinessUrlMissing')}</small>
               </div>
               <div className={cx('readiness-step', sourcePasswordReady && 'ready')}>
-                <span className={cx('status-badge', sourcePasswordReady ? 'synced' : 'unsynced')}>
-                  <KeyRound size={14} />
-                  {sourcePasswordReady ? t('sources.filled') : t('sources.optional')}
-                </span>
+                <StatusBadge tone={sourcePasswordReady ? 'synced' : 'unsynced'} icon={<KeyRound size={14} />} label={sourcePasswordReady ? t('sources.filled') : t('sources.optional')} />
                 <strong>{t('sources.readinessPassword')}</strong>
                 <small>{sourcePasswordReady ? t('sources.readinessPasswordReady') : t('sources.readinessPasswordOptional')}</small>
               </div>
@@ -298,17 +311,14 @@ export function SourcesView({
               <XButton type="submit" variant="primary" label={t('sources.add')} icon={<Cloud size={18} />} isDisabled={!canAddSource} />
             </div>
           </form>
-        </div>
+        </ModalLayer>
       )}
 
       {editingSource && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setEditingSource(null)}>
+        <ModalLayer onClose={() => setEditingSource(null)} purpose="form">
           <form
             className="modal-panel form-panel source-add-dialog"
-            role="dialog"
-            aria-modal="true"
             aria-label={t('sources.editTitle')}
-            onClick={(event) => event.stopPropagation()}
             onSubmit={saveEditedSource}
             noValidate
           >
@@ -336,7 +346,7 @@ export function SourcesView({
               <XButton type="submit" variant="primary" label={t('common.save')} icon={<Save size={18} />} />
             </div>
           </form>
-        </div>
+        </ModalLayer>
       )}
 
       <section className="panel">
@@ -378,7 +388,7 @@ export function SourcesView({
                   <div>
                     <div className="source-row-header">
                       <strong>{source.name}</strong>
-                      <span className={cx('status-badge', health)} aria-live="polite">{t(`sources.health.${health}`)}</span>
+                      <StatusBadge tone={health} label={t(`sources.health.${health}`)} aria-live="polite" />
                     </div>
                     <span className="source-url" title={source.url}>{source.url}</span>
                     <div className="source-facts">
@@ -456,7 +466,7 @@ export function SourcesView({
           />
         </div>
         <SourceAppGrid
-          apps={filteredSyncedSourceApps}
+          apps={pagedSyncedSourceApps}
           installedApps={installedApps}
           onOpen={onOpenSource}
           onInstall={onInstall}
@@ -465,6 +475,20 @@ export function SourcesView({
           emptyTitle={sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle')}
           emptyBody={sourceApps.length === 0 ? t('search.noSyncedAppsBody') : t('search.noFilterResultsBody')}
         />
+        {filteredSyncedSourceApps.length > syncedPageSize && (
+          <XPagination
+            className="list-pagination"
+            page={currentSyncedPage}
+            onChange={setSyncedPage}
+            totalItems={filteredSyncedSourceApps.length}
+            pageSize={syncedPageSize}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            onPageSizeChange={setSyncedPageSize}
+            variant="pages"
+            size="sm"
+            label={t('pagination.label')}
+          />
+        )}
       </section>
     </section>
   );

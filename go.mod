@@ -14,6 +14,7 @@ require (
 	github.com/lib/pq v1.12.3
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.53.0
+	golang.org/x/sync v0.21.0
 	google.golang.org/grpc v1.63.2
 )
 

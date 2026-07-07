@@ -1,12 +1,13 @@
 import { Check, ChevronRight, Download, KeyRound, Link, PackagePlus, ShieldCheck, Star, Tag } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { AppIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
 import type { StoreApp } from '../../shared/types';
-import { cx, hasInstallableVersion, localizedAppDescription, localizedAppName, localizedAppSummary, localizedCategory } from '../../shared/utils';
+import { hasInstallableVersion, localizedAppDescription, localizedAppName, localizedAppSummary, localizedCategory } from '../../shared/utils';
 
 export function AppGrid({
   apps,
@@ -41,31 +42,27 @@ export function AppGrid({
               <ChevronRight size={18} />
             </div>
             <div className="app-meta">
-              <span><Tag size={14} /> {localizedCategory(app, t('common.uncategorized'))}</span>
+              <XBadge variant="neutral" icon={<Tag size={13} />} label={localizedCategory(app, t('common.uncategorized'))} />
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
               <span><Download size={14} /> {t('app.downloads', { count: app.downloadCount })}</span>
               {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
             </div>
             <div className="app-readiness" aria-label={t('app.installSignals')}>
-              <span className={cx('status-badge', installable ? 'approved' : 'blocked')}>
-                <Download size={13} />
-                {installable ? t('app.installReady') : t('app.installMissingVersion')}
-              </span>
-              <span className={cx('status-badge', hasChecksum ? 'synced' : 'unsynced')}>
-                <ShieldCheck size={13} />
-                {hasChecksum ? t('app.checksumReady') : t('app.checksumMissing')}
-              </span>
+              <XBadge
+                variant={installable ? 'success' : 'error'}
+                icon={<Download size={13} />}
+                label={installable ? t('app.installReady') : t('app.installMissingVersion')}
+              />
+              <XBadge
+                variant={hasChecksum ? 'success' : 'warning'}
+                icon={<ShieldCheck size={13} />}
+                label={hasChecksum ? t('app.checksumReady') : t('app.checksumMissing')}
+              />
               {app.installProtected && (
-                <span className="status-badge pending">
-                  <KeyRound size={13} />
-                  {t('app.installPasswordRequired')}
-                </span>
+                <XBadge variant="warning" icon={<KeyRound size={13} />} label={t('app.installPasswordRequired')} />
               )}
               {app.status === 'APPROVED' && (
-                <span className="status-badge approved">
-                  <Check size={13} />
-                  {t('app.reviewed')}
-                </span>
+                <XBadge variant="success" icon={<Check size={13} />} label={t('app.reviewed')} />
               )}
             </div>
             <XButton

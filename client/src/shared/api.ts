@@ -1,5 +1,6 @@
 import i18n from '../i18n';
 import { API_BASE, HAS_API } from '../config';
+import type { PaginatedResponse } from './types';
 
 export const CLIENT_API_BASE = '/api/client/v1';
 
@@ -84,4 +85,24 @@ export async function clientApi<T>(path: string, options: RequestInit = {}): Pro
     throw new Error(data?.error?.message || `HTTP ${response.status}`);
   }
   return data as T;
+}
+
+export async function fetchAllPaginated<TItem, TKey extends string>(
+  request: <T>(path: string) => Promise<T>,
+  path: string,
+  key: TKey,
+  pageSize = 100,
+): Promise<TItem[]> {
+  const items: TItem[] = [];
+  let page = 1;
+  for (;;) {
+    const separator = path.includes('?') ? '&' : '?';
+    const data = await request<PaginatedResponse<TItem, TKey>>(`${path}${separator}page=${page}&pageSize=${pageSize}`);
+    items.push(...(data[key] || []));
+    if (!data.pagination || page >= data.pagination.totalPages || data[key].length === 0) {
+      break;
+    }
+    page += 1;
+  }
+  return items;
 }

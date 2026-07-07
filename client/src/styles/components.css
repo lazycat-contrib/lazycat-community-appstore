@@ -26,6 +26,12 @@
   transform: scale(0.99);
 }
 
+.list-pagination {
+  width: 100%;
+  min-width: 0;
+  margin-top: 14px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .file-drop-box {
     transition-duration: 1ms !important;
@@ -33,5 +39,13 @@
 
   .file-drop-field:active .file-drop-box {
     transform: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .list-pagination {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }

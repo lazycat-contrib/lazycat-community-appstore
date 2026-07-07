@@ -9,6 +9,19 @@ export type User = {
   disabled?: boolean;
 };
 
+export type Pagination = {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+};
+
+export type PaginatedResponse<TItem, TKey extends string = 'items'> = {
+  pagination: Pagination;
+} & {
+  [K in TKey]: TItem[];
+};
+
 export type Version = {
   id: number;
   appId: number;

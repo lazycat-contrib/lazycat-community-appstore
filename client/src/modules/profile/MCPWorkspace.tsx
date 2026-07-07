@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Copy, HelpCircle, KeyRound, Server, Trash2, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
+import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
@@ -9,8 +10,10 @@ import { useTranslation } from 'react-i18next';
 import { HAS_API } from '../../config';
 import { api } from '../../shared/api';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
+import { ModalLayer } from '../../shared/components/ModalLayer';
+import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { MCPPrincipalType, MCPProfile, MCPTokenRecord, Toast, User } from '../../shared/types';
-import { arrayOrEmpty, cx, formatDate, runAction } from '../../shared/utils';
+import { arrayOrEmpty, formatDate, runAction } from '../../shared/utils';
 
 type MCPTokenDraft = {
   note: string;
@@ -120,7 +123,7 @@ export function MCPWorkspace({ user, setToast }: { user: User; setToast: (toast:
         <div className="mcp-endpoint-row">
           <div>
             <span>{t('mcp.endpoint')}</span>
-            <code>{endpoint}</code>
+            <XCodeBlock code={endpoint} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" container="section" isWrapped />
           </div>
           <XIconButton
             className="fixed-row-icon-button"
@@ -140,7 +143,7 @@ export function MCPWorkspace({ user, setToast }: { user: User; setToast: (toast:
               <strong>{t('mcp.newToken')}</strong>
               <span>{t('mcp.newTokenHelp')}</span>
             </div>
-            <code className="token-output">{newMcpToken}</code>
+            <XCodeBlock code={newMcpToken} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" />
             <XButton type="button" variant="secondary" size="sm" label={t('common.copy')} icon={<Copy size={16} />} onClick={() => void copyText(newMcpToken, t('mcp.tokenCopied'))} />
           </div>
         )}
@@ -157,9 +160,10 @@ export function MCPWorkspace({ user, setToast }: { user: User; setToast: (toast:
                   <small className="workflow-hint">{token.lastUsedAt ? t('mcp.lastUsedAt', { date: formatDate(token.lastUsedAt) }) : t('mcp.neverUsed')}</small>
                 </div>
                 <div className="row-actions">
-                  <span className={cx('status-badge', mcpTokenExpired(token) ? 'failed' : token.principalType === 'ADMIN' ? 'approved' : 'synced')}>
-                    {mcpTokenExpired(token) ? t('mcp.expired') : t(`mcp.principal.${token.principalType.toLowerCase()}`)}
-                  </span>
+                  <StatusBadge
+                    tone={mcpTokenExpired(token) ? 'failed' : token.principalType === 'ADMIN' ? 'approved' : 'synced'}
+                    label={mcpTokenExpired(token) ? t('mcp.expired') : t(`mcp.principal.${token.principalType.toLowerCase()}`)}
+                  />
                   <XIconButton
                     className="fixed-row-icon-button"
                     type="button"
@@ -231,22 +235,11 @@ function MCPHelpDialog({ endpoint, onClose }: { endpoint: string; onClose: () =>
   const { t } = useTranslation();
   const titleId = 'mcp-help-title';
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+    <ModalLayer onClose={onClose} width="min(760px, calc(100vw - 36px))" maxHeight="min(86vh, 780px)">
       <section
         className="modal-panel token-help-panel"
-        role="dialog"
-        aria-modal="true"
         aria-labelledby={titleId}
-        onClick={(event) => event.stopPropagation()}
       >
         <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onClose} />
         <div className="token-help-head">
@@ -259,23 +252,23 @@ function MCPHelpDialog({ endpoint, onClose }: { endpoint: string; onClose: () =>
           </div>
         </div>
         <div className="token-help-content">
-          <TokenHelpExample title={t('mcp.helpEndpointTitle')} body={t('mcp.helpEndpointBody')} code={mcpClientConfigExample(endpoint)} />
-          <TokenHelpExample title={t('mcp.helpToolsTitle')} body={t('mcp.helpToolsBody')} code={mcpToolCallExample} />
-          <TokenHelpExample title={t('mcp.helpPermissionTitle')} body={t('mcp.helpPermissionBody')} code={['USER: appstore_list_my_apps, appstore_create_app_from_url, appstore_publish_version_from_url', 'ADMIN: USER tools + appstore_admin_list_apps'].join('\n')} />
+          <TokenHelpExample title={t('mcp.helpEndpointTitle')} body={t('mcp.helpEndpointBody')} code={mcpClientConfigExample(endpoint)} language="json" />
+          <TokenHelpExample title={t('mcp.helpToolsTitle')} body={t('mcp.helpToolsBody')} code={mcpToolCallExample} language="json" />
+          <TokenHelpExample title={t('mcp.helpPermissionTitle')} body={t('mcp.helpPermissionBody')} code={['USER: appstore_list_my_apps, appstore_create_app_from_url, appstore_publish_version_from_url', 'ADMIN: USER tools + appstore_admin_list_apps'].join('\n')} language="plaintext" />
         </div>
       </section>
-    </div>
+    </ModalLayer>
   );
 }
 
-function TokenHelpExample({ title, body, code }: { title: string; body: string; code: string }) {
+function TokenHelpExample({ title, body, code, language }: { title: string; body: string; code: string; language: string }) {
   return (
     <section className="token-help-section">
       <div>
         <strong>{title}</strong>
         <span>{body}</span>
       </div>
-      <pre className="code-example"><code>{code}</code></pre>
+      <XCodeBlock code={code} language={language} width="100%" size="sm" />
     </section>
   );
 }
@@ -296,22 +289,11 @@ function MCPTokenDialog({
   const { t } = useTranslation();
   const titleId = 'mcp-token-dialog-title';
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+    <ModalLayer onClose={onClose} purpose="form" width="min(430px, calc(100vw - 36px))" maxHeight="min(86vh, 780px)">
       <form
         className="modal-panel form-panel mcp-token-dialog"
-        role="dialog"
-        aria-modal="true"
         aria-labelledby={titleId}
-        onClick={(event) => event.stopPropagation()}
         onSubmit={onSubmit}
       >
         <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onClose} />
@@ -343,6 +325,6 @@ function MCPTokenDialog({
           <XButton type="submit" variant="primary" label={t('mcp.createToken')} icon={<KeyRound size={17} />} />
         </div>
       </form>
-    </div>
+    </ModalLayer>
   );
 }

@@ -4,12 +4,14 @@ import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
-import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
+import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
 import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '../../components/AppIcon';
 import { api, apiWithUploadProgress } from '../../shared/api';
 import { canUserManageApp, canUserUploadVersion, defaultUploadStorageKey, displayUserName, reconcileScreenshotCaptions, screenshotFileKey, storageSelectOptions } from '../../shared/appHelpers';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
+import { ModalLayer } from '../../shared/components/ModalLayer';
+import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { Category, ClientSourceStats, CollaborationData, FavoriteData, Group, InstalledApplication, SourceApp, StorageOption, StoreApp, Toast, User } from '../../shared/types';
 import { cx, formatDate, hasInstallableVersion, runAction, statusKey } from '../../shared/utils';
 import { InstalledAppsView } from '../client/InstalledAppsView';
@@ -418,26 +420,29 @@ export function ProfileView({
           <SectionTitle icon={Gauge} title={t('profile.clientReadiness')} />
           <div className="source-readiness" aria-label={t('profile.clientReadiness')}>
             <div className={cx('readiness-step', sourceCacheReady && 'ready')}>
-              <span className={cx('status-badge', sourceCacheReady ? 'approved' : 'unlisted')}>
-                {sourceCacheReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                {sourceCacheReady ? t('sources.ready') : t('sources.needsValue')}
-              </span>
+              <StatusBadge
+                tone={sourceCacheReady ? 'approved' : 'unlisted'}
+                icon={sourceCacheReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                label={sourceCacheReady ? t('sources.ready') : t('sources.needsValue')}
+              />
               <strong>{t('profile.clientSourceTitle')}</strong>
               <small>{sourceCacheBody}</small>
             </div>
             <div className={cx('readiness-step', installCatalogReady && 'ready')}>
-              <span className={cx('status-badge', installCatalogReady ? 'approved' : 'unlisted')}>
-                {installCatalogReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                {installCatalogReady ? t('sources.ready') : t('sources.needsValue')}
-              </span>
+              <StatusBadge
+                tone={installCatalogReady ? 'approved' : 'unlisted'}
+                icon={installCatalogReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                label={installCatalogReady ? t('sources.ready') : t('sources.needsValue')}
+              />
               <strong>{t('profile.clientInstallTitle')}</strong>
               <small>{installCatalogBody}</small>
             </div>
             <div className={cx('readiness-step', installedLookupReady && 'ready')}>
-              <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loading' ? 'pending' : installedLookupReady ? 'synced' : 'unsynced')}>
-                {installedState === 'error' ? <AlertCircle size={14} /> : installedLookupReady ? <Check size={14} /> : <Gauge size={14} />}
-                {t(`profile.installedState.${installedState}`)}
-              </span>
+              <StatusBadge
+                tone={installedState === 'error' ? 'failed' : installedState === 'loading' ? 'pending' : installedLookupReady ? 'synced' : 'unsynced'}
+                icon={installedState === 'error' ? <AlertCircle size={14} /> : installedLookupReady ? <Check size={14} /> : <Gauge size={14} />}
+                label={t(`profile.installedState.${installedState}`)}
+              />
               <strong>{t('profile.clientInstalledTitle')}</strong>
               <small>{installedReadinessBody}</small>
             </div>
@@ -508,11 +513,11 @@ export function ProfileView({
         <p>{t('profile.serverBody')}</p>
       </div>
       <div className="horizontal-control-scroll">
-        <XToggleButtonGroup value={workspaceTab} onChange={(value) => value && setWorkspaceTab(value as typeof workspaceTab)} label={t('profile.tabs.label')} size="sm">
+        <XTabList value={workspaceTab} onChange={(value) => setWorkspaceTab(value as typeof workspaceTab)} aria-label={t('profile.tabs.label')} size="sm" hasDivider>
           {workspaceTabs.map((item) => {
             const Icon = item.icon;
             return (
-              <XToggleButton
+              <XTab
                 key={item.key}
                 value={item.key}
                 label={item.label}
@@ -520,7 +525,7 @@ export function ProfileView({
               />
             );
           })}
-        </XToggleButtonGroup>
+        </XTabList>
       </div>
       {workspaceTab === 'overview' && (
       <div className="split">
@@ -604,7 +609,7 @@ export function ProfileView({
                   <small className="workflow-hint">{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
                 </div>
                 <div className="row-actions">
-                  <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
+                  <StatusBadge tone={submissionStep(item).tone} label={t(`statusLabels.${statusKey(item.status)}`)} />
                   <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
                   {(canUserManageApp(user, item) || canUserUploadVersion(user, item)) && (
                     <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
@@ -618,7 +623,7 @@ export function ProfileView({
       )}
 
       {workspaceTab === 'apps' && isSubmitOpen && (
-      <div className="modal-backdrop" role="presentation" onClick={() => setIsSubmitOpen(false)}>
+      <ModalLayer onClose={() => setIsSubmitOpen(false)} purpose="form" width="min(960px, calc(100vw - 36px))" maxHeight="min(90vh, 920px)">
         <AppSubmissionForm
           draft={uploadForm}
           onDraftChange={setUploadForm}
@@ -648,7 +653,7 @@ export function ProfileView({
           onSubmit={submitUpload}
           onCancel={() => setIsSubmitOpen(false)}
         />
-      </div>
+      </ModalLayer>
       )}
       {workspaceTab === 'collaboration' && (
       <section className="workspace-pane">
@@ -692,7 +697,7 @@ export function ProfileView({
                     <small className="workflow-hint">{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
                   </div>
                   <div className="row-actions management-row-actions">
-                    <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
+                    <StatusBadge tone={submissionStep(item).tone} label={t(`statusLabels.${statusKey(item.status)}`)} />
                     <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
                     <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
                   </div>
@@ -720,10 +725,10 @@ export function ProfileView({
         <section className="panel">
           <SectionTitle icon={Heart} title={t('favorites.title')} />
           <div className="section-toolbar">
-            <XToggleButtonGroup value={favoriteTab} onChange={(value) => setFavoriteTab((value || 'apps') as 'apps' | 'submitters')} label={t('favorites.tabsLabel')} size="sm">
-              <XToggleButton value="apps" label={t('favorites.apps')} icon={<PackagePlus size={17} />} />
-              <XToggleButton value="submitters" label={t('favorites.submitters')} icon={<Users size={17} />} />
-            </XToggleButtonGroup>
+            <XTabList value={favoriteTab} onChange={(value) => setFavoriteTab(value as 'apps' | 'submitters')} aria-label={t('favorites.tabsLabel')} size="sm">
+              <XTab value="apps" label={t('favorites.apps')} icon={<PackagePlus size={17} />} />
+              <XTab value="submitters" label={t('favorites.submitters')} icon={<Users size={17} />} />
+            </XTabList>
             <XButton type="button" variant="secondary" size="sm" label={t('favorites.refresh')} icon={<RefreshCw size={18} />} onClick={() => void loadFavorites()} />
           </div>
           {favoriteTab === 'apps' ? (
@@ -732,13 +737,13 @@ export function ProfileView({
                 <EmptyState icon={Heart} title={t('favorites.emptyApps')} />
               ) : (
                 favorites.apps.map((item) => (
-                  <button type="button" className="review-row interactive-row" key={`app-${item.id}`} onClick={() => void onOpen(item)}>
+                  <XButton type="button" variant="ghost" label={item.name} className="review-row interactive-row" key={`app-${item.id}`} onClick={() => void onOpen(item)}>
                     <div>
                       <strong>{item.name}</strong>
                       <span>{item.owner} · {item.latestVersion?.version || item.status}</span>
                     </div>
                     <ChevronRight size={17} aria-hidden="true" />
-                  </button>
+                  </XButton>
                 ))
               )}
             </div>

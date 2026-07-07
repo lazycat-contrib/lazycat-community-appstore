@@ -16,6 +16,8 @@ import (
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/mirror"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type sourceSyncError struct {
@@ -86,15 +88,52 @@ func (s *Server) syncAllSources(ctx context.Context, userID string) (SyncAllResu
 	if err != nil {
 		return SyncAllResult{}, err
 	}
+	results := make([]fetchedSource, len(sources))
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(4)
+	for index, source := range sources {
+		index := index
+		source := source
+		group.Go(func() error {
+			if err := groupCtx.Err(); err != nil {
+				return err
+			}
+			apps, mirrors, err := s.fetchSourceApps(groupCtx, source)
+			if err != nil && groupCtx.Err() != nil {
+				return groupCtx.Err()
+			}
+			results[index] = fetchedSource{source: source, apps: apps, mirrors: mirrors, err: err}
+			return nil
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return SyncAllResult{}, err
+	}
+
 	result := SyncAllResult{}
-	for _, source := range sources {
-		if _, err := s.syncSource(ctx, source.ID, userID); err != nil {
+	for _, item := range results {
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
+		if item.err != nil {
+			_ = s.recordSourceSyncFailure(ctx, item.source.ID, item.err)
+			result.Failed++
+			continue
+		}
+		if _, err := s.saveSourceApps(ctx, item.source, item.apps, item.mirrors); err != nil {
 			result.Failed++
 		} else {
 			result.Success++
 		}
 	}
 	return result, nil
+}
+
+type fetchedSource struct {
+	source  *ent.ClientSource
+	apps    []feedApp
+	mirrors []mirror.Entry
+	err     error
 }
 
 func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (SourceDTO, error) {
@@ -109,16 +148,29 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 	}
 	apps, mirrors, err := s.fetchSourceApps(ctx, source)
 	if err != nil {
-		var syncErr sourceSyncError
-		if !errors.As(err, &syncErr) {
-			syncErr = sourceSyncError{code: "network", status: http.StatusBadGateway, message: err.Error()}
-		}
-		_, _ = s.db.ClientSource.UpdateOneID(source.ID).
-			SetLastError(syncErr.message).
-			SetLastErrorCode(clientsource.LastErrorCode(syncErr.code)).
-			Save(ctx)
-		return SourceDTO{}, syncErr
+		return SourceDTO{}, s.recordSourceSyncFailure(ctx, source.ID, err)
 	}
+	return s.saveSourceApps(ctx, source, apps, mirrors)
+}
+
+func (s *Server) recordSourceSyncFailure(ctx context.Context, sourceID int, err error) sourceSyncError {
+	syncErr := normalizeSourceSyncError(err)
+	_, _ = s.db.ClientSource.UpdateOneID(sourceID).
+		SetLastError(syncErr.message).
+		SetLastErrorCode(clientsource.LastErrorCode(syncErr.code)).
+		Save(ctx)
+	return syncErr
+}
+
+func normalizeSourceSyncError(err error) sourceSyncError {
+	var syncErr sourceSyncError
+	if !errors.As(err, &syncErr) {
+		syncErr = sourceSyncError{code: "network", status: http.StatusBadGateway, message: err.Error()}
+	}
+	return syncErr
+}
+
+func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, apps []feedApp, mirrors []mirror.Entry) (SourceDTO, error) {
 	installableCount := 0
 	for i := range apps {
 		if apps[i].LatestVersion != nil && apps[i].LatestVersion.DownloadURL != "" {

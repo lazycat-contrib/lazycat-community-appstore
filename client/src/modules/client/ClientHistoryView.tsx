@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
+import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { InstallHistoryEntry, SourceApp } from '../../shared/types';
 import { cx, formatDate, normalizeAppIdentity, shortSHA } from '../../shared/utils';
 
@@ -83,9 +84,7 @@ export function ClientHistoryView({
                     )}
                   </div>
                   <div className="row-actions">
-                    <span className={cx('status-badge', item.result === 'SUCCESS' ? 'approved' : 'failed')}>
-                      {item.result === 'SUCCESS' ? t('history.success') : t('history.failed')}
-                    </span>
+                    <StatusBadge tone={item.result === 'SUCCESS' ? 'approved' : 'failed'} label={item.result === 'SUCCESS' ? t('history.success') : t('history.failed')} />
                     {matched && (
                       <XButton
                         type="button"

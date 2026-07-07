@@ -1,11 +1,12 @@
 import { Archive, Check, ChevronRight, Cloud, Download, KeyRound, Link, Plus, RefreshCw, ShieldCheck, Star, Tag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { AppIcon } from '../../components/AppIcon';
+import { EmptyState } from '../../shared/components/Feedback';
 import type { InstalledApplication, SourceApp } from '../../shared/types';
 import {
-  cx,
   findInstalledApplication,
   hasInstallableVersion,
   localizedAppDescription,
@@ -38,14 +39,12 @@ export function SourceAppGrid({
   const { t } = useTranslation();
   if (apps.length === 0) {
     return (
-      <div className="empty-state action-empty">
-        <Cloud size={28} />
-        <strong>{emptyTitle || t('search.noSyncedApps')}</strong>
-        {emptyBody && <p>{emptyBody}</p>}
-        {showEmptyAction && (
-          <XButton type="button" variant="secondary" label={t('search.noSyncedAppsAction')} icon={<Plus size={18} />} onClick={onGoSources} />
-        )}
-      </div>
+      <EmptyState
+        icon={Cloud}
+        title={emptyTitle || t('search.noSyncedApps')}
+        body={emptyBody}
+        action={showEmptyAction ? { label: t('search.noSyncedAppsAction'), icon: Plus, onClick: onGoSources } : undefined}
+      />
     );
   }
   return (
@@ -77,34 +76,31 @@ export function SourceAppGrid({
             </div>
             <div className="app-meta">
               <span><Cloud size={14} /> {app.sourceName}</span>
-              <span><Tag size={14} /> {localizedCategory(app, t('common.uncategorized'))}</span>
+              <XBadge variant="neutral" icon={<Tag size={13} />} label={localizedCategory(app, t('common.uncategorized'))} />
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
               {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
             </div>
             <div className="app-readiness" aria-label={t('app.installSignals')}>
-              <span className={cx('status-badge', installable ? 'approved' : 'blocked')}>
-                <Download size={13} />
-                {installable ? t('app.installReady') : t('app.installMissingVersion')}
-              </span>
-              <span className={cx('status-badge', hasChecksum ? 'synced' : 'unsynced')}>
-                <ShieldCheck size={13} />
-                {hasChecksum ? t('app.checksumReady') : t('app.checksumMissing')}
-              </span>
+              <XBadge
+                variant={installable ? 'success' : 'error'}
+                icon={<Download size={13} />}
+                label={installable ? t('app.installReady') : t('app.installMissingVersion')}
+              />
+              <XBadge
+                variant={hasChecksum ? 'success' : 'warning'}
+                icon={<ShieldCheck size={13} />}
+                label={hasChecksum ? t('app.checksumReady') : t('app.checksumMissing')}
+              />
               {app.installProtected && (
-                <span className="status-badge pending">
-                  <KeyRound size={13} />
-                  {t('app.installPasswordRequired')}
-                </span>
+                <XBadge variant="warning" icon={<KeyRound size={13} />} label={t('app.installPasswordRequired')} />
               )}
-              <span className={cx('status-badge', hasSize ? 'synced' : 'unsynced')}>
-                <Archive size={13} />
-                {hasSize ? t('app.sizeReady') : t('app.sizeMissing')}
-              </span>
+              <XBadge variant={hasSize ? 'success' : 'warning'} icon={<Archive size={13} />} label={hasSize ? t('app.sizeReady') : t('app.sizeMissing')} />
               {installedMatch && (
-                <span className={cx('status-badge', isUpdateAvailable ? 'pending' : 'synced')}>
-                  {isUpdateAvailable ? <RefreshCw size={13} /> : <Check size={13} />}
-                  {isUpdateAvailable ? t('app.updateAvailable') : t('app.installed')}
-                </span>
+                <XBadge
+                  variant={isUpdateAvailable ? 'warning' : 'success'}
+                  icon={isUpdateAvailable ? <RefreshCw size={13} /> : <Check size={13} />}
+                  label={isUpdateAvailable ? t('app.updateAvailable') : t('app.installed')}
+                />
               )}
             </div>
             <XButton

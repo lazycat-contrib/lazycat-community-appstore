@@ -2,6 +2,7 @@ import { type FormEvent } from 'react';
 import { MessageSquare, Trash2 } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { Skeleton as XSkeleton } from '@astryxdesign/core/Skeleton';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '../shared/components/Feedback';
@@ -33,7 +34,7 @@ export function CommentList({
   if (commentsState === 'loading') {
     return (
       <div className="comments">
-        <div className="comment skeleton-comment" aria-label={t('common.loading')} />
+        <XSkeleton className="comment skeleton-comment" height={86} radius={2} aria-label={t('common.loading')} />
       </div>
     );
   }

@@ -2,11 +2,13 @@ import { Clock3, RefreshCw, Save, Settings, ShieldCheck, Sparkles } from 'lucide
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { Card as XCard } from '@astryxdesign/core/Card';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
+import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { ClientSettings, ClientSourceStats, Toast } from '../../shared/types';
-import { cx, errorMessage, formatDate } from '../../shared/utils';
+import { errorMessage, formatDate } from '../../shared/utils';
 
 const syncIntervalOptions = [5, 15, 30, 60, 360, 720, 1440];
 
@@ -92,30 +94,30 @@ export function ClientSettingsView({
       </div>
 
       <div className="settings-overview-grid" aria-label={t('clientSettings.overview')}>
-        <div className="settings-signal-card">
+        <XCard className="settings-signal-card" padding={4}>
           <span>
             <Clock3 size={17} />
             {t('clientSettings.autoSync')}
           </span>
           <strong>{draft.autoSyncEnabled ? t('common.on') : t('common.off')}</strong>
           <small>{draft.autoSyncEnabled ? t('clientSettings.everyMinutes', { count: draft.autoSyncIntervalMinutes || 60 }) : t('clientSettings.autoSyncOffHint')}</small>
-        </div>
-        <div className="settings-signal-card">
+        </XCard>
+        <XCard className="settings-signal-card" padding={4}>
           <span>
             <RefreshCw size={17} />
             {t('clientSettings.lastRun')}
           </span>
           <strong>{settings.lastAutoSyncAt ? formatDate(settings.lastAutoSyncAt) : t('clientSettings.neverRun')}</strong>
           <small>{settings.lastAutoSyncError || t(`clientSettings.syncStates.${syncState}`)}</small>
-        </div>
-        <div className="settings-signal-card">
+        </XCard>
+        <XCard className="settings-signal-card" padding={4}>
           <span>
             <Sparkles size={17} />
             {t('clientSettings.cachedApps')}
           </span>
           <strong>{sourceStats.installableSourceAppCount}</strong>
           <small>{t('clientSettings.sourceSummary', { sources: sourceStats.sourceCount, synced: sourceStats.syncedSourceCount })}</small>
-        </div>
+        </XCard>
       </div>
 
       <form className="client-settings-layout" onSubmit={saveSettings}>
@@ -125,7 +127,7 @@ export function ClientSettingsView({
               <Clock3 size={19} />
               <h2>{t('clientSettings.syncTitle')}</h2>
             </div>
-            <span className={cx('status-badge', syncStatusClass)}>{t(`clientSettings.syncStates.${syncState}`)}</span>
+            <StatusBadge tone={syncStatusClass} label={t(`clientSettings.syncStates.${syncState}`)} />
           </div>
           <p className="muted-text">{t('clientSettings.syncBody')}</p>
 
@@ -162,7 +164,7 @@ export function ClientSettingsView({
               <ShieldCheck size={19} />
               <h2>{t('clientSettings.identityTitle')}</h2>
             </div>
-            <span className="status-badge synced">{t('clientSettings.localOnly')}</span>
+            <StatusBadge tone="synced" label={t('clientSettings.localOnly')} />
           </div>
           <p className="muted-text">{t('clientSettings.identityBody')}</p>
           <XTextInput

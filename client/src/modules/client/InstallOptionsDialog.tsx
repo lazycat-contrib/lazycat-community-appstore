@@ -5,6 +5,7 @@ import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
+import { ModalLayer } from '../../shared/components/ModalLayer';
 import type { SourceApp, SourceSubscription, SourceVersion, StoreApp, Version } from '../../shared/types';
 import { applicableMirrorsForVersion, defaultMirrorIDForVersion, githubMirrorKindForURL, localizedAppName } from '../../shared/utils';
 
@@ -36,15 +37,6 @@ export function InstallOptionsDialog({
     setMirrorId(defaultMirrorIDForVersion(source, version) || '');
   }, [source?.id, version?.version]);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onCancel();
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel]);
-
   function submit(event: FormEvent) {
     event.preventDefault();
     const value = password.trim();
@@ -59,15 +51,12 @@ export function InstallOptionsDialog({
   }
 
   return (
-    <div className="drawer-backdrop modal-backdrop" onClick={onCancel}>
+    <ModalLayer onClose={onCancel} purpose="form" width="min(430px, calc(100vw - 36px))" maxHeight="min(86vh, 780px)">
       <form
         className="install-password-dialog"
-        role="dialog"
-        aria-modal="true"
         aria-labelledby={dialogTitleId}
         aria-describedby={dialogBodyId}
         onSubmit={submit}
-        onClick={(event) => event.stopPropagation()}
       >
         <XIconButton type="button" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onCancel} />
         <div className="install-password-head">
@@ -113,6 +102,6 @@ export function InstallOptionsDialog({
           <XButton type="submit" variant="primary" label={t('installPassword.confirm')} icon={<Download size={17} />} />
         </div>
       </form>
-    </div>
+    </ModalLayer>
   );
 }

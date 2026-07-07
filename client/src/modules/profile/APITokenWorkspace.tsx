@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { HelpCircle, KeyRound, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { useTranslation } from 'react-i18next';
 import { HAS_API } from '../../config';
 import { api } from '../../shared/api';
+import { ModalLayer } from '../../shared/components/ModalLayer';
 import type { APITokenRecord, Toast, User } from '../../shared/types';
 import { formatDate, runAction } from '../../shared/utils';
 
@@ -52,7 +54,7 @@ export function APITokenWorkspace({ user, setToast }: { user: User; setToast: (t
             </div>
           ))}
         </div>
-        {newToken && <code className="token-output">{newToken}</code>}
+        {newToken && <XCodeBlock code={newToken} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" />}
         <XButton type="button" variant="secondary" label={t('token.generate')} icon={<KeyRound size={18} />} onClick={() => void createToken()} />
       </section>
       {isHelpOpen && <TokenHelpDialog onClose={() => setIsHelpOpen(false)} />}
@@ -121,22 +123,11 @@ function TokenHelpDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const titleId = 'token-help-title';
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+    <ModalLayer onClose={onClose} width="min(760px, calc(100vw - 36px))" maxHeight="min(86vh, 780px)">
       <section
         className="modal-panel token-help-panel"
-        role="dialog"
-        aria-modal="true"
         aria-labelledby={titleId}
-        onClick={(event) => event.stopPropagation()}
       >
         <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onClose} />
         <div className="token-help-head">
@@ -149,23 +140,23 @@ function TokenHelpDialog({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <div className="token-help-content">
-          <TokenHelpExample title={t('token.helpCreateAppTitle')} body={t('token.helpCreateAppBody')} code={tokenCreateAppCurlExample} />
-          <TokenHelpExample title={t('token.helpPublishVersionTitle')} body={t('token.helpPublishVersionBody')} code={tokenPublishVersionCurlExample} />
-          <TokenHelpExample title={t('token.helpGithubActionsTitle')} body={t('token.helpGithubActionsBody')} code={tokenGithubActionsExample} />
+          <TokenHelpExample title={t('token.helpCreateAppTitle')} body={t('token.helpCreateAppBody')} code={tokenCreateAppCurlExample} language="bash" />
+          <TokenHelpExample title={t('token.helpPublishVersionTitle')} body={t('token.helpPublishVersionBody')} code={tokenPublishVersionCurlExample} language="bash" />
+          <TokenHelpExample title={t('token.helpGithubActionsTitle')} body={t('token.helpGithubActionsBody')} code={tokenGithubActionsExample} language="yaml" />
         </div>
       </section>
-    </div>
+    </ModalLayer>
   );
 }
 
-function TokenHelpExample({ title, body, code }: { title: string; body: string; code: string }) {
+function TokenHelpExample({ title, body, code, language }: { title: string; body: string; code: string; language: string }) {
   return (
     <section className="token-help-section">
       <div>
         <strong>{title}</strong>
         <span>{body}</span>
       </div>
-      <pre className="code-example"><code>{code}</code></pre>
+      <XCodeBlock code={code} language={language} width="100%" size="sm" />
     </section>
   );
 }

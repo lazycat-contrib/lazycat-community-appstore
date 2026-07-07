@@ -1,7 +1,12 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { AlertCircle, Archive, ArrowLeft, Check, Cloud, Download, Gauge, History, MessageSquare, MessageSquareOff, RefreshCw, ShieldCheck, Star, Tag, X } from 'lucide-react';
+import { Badge as XBadge } from '@astryxdesign/core/Badge';
+import { BreadcrumbItem, Breadcrumbs } from '@astryxdesign/core/Breadcrumbs';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { Card as XCard, type CardVariant } from '@astryxdesign/core/Card';
+import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { MetadataList as XMetadataList, MetadataListItem as XMetadataListItem } from '@astryxdesign/core/MetadataList';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +14,7 @@ import { AppIcon } from '../../components/AppIcon';
 import { CommentList } from '../../components/CommentList';
 import { clientApi } from '../../shared/api';
 import { EmptyState } from '../../shared/components/Feedback';
+import { VersionHistoryTable } from '../../shared/components/VersionHistoryTable';
 import { orderedScreenshots, screenshotDeviceLabel, usePreferredScreenshotDevice } from '../../shared/screenshotHelpers';
 import type { Comment, InstalledApplication, SourceApp, Toast } from '../../shared/types';
 import {
@@ -46,7 +52,6 @@ export function SourceAppDetailPage({
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
-  const requiredLabel = (label: string) => `${label} · ${t('common.required')}`;
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const detailTitleId = `source-app-detail-title-${app.sourceId || app.sourceName}-${app.id}`;
   const [comments, setComments] = useState<Comment[]>([]);
@@ -75,6 +80,8 @@ export function SourceAppDetailPage({
   const hasOutdatedMarks = outdatedCount > 0;
   const sourceCommentsEnabled = app.commentsEnabled !== false;
   const trustState: 'ready' | 'caution' | 'blocked' = !installable ? 'blocked' : hasChecksum && hasSize ? 'ready' : 'caution';
+  const trustCardVariant: CardVariant = trustState === 'ready' ? 'green' : trustState === 'caution' ? 'yellow' : 'red';
+  const installedCardVariant: CardVariant = installedMatch ? 'green' : 'yellow';
   const TrustIcon = trustState === 'ready' ? ShieldCheck : trustState === 'caution' ? Gauge : AlertCircle;
   const trustTitle = trustState === 'ready' ? t('sourceDetail.trustReadyTitle') : trustState === 'caution' ? t('sourceDetail.trustCautionTitle') : t('sourceDetail.trustBlockedTitle');
   const trustBody = trustState === 'ready' ? t('sourceDetail.trustReadyBody') : trustState === 'caution' ? t('sourceDetail.trustCautionBody') : t('sourceDetail.trustBlockedBody');
@@ -183,7 +190,11 @@ export function SourceAppDetailPage({
   return (
     <section className="detail-page-shell">
       <article className="detail-page" aria-labelledby={detailTitleId}>
-        <XButton ref={backButtonRef} type="button" variant="secondary" size="sm" label={t('common.back')} icon={<ArrowLeft size={17} />} onClick={onClose} />
+        <Breadcrumbs className="detail-breadcrumbs" variant="supporting" label={t('common.navigation')}>
+          <BreadcrumbItem onClick={onClose}>{t('nav.sources')}</BreadcrumbItem>
+          <BreadcrumbItem isCurrent>{appName}</BreadcrumbItem>
+        </Breadcrumbs>
+        <XButton ref={backButtonRef} className="detail-back-button" type="button" variant="secondary" size="sm" label={t('common.back')} icon={<ArrowLeft size={17} />} onClick={onClose} />
         <header className="detail-head">
           <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={appName} className="detail-avatar" />
           <div>
@@ -192,25 +203,23 @@ export function SourceAppDetailPage({
             <p>{appSummary}</p>
             <div className="app-meta">
               <span><Cloud size={14} /> {app.sourceName}</span>
-              <span><Tag size={14} /> {localizedCategory(app, t('common.uncategorized'))}</span>
+              <XBadge variant="neutral" icon={<Tag size={13} />} label={localizedCategory(app, t('common.uncategorized'))} />
               <span><Star size={14} /> {latestVersion?.version || t('app.noPublishedVersion')}</span>
               {installedMatch && (
-                <span className={cx('status-badge', isUpdateAvailable ? 'pending' : 'synced')}>
-                  {isUpdateAvailable ? <RefreshCw size={13} /> : <Check size={13} />}
-                  {isUpdateAvailable ? t('app.updateAvailable') : t('app.installed')}
-                </span>
+                <XBadge
+                  variant={isUpdateAvailable ? 'warning' : 'success'}
+                  icon={isUpdateAvailable ? <RefreshCw size={13} /> : <Check size={13} />}
+                  label={isUpdateAvailable ? t('app.updateAvailable') : t('app.installed')}
+                />
               )}
               {hasOutdatedMarks && (
-                <span className="status-badge stale">
-                  <AlertCircle size={13} />
-                  {t('sourceDetail.outdatedBadge', { count: outdatedCount })}
-                </span>
+                <XBadge variant="warning" icon={<AlertCircle size={13} />} label={t('sourceDetail.outdatedBadge', { count: outdatedCount })} />
               )}
             </div>
           </div>
         </header>
 
-        <section className={cx('install-trust', trustState)} aria-label={t('drawer.installReadiness')}>
+        <XCard className={cx('install-trust', trustState)} variant={trustCardVariant} padding={4} aria-label={t('drawer.installReadiness')}>
           <div className="install-trust-lead">
             <TrustIcon size={22} />
             <div>
@@ -245,9 +254,9 @@ export function SourceAppDetailPage({
               onClick={() => void onLoadInstalled()}
             />
           </div>
-        </section>
+        </XCard>
 
-        <section className={cx('install-trust', installedMatch ? 'ready' : 'caution')} aria-label={t('sourceDetail.installedTitle')}>
+        <XCard className={cx('install-trust', installedMatch ? 'ready' : 'caution')} variant={installedCardVariant} padding={4} aria-label={t('sourceDetail.installedTitle')}>
           <div className="install-trust-lead">
             {installedMatch ? <Check size={22} /> : <Gauge size={22} />}
             <div>
@@ -256,9 +265,9 @@ export function SourceAppDetailPage({
               {installedMatch?.appid && <small>{installedMatch.appid}</small>}
             </div>
           </div>
-        </section>
+        </XCard>
 
-        <section className={cx('outdated-state', hasOutdatedMarks && 'active')} aria-label={t('sourceDetail.outdatedTitle')}>
+        <XCard className={cx('outdated-state', hasOutdatedMarks && 'active')} variant={hasOutdatedMarks ? 'yellow' : 'muted'} padding={4} aria-label={t('sourceDetail.outdatedTitle')}>
           <div className="outdated-state-head">
             <AlertCircle size={19} />
             <div>
@@ -277,7 +286,7 @@ export function SourceAppDetailPage({
           {isOutdatedFormOpen && (
             <form className="outdated-form" onSubmit={(event) => void submitSourceOutdated(event)}>
               <XTextArea
-                label={requiredLabel(t('sourceDetail.outdatedReason'))}
+                label={t('sourceDetail.outdatedReason')}
                 value={outdatedForm.note}
                 rows={3}
                 isRequired
@@ -302,26 +311,24 @@ export function SourceAppDetailPage({
               </div>
             </form>
           )}
-        </section>
+        </XCard>
 
-        <section className="detail-summary" aria-label={t('drawer.metadata')}>
-          <div>
-            <span>{t('sourceDetail.source')}</span>
-            <strong>{app.sourceName}</strong>
-          </div>
-          <div>
-            <span>{t('common.category')}</span>
-            <strong>{localizedCategory(app, t('common.uncategorized'))}</strong>
-          </div>
-          <div>
-            <span>{t('drawer.latestVersion')}</span>
-            <strong>{latestVersion?.version || t('app.noPublishedVersion')}</strong>
-          </div>
-          <div>
-            <span>{t('drawer.artifactSource')}</span>
-            <strong>{latestVersion?.sourceType || t('drawer.sourceMissing')}</strong>
-          </div>
-        </section>
+        <XCard className="detail-metadata-card" padding={4} aria-label={t('drawer.metadata')}>
+          <XMetadataList columns="multi">
+            <XMetadataListItem label={t('sourceDetail.source')}>
+              {app.sourceName}
+            </XMetadataListItem>
+            <XMetadataListItem label={t('common.category')}>
+              {localizedCategory(app, t('common.uncategorized'))}
+            </XMetadataListItem>
+            <XMetadataListItem label={t('drawer.latestVersion')}>
+              {latestVersion?.version || t('app.noPublishedVersion')}
+            </XMetadataListItem>
+            <XMetadataListItem label={t('drawer.artifactSource')}>
+              {latestVersion?.sourceType || t('drawer.sourceMissing')}
+            </XMetadataListItem>
+          </XMetadataList>
+        </XCard>
 
         <section>
           <div className="section-title">
@@ -353,34 +360,31 @@ export function SourceAppDetailPage({
           {sourceVersions.length === 0 ? (
             <EmptyState icon={History} title={t('sourceDetail.noVersions')} body={t('sourceDetail.noVersionsBody')} />
           ) : (
-            <div className="source-version-list">
-              {sourceVersions.map((version) => {
+            <VersionHistoryTable
+              rows={sourceVersions.map((version) => {
                 const isLatest = version.version === latestVersion?.version;
-                const canInstallVersion = Boolean(version.downloadUrl);
-                return (
-                  <div className="source-version-row" key={`${version.version}-${version.downloadUrl}`}>
-                    <div>
-                      <strong>{version.version}</strong>
-                      <span>{version.sourceType || t('drawer.sourceMissing')} · {version.size ? formatBytes(version.size) : t('drawer.sizeMissing')} · {shortSHA(version.sha256)}</span>
-                    </div>
-                    <div className="row-actions">
-                      <span className={cx('status-badge', isLatest ? 'approved' : 'pending')}>
-                        {isLatest ? t('sourceDetail.latest') : t('sourceDetail.rollbackCandidate')}
-                      </span>
-                      <XButton
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        label={isLatest ? t('common.install') : t('sourceDetail.rollback')}
-                        icon={<Download size={17} />}
-                        isDisabled={!canInstallVersion}
-                        onClick={() => void onInstall(app, { version: version.version })}
-                      />
-                    </div>
-                  </div>
-                );
+                return {
+                  id: `${version.version}-${version.downloadUrl}`,
+                  version: version.version,
+                  sourceType: version.sourceType || t('drawer.sourceMissing'),
+                  sizeBytes: version.size,
+                  sha256: version.sha256,
+                  statusLabel: isLatest ? t('sourceDetail.latest') : t('sourceDetail.rollbackCandidate'),
+                  statusVariant: isLatest ? 'success' : 'warning',
+                  action: (
+                    <XButton
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      label={isLatest ? t('common.install') : t('sourceDetail.rollback')}
+                      icon={<Download size={17} />}
+                      isDisabled={!version.downloadUrl}
+                      onClick={() => void onInstall(app, { version: version.version })}
+                    />
+                  ),
+                };
               })}
-            </div>
+            />
           )}
         </section>
 
@@ -388,17 +392,17 @@ export function SourceAppDetailPage({
           <h3>{t('sourceDetail.downloadDetails')}</h3>
           <div className="detail-url-row">
             <span>{t('common.downloadUrl')}</span>
-            <code>{latestVersion?.downloadUrl || '-'}</code>
+            <XCodeBlock code={latestVersion?.downloadUrl || '-'} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" container="section" isWrapped />
           </div>
           {latestVersion?.upstreamDownloadUrl && (
             <div className="detail-url-row">
               <span>{t('sourceDetail.upstreamUrl')}</span>
-              <code>{latestVersion.upstreamDownloadUrl}</code>
+              <XCodeBlock code={latestVersion.upstreamDownloadUrl} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" container="section" isWrapped />
             </div>
           )}
           <div className="detail-url-row">
             <span>{t('common.sha256')}</span>
-            <code>{latestVersion?.sha256 || '-'}</code>
+            <XCodeBlock code={latestVersion?.sha256 || '-'} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" container="section" isWrapped />
           </div>
         </section>
 

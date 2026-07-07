@@ -12,10 +12,11 @@ import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { AnnouncementBanner } from '../../components/AnnouncementBanner';
 import { UserAvatar } from '../../components/AppIcon';
-import { api } from '../../shared/api';
+import { api, fetchAllPaginated } from '../../shared/api';
 import { CollectionAppPicker } from './CollectionAppPicker';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { FilePicker } from '../../shared/components/FilePicker';
+import { ModalLayer } from '../../shared/components/ModalLayer';
 import { RECOMMENDED_DOWNLOAD_MIRRORS, RECOMMENDED_RAW_MIRRORS, mirrorPresetText } from '../../shared/constants';
 import type { Category, Collection, CollectionDraft, RegistrationInvite, Review, SiteAnnouncement, SiteProfile, StorageOption, StoreApp, TagRecord, Toast, User } from '../../shared/types';
 import { cx, errorMessage, formatBytes, formatDate, localizedName, reviewKindKey, runAction, shortSHA, statusKey, stripTrailingSlash } from '../../shared/utils';
@@ -304,13 +305,13 @@ export function AdminPanel({
         api<{ categories: Category[] }>('/api/v1/admin/categories'),
         api<{ tags: TagRecord[] }>('/api/v1/admin/tags'),
         api<{ collections: Collection[] }>('/api/v1/admin/collections'),
-        api<{ apps: StoreApp[] }>('/api/v1/apps'),
+        fetchAllPaginated<StoreApp, 'apps'>(api, '/api/v1/apps', 'apps'),
       ]);
       setAdminCategories(categoryData.categories);
       setAdminTags(tagData.tags);
       setAdminCollections(collectionData.collections);
-      setReviewApps(appData.apps);
-      setApps(appData.apps.filter((item) => item.status === 'APPROVED'));
+      setReviewApps(appData);
+      setApps(appData.filter((item) => item.status === 'APPROVED'));
       setCategoryDrafts({});
       setTagDrafts({});
       setCollectionDrafts({});
@@ -1004,22 +1005,26 @@ export function AdminPanel({
                       <div className="brand-mark preview">
                         {settings.site_icon_url ? <img src={settings.site_icon_url} alt="" /> : <Archive size={22} />}
                       </div>
-                      <FilePicker
-                        label={t('admin.uploadSiteIcon')}
-                        help={t('admin.uploadSiteIconHelp')}
-                        value={siteIconFile}
-                        accept=".png,.jpg,.jpeg,.webp"
-                        onChange={(nextFile) => setSiteIconFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
-                      />
-                      {adminStorageChoices.length > 0 && (
-                        <XSelector
-                          label={t('common.storage')}
-                          value={siteIconStorageKey}
-                          options={adminStorageChoices}
-                          onChange={setSiteIconStorageKey}
+                      <div className="site-icon-picker">
+                        <FilePicker
+                          label={t('admin.uploadSiteIcon')}
+                          help={t('admin.uploadSiteIconHelp')}
+                          value={siteIconFile}
+                          accept=".png,.jpg,.jpeg,.webp"
+                          onChange={(nextFile) => setSiteIconFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
                         />
-                      )}
-                      <XButton type="button" variant="secondary" size="sm" label={t('admin.uploadSiteIcon')} icon={<Upload size={17} />} isDisabled={!siteIconFile || isUploadingSiteIcon} isLoading={isUploadingSiteIcon} onClick={() => void uploadSiteIcon()} />
+                      </div>
+                      <div className="site-icon-controls">
+                        {adminStorageChoices.length > 0 && (
+                          <XSelector
+                            label={t('common.storage')}
+                            value={siteIconStorageKey}
+                            options={adminStorageChoices}
+                            onChange={setSiteIconStorageKey}
+                          />
+                        )}
+                        <XButton type="button" variant="secondary" size="sm" label={t('admin.uploadSiteIcon')} icon={<Upload size={17} />} isDisabled={!siteIconFile || isUploadingSiteIcon} isLoading={isUploadingSiteIcon} onClick={() => void uploadSiteIcon()} />
+                      </div>
                     </div>
                     <XFormLayout>
                       {siteIdentityFields.map(renderSettingField)}
@@ -1094,13 +1099,10 @@ export function AdminPanel({
                       </div>
                     </div>
                     {isInviteCreateOpen && (
-                      <div className="modal-backdrop" role="presentation" onClick={() => setIsInviteCreateOpen(false)}>
+                      <ModalLayer onClose={() => setIsInviteCreateOpen(false)} purpose="form">
                         <div
                           className="modal-panel form-panel invite-dialog"
-                          role="dialog"
-                          aria-modal="true"
                           aria-label={t('admin.createInvite')}
-                          onClick={(event) => event.stopPropagation()}
                         >
                           <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setIsInviteCreateOpen(false)} />
                           <SectionTitle icon={KeyRound} title={t('admin.createInvite')} />
@@ -1123,7 +1125,7 @@ export function AdminPanel({
                             <XButton type="button" variant="primary" label={t('admin.createInvite')} icon={<KeyRound size={17} />} onClick={() => void createRegistrationInvite()} />
                           </div>
                         </div>
-                      </div>
+                      </ModalLayer>
                     )}
                   </div>
                 )}
@@ -1250,13 +1252,10 @@ export function AdminPanel({
             </div>
           </section>
           {userDialogMode && (
-            <div className="modal-backdrop" role="presentation" onClick={() => setUserDialogMode(null)}>
+            <ModalLayer onClose={() => setUserDialogMode(null)} purpose="form">
               <form
                 className="modal-panel form-panel user-dialog"
-                role="dialog"
-                aria-modal="true"
                 aria-label={userDialogMode === 'create' ? t('admin.createUser') : t('admin.editUser')}
-                onClick={(event) => event.stopPropagation()}
                 onSubmit={saveManagedUser}
               >
                 <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setUserDialogMode(null)} />
@@ -1291,20 +1290,17 @@ export function AdminPanel({
                   <XButton type="submit" variant="primary" label={userDialogMode === 'create' ? t('admin.createUser') : t('common.save')} icon={<Save size={17} />} />
                 </div>
               </form>
-            </div>
+            </ModalLayer>
           )}
         </section>
       )}
       {adminTab === 'taxonomy' && (
       <section className="workspace-pane taxonomy-workspace">
         {taxonomyCreateMode && (
-          <div className="modal-backdrop" role="presentation" onClick={() => setTaxonomyCreateMode(null)}>
+          <ModalLayer onClose={() => setTaxonomyCreateMode(null)} purpose="form">
             <form
               className="modal-panel form-panel taxonomy-dialog"
-              role="dialog"
-              aria-modal="true"
               aria-label={taxonomyCreateMode === 'category' ? t('admin.createCategory') : t('admin.createTag')}
-              onClick={(event) => event.stopPropagation()}
               onSubmit={taxonomyCreateMode === 'category' ? createCategory : createTag}
             >
               <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setTaxonomyCreateMode(null)} />
@@ -1329,7 +1325,7 @@ export function AdminPanel({
                 <XButton type="submit" variant="primary" label={taxonomyCreateMode === 'category' ? t('admin.createCategory') : t('admin.createTag')} icon={<Plus size={18} />} />
               </div>
             </form>
-          </div>
+          </ModalLayer>
         )}
 
         <section className="panel">
@@ -1436,13 +1432,10 @@ export function AdminPanel({
       {adminTab === 'collections' && (
       <section className="workspace-pane">
         {isCollectionCreateOpen && (
-          <div className="modal-backdrop" role="presentation" onClick={() => setIsCollectionCreateOpen(false)}>
+          <ModalLayer onClose={() => setIsCollectionCreateOpen(false)} purpose="form" width="min(720px, calc(100vw - 36px))" maxHeight="min(86vh, 780px)">
             <form
               className="modal-panel form-panel collection-dialog"
-              role="dialog"
-              aria-modal="true"
               aria-label={t('admin.createCollection')}
-              onClick={(event) => event.stopPropagation()}
               onSubmit={createCollection}
             >
               <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setIsCollectionCreateOpen(false)} />
@@ -1470,7 +1463,7 @@ export function AdminPanel({
                 <XButton type="submit" variant="primary" label={t('admin.createCollection')} icon={<Layers3 size={18} />} />
               </div>
             </form>
-          </div>
+          </ModalLayer>
         )}
 
         <section className="panel">

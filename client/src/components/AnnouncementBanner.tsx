@@ -2,6 +2,7 @@ import { Link, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { useTranslation } from 'react-i18next';
+import { StatusBadge } from '../shared/components/StatusBadge';
 import type { SiteAnnouncement } from '../shared/types';
 
 export function AnnouncementBanner({ announcement, onDismiss }: { announcement: SiteAnnouncement; onDismiss?: () => void }) {
@@ -10,7 +11,7 @@ export function AnnouncementBanner({ announcement, onDismiss }: { announcement: 
   return (
     <section className={`announcement-banner ${tone}`} aria-live="polite">
       <div>
-        <span className="status-badge synced">{t(`site.announcementLevels.${tone}`)}</span>
+        <StatusBadge tone={tone === 'warning' ? 'warning' : tone === 'success' ? 'success' : 'info'} label={t(`site.announcementLevels.${tone}`)} />
         {announcement.title && <strong>{announcement.title}</strong>}
         {announcement.body && <p>{announcement.body}</p>}
       </div>

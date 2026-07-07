@@ -1,6 +1,5 @@
 import {
   Archive,
-  ChevronDown,
   Cloud,
   Download,
   History,
@@ -15,16 +14,25 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
+import { AppShell as XAppShell } from '@astryxdesign/core/AppShell';
+import { Avatar as XAvatar } from '@astryxdesign/core/Avatar';
 import { Theme } from '@astryxdesign/core/theme';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { DropdownMenu as XDropdownMenu } from '@astryxdesign/core/DropdownMenu';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
-import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
+import { Link as XLink } from '@astryxdesign/core/Link';
+import { MobileNavToggle as XMobileNavToggle } from '@astryxdesign/core/MobileNav';
+import { NavIcon as XNavIcon } from '@astryxdesign/core/NavIcon';
+import { SideNav as XSideNav, SideNavHeading as XSideNavHeading, SideNavItem as XSideNavItem } from '@astryxdesign/core/SideNav';
+import { Skeleton as XSkeleton } from '@astryxdesign/core/Skeleton';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
+import { Toast as XToast } from '@astryxdesign/core/Toast';
+import { TopNav as XTopNav } from '@astryxdesign/core/TopNav';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
-import { api, clientApi } from './shared/api';
+import { api, clientApi, fetchAllPaginated } from './shared/api';
 import {
   ANNOUNCEMENT_DISMISS_STORAGE_KEY,
   ANNOUNCEMENT_NOTIFY_STORAGE_KEY,
@@ -82,8 +90,8 @@ import {
   withInstallPassword,
 } from './shared/utils';
 import { AnnouncementBanner } from './components/AnnouncementBanner';
-import { UserAvatar } from './components/AppIcon';
 import { EmptyState } from './shared/components/Feedback';
+import { StatusBadge } from './shared/components/StatusBadge';
 import { ClientHistoryView } from './modules/client/ClientHistoryView';
 import { InstallOptionsDialog } from './modules/client/InstallOptionsDialog';
 import { ClientSettingsView } from './modules/client/ClientSettingsView';
@@ -202,7 +210,6 @@ export function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
   const [setupRequired, setSetupRequired] = useState(false);
-  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [openSubmitSignal, setOpenSubmitSignal] = useState(0);
   const acceptedCollaborationInviteRef = useRef('');
@@ -215,7 +222,6 @@ export function App() {
   const siteFooterName = siteProfile.title || siteTitle;
   const siteVersionTip = siteProfile.version ? t('site.serverVersion', { version: siteProfile.version }) : undefined;
   const currentLanguage: LanguageCode = (i18n.resolvedLanguage || i18n.language).startsWith('en') ? 'en' : 'zh';
-  const drawerOpen = false;
   const routeURL = useMemo(() => new URL(routeLocation, window.location.origin), [routeLocation]);
   const isLoginRoute = HAS_API && routeURL.pathname === '/login';
   const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
@@ -385,12 +391,6 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 3200);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
-
-  useEffect(() => {
     if (!HAS_API || isLoginRoute) return;
     const verifyToken = verificationTokenFromURL();
     if (verifyToken && window.location.pathname.includes('verify')) {
@@ -441,13 +441,13 @@ export function App() {
       const [siteData, me, appData, categoryData, collectionData] = await Promise.allSettled([
         api<{ site: SiteProfile }>('/api/v1/site/profile'),
         api<{ user: User }>('/api/v1/auth/me'),
-        api<{ apps: StoreApp[] }>('/api/v1/apps'),
+        fetchAllPaginated<StoreApp, 'apps'>(api, '/api/v1/apps', 'apps'),
         api<{ categories: Category[] }>('/api/v1/categories'),
         api<{ collections: Collection[] }>('/api/v1/collections'),
       ]);
       if (siteData.status === 'fulfilled') setSiteProfile(siteData.value.site);
       if (me.status === 'fulfilled') setUser(me.value.user);
-      if (appData.status === 'fulfilled') setApps(appData.value.apps);
+      if (appData.status === 'fulfilled') setApps(appData.value);
       if (categoryData.status === 'fulfilled') setCategories(categoryData.value.categories);
       if (collectionData.status === 'fulfilled') setCollections(collectionData.value.collections);
       if (me.status === 'fulfilled') {
@@ -498,8 +498,8 @@ export function App() {
   async function loadManagedApps() {
     if (!HAS_API) return;
     try {
-      const data = await api<{ apps: StoreApp[] }>('/api/v1/apps?managed=1');
-      setManagedApps(arrayOrEmpty(data.apps));
+      const data = await fetchAllPaginated<StoreApp, 'apps'>(api, '/api/v1/apps?managed=1', 'apps');
+      setManagedApps(arrayOrEmpty(data));
     } catch {
       setManagedApps([]);
     }
@@ -537,8 +537,8 @@ export function App() {
   }
 
   async function loadClientApps() {
-    const data = await clientApi<{ apps: SourceApp[] }>('/apps');
-    const nextApps = arrayOrEmpty(data.apps);
+    const data = await fetchAllPaginated<SourceApp, 'apps'>(clientApi, '/apps', 'apps');
+    const nextApps = arrayOrEmpty(data);
     setSourceApps(nextApps);
     return nextApps;
   }
@@ -823,7 +823,7 @@ export function App() {
           astryxThemeName={astryxThemeName}
           onAstryxThemeChange={setAstryxThemeName}
         />
-        {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
+        <AppToast toast={toast} onDismiss={() => setToast(null)} />
       </Theme>
     );
   }
@@ -849,107 +849,129 @@ export function App() {
           refreshAll={refreshAll}
           setToast={setToast}
         />
-        {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
+        <AppToast toast={toast} onDismiss={() => setToast(null)} />
       </Theme>
     );
   }
 
   return (
     <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
-    <div className="shell">
-      <a className="skip-link" href="#main-content" inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>{t('common.skipToMain')}</a>
-      <aside className="sidebar" inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>
-        <div className="brand">
-          <div className="brand-mark">
-            {HAS_API && siteProfile.iconUrl ? <img src={siteProfile.iconUrl} alt="" /> : <Archive size={22} />}
-          </div>
-          <div>
-            <strong>{siteTitle}</strong>
-          </div>
-        </div>
-        <XTabList className="nav" value={tab} onChange={(value) => navigateTo(value as TabKey)} orientation="vertical" aria-label={t('common.navigation')}>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return <XTab key={item.key} value={item.key} label={t(item.labelKey)} icon={<Icon size={19} />} />;
-          })}
-        </XTabList>
-        {HAS_API && siteProfile.publicUrl && (
-          <footer className="app-version" title={siteVersionTip} aria-label={siteVersionTip}>
-            <a href={siteProfile.publicUrl} target="_blank" rel="noreferrer">
-              {t('site.footer', { year: footerYear, name: siteFooterName })}
-            </a>
-          </footer>
-        )}
-      </aside>
-
-      <main className="main" id="main-content" tabIndex={-1} inert={drawerOpen} aria-hidden={drawerOpen ? true : undefined}>
-        <header className="topbar">
-          <div className="topbar-search">
-            <XTextInput
-              label={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
-              isLabelHidden
-              startIcon={<Search size={16} />}
-              value={query}
-              onChange={setQuery}
-              placeholder={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
-              hasClear
-              width="100%"
-            />
-          </div>
-          <div className="top-actions">
-            <LanguageSelector value={currentLanguage} onChange={(language) => void i18n.changeLanguage(language)} />
-            <ThemeToggle mode={themeMode} onChange={setThemeMode} />
-            <AstryxThemeSelector value={astryxThemeName} onChange={setAstryxThemeName} />
-            <XIconButton
-              type="button"
-              variant="ghost"
-              label={HAS_API ? t('topbar.refreshStore') : t('topbar.syncAllSources')}
-              icon={<RefreshCw size={18} />}
-              onClick={() => void (HAS_API ? refreshAll() : syncAllSources())}
-            />
-            {HAS_API && user ? (
-              <div className="account-menu">
-                <button type="button" className="account-trigger" onClick={() => setIsAccountMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isAccountMenuOpen}>
-                  <UserAvatar user={user} size={32} />
-                  <span>{displayUserName(user)}</span>
-                  <ChevronDown size={15} aria-hidden="true" />
-                </button>
-                {isAccountMenuOpen && (
-                  <div className="account-menu-popover" role="menu">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsAccountMenuOpen(false);
-                        setIsProfileDialogOpen(true);
-                      }}
-                    >
-                      <UserRound size={16} />
-                      <span>{t('profile.personalProfile')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() =>
-                        void runAction(setToast, t('toast.logoutFailed'), async () => {
-                          await api('/api/v1/auth/logout', { method: 'POST' });
-                          setUser(null);
-                          setStorageOptions([]);
-                          setIsAccountMenuOpen(false);
-                        })
+      <>
+        <a className="skip-link" href="#main-content">{t('common.skipToMain')}</a>
+        <XAppShell
+          className="app-shell"
+          variant="section"
+          height="fill"
+          contentPadding={0}
+          mobileNav={{ breakpoint: 'md', hasToggle: false }}
+          sideNav={(
+            <XSideNav
+              className="app-side-nav"
+              header={(
+                <XSideNavHeading
+                  icon={(
+                    <XNavIcon
+                      icon={
+                        HAS_API && siteProfile.iconUrl
+                          ? <img className="side-nav-logo" src={siteProfile.iconUrl} alt="" />
+                          : <Archive size={18} />
                       }
-                    >
-                      <LogOut size={16} />
-                      <span>{t('auth.logout')}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : HAS_API ? (
-              <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => openLogin('/')} />
-            ) : null}
-          </div>
-        </header>
+                    />
+                  )}
+                  heading={siteTitle}
+                />
+              )}
+              footer={HAS_API && siteProfile.publicUrl ? (
+                <footer className="app-version" title={siteVersionTip} aria-label={siteVersionTip}>
+                  <XLink href={siteProfile.publicUrl} isExternalLink isStandalone>
+                    {t('site.footer', { year: footerYear, name: siteFooterName })}
+                  </XLink>
+                </footer>
+              ) : undefined}
+            >
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <XSideNavItem
+                    key={item.key}
+                    label={t(item.labelKey)}
+                    icon={<Icon size={19} />}
+                    isSelected={tab === item.key}
+                    onClick={() => navigateTo(item.key)}
+                  />
+                );
+              })}
+            </XSideNav>
+          )}
+          topNav={(
+            <XTopNav
+              className="topbar"
+              label={t('common.navigation')}
+              heading={<XMobileNavToggle label={t('common.navigation')} />}
+              startContent={(
+                <div className="topbar-search">
+                  <XTextInput
+                    label={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
+                    isLabelHidden
+                    startIcon={<Search size={16} />}
+                    value={query}
+                    onChange={setQuery}
+                    placeholder={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
+                    hasClear
+                    width="100%"
+                  />
+                </div>
+              )}
+              endContent={(
+                <div className="top-actions">
+                  <LanguageSelector value={currentLanguage} onChange={(language) => void i18n.changeLanguage(language)} />
+                  <ThemeToggle mode={themeMode} onChange={setThemeMode} />
+                  <AstryxThemeSelector value={astryxThemeName} onChange={setAstryxThemeName} />
+                  <XIconButton
+                    type="button"
+                    variant="ghost"
+                    label={HAS_API ? t('topbar.refreshStore') : t('topbar.syncAllSources')}
+                    icon={<RefreshCw size={18} />}
+                    onClick={() => void (HAS_API ? refreshAll() : syncAllSources())}
+                  />
+                  {HAS_API && user ? (
+                    <div className="account-menu">
+                      <XDropdownMenu
+                        button={{
+                          label: displayUserName(user),
+                          variant: 'secondary',
+                          className: 'account-trigger',
+                          icon: <XAvatar src={user.avatarUrl} alt="" aria-hidden="true" size={32} />,
+                        }}
+                        menuWidth={192}
+                        items={[
+                          {
+                            label: t('profile.personalProfile'),
+                            icon: <UserRound size={16} />,
+                            onClick: () => setIsProfileDialogOpen(true),
+                          },
+                          {
+                            label: t('auth.logout'),
+                            icon: <LogOut size={16} />,
+                            onClick: () =>
+                              void runAction(setToast, t('toast.logoutFailed'), async () => {
+                                await api('/api/v1/auth/logout', { method: 'POST' });
+                                setUser(null);
+                                setStorageOptions([]);
+                              }),
+                          },
+                        ]}
+                      />
+                    </div>
+                  ) : HAS_API ? (
+                    <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => openLogin('/')} />
+                  ) : null}
+                </div>
+              )}
+            />
+          )}
+        >
+          <div className="main" id="main-content" tabIndex={-1}>
 
         {HAS_API && user && isProfileDialogOpen && (
           <ProfileSettingsDialog
@@ -968,9 +990,9 @@ export function App() {
         {loading ? (
           <div className="loading-state skeleton-state" aria-label={t('common.loading')} aria-live="polite">
             <div className="skeleton-list" aria-hidden="true">
-              <span className="skeleton-line" />
-              <span className="skeleton-line" />
-              <span className="skeleton-line" />
+              <XSkeleton height={74} radius={2} index={0} />
+              <XSkeleton height={74} radius={2} index={1} />
+              <XSkeleton height={74} radius={2} index={2} />
             </div>
           </div>
         ) : (
@@ -1143,17 +1165,8 @@ export function App() {
             )}
           </>
         )}
-      </main>
-
-      <MobileTabs tab={tab} setTab={navigateTo} items={navItems} inert={drawerOpen} />
-
-      {HAS_API && siteProfile.publicUrl && (
-        <footer className="mobile-app-version" title={siteVersionTip} aria-label={siteVersionTip}>
-          <a href={siteProfile.publicUrl} target="_blank" rel="noreferrer">
-            {t('site.footer', { year: footerYear, name: siteFooterName })}
-          </a>
-        </footer>
-      )}
+          </div>
+        </XAppShell>
 
       {installPasswordRequest && (
         <InstallOptionsDialog
@@ -1180,9 +1193,10 @@ export function App() {
           <div className="install-panel-body">
             <div className="install-panel-head">
               <strong>{installActivity.title}</strong>
-              <span className={cx('status-badge', installActivity.status === 'running' ? 'syncing' : installActivity.status === 'success' ? 'approved' : 'failed')}>
-                {t(`installActivity.status.${installActivity.status}`)}
-              </span>
+              <StatusBadge
+                tone={installActivity.status === 'running' ? 'syncing' : installActivity.status === 'success' ? 'approved' : 'failed'}
+                label={t(`installActivity.status.${installActivity.status}`)}
+              />
             </div>
             <span>{t(installActivity.stageKey)}</span>
             <div className="progress">
@@ -1201,29 +1215,23 @@ export function App() {
         </aside>
       )}
 
-      {toast && <div className={cx('toast', toast.tone)}>{toast.message}</div>}
-    </div>
+      <AppToast toast={toast} onDismiss={() => setToast(null)} />
+      </>
     </Theme>
   );
 }
 
-function MobileTabs({ tab, setTab, items, inert }: { tab: TabKey; setTab: (tab: TabKey) => void; items: readonly NavItem[]; inert?: boolean }) {
-  const { t } = useTranslation();
+function AppToast({ toast, onDismiss }: { toast: Toast | null; onDismiss: () => void }) {
+  if (!toast) return null;
   return (
-    <XTabList
-      className="mobile-tab-list"
-      value={tab}
-      onChange={(value) => setTab(value as TabKey)}
-      layout="fill"
-      size="sm"
-      inert={inert}
-      aria-hidden={inert ? true : undefined}
-      aria-label={t('common.navigation')}
-    >
-      {items.map((item) => {
-        const Icon = item.icon;
-        return <XTab key={item.key} value={item.key} label={t(item.labelKey)} icon={<Icon size={18} />} />;
-      })}
-    </XTabList>
+    <div className="toast-host">
+      <XToast
+        body={toast.message}
+        type={toast.tone === 'error' ? 'error' : 'info'}
+        isAutoHide={toast.tone !== 'error'}
+        autoHideDuration={3200}
+        onDismiss={onDismiss}
+      />
+    </div>
   );
 }

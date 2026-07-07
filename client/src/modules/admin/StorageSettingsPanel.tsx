@@ -7,6 +7,7 @@ import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { Check, Cloud, Copy, Database, Folder, Link, Plus, Save, Server, Star, Trash2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ModalLayer } from '../../shared/components/ModalLayer';
 import { cx } from '../../shared/utils';
 
 export type StorageSettings = {
@@ -113,7 +114,7 @@ export function StorageSettingsPanel({
         <div className="storage-config-list" role="list" aria-label={t('admin.storageConfigs')}>
           {storages.map((storage) => (
             <div key={storage.key} className={cx('storage-config-row', storage.key === selectedKey && 'selected')} role="listitem">
-              <button type="button" className="storage-config-main" onClick={() => onSelect(storage.key)}>
+              <XButton type="button" variant="ghost" label={storage.name || storage.key} className="storage-config-main" onClick={() => onSelect(storage.key)}>
                 <span className="storage-config-icon">{providerIcon(storage.provider)}</span>
                 <span className="storage-config-body">
                   <strong>{storage.name || storage.key}</strong>
@@ -122,7 +123,7 @@ export function StorageSettingsPanel({
                 <span className="storage-config-meta">
                   {storage.key === defaultKey && <XBadge label={t('admin.defaultStorage')} variant="success" />}
                 </span>
-              </button>
+              </XButton>
               <span className="storage-config-actions">
                 {storage.key !== defaultKey && (
                   <XIconButton type="button" variant="ghost" size="sm" label={t('admin.setDefaultStorage')} icon={<Star size={16} />} onClick={() => void onSetDefault(storage)} />
@@ -152,13 +153,10 @@ export function StorageSettingsPanel({
       </div>
 
       {isCreateOpen && (
-        <div className="modal-backdrop" role="presentation" onClick={onCloseCreate}>
+        <ModalLayer onClose={onCloseCreate} purpose="form" width="min(720px, calc(100vw - 36px))" maxHeight="min(86vh, 780px)">
           <form
             className="modal-panel form-panel storage-dialog"
-            role="dialog"
-            aria-modal="true"
             aria-label={t('admin.createStorage')}
-            onClick={(event) => event.stopPropagation()}
             onSubmit={(event) => {
               event.preventDefault();
               void onCreate();
@@ -175,7 +173,7 @@ export function StorageSettingsPanel({
               <XButton type="submit" variant="primary" label={t('admin.createStorage')} icon={<Save size={17} />} />
             </div>
           </form>
-        </div>
+        </ModalLayer>
       )}
     </div>
   );
