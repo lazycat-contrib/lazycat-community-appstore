@@ -105,7 +105,8 @@ body,
 .main,
 .panel,
 .drawer,
-.install-password-dialog {
+.install-password-dialog,
+.modal-panel {
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
@@ -842,16 +843,6 @@ body,
   gap: 14px;
   align-items: center;
   padding-right: 44px;
-}
-
-.profile-dialog-head h2,
-.profile-dialog-head p {
-  margin: 0;
-}
-
-.profile-dialog-head p {
-  margin-top: 4px;
-  color: var(--muted);
 }
 
 .storage-settings-panel {
@@ -2237,55 +2228,22 @@ body,
   border-radius: 8px;
   background: var(--field);
   padding: 10px 12px;
+}
+
+.mcp-code-action-row {
+  min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 36px;
-  align-items: center;
   gap: 10px;
-}
-
-.mcp-endpoint-row span {
-  display: block;
-}
-
-.mcp-endpoint-row span {
-  color: var(--muted);
-  font-size: 12px;
-  margin-bottom: 4px;
+  align-items: center;
 }
 
 .mcp-endpoint-row .astryx-codeblock {
   min-width: 0;
 }
 
-.mcp-token-row {
-  max-width: 100%;
-}
-
-.mcp-token-row span {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
 .token-reveal {
   min-width: 0;
-  border: 1px solid var(--status-success-line);
-  border-radius: 8px;
-  background: var(--status-success-bg);
-  color: var(--status-success-ink);
-  padding: 12px;
-  display: grid;
-  gap: 10px;
-}
-
-.token-reveal strong,
-.token-reveal span {
-  display: block;
-}
-
-.token-reveal span {
-  margin-top: 3px;
-  font-size: 13px;
-  color: color-mix(in srgb, var(--status-success-ink) 78%, var(--muted));
 }
 
 .mcp-token-dialog {
@@ -2482,23 +2440,6 @@ body,
   padding-right: 48px;
 }
 
-.install-password-head h2,
-.install-password-head p {
-  margin: 0;
-}
-
-.install-password-head h2 {
-  font-size: 19px;
-  line-height: 1.25;
-}
-
-.install-password-head p {
-  color: var(--muted);
-  line-height: 1.5;
-  margin-top: 5px;
-  overflow-wrap: anywhere;
-}
-
 .install-password-icon {
   width: 44px;
   height: 44px;
@@ -2525,22 +2466,6 @@ body,
   padding-right: 48px;
 }
 
-.token-help-head h2,
-.token-help-head p {
-  margin: 0;
-}
-
-.token-help-head h2 {
-  font-size: 19px;
-  line-height: 1.25;
-}
-
-.token-help-head p {
-  color: var(--muted);
-  line-height: 1.5;
-  margin-top: 5px;
-}
-
 .token-help-content,
 .token-help-section {
   display: grid;
@@ -2550,18 +2475,6 @@ body,
 .token-help-section {
   border-top: 1px solid var(--line);
   padding-top: 14px;
-}
-
-.token-help-section strong,
-.token-help-section span {
-  display: block;
-}
-
-.token-help-section span {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
-  margin-top: 4px;
 }
 
 .detail-head {

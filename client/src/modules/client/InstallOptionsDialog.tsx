@@ -1,8 +1,11 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Download, KeyRound, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
+import { Heading as XHeading } from '@astryxdesign/core/Heading';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Text as XText } from '@astryxdesign/core/Text';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { ModalLayer } from '../../shared/components/ModalLayer';
@@ -64,39 +67,43 @@ export function InstallOptionsDialog({
             {requiresPassword ? <KeyRound size={21} /> : <Download size={21} />}
           </span>
           <div>
-            <h2 id={dialogTitleId}>{t(mirrorOptions.length > 0 ? 'installOptions.title' : 'installPassword.title')}</h2>
-            <p id={dialogBodyId}>
+            <XHeading id={dialogTitleId} level={2}>
+              {t(mirrorOptions.length > 0 ? 'installOptions.title' : 'installPassword.title')}
+            </XHeading>
+            <XText id={dialogBodyId} type="supporting" as="p" display="block" wordBreak="break-word">
               {requiresPassword
                 ? t('installPassword.body', { name: appName })
                 : t('installOptions.body', { name: appName })}
-            </p>
+            </XText>
           </div>
         </div>
-        {requiresPassword && (
-          <XTextInput
-            type="password"
-            label={t('installPassword.label')}
-            value={password}
-            hasAutoFocus
-            onChange={(value) => {
-              setPassword(value);
-              if (error) setError('');
-            }}
-          />
-        )}
-        {mirrorOptions.length > 0 && (
-          <XSelector
-            label={t('installOptions.mirror')}
-            description={t(mirrorKind === 'raw' ? 'installOptions.rawMirrorHelp' : 'installOptions.downloadMirrorHelp')}
-            value={mirrorId}
-            options={[
-              { value: '', label: t('installOptions.direct') },
-              ...mirrorOptions.map((entry) => ({ value: entry.id, label: entry.name })),
-            ]}
-            onChange={setMirrorId}
-          />
-        )}
-        {error && <p className="form-error">{error}</p>}
+        <XFormLayout>
+          {requiresPassword && (
+            <XTextInput
+              type="password"
+              label={t('installPassword.label')}
+              value={password}
+              hasAutoFocus
+              status={error ? { type: 'error', message: error } : undefined}
+              onChange={(value) => {
+                setPassword(value);
+                if (error) setError('');
+              }}
+            />
+          )}
+          {mirrorOptions.length > 0 && (
+            <XSelector
+              label={t('installOptions.mirror')}
+              description={t(mirrorKind === 'raw' ? 'installOptions.rawMirrorHelp' : 'installOptions.downloadMirrorHelp')}
+              value={mirrorId}
+              options={[
+                { value: '', label: t('installOptions.direct') },
+                ...mirrorOptions.map((entry) => ({ value: entry.id, label: entry.name })),
+              ]}
+              onChange={setMirrorId}
+            />
+          )}
+        </XFormLayout>
         <div className="dialog-actions">
           <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={onCancel} />
           <XButton type="submit" variant="primary" label={t('installPassword.confirm')} icon={<Download size={17} />} />

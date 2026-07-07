@@ -1,11 +1,15 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Copy, HelpCircle, KeyRound, Server, Trash2, X } from 'lucide-react';
+import { Banner as XBanner } from '@astryxdesign/core/Banner';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
+import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
+import { MetadataList as XMetadataList, MetadataListItem as XMetadataListItem } from '@astryxdesign/core/MetadataList';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Text as XText } from '@astryxdesign/core/Text';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { HAS_API } from '../../config';
@@ -13,6 +17,7 @@ import { api } from '../../shared/api';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
+import { TokenHelpDialog, type TokenHelpExample } from '../../shared/components/TokenHelpDialog';
 import type { MCPPrincipalType, MCPProfile, MCPTokenRecord, Toast, User } from '../../shared/types';
 import { arrayOrEmpty, formatDate, runAction } from '../../shared/utils';
 
@@ -121,32 +126,35 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
           </div>
         </div>
 
-        <div className="mcp-endpoint-row">
-          <div>
-            <span>{t('mcp.endpoint')}</span>
-            <XCodeBlock code={endpoint} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" container="section" isWrapped />
-          </div>
-          <XIconButton
-            className="fixed-row-icon-button"
-            type="button"
-            variant="ghost"
-            size="sm"
-            label={t('mcp.copyEndpoint')}
-            tooltip={t('mcp.copyEndpoint')}
-            icon={<Copy size={17} />}
-            onClick={() => void copyText(endpoint, t('mcp.endpointCopied'))}
-          />
-        </div>
+        <XMetadataList className="mcp-endpoint-row" columns="single" label={{ position: 'top' }}>
+          <XMetadataListItem label={t('mcp.endpoint')}>
+            <div className="mcp-code-action-row">
+              <XCodeBlock code={endpoint} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" container="section" isWrapped />
+              <XIconButton
+                className="fixed-row-icon-button"
+                type="button"
+                variant="ghost"
+                size="sm"
+                label={t('mcp.copyEndpoint')}
+                tooltip={t('mcp.copyEndpoint')}
+                icon={<Copy size={17} />}
+                onClick={() => void copyText(endpoint, t('mcp.endpointCopied'))}
+              />
+            </div>
+          </XMetadataListItem>
+        </XMetadataList>
 
         {newMcpToken && (
-          <div className="token-reveal">
-            <div>
-              <strong>{t('mcp.newToken')}</strong>
-              <span>{t('mcp.newTokenHelp')}</span>
-            </div>
+          <XBanner
+            className="token-reveal"
+            status="success"
+            title={t('mcp.newToken')}
+            description={t('mcp.newTokenHelp')}
+            defaultIsExpanded
+            endContent={<XButton type="button" variant="secondary" size="sm" label={t('common.copy')} icon={<Copy size={16} />} onClick={() => void copyText(newMcpToken, t('mcp.tokenCopied'))} />}
+          >
             <XCodeBlock code={newMcpToken} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" />
-            <XButton type="button" variant="secondary" size="sm" label={t('common.copy')} icon={<Copy size={16} />} onClick={() => void copyText(newMcpToken, t('mcp.tokenCopied'))} />
-          </div>
+          </XBanner>
         )}
 
         {mcpTokens.length === 0 ? (
@@ -160,8 +168,12 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
                 label={token.note || t('mcp.untitledToken')}
                 description={(
                   <span className="action-list-description">
-                    <span>{token.prefix} · {t(`mcp.principal.${token.principalType.toLowerCase()}`)} · {mcpExpiryLabel(token, t)}</span>
-                    <small>{token.lastUsedAt ? t('mcp.lastUsedAt', { date: formatDate(token.lastUsedAt) }) : t('mcp.neverUsed')}</small>
+                    <XText type="supporting" display="block" wordBreak="break-word">
+                      {token.prefix} · {t(`mcp.principal.${token.principalType.toLowerCase()}`)} · {mcpExpiryLabel(token, t)}
+                    </XText>
+                    <XText type="supporting" display="block" wordBreak="break-word">
+                      {token.lastUsedAt ? t('mcp.lastUsedAt', { date: formatDate(token.lastUsedAt) }) : t('mcp.neverUsed')}
+                    </XText>
                   </span>
                 )}
                 endContent={(
@@ -188,7 +200,16 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
         )}
       </section>
 
-      {isHelpOpen && <MCPHelpDialog endpoint={endpoint} onClose={() => setIsHelpOpen(false)} />}
+      {isHelpOpen && (
+        <TokenHelpDialog
+          icon={Server}
+          title={t('mcp.helpTitle')}
+          body={t('mcp.helpBody')}
+          titleId="mcp-help-title"
+          examples={mcpHelpExamples(t, endpoint)}
+          onClose={() => setIsHelpOpen(false)}
+        />
+      )}
       {isCreateOpen && (
         <MCPTokenDialog
           draft={draft}
@@ -255,46 +276,17 @@ const mcpToolCallExample = [
   '}',
 ].join('\n');
 
-function MCPHelpDialog({ endpoint, onClose }: { endpoint: string; onClose: () => void }) {
-  const { t } = useTranslation();
-  const titleId = 'mcp-help-title';
-
-  return (
-    <ModalLayer onClose={onClose} width="min(760px, calc(100vw - 36px))" maxHeight="min(86vh, 780px)">
-      <section
-        className="modal-panel token-help-panel"
-        aria-labelledby={titleId}
-      >
-        <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onClose} />
-        <div className="token-help-head">
-          <span className="install-password-icon">
-            <Server size={21} />
-          </span>
-          <div>
-            <h2 id={titleId}>{t('mcp.helpTitle')}</h2>
-            <p>{t('mcp.helpBody')}</p>
-          </div>
-        </div>
-        <div className="token-help-content">
-          <TokenHelpExample title={t('mcp.helpEndpointTitle')} body={t('mcp.helpEndpointBody')} code={mcpClientConfigExample(endpoint)} language="json" />
-          <TokenHelpExample title={t('mcp.helpToolsTitle')} body={t('mcp.helpToolsBody')} code={mcpToolCallExample} language="json" />
-          <TokenHelpExample title={t('mcp.helpPermissionTitle')} body={t('mcp.helpPermissionBody')} code={['USER: appstore_list_my_apps, appstore_create_app_from_url, appstore_publish_version_from_url', 'ADMIN: USER tools + appstore_admin_list_apps'].join('\n')} language="plaintext" />
-        </div>
-      </section>
-    </ModalLayer>
-  );
-}
-
-function TokenHelpExample({ title, body, code, language }: { title: string; body: string; code: string; language: string }) {
-  return (
-    <section className="token-help-section">
-      <div>
-        <strong>{title}</strong>
-        <span>{body}</span>
-      </div>
-      <XCodeBlock code={code} language={language} width="100%" size="sm" />
-    </section>
-  );
+function mcpHelpExamples(t: (key: string) => string, endpoint: string): TokenHelpExample[] {
+  return [
+    { title: t('mcp.helpEndpointTitle'), body: t('mcp.helpEndpointBody'), code: mcpClientConfigExample(endpoint), language: 'json' },
+    { title: t('mcp.helpToolsTitle'), body: t('mcp.helpToolsBody'), code: mcpToolCallExample, language: 'json' },
+    {
+      title: t('mcp.helpPermissionTitle'),
+      body: t('mcp.helpPermissionBody'),
+      code: ['USER: appstore_list_my_apps, appstore_create_app_from_url, appstore_publish_version_from_url', 'ADMIN: USER tools + appstore_admin_list_apps'].join('\n'),
+      language: 'plaintext',
+    },
+  ];
 }
 
 function MCPTokenDialog({
@@ -322,28 +314,30 @@ function MCPTokenDialog({
       >
         <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onClose} />
         <SectionTitle icon={KeyRound} title={t('mcp.createToken')} />
-        <XTextInput label={t('mcp.note')} value={draft.note} onChange={(note) => onDraftChange({ ...draft, note })} />
-        <XSelector
-          label={t('mcp.principalType')}
-          value={draft.principalType}
-          onChange={(principalType) => onDraftChange({ ...draft, principalType: principalType as MCPPrincipalType })}
-          options={[
-            { value: 'USER', label: t('mcp.principal.user') },
-            ...(canCreateAdmin ? [{ value: 'ADMIN', label: t('mcp.principal.admin') }] : []),
-          ]}
-        />
-        <XCheckboxInput
-          label={t('mcp.neverExpires')}
-          value={draft.neverExpires}
-          onChange={(neverExpires) => onDraftChange({ ...draft, neverExpires })}
-        />
-        {!draft.neverExpires && (
-          <XTextInput
-            label={t('mcp.expiresAtInput')}
-            value={draft.expiresAt}
-            onChange={(expiresAt) => onDraftChange({ ...draft, expiresAt })}
+        <XFormLayout>
+          <XTextInput label={t('mcp.note')} value={draft.note} onChange={(note) => onDraftChange({ ...draft, note })} />
+          <XSelector
+            label={t('mcp.principalType')}
+            value={draft.principalType}
+            onChange={(principalType) => onDraftChange({ ...draft, principalType: principalType as MCPPrincipalType })}
+            options={[
+              { value: 'USER', label: t('mcp.principal.user') },
+              ...(canCreateAdmin ? [{ value: 'ADMIN', label: t('mcp.principal.admin') }] : []),
+            ]}
           />
-        )}
+          <XCheckboxInput
+            label={t('mcp.neverExpires')}
+            value={draft.neverExpires}
+            onChange={(neverExpires) => onDraftChange({ ...draft, neverExpires })}
+          />
+          {!draft.neverExpires && (
+            <XTextInput
+              label={t('mcp.expiresAtInput')}
+              value={draft.expiresAt}
+              onChange={(expiresAt) => onDraftChange({ ...draft, expiresAt })}
+            />
+          )}
+        </XFormLayout>
         <div className="dialog-actions">
           <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={onClose} />
           <XButton type="submit" variant="primary" label={t('mcp.createToken')} icon={<KeyRound size={17} />} />

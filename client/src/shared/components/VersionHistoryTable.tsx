@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Badge as XBadge, type BadgeVariant } from '@astryxdesign/core/Badge';
 import { Table as XTable, pixel, proportional, type TableColumn } from '@astryxdesign/core/Table';
+import { Text as XText } from '@astryxdesign/core/Text';
 import { useTranslation } from 'react-i18next';
 import { formatBytes, formatDate, shortSHA } from '../utils';
 
@@ -27,7 +28,11 @@ export function VersionHistoryTable({ rows }: { rows: VersionHistoryRow[] }) {
       key: 'version',
       header: t('common.version'),
       width: proportional(1, { minWidth: 140 }),
-      renderCell: (row) => <strong className="version-table-primary">{row.version || '-'}</strong>,
+      renderCell: (row) => (
+        <XText className="version-table-primary" type="label" display="block" wordBreak="break-word">
+          {row.version || '-'}
+        </XText>
+      ),
     },
     {
       key: 'sourceType',
@@ -45,7 +50,11 @@ export function VersionHistoryTable({ rows }: { rows: VersionHistoryRow[] }) {
       key: 'sha256',
       header: t('common.checksum'),
       width: proportional(1, { minWidth: 132 }),
-      renderCell: (row) => <code>{shortSHA(row.sha256)}</code>,
+      renderCell: (row) => (
+        <XText type="code" display="block" wordBreak="break-word">
+          {shortSHA(row.sha256)}
+        </XText>
+      ),
     },
     {
       key: 'publishedAt',

@@ -2,8 +2,10 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Save, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
+import { Heading as XHeading } from '@astryxdesign/core/Heading';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Text as XText } from '@astryxdesign/core/Text';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '../../components/AppIcon';
@@ -85,8 +87,10 @@ export function ProfileSettingsDialog({
         <div className="profile-dialog-head">
           <UserAvatar user={user} size={72} className="avatar-large" />
           <div>
-            <h2>{t('profile.personalProfile')}</h2>
-            <p>{displayUserName(user)}</p>
+            <XHeading level={2}>{t('profile.personalProfile')}</XHeading>
+            <XText type="supporting" as="p" display="block" wordBreak="break-word">
+              {displayUserName(user)}
+            </XText>
           </div>
         </div>
         <XFormLayout>

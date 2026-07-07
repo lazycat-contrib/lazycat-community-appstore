@@ -1,12 +1,13 @@
 import type { LucideIcon } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { EmptyState as XEmptyState } from '@astryxdesign/core/EmptyState';
+import { Heading as XHeading } from '@astryxdesign/core/Heading';
 
 export function SectionTitle({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
   return (
     <div className="section-title">
       <Icon size={19} />
-      <h2>{title}</h2>
+      <XHeading level={2}>{title}</XHeading>
     </div>
   );
 }

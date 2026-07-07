@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { HelpCircle, KeyRound, X } from 'lucide-react';
+import { HelpCircle, KeyRound } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
+import { Text as XText } from '@astryxdesign/core/Text';
 import { useTranslation } from 'react-i18next';
 import { HAS_API } from '../../config';
 import { api } from '../../shared/api';
 import { EmptyState } from '../../shared/components/Feedback';
-import { ModalLayer } from '../../shared/components/ModalLayer';
+import { TokenHelpDialog, type TokenHelpExample } from '../../shared/components/TokenHelpDialog';
 import type { APITokenRecord, Toast, User } from '../../shared/types';
 import { formatDate, runAction } from '../../shared/utils';
 
@@ -54,7 +55,11 @@ export function APITokenWorkspace({ user, setToast }: { user: User; setToast: (t
               <XListItem
                 key={token.id}
                 label={token.name}
-                description={`${token.prefix} · ${formatDate(token.createdAt || token.created_at)}`}
+                description={(
+                  <XText type="supporting" display="block" wordBreak="break-word">
+                    {token.prefix} · {formatDate(token.createdAt || token.created_at)}
+                  </XText>
+                )}
               />
             ))}
           </XList>
@@ -62,7 +67,16 @@ export function APITokenWorkspace({ user, setToast }: { user: User; setToast: (t
         {newToken && <XCodeBlock code={newToken} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" />}
         <XButton type="button" variant="secondary" label={t('token.generate')} icon={<KeyRound size={18} />} onClick={() => void createToken()} />
       </section>
-      {isHelpOpen && <TokenHelpDialog onClose={() => setIsHelpOpen(false)} />}
+      {isHelpOpen && (
+        <TokenHelpDialog
+          icon={KeyRound}
+          title={t('token.helpTitle')}
+          body={t('token.helpBody')}
+          titleId="token-help-title"
+          examples={apiTokenHelpExamples(t)}
+          onClose={() => setIsHelpOpen(false)}
+        />
+      )}
     </section>
   );
 }
@@ -124,44 +138,10 @@ const tokenGithubActionsExample = [
   '            -F "file=@dist/app.lpk"',
 ].join('\n');
 
-function TokenHelpDialog({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
-  const titleId = 'token-help-title';
-
-  return (
-    <ModalLayer onClose={onClose} width="min(760px, calc(100vw - 36px))" maxHeight="min(86vh, 780px)">
-      <section
-        className="modal-panel token-help-panel"
-        aria-labelledby={titleId}
-      >
-        <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onClose} />
-        <div className="token-help-head">
-          <span className="install-password-icon">
-            <KeyRound size={21} />
-          </span>
-          <div>
-            <h2 id={titleId}>{t('token.helpTitle')}</h2>
-            <p>{t('token.helpBody')}</p>
-          </div>
-        </div>
-        <div className="token-help-content">
-          <TokenHelpExample title={t('token.helpCreateAppTitle')} body={t('token.helpCreateAppBody')} code={tokenCreateAppCurlExample} language="bash" />
-          <TokenHelpExample title={t('token.helpPublishVersionTitle')} body={t('token.helpPublishVersionBody')} code={tokenPublishVersionCurlExample} language="bash" />
-          <TokenHelpExample title={t('token.helpGithubActionsTitle')} body={t('token.helpGithubActionsBody')} code={tokenGithubActionsExample} language="yaml" />
-        </div>
-      </section>
-    </ModalLayer>
-  );
-}
-
-function TokenHelpExample({ title, body, code, language }: { title: string; body: string; code: string; language: string }) {
-  return (
-    <section className="token-help-section">
-      <div>
-        <strong>{title}</strong>
-        <span>{body}</span>
-      </div>
-      <XCodeBlock code={code} language={language} width="100%" size="sm" />
-    </section>
-  );
+function apiTokenHelpExamples(t: (key: string) => string): TokenHelpExample[] {
+  return [
+    { title: t('token.helpCreateAppTitle'), body: t('token.helpCreateAppBody'), code: tokenCreateAppCurlExample, language: 'bash' },
+    { title: t('token.helpPublishVersionTitle'), body: t('token.helpPublishVersionBody'), code: tokenPublishVersionCurlExample, language: 'bash' },
+    { title: t('token.helpGithubActionsTitle'), body: t('token.helpGithubActionsBody'), code: tokenGithubActionsExample, language: 'yaml' },
+  ];
 }
