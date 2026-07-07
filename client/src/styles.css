@@ -267,6 +267,7 @@ body,
 
 .topbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   justify-content: space-between;
   align-items: center;
@@ -275,6 +276,12 @@ body,
   border: 1px solid var(--line);
   border-radius: 8px;
   background: color-mix(in srgb, var(--surface) 86%, transparent);
+}
+
+.topbar-search {
+  flex: 1 1 340px;
+  min-width: min(100%, 320px);
+  max-width: 560px;
 }
 
 .top-actions,
