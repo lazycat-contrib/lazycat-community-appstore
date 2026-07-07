@@ -383,29 +383,31 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		return
 	}
 	values := map[string]string{
-		settingMaxLPKSize:             strconv.FormatInt(s.cfg.MaxLPKSize, 10),
-		settingMaxVersions:            strconv.Itoa(s.cfg.MaxVersions),
-		settingRequireEmailVerify:     strconv.FormatBool(s.cfg.RequireEmailVerify),
-		settingSourcePassword:         s.cfg.SourcePassword,
-		settingSourcePasswordRotation: strconv.Itoa(s.cfg.SourcePasswordRotation),
-		settingGitHubDownloadMirrors:  s.cfg.GitHubDownloadMirrors,
-		settingGitHubRawMirrors:       s.cfg.GitHubRawMirrors,
-		settingSiteTitle:              s.siteProfile(r.Context()).Title,
-		settingSiteIconURL:            "",
-		settingSitePublicURL:          s.sitePublicURL(r.Context()),
-		settingAnnouncementEnabled:    "false",
-		settingAnnouncementLevel:      "info",
-		settingAnnouncementTitle:      "",
-		settingAnnouncementBody:       "",
-		settingAnnouncementLinkLabel:  "",
-		settingAnnouncementLinkURL:    "",
-		settingAnnouncementUpdatedAt:  "",
-		settingRegistrationMode:       registrationModeOpen,
-		settingSMTPHost:               s.cfg.SMTPHost,
-		settingSMTPPort:               strconv.Itoa(s.cfg.SMTPPort),
-		settingSMTPUser:               s.cfg.SMTPUser,
-		settingSMTPPass:               s.cfg.SMTPPass,
-		settingSMTPFrom:               s.cfg.SMTPFrom,
+		settingMaxLPKSize:               strconv.FormatInt(s.cfg.MaxLPKSize, 10),
+		settingMaxVersions:              strconv.Itoa(s.cfg.MaxVersions),
+		settingRequireEmailVerify:       strconv.FormatBool(s.cfg.RequireEmailVerify),
+		settingSourcePassword:           s.cfg.SourcePassword,
+		settingSourcePasswordRotation:   strconv.Itoa(s.cfg.SourcePasswordRotation),
+		settingCommentsEnabled:          "true",
+		settingAllowManualOutdatedClear: "false",
+		settingGitHubDownloadMirrors:    s.cfg.GitHubDownloadMirrors,
+		settingGitHubRawMirrors:         s.cfg.GitHubRawMirrors,
+		settingSiteTitle:                s.siteProfile(r.Context()).Title,
+		settingSiteIconURL:              "",
+		settingSitePublicURL:            s.sitePublicURL(r.Context()),
+		settingAnnouncementEnabled:      "false",
+		settingAnnouncementLevel:        "info",
+		settingAnnouncementTitle:        "",
+		settingAnnouncementBody:         "",
+		settingAnnouncementLinkLabel:    "",
+		settingAnnouncementLinkURL:      "",
+		settingAnnouncementUpdatedAt:    "",
+		settingRegistrationMode:         registrationModeOpen,
+		settingSMTPHost:                 s.cfg.SMTPHost,
+		settingSMTPPort:                 strconv.Itoa(s.cfg.SMTPPort),
+		settingSMTPUser:                 s.cfg.SMTPUser,
+		settingSMTPPass:                 s.cfg.SMTPPass,
+		settingSMTPFrom:                 s.cfg.SMTPFrom,
 	}
 	for _, record := range records {
 		if isPublicSetting(record.Key) {
@@ -535,7 +537,7 @@ func validateSetting(key, value string) error {
 		if err != nil || parsed < 0 {
 			return fmt.Errorf("%s must be a non-negative integer", key)
 		}
-	case settingRequireEmailVerify, settingAnnouncementEnabled:
+	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingAllowManualOutdatedClear:
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("%s must be a boolean", key)
 		}
@@ -596,6 +598,8 @@ func isPublicSetting(key string) bool {
 		settingRequireEmailVerify,
 		settingSourcePassword,
 		settingSourcePasswordRotation,
+		settingCommentsEnabled,
+		settingAllowManualOutdatedClear,
 		settingGitHubDownloadMirrors,
 		settingGitHubRawMirrors,
 		settingSiteTitle,

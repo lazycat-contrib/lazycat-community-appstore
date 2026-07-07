@@ -66,6 +66,7 @@ type appSummary struct {
 	Status                    string            `json:"status"`
 	AllowUnreviewedUpdates    bool              `json:"allowUnreviewedUpdates"`
 	CommentsEnabled           bool              `json:"commentsEnabled"`
+	CommentsAllowed           bool              `json:"commentsAllowed"`
 	EmailNotificationsEnabled bool              `json:"emailNotificationsEnabled"`
 	InstallProtected          bool              `json:"installProtected"`
 	DownloadCount             int               `json:"downloadCount"`
@@ -98,14 +99,15 @@ type tagDTO struct {
 
 type appDetail struct {
 	appSummary
-	Versions         []version    `json:"versions"`
-	Screenshots      []screenshot `json:"screenshots"`
-	Comments         []comment    `json:"comments"`
-	Favorites        int          `json:"favorites"`
-	OutdatedMarks    int          `json:"outdatedMarks"`
-	OutdatedMarked   bool         `json:"outdatedMarked"`
-	CanManageApp     bool         `json:"canManageApp"`
-	CanUploadVersion bool         `json:"canUploadVersion"`
+	Versions              []version    `json:"versions"`
+	Screenshots           []screenshot `json:"screenshots"`
+	Comments              []comment    `json:"comments"`
+	Favorites             int          `json:"favorites"`
+	OutdatedMarks         int          `json:"outdatedMarks"`
+	OutdatedMarked        bool         `json:"outdatedMarked"`
+	CanManageApp          bool         `json:"canManageApp"`
+	CanUploadVersion      bool         `json:"canUploadVersion"`
+	CanClearOutdatedMarks bool         `json:"canClearOutdatedMarks"`
 }
 
 type screenshot struct {

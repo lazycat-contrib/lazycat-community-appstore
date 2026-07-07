@@ -169,6 +169,20 @@ func (_u *ClientSourceAppUpdate) SetNillableInstallProtected(v *bool) *ClientSou
 	return _u
 }
 
+// SetCommentsEnabled sets the "comments_enabled" field.
+func (_u *ClientSourceAppUpdate) SetCommentsEnabled(v bool) *ClientSourceAppUpdate {
+	_u.mutation.SetCommentsEnabled(v)
+	return _u
+}
+
+// SetNillableCommentsEnabled sets the "comments_enabled" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableCommentsEnabled(v *bool) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetCommentsEnabled(*v)
+	}
+	return _u
+}
+
 // SetOutdatedMarks sets the "outdated_marks" field.
 func (_u *ClientSourceAppUpdate) SetOutdatedMarks(v int) *ClientSourceAppUpdate {
 	_u.mutation.ResetOutdatedMarks()
@@ -365,6 +379,9 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.CommentsEnabled(); ok {
+		_spec.SetField(clientsourceapp.FieldCommentsEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.OutdatedMarks(); ok {
 		_spec.SetField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)
@@ -572,6 +589,20 @@ func (_u *ClientSourceAppUpdateOne) SetInstallProtected(v bool) *ClientSourceApp
 func (_u *ClientSourceAppUpdateOne) SetNillableInstallProtected(v *bool) *ClientSourceAppUpdateOne {
 	if v != nil {
 		_u.SetInstallProtected(*v)
+	}
+	return _u
+}
+
+// SetCommentsEnabled sets the "comments_enabled" field.
+func (_u *ClientSourceAppUpdateOne) SetCommentsEnabled(v bool) *ClientSourceAppUpdateOne {
+	_u.mutation.SetCommentsEnabled(v)
+	return _u
+}
+
+// SetNillableCommentsEnabled sets the "comments_enabled" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableCommentsEnabled(v *bool) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetCommentsEnabled(*v)
 	}
 	return _u
 }
@@ -802,6 +833,9 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	}
 	if value, ok := _u.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.CommentsEnabled(); ok {
+		_spec.SetField(clientsourceapp.FieldCommentsEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.OutdatedMarks(); ok {
 		_spec.SetField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)

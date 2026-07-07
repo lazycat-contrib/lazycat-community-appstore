@@ -38,6 +38,8 @@ type ClientSourceApp struct {
 	IconURL string `json:"icon_url,omitempty"`
 	// InstallProtected holds the value of the "install_protected" field.
 	InstallProtected bool `json:"install_protected,omitempty"`
+	// CommentsEnabled holds the value of the "comments_enabled" field.
+	CommentsEnabled bool `json:"comments_enabled,omitempty"`
 	// OutdatedMarks holds the value of the "outdated_marks" field.
 	OutdatedMarks int `json:"outdated_marks,omitempty"`
 	// ScreenshotsJSON holds the value of the "screenshots_json" field.
@@ -81,7 +83,7 @@ func (*ClientSourceApp) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case clientsourceapp.FieldInstallProtected:
+		case clientsourceapp.FieldInstallProtected, clientsourceapp.FieldCommentsEnabled:
 			values[i] = new(sql.NullBool)
 		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID, clientsourceapp.FieldOutdatedMarks:
 			values[i] = new(sql.NullInt64)
@@ -169,6 +171,12 @@ func (_m *ClientSourceApp) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field install_protected", values[i])
 			} else if value.Valid {
 				_m.InstallProtected = value.Bool
+			}
+		case clientsourceapp.FieldCommentsEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field comments_enabled", values[i])
+			} else if value.Valid {
+				_m.CommentsEnabled = value.Bool
 			}
 		case clientsourceapp.FieldOutdatedMarks:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -276,6 +284,9 @@ func (_m *ClientSourceApp) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("install_protected=")
 	builder.WriteString(fmt.Sprintf("%v", _m.InstallProtected))
+	builder.WriteString(", ")
+	builder.WriteString("comments_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CommentsEnabled))
 	builder.WriteString(", ")
 	builder.WriteString("outdated_marks=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OutdatedMarks))

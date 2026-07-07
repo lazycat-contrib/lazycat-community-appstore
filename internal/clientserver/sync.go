@@ -38,6 +38,7 @@ type feedApp struct {
 	CategoryI18n     map[string]string        `json:"categoryI18n"`
 	IconURL          string                   `json:"iconUrl"`
 	InstallProtected bool                     `json:"installProtected"`
+	CommentsEnabled  *bool                    `json:"commentsEnabled"`
 	OutdatedMarks    int                      `json:"outdatedMarks"`
 	Screenshots      []catalogmeta.Screenshot `json:"screenshots"`
 	LatestVersion    *VersionDTO              `json:"latestVersion"`
@@ -153,6 +154,10 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 			}
 			versionsJSON = string(encoded)
 		}
+		commentsEnabled := true
+		if app.CommentsEnabled != nil {
+			commentsEnabled = *app.CommentsEnabled
+		}
 		if _, err := tx.ClientSourceApp.Create().
 			SetSourceID(source.ID).
 			SetExternalID(strconv.Itoa(app.ID)).
@@ -164,6 +169,7 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 			SetCategoryI18nJSON(catalogmeta.EncodeLocalizedText(app.CategoryI18n)).
 			SetIconURL(app.IconURL).
 			SetInstallProtected(app.InstallProtected).
+			SetCommentsEnabled(commentsEnabled).
 			SetOutdatedMarks(app.OutdatedMarks).
 			SetScreenshotsJSON(screenshotsJSON).
 			SetLatestVersionJSON(versionJSON).

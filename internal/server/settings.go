@@ -12,29 +12,31 @@ import (
 )
 
 const (
-	settingMaxLPKSize             = "max_lpk_size"
-	settingMaxVersions            = "max_versions"
-	settingRequireEmailVerify     = "require_email_verify"
-	settingSourcePassword         = "source_password"
-	settingSourcePasswordRotation = "source_password_rotation"
-	settingGitHubDownloadMirrors  = "github_download_mirrors"
-	settingGitHubRawMirrors       = "github_raw_mirrors"
-	settingSiteTitle              = "site_title"
-	settingSiteIconURL            = "site_icon_url"
-	settingSitePublicURL          = "site_public_url"
-	settingAnnouncementEnabled    = "announcement_enabled"
-	settingAnnouncementLevel      = "announcement_level"
-	settingAnnouncementTitle      = "announcement_title"
-	settingAnnouncementBody       = "announcement_body"
-	settingAnnouncementLinkLabel  = "announcement_link_label"
-	settingAnnouncementLinkURL    = "announcement_link_url"
-	settingAnnouncementUpdatedAt  = "announcement_updated_at"
-	settingRegistrationMode       = "registration_mode"
-	settingSMTPHost               = "smtp_host"
-	settingSMTPPort               = "smtp_port"
-	settingSMTPUser               = "smtp_user"
-	settingSMTPPass               = "smtp_pass"
-	settingSMTPFrom               = "smtp_from"
+	settingMaxLPKSize               = "max_lpk_size"
+	settingMaxVersions              = "max_versions"
+	settingRequireEmailVerify       = "require_email_verify"
+	settingSourcePassword           = "source_password"
+	settingSourcePasswordRotation   = "source_password_rotation"
+	settingCommentsEnabled          = "comments_enabled"
+	settingAllowManualOutdatedClear = "allow_manual_outdated_clear"
+	settingGitHubDownloadMirrors    = "github_download_mirrors"
+	settingGitHubRawMirrors         = "github_raw_mirrors"
+	settingSiteTitle                = "site_title"
+	settingSiteIconURL              = "site_icon_url"
+	settingSitePublicURL            = "site_public_url"
+	settingAnnouncementEnabled      = "announcement_enabled"
+	settingAnnouncementLevel        = "announcement_level"
+	settingAnnouncementTitle        = "announcement_title"
+	settingAnnouncementBody         = "announcement_body"
+	settingAnnouncementLinkLabel    = "announcement_link_label"
+	settingAnnouncementLinkURL      = "announcement_link_url"
+	settingAnnouncementUpdatedAt    = "announcement_updated_at"
+	settingRegistrationMode         = "registration_mode"
+	settingSMTPHost                 = "smtp_host"
+	settingSMTPPort                 = "smtp_port"
+	settingSMTPUser                 = "smtp_user"
+	settingSMTPPass                 = "smtp_pass"
+	settingSMTPFrom                 = "smtp_from"
 )
 
 const (
@@ -130,6 +132,18 @@ func (s *Server) effectiveRequireEmailVerify(ctx context.Context) bool {
 		return s.cfg.RequireEmailVerify
 	}
 	return value
+}
+
+func (s *Server) commentsEnabled(ctx context.Context) bool {
+	return s.settingBool(ctx, settingCommentsEnabled, true)
+}
+
+func (s *Server) commentsAllowed(ctx context.Context, appCommentsEnabled bool) bool {
+	return appCommentsEnabled && s.commentsEnabled(ctx)
+}
+
+func (s *Server) manualOutdatedClearAllowed(ctx context.Context) bool {
+	return s.settingBool(ctx, settingAllowManualOutdatedClear, false)
 }
 
 func (s *Server) registrationMode(ctx context.Context) string {

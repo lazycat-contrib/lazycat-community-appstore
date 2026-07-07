@@ -1605,6 +1605,30 @@ body,
   line-height: 1.55;
 }
 
+.comment-disabled-note {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--muted);
+  padding: 11px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.comment-disabled-note > svg {
+  color: var(--ink);
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.comment-disabled-note span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .profile-panel {
   max-width: 460px;
 }

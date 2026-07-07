@@ -39,6 +39,10 @@ func (s *Server) handleCreateSourceAppComment(w http.ResponseWriter, r *http.Req
 	if !ok {
 		return
 	}
+	if !appRecord.CommentsEnabled {
+		writeError(w, http.StatusForbidden, "COMMENTS_DISABLED", "Comments are disabled for this app")
+		return
+	}
 	var input CommentInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON request body")

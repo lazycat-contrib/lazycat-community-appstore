@@ -106,6 +106,7 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 	if u != nil {
 		detail.CanManageApp = isAdmin(u) || record.OwnerID == u.ID
 		detail.CanUploadVersion = detail.CanManageApp || s.isCollaborator(r, record.ID, u.ID)
+		detail.CanClearOutdatedMarks = detail.CanManageApp && s.manualOutdatedClearAllowed(r.Context())
 		detail.OutdatedMarked, _ = s.db.OutdatedMark.Query().Where(outdatedpkg.AppIDEQ(record.ID), outdatedpkg.UserIDEQ(u.ID)).Exist(r.Context())
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"app": detail})
@@ -783,6 +784,7 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 		Status:                    string(record.Status),
 		AllowUnreviewedUpdates:    record.AllowUnreviewedUpdates,
 		CommentsEnabled:           record.CommentsEnabled,
+		CommentsAllowed:           s.commentsAllowed(r.Context(), record.CommentsEnabled),
 		EmailNotificationsEnabled: record.EmailNotificationsEnabled,
 		InstallProtected:          record.InstallPasswordHash != "",
 		DownloadCount:             record.DownloadCount,

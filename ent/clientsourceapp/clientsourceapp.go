@@ -34,6 +34,8 @@ const (
 	FieldIconURL = "icon_url"
 	// FieldInstallProtected holds the string denoting the install_protected field in the database.
 	FieldInstallProtected = "install_protected"
+	// FieldCommentsEnabled holds the string denoting the comments_enabled field in the database.
+	FieldCommentsEnabled = "comments_enabled"
 	// FieldOutdatedMarks holds the string denoting the outdated_marks field in the database.
 	FieldOutdatedMarks = "outdated_marks"
 	// FieldScreenshotsJSON holds the string denoting the screenshots_json field in the database.
@@ -72,6 +74,7 @@ var Columns = []string{
 	FieldCategoryI18nJSON,
 	FieldIconURL,
 	FieldInstallProtected,
+	FieldCommentsEnabled,
 	FieldOutdatedMarks,
 	FieldScreenshotsJSON,
 	FieldLatestVersionJSON,
@@ -109,6 +112,8 @@ var (
 	DefaultIconURL string
 	// DefaultInstallProtected holds the default value on creation for the "install_protected" field.
 	DefaultInstallProtected bool
+	// DefaultCommentsEnabled holds the default value on creation for the "comments_enabled" field.
+	DefaultCommentsEnabled bool
 	// DefaultOutdatedMarks holds the default value on creation for the "outdated_marks" field.
 	DefaultOutdatedMarks int
 	// DefaultScreenshotsJSON holds the default value on creation for the "screenshots_json" field.
@@ -181,6 +186,11 @@ func ByIconURL(opts ...sql.OrderTermOption) OrderOption {
 // ByInstallProtected orders the results by the install_protected field.
 func ByInstallProtected(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInstallProtected, opts...).ToFunc()
+}
+
+// ByCommentsEnabled orders the results by the comments_enabled field.
+func ByCommentsEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCommentsEnabled, opts...).ToFunc()
 }
 
 // ByOutdatedMarks orders the results by the outdated_marks field.

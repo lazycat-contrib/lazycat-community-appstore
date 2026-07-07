@@ -20,6 +20,7 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
+  MessageSquareOff,
   Monitor,
   Moon,
   PackagePlus,
@@ -1399,6 +1400,7 @@ function SourceAppDetailPage({
   const hasChecksum = Boolean(latestVersion?.sha256);
   const hasSize = Boolean(latestVersion?.size && latestVersion.size > 0);
   const hasOutdatedMarks = outdatedCount > 0;
+  const sourceCommentsEnabled = app.commentsEnabled !== false;
   const trustState: 'ready' | 'caution' | 'blocked' = !installable ? 'blocked' : hasChecksum && hasSize ? 'ready' : 'caution';
   const TrustIcon = trustState === 'ready' ? ShieldCheck : trustState === 'caution' ? Gauge : AlertCircle;
   const trustTitle = trustState === 'ready' ? t('sourceDetail.trustReadyTitle') : trustState === 'caution' ? t('sourceDetail.trustCautionTitle') : t('sourceDetail.trustBlockedTitle');
@@ -1452,6 +1454,10 @@ function SourceAppDetailPage({
 
   async function submitSourceComment(event: FormEvent, parentId?: number) {
     event.preventDefault();
+    if (!sourceCommentsEnabled) {
+      setToast({ tone: 'neutral', message: t('sourceDetail.commentsDisabled') });
+      return;
+    }
     const body = (parentId ? replyText : commentText).trim();
     if (!body) return;
     try {
@@ -1732,19 +1738,27 @@ function SourceAppDetailPage({
             <XButton type="button" variant="secondary" size="sm" label={t('common.refresh')} icon={<RefreshCw size={17} />} onClick={() => void loadSourceComments()} />
           </div>
           {commentsState === 'error' && <p className="inline-warning"><AlertCircle size={15} /><span>{t('sourceDetail.commentsUnavailable')}</span></p>}
-          <form className="comment-form rich-comment-form" onSubmit={(event) => void submitSourceComment(event)}>
-            <XTextInput
-              label={t('drawer.commentPlaceholder')}
-              isLabelHidden
-              value={commentText}
-              placeholder={t('drawer.commentPlaceholder')}
-              onChange={setCommentText}
-            />
-            <XIconButton type="submit" variant="ghost" label={t('drawer.postComment')} icon={<MessageSquare size={17} />} isDisabled={!commentText.trim()} />
-          </form>
+          {sourceCommentsEnabled ? (
+            <form className="comment-form rich-comment-form" onSubmit={(event) => void submitSourceComment(event)}>
+              <XTextInput
+                label={t('drawer.commentPlaceholder')}
+                isLabelHidden
+                value={commentText}
+                placeholder={t('drawer.commentPlaceholder')}
+                onChange={setCommentText}
+              />
+              <XIconButton type="submit" variant="ghost" label={t('drawer.postComment')} icon={<MessageSquare size={17} />} isDisabled={!commentText.trim()} />
+            </form>
+          ) : (
+            <div className="comment-disabled-note" role="note">
+              <MessageSquareOff size={17} />
+              <span>{t('sourceDetail.commentsDisabled')}</span>
+            </div>
+          )}
           <CommentList
             comments={comments}
             commentsState={commentsState}
+            canReply={sourceCommentsEnabled}
             replyTarget={replyTarget}
             replyText={replyText}
             onReplyTarget={setReplyTarget}
@@ -1761,6 +1775,7 @@ function SourceAppDetailPage({
 function CommentList({
   comments,
   commentsState = 'loaded',
+  canReply = true,
   replyTarget,
   replyText,
   onReplyTarget,
@@ -1770,6 +1785,7 @@ function CommentList({
 }: {
   comments: Comment[];
   commentsState?: 'idle' | 'loading' | 'loaded' | 'error';
+  canReply?: boolean;
   replyTarget: number | null;
   replyText: string;
   onReplyTarget: (id: number | null) => void;
@@ -1793,10 +1809,12 @@ function CommentList({
       {comments.map((comment) => (
         <article className="comment" key={comment.id}>
           <CommentBody comment={comment} onDelete={onDelete} />
-          <div className="comment-actions">
-            <XButton type="button" variant="secondary" size="sm" label={t('drawer.reply')} icon={<MessageSquare size={15} />} onClick={() => onReplyTarget(replyTarget === comment.id ? null : comment.id)} />
-          </div>
-          {replyTarget === comment.id && (
+          {canReply && (
+            <div className="comment-actions">
+              <XButton type="button" variant="secondary" size="sm" label={t('drawer.reply')} icon={<MessageSquare size={15} />} onClick={() => onReplyTarget(replyTarget === comment.id ? null : comment.id)} />
+            </div>
+          )}
+          {canReply && replyTarget === comment.id && (
             <form className="comment-form rich-comment-form reply-form" onSubmit={(event) => onReply(event, comment.id)}>
               <XTextInput
                 label={t('drawer.replyPlaceholder')}
@@ -2833,6 +2851,8 @@ function AdminPanel({
   const policySettingFields = [
     { key: 'max_lpk_size', label: t('admin.settings.maxLPKSize'), help: t('admin.settingsHelp.maxLPKSize'), inputMode: 'numeric' },
     { key: 'max_versions', label: t('admin.settings.maxVersions'), help: t('admin.settingsHelp.maxVersions'), inputMode: 'numeric' },
+    { key: 'comments_enabled', label: t('admin.settings.commentsEnabled'), help: t('admin.settingsHelp.commentsEnabled'), type: 'boolean' },
+    { key: 'allow_manual_outdated_clear', label: t('admin.settings.allowManualOutdatedClear'), help: t('admin.settingsHelp.allowManualOutdatedClear'), type: 'boolean' },
     { key: 'source_password', label: t('admin.settings.sourcePassword'), help: t('admin.settingsHelp.sourcePassword'), type: 'password' },
     { key: 'source_password_rotation', label: t('admin.settings.sourcePasswordRotation'), help: t('admin.settingsHelp.sourcePasswordRotation'), inputMode: 'numeric' },
     { key: 'github_download_mirrors', label: t('admin.settings.githubDownloadMirrors'), help: t('admin.settingsHelp.githubDownloadMirrors'), type: 'textarea' },
@@ -3981,6 +4001,8 @@ function AppDrawer({
     screenshots: (app.screenshots || []).length,
   });
   const hasOutdatedMarks = (app.outdatedMarks ?? 0) > 0;
+  const commentsAllowed = app.commentsAllowed ?? app.commentsEnabled;
+  const canComment = !!user && commentsAllowed;
   const versionNumberReady = Boolean(versionForm.version.trim());
   const versionExternalDownloadReady = Boolean(versionForm.downloadUrl.trim());
   const versionExternalChecksumReady = Boolean(versionForm.sha256.trim());
@@ -4040,6 +4062,10 @@ function AppDrawer({
 
   async function submitComment(event: FormEvent, parentId?: number) {
     event.preventDefault();
+    if (!canComment) {
+      setToast({ tone: 'neutral', message: t('drawer.commentsDisabled') });
+      return;
+    }
     const body = (parentId ? replyText : commentText).trim();
     if (!body) return;
     await runAction(setToast, t('drawer.commentPostFailed'), async () => {
@@ -4215,6 +4241,15 @@ function AppDrawer({
     });
   }
 
+  async function clearOutdatedMarks() {
+    if (!confirmDanger('clear-outdated-marks', t('drawer.confirmClearOutdated'))) return;
+    await runAction(setToast, t('drawer.clearOutdatedFailed'), async () => {
+      await api(`/api/v1/apps/${app.id}/outdated-marks`, { method: 'DELETE' });
+      setToast({ tone: 'success', message: t('drawer.outdatedCleared') });
+      await onRefresh();
+    });
+  }
+
   async function saveVisibility() {
     await runAction(setToast, t('drawer.visibilitySaveFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/visibility`, {
@@ -4336,6 +4371,16 @@ function AppDrawer({
               <strong>{hasOutdatedMarks ? t('drawer.outdatedActiveTitle', { count: app.outdatedMarks ?? 0 }) : t('drawer.outdatedInactiveTitle')}</strong>
               <span>{hasOutdatedMarks ? t('drawer.outdatedActiveBody') : t('drawer.outdatedInactiveBody')}</span>
             </div>
+            {hasOutdatedMarks && app.canClearOutdatedMarks && (
+              <XButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                label={t('drawer.clearOutdated')}
+                icon={<Check size={17} />}
+                onClick={() => void clearOutdatedMarks()}
+              />
+            )}
           </div>
         </section>
         <section className="detail-summary" aria-label={t('drawer.metadata')}>
@@ -4679,7 +4724,7 @@ function AppDrawer({
         </section>
         <section>
           <h3>{t('drawer.comments')}</h3>
-          {user && app.commentsEnabled && (
+          {canComment ? (
             <form className="comment-form rich-comment-form" onSubmit={(event) => void submitComment(event)}>
               <XTextInput
                 label={t('drawer.commentPlaceholder')}
@@ -4690,10 +4735,15 @@ function AppDrawer({
               />
               <XIconButton type="submit" variant="ghost" label={t('drawer.postComment')} icon={<MessageSquare size={17} />} isDisabled={!commentText.trim()} />
             </form>
-          )}
-          {!app.commentsEnabled && <p className="inline-note">{t('drawer.commentsDisabled')}</p>}
+          ) : !commentsAllowed ? (
+            <div className="comment-disabled-note" role="note">
+              <MessageSquareOff size={17} />
+              <span>{t('drawer.commentsDisabled')}</span>
+            </div>
+          ) : null}
           <CommentList
             comments={app.comments || []}
+            canReply={canComment}
             replyTarget={replyTarget}
             replyText={replyText}
             onReplyTarget={setReplyTarget}

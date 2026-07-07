@@ -73,7 +73,7 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
 		return
 	}
-	if !record.CommentsEnabled {
+	if !s.commentsAllowed(r.Context(), record.CommentsEnabled) {
 		writeError(w, http.StatusForbidden, "COMMENTS_DISABLED", "Comments are disabled for this app", nil)
 		return
 	}
@@ -486,6 +486,11 @@ func (s *Server) handleClearOutdated(w http.ResponseWriter, r *http.Request) {
 	}
 	if !s.userCanSeeApp(r, record, actor.User) {
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+		return
+	}
+	if s.manualOutdatedClearAllowed(r.Context()) && s.actorCanMaintainApp(actor, record) {
+		_, _ = s.db.OutdatedMark.Delete().Where(outdatedmark.AppIDEQ(id)).Exec(r.Context())
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "outdatedMarked": false, "outdatedMarks": 0})
 		return
 	}
 	_, _ = s.db.OutdatedMark.Delete().Where(outdatedmark.AppIDEQ(id), outdatedmark.UserIDEQ(actor.UserID)).Exec(r.Context())

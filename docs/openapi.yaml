@@ -538,6 +538,8 @@ paths:
       responses:
         "201":
           description: Comment created.
+        "403":
+          $ref: "#/components/responses/Error"
 
   /api/v1/comments/{id}:
     delete:
@@ -590,7 +592,8 @@ paths:
           $ref: "#/components/responses/Error"
     delete:
       tags: [Social]
-      summary: Clear the current user's outdated mark
+      summary: Clear outdated marks
+      description: Clears the current user's outdated mark. If the site setting allow_manual_outdated_clear is enabled, app submitters and admins clear all outdated marks for the app.
       parameters:
         - $ref: "#/components/parameters/ID"
       responses:
@@ -1585,7 +1588,7 @@ components:
       type: object
       additionalProperties:
         type: string
-      description: Site admin settings keyed by server setting names such as site_title, site_public_url, registration_mode, source_password, github_download_mirrors, github_raw_mirrors, announcement_enabled, and max_lpk_size.
+      description: Site admin settings keyed by server setting names such as site_title, site_public_url, registration_mode, comments_enabled, allow_manual_outdated_clear, source_password, github_download_mirrors, github_raw_mirrors, announcement_enabled, and max_lpk_size.
 
     CreateRegistrationInviteRequest:
       type: object
@@ -1646,7 +1649,7 @@ components:
 
     SourceApp:
       type: object
-      required: [id, packageId, name, slug, summary, description, installProtected, updatedAt, latestVersion, versions]
+      required: [id, packageId, name, slug, summary, description, installProtected, commentsEnabled, updatedAt, latestVersion, versions]
       properties:
         id:
           type: integer
@@ -1674,6 +1677,9 @@ components:
           type: string
         installProtected:
           type: boolean
+        commentsEnabled:
+          type: boolean
+          description: Effective source comment permission after applying site-wide and per-app comment settings.
         outdatedMarks:
           type: integer
           description: Number of client update requests currently open for this app. Publishing a new version clears the count.
@@ -1793,7 +1799,7 @@ components:
 
     ClientSourceApp:
       type: object
-      required: [id, sourceId, sourceName, packageId, name, slug, summary, installProtected, versions]
+      required: [id, sourceId, sourceName, packageId, name, slug, summary, installProtected, commentsEnabled, versions]
       properties:
         id:
           type: integer
@@ -1817,6 +1823,9 @@ components:
           format: uri
         installProtected:
           type: boolean
+        commentsEnabled:
+          type: boolean
+          description: Whether the cached source app currently accepts new comments.
         outdatedMarks:
           type: integer
           description: Number of update requests reported by the source feed.
@@ -1986,7 +1995,7 @@ components:
 
     AppSummary:
       type: object
-      required: [id, ownerId, owner, packageId, name, slug, status, allowUnreviewedUpdates, commentsEnabled, installProtected, downloadCount, tags, visibleGroupIds, createdAt, updatedAt]
+      required: [id, ownerId, owner, packageId, name, slug, status, allowUnreviewedUpdates, commentsEnabled, commentsAllowed, installProtected, downloadCount, tags, visibleGroupIds, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -2019,6 +2028,10 @@ components:
           type: boolean
         commentsEnabled:
           type: boolean
+          description: Per-app comment setting configured by the app maintainer.
+        commentsAllowed:
+          type: boolean
+          description: Effective comment permission after applying site-wide and per-app settings.
         installProtected:
           type: boolean
           description: True when this app requires a per-app install password. The password hash is never returned.
@@ -2067,6 +2080,8 @@ components:
             canManageApp:
               type: boolean
             canUploadVersion:
+              type: boolean
+            canClearOutdatedMarks:
               type: boolean
 
     Version:

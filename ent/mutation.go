@@ -8506,6 +8506,7 @@ type ClientSourceAppMutation struct {
 	category_i18n_json  *string
 	icon_url            *string
 	install_protected   *bool
+	comments_enabled    *bool
 	outdated_marks      *int
 	addoutdated_marks   *int
 	screenshots_json    *string
@@ -8979,6 +8980,42 @@ func (m *ClientSourceAppMutation) ResetInstallProtected() {
 	m.install_protected = nil
 }
 
+// SetCommentsEnabled sets the "comments_enabled" field.
+func (m *ClientSourceAppMutation) SetCommentsEnabled(b bool) {
+	m.comments_enabled = &b
+}
+
+// CommentsEnabled returns the value of the "comments_enabled" field in the mutation.
+func (m *ClientSourceAppMutation) CommentsEnabled() (r bool, exists bool) {
+	v := m.comments_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCommentsEnabled returns the old "comments_enabled" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldCommentsEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCommentsEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCommentsEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCommentsEnabled: %w", err)
+	}
+	return oldValue.CommentsEnabled, nil
+}
+
+// ResetCommentsEnabled resets all changes to the "comments_enabled" field.
+func (m *ClientSourceAppMutation) ResetCommentsEnabled() {
+	m.comments_enabled = nil
+}
+
 // SetOutdatedMarks sets the "outdated_marks" field.
 func (m *ClientSourceAppMutation) SetOutdatedMarks(i int) {
 	m.outdated_marks = &i
@@ -9276,7 +9313,7 @@ func (m *ClientSourceAppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceAppMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.source != nil {
 		fields = append(fields, clientsourceapp.FieldSourceID)
 	}
@@ -9306,6 +9343,9 @@ func (m *ClientSourceAppMutation) Fields() []string {
 	}
 	if m.install_protected != nil {
 		fields = append(fields, clientsourceapp.FieldInstallProtected)
+	}
+	if m.comments_enabled != nil {
+		fields = append(fields, clientsourceapp.FieldCommentsEnabled)
 	}
 	if m.outdated_marks != nil {
 		fields = append(fields, clientsourceapp.FieldOutdatedMarks)
@@ -9353,6 +9393,8 @@ func (m *ClientSourceAppMutation) Field(name string) (ent.Value, bool) {
 		return m.IconURL()
 	case clientsourceapp.FieldInstallProtected:
 		return m.InstallProtected()
+	case clientsourceapp.FieldCommentsEnabled:
+		return m.CommentsEnabled()
 	case clientsourceapp.FieldOutdatedMarks:
 		return m.OutdatedMarks()
 	case clientsourceapp.FieldScreenshotsJSON:
@@ -9394,6 +9436,8 @@ func (m *ClientSourceAppMutation) OldField(ctx context.Context, name string) (en
 		return m.OldIconURL(ctx)
 	case clientsourceapp.FieldInstallProtected:
 		return m.OldInstallProtected(ctx)
+	case clientsourceapp.FieldCommentsEnabled:
+		return m.OldCommentsEnabled(ctx)
 	case clientsourceapp.FieldOutdatedMarks:
 		return m.OldOutdatedMarks(ctx)
 	case clientsourceapp.FieldScreenshotsJSON:
@@ -9484,6 +9528,13 @@ func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetInstallProtected(v)
+		return nil
+	case clientsourceapp.FieldCommentsEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCommentsEnabled(v)
 		return nil
 	case clientsourceapp.FieldOutdatedMarks:
 		v, ok := value.(int)
@@ -9620,6 +9671,9 @@ func (m *ClientSourceAppMutation) ResetField(name string) error {
 		return nil
 	case clientsourceapp.FieldInstallProtected:
 		m.ResetInstallProtected()
+		return nil
+	case clientsourceapp.FieldCommentsEnabled:
+		m.ResetCommentsEnabled()
 		return nil
 	case clientsourceapp.FieldOutdatedMarks:
 		m.ResetOutdatedMarks()

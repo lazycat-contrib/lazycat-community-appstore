@@ -105,6 +105,11 @@ func InstallProtected(v bool) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldInstallProtected, v))
 }
 
+// CommentsEnabled applies equality check predicate on the "comments_enabled" field. It's identical to CommentsEnabledEQ.
+func CommentsEnabled(v bool) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldCommentsEnabled, v))
+}
+
 // OutdatedMarks applies equality check predicate on the "outdated_marks" field. It's identical to OutdatedMarksEQ.
 func OutdatedMarks(v int) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldOutdatedMarks, v))
@@ -683,6 +688,16 @@ func InstallProtectedEQ(v bool) predicate.ClientSourceApp {
 // InstallProtectedNEQ applies the NEQ predicate on the "install_protected" field.
 func InstallProtectedNEQ(v bool) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldNEQ(FieldInstallProtected, v))
+}
+
+// CommentsEnabledEQ applies the EQ predicate on the "comments_enabled" field.
+func CommentsEnabledEQ(v bool) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldCommentsEnabled, v))
+}
+
+// CommentsEnabledNEQ applies the NEQ predicate on the "comments_enabled" field.
+func CommentsEnabledNEQ(v bool) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldCommentsEnabled, v))
 }
 
 // OutdatedMarksEQ applies the EQ predicate on the "outdated_marks" field.

@@ -129,6 +129,20 @@ func (_c *ClientSourceAppCreate) SetNillableInstallProtected(v *bool) *ClientSou
 	return _c
 }
 
+// SetCommentsEnabled sets the "comments_enabled" field.
+func (_c *ClientSourceAppCreate) SetCommentsEnabled(v bool) *ClientSourceAppCreate {
+	_c.mutation.SetCommentsEnabled(v)
+	return _c
+}
+
+// SetNillableCommentsEnabled sets the "comments_enabled" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableCommentsEnabled(v *bool) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetCommentsEnabled(*v)
+	}
+	return _c
+}
+
 // SetOutdatedMarks sets the "outdated_marks" field.
 func (_c *ClientSourceAppCreate) SetOutdatedMarks(v int) *ClientSourceAppCreate {
 	_c.mutation.SetOutdatedMarks(v)
@@ -277,6 +291,10 @@ func (_c *ClientSourceAppCreate) defaults() {
 		v := clientsourceapp.DefaultInstallProtected
 		_c.mutation.SetInstallProtected(v)
 	}
+	if _, ok := _c.mutation.CommentsEnabled(); !ok {
+		v := clientsourceapp.DefaultCommentsEnabled
+		_c.mutation.SetCommentsEnabled(v)
+	}
 	if _, ok := _c.mutation.OutdatedMarks(); !ok {
 		v := clientsourceapp.DefaultOutdatedMarks
 		_c.mutation.SetOutdatedMarks(v)
@@ -349,6 +367,9 @@ func (_c *ClientSourceAppCreate) check() error {
 	}
 	if _, ok := _c.mutation.InstallProtected(); !ok {
 		return &ValidationError{Name: "install_protected", err: errors.New(`ent: missing required field "ClientSourceApp.install_protected"`)}
+	}
+	if _, ok := _c.mutation.CommentsEnabled(); !ok {
+		return &ValidationError{Name: "comments_enabled", err: errors.New(`ent: missing required field "ClientSourceApp.comments_enabled"`)}
 	}
 	if _, ok := _c.mutation.OutdatedMarks(); !ok {
 		return &ValidationError{Name: "outdated_marks", err: errors.New(`ent: missing required field "ClientSourceApp.outdated_marks"`)}
@@ -432,6 +453,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 	if value, ok := _c.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
 		_node.InstallProtected = value
+	}
+	if value, ok := _c.mutation.CommentsEnabled(); ok {
+		_spec.SetField(clientsourceapp.FieldCommentsEnabled, field.TypeBool, value)
+		_node.CommentsEnabled = value
 	}
 	if value, ok := _c.mutation.OutdatedMarks(); ok {
 		_spec.SetField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)

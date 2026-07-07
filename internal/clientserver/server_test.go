@@ -140,13 +140,14 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 				{"kind": "download", "name": "Backup", "url": "https://backup.example/https://github.com"},
 			},
 			"apps": []map[string]any{{
-				"id":        7,
-				"packageId": "cloud.lazycat.app.notes",
-				"name":      "Notes",
-				"slug":      "notes",
-				"summary":   "Write notes",
-				"category":  "tools",
-				"iconUrl":   feed.URL + "/icons/notes.png",
+				"id":              7,
+				"packageId":       "cloud.lazycat.app.notes",
+				"name":            "Notes",
+				"slug":            "notes",
+				"summary":         "Write notes",
+				"category":        "tools",
+				"iconUrl":         feed.URL + "/icons/notes.png",
+				"commentsEnabled": false,
 				"latestVersion": map[string]any{
 					"version":             "1.2.3",
 					"downloadUrl":         "https://github.com/org/notes/releases/download/a/notes.lpk",
@@ -187,7 +188,7 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	}
 	apps := app.request("GET", "/api/client/v1/apps", ``, "alice")
 	body := apps.Body.String()
-	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, `"iconUrl":"`+feed.URL+`/icons/notes.png"`) || strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) {
+	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, `"iconUrl":"`+feed.URL+`/icons/notes.png"`) || !strings.Contains(body, `"commentsEnabled":false`) || strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) {
 		t.Fatalf("cached app should keep original download URL: %s", body)
 	}
 	sources := app.request("GET", "/api/client/v1/sources", ``, "alice")
@@ -258,6 +259,45 @@ func TestOutdatedMarkProxyForwardsClientIdentityAndBody(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `"outdatedMarks":2`) {
 		t.Fatalf("proxy response body = %s", rec.Body.String())
+	}
+}
+
+func TestCommentProxyRejectsCachedDisabledComments(t *testing.T) {
+	var hitSource bool
+	sourceServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hitSource = true
+		writeJSON(w, http.StatusCreated, map[string]any{"ok": true})
+	}))
+	defer sourceServer.Close()
+
+	app := testServer(t)
+	ctx := context.Background()
+	source := app.server.db.ClientSource.Create().
+		SetUserID("alice").
+		SetName("Feed").
+		SetURL(sourceServer.URL + "/source/v1/index.json").
+		SaveX(ctx)
+	sourceApp := app.server.db.ClientSourceApp.Create().
+		SetSourceID(source.ID).
+		SetExternalID("7").
+		SetPackageID("cloud.lazycat.app.notes").
+		SetName("Notes").
+		SetSlug("notes").
+		SetCommentsEnabled(false).
+		SaveX(ctx)
+
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/client/v1/apps/%d/comments", sourceApp.ID), strings.NewReader(`{"body":"hello"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-hc-user-id", "alice")
+	req.Header.Set("x-hc-device-id", "device-1")
+	rec := httptest.NewRecorder()
+	app.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "COMMENTS_DISABLED") {
+		t.Fatalf("disabled comment proxy status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if hitSource {
+		t.Fatal("disabled comment proxy reached source server")
 	}
 }
 

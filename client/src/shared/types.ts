@@ -38,6 +38,7 @@ export type StoreApp = {
   visibleGroupIds: number[];
   allowUnreviewedUpdates: boolean;
   commentsEnabled: boolean;
+  commentsAllowed?: boolean;
   emailNotificationsEnabled: boolean;
   installProtected: boolean;
   downloadCount: number;
@@ -50,6 +51,7 @@ export type StoreApp = {
   outdatedMarked?: boolean;
   canManageApp?: boolean;
   canUploadVersion?: boolean;
+  canClearOutdatedMarks?: boolean;
   updatedAt: string;
 };
 
@@ -225,6 +227,7 @@ export type SourceApp = {
   categoryI18n?: Record<string, string>;
   iconUrl?: string;
   installProtected?: boolean;
+  commentsEnabled?: boolean;
   outdatedMarks?: number;
   screenshots?: Screenshot[];
   latestVersion?: SourceVersion;

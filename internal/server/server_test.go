@@ -1827,6 +1827,52 @@ func TestSocialActionsRequireVisibleApprovedApp(t *testing.T) {
 	}
 }
 
+func TestSiteCommentsSettingDisablesNewCommentsAndSourceFeed(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	viewer := app.server.db.User.Create().SetUsername("comment-viewer").SetPasswordHash("x").SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.site-comments").
+		SetName("Site Comments").
+		SetSlug("site-comments").
+		SetStatus(apppkg.StatusAPPROVED).
+		SetCommentsEnabled(true).
+		SaveX(ctx)
+	app.server.db.AppVersion.Create().
+		SetAppID(record.ID).
+		SetUploaderID(admin.ID).
+		SetVersion("1.0.0").
+		SetStatus(appversion.StatusAPPROVED).
+		SetSourceType(appversion.SourceTypeGITHUB).
+		SetDownloadURL("https://github.com/acme/site-comments/releases/download/v1/app.lpk").
+		SetSha256(strings.Repeat("d", 64)).
+		SetPublishedAt(time.Now()).
+		SaveX(ctx)
+
+	app.cookies = []*http.Cookie{app.serverCookieFor(admin.ID)}
+	rec := app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{"comments_enabled": "false"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("disable comments setting status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	app.cookies = []*http.Cookie{app.serverCookieFor(viewer.ID)}
+	rec = app.do(http.MethodPost, fmt.Sprintf("/api/v1/apps/%d/comments", record.ID), map[string]string{"body": "hello"})
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "COMMENTS_DISABLED") {
+		t.Fatalf("disabled comment status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.Comment.Query().CountX(ctx); count != 0 {
+		t.Fatalf("comments after disabled post = %d, want 0", count)
+	}
+
+	app.cookies = nil
+	rec = app.do(http.MethodGet, "/source/v1/index.json", nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"commentsEnabled":false`) {
+		t.Fatalf("source feed comments flag status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestMarkOutdatedRequiresReasonAndNotifiesOwner(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()
@@ -1886,6 +1932,58 @@ func TestMarkOutdatedRequiresReasonAndNotifiesOwner(t *testing.T) {
 	body := rec.Body.String()
 	if rec.Code != http.StatusOK || !strings.Contains(body, `"outdatedMarks":1`) || !strings.Contains(body, `"outdatedMarked":true`) {
 		t.Fatalf("detail outdated state missing: status=%d body=%s", rec.Code, body)
+	}
+}
+
+func TestManualOutdatedClearRequiresSettingAndMaintainer(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	owner := app.server.db.User.Create().SetUsername("manual-clear-owner").SetPasswordHash("x").SaveX(ctx)
+	viewer := app.server.db.User.Create().SetUsername("manual-clear-viewer").SetPasswordHash("x").SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.manual-clear").
+		SetName("Manual Clear").
+		SetSlug("manual-clear").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	app.server.db.OutdatedMark.Create().SetAppID(record.ID).SetUserID(viewer.ID).SetNote("needs update").SaveX(ctx)
+	app.cookies = []*http.Cookie{app.serverCookieFor(owner.ID)}
+
+	rec := app.do(http.MethodDelete, fmt.Sprintf("/api/v1/apps/%d/outdated-marks", record.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("default clear status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID)).CountX(ctx); count != 1 {
+		t.Fatalf("outdated marks after default owner clear = %d, want 1", count)
+	}
+
+	if err := app.server.setSetting(ctx, settingAllowManualOutdatedClear, "true"); err != nil {
+		t.Fatal(err)
+	}
+	other := app.server.db.User.Create().SetUsername("manual-clear-other").SetPasswordHash("x").SaveX(ctx)
+	app.server.db.OutdatedMark.Create().SetAppID(record.ID).SetUserID(other.ID).SetNote("also needs update").SaveX(ctx)
+	app.cookies = []*http.Cookie{app.serverCookieFor(viewer.ID)}
+	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/apps/%d/outdated-marks", record.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("viewer clear status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID)).CountX(ctx); count != 1 {
+		t.Fatalf("outdated marks after enabled viewer clear = %d, want 1", count)
+	}
+
+	app.cookies = []*http.Cookie{app.serverCookieFor(owner.ID)}
+	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/apps/%d/outdated-marks", record.ID), nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"outdatedMarks":0`) {
+		t.Fatalf("manual clear status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID)).CountX(ctx); count != 0 {
+		t.Fatalf("outdated marks after enabled owner clear = %d, want 0", count)
+	}
+
+	rec = app.do(http.MethodGet, fmt.Sprintf("/api/v1/apps/%d", record.ID), nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"canClearOutdatedMarks":true`) {
+		t.Fatalf("detail manual clear capability status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
 

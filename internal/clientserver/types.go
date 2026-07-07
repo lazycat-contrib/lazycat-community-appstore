@@ -60,6 +60,7 @@ type SourceAppDTO struct {
 	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`
 	IconURL          string                   `json:"iconUrl,omitempty"`
 	InstallProtected bool                     `json:"installProtected"`
+	CommentsEnabled  bool                     `json:"commentsEnabled"`
 	OutdatedMarks    int                      `json:"outdatedMarks,omitempty"`
 	Screenshots      []catalogmeta.Screenshot `json:"screenshots,omitempty"`
 	LatestVersion    *VersionDTO              `json:"latestVersion,omitempty"`

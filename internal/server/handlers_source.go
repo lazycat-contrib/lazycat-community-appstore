@@ -56,10 +56,12 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 		},
 		Apps: make([]feed.AppInput, 0, len(apps)),
 	}
+	siteCommentsEnabled := s.commentsEnabled(r.Context())
 	for _, record := range apps {
 		if !s.appIsPublic(r.Context(), record.ID) {
 			continue
 		}
+		commentsEnabled := siteCommentsEnabled && record.CommentsEnabled
 		appInput := feed.AppInput{
 			ID:               record.ID,
 			PackageID:        record.PackageID,
@@ -70,6 +72,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt:        record.UpdatedAt,
 			Tags:             s.tagNames(r, record.ID),
 			InstallProtected: record.InstallPasswordHash != "",
+			CommentsEnabled:  &commentsEnabled,
 		}
 		appInput.OutdatedMarks, _ = s.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID)).Count(r.Context())
 		if record.IconURL != nil {
