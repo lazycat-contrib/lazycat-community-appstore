@@ -1834,6 +1834,16 @@ body,
   gap: 13px;
 }
 
+.mirror-download-option {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.app-info-section {
+  background: var(--surface);
+}
+
 .inline-note {
   margin: 0;
   color: var(--muted);
@@ -2345,6 +2355,11 @@ body,
 
 .token-help-panel {
   width: min(760px, 100%);
+}
+
+.app-submission-dialog {
+  width: min(960px, 100%);
+  max-height: min(90vh, 920px);
 }
 
 .install-password-dialog .close {
@@ -3270,6 +3285,28 @@ body,
   height: 100%;
   background: var(--progress-fill);
   transition: width 160ms ease;
+}
+
+.submit-progress {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  padding: 10px 12px;
+}
+
+.submit-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.submit-progress-row strong,
+.submit-progress-row span {
+  overflow-wrap: anywhere;
 }
 
 .toast {

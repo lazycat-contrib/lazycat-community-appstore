@@ -46,6 +46,7 @@ func userDisplayName(u *ent.User) string {
 
 type siteProfile struct {
 	Title        string           `json:"title"`
+	Subtitle     string           `json:"subtitle,omitempty"`
 	IconURL      string           `json:"iconUrl,omitempty"`
 	PublicURL    string           `json:"publicUrl"`
 	SourceURL    string           `json:"sourceUrl"`
@@ -89,6 +90,8 @@ type appSummary struct {
 	DownloadCount             int               `json:"downloadCount"`
 	Tags                      []string          `json:"tags"`
 	VisibleGroupIDs           []int             `json:"visibleGroupIds"`
+	CanManageApp              bool              `json:"canManageApp"`
+	CanUploadVersion          bool              `json:"canUploadVersion"`
 	LatestVersion             *version          `json:"latestVersion,omitempty"`
 	CreatedAt                 time.Time         `json:"createdAt"`
 	UpdatedAt                 time.Time         `json:"updatedAt"`
@@ -208,6 +211,7 @@ type reviewDTO struct {
 type collaboratorRequestDTO struct {
 	ID        int       `json:"id"`
 	AppID     int       `json:"appId"`
+	AppName   string    `json:"appName"`
 	UserID    int       `json:"userId"`
 	UserIDRaw int       `json:"user_id"`
 	Username  string    `json:"username"`
@@ -216,4 +220,34 @@ type collaboratorRequestDTO struct {
 	Message   string    `json:"message"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type collaboratorDTO struct {
+	ID        int       `json:"id"`
+	AppID     int       `json:"appId"`
+	AppName   string    `json:"appName"`
+	UserID    int       `json:"userId"`
+	Username  string    `json:"username"`
+	Email     *string   `json:"email,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type ownedCollaborationDTO struct {
+	App           appSummary               `json:"app"`
+	Collaborators []collaboratorDTO        `json:"collaborators"`
+	Requests      []collaboratorRequestDTO `json:"requests"`
+	Invites       []collaboratorInviteDTO  `json:"invites"`
+}
+
+type collaboratorInviteDTO struct {
+	ID         int        `json:"id"`
+	AppID      int        `json:"appId"`
+	AppName    string     `json:"appName"`
+	Email      *string    `json:"email,omitempty"`
+	TokenPrefix string    `json:"tokenPrefix"`
+	InviteURL  string     `json:"inviteUrl,omitempty"`
+	AcceptedBy *int       `json:"acceptedBy,omitempty"`
+	AcceptedAt *time.Time `json:"acceptedAt,omitempty"`
+	ExpiresAt  time.Time  `json:"expiresAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
 }

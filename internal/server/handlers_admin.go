@@ -394,6 +394,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingGitHubDownloadMirrors:    s.cfg.GitHubDownloadMirrors,
 		settingGitHubRawMirrors:         s.cfg.GitHubRawMirrors,
 		settingSiteTitle:                s.siteProfile(r.Context()).Title,
+		settingSiteSubtitle:             s.siteProfile(r.Context()).Subtitle,
 		settingSiteIconURL:              "",
 		settingSitePublicURL:            s.sitePublicURL(r.Context()),
 		settingAnnouncementEnabled:      "false",
@@ -482,7 +483,12 @@ func (s *Server) handleUploadSiteIcon(w http.ResponseWriter, r *http.Request, u 
 		writeError(w, http.StatusInternalServerError, "SITE_ICON_SAVE_FAILED", "Could not save site icon", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"url": iconURL})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"url":        iconURL,
+		"storageKey": storageKey,
+		"path":       obj.Path,
+		"site":       s.siteProfile(r.Context()),
+	})
 }
 
 type testEmailRequest struct {
@@ -606,6 +612,10 @@ func validateSetting(key, value string) error {
 		if len([]rune(value)) > 80 {
 			return fmt.Errorf("%s must be 80 characters or fewer", key)
 		}
+	case settingSiteSubtitle:
+		if len([]rune(value)) > 180 {
+			return fmt.Errorf("%s must be 180 characters or fewer", key)
+		}
 	case settingAnnouncementTitle:
 		if len([]rune(value)) > 120 {
 			return fmt.Errorf("%s must be 120 characters or fewer", key)
@@ -643,6 +653,7 @@ func isPublicSetting(key string) bool {
 		settingGitHubDownloadMirrors,
 		settingGitHubRawMirrors,
 		settingSiteTitle,
+		settingSiteSubtitle,
 		settingSiteIconURL,
 		settingSitePublicURL,
 		settingAnnouncementEnabled,

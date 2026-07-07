@@ -28,6 +28,7 @@ import (
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/clientsyncsetting"
 	"lazycat.community/appstore/ent/collaborator"
+	"lazycat.community/appstore/ent/collaboratorinvite"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collection"
 	"lazycat.community/appstore/ent/collectionapp"
@@ -76,6 +77,8 @@ type Client struct {
 	ClientSyncSetting *ClientSyncSettingClient
 	// Collaborator is the client for interacting with the Collaborator builders.
 	Collaborator *CollaboratorClient
+	// CollaboratorInvite is the client for interacting with the CollaboratorInvite builders.
+	CollaboratorInvite *CollaboratorInviteClient
 	// CollaboratorRequest is the client for interacting with the CollaboratorRequest builders.
 	CollaboratorRequest *CollaboratorRequestClient
 	// Collection is the client for interacting with the Collection builders.
@@ -130,6 +133,7 @@ func (c *Client) init() {
 	c.ClientSourceApp = NewClientSourceAppClient(c.config)
 	c.ClientSyncSetting = NewClientSyncSettingClient(c.config)
 	c.Collaborator = NewCollaboratorClient(c.config)
+	c.CollaboratorInvite = NewCollaboratorInviteClient(c.config)
 	c.CollaboratorRequest = NewCollaboratorRequestClient(c.config)
 	c.Collection = NewCollectionClient(c.config)
 	c.CollectionApp = NewCollectionAppClient(c.config)
@@ -250,6 +254,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ClientSourceApp:      NewClientSourceAppClient(cfg),
 		ClientSyncSetting:    NewClientSyncSettingClient(cfg),
 		Collaborator:         NewCollaboratorClient(cfg),
+		CollaboratorInvite:   NewCollaboratorInviteClient(cfg),
 		CollaboratorRequest:  NewCollaboratorRequestClient(cfg),
 		Collection:           NewCollectionClient(cfg),
 		CollectionApp:        NewCollectionAppClient(cfg),
@@ -297,6 +302,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ClientSourceApp:      NewClientSourceAppClient(cfg),
 		ClientSyncSetting:    NewClientSyncSettingClient(cfg),
 		Collaborator:         NewCollaboratorClient(cfg),
+		CollaboratorInvite:   NewCollaboratorInviteClient(cfg),
 		CollaboratorRequest:  NewCollaboratorRequestClient(cfg),
 		Collection:           NewCollectionClient(cfg),
 		CollectionApp:        NewCollectionAppClient(cfg),
@@ -343,10 +349,11 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
 		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
-		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorRequest,
-		c.Collection, c.CollectionApp, c.Comment, c.CommentNotification, c.Favorite,
-		c.GroupMember, c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest,
-		c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
+		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
+		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
+		c.CommentNotification, c.Favorite, c.GroupMember, c.OutdatedMark,
+		c.RegistrationInvite, c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag,
+		c.User, c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -358,10 +365,11 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
 		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
-		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorRequest,
-		c.Collection, c.CollectionApp, c.Comment, c.CommentNotification, c.Favorite,
-		c.GroupMember, c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest,
-		c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
+		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
+		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
+		c.CommentNotification, c.Favorite, c.GroupMember, c.OutdatedMark,
+		c.RegistrationInvite, c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag,
+		c.User, c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -396,6 +404,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ClientSyncSetting.mutate(ctx, m)
 	case *CollaboratorMutation:
 		return c.Collaborator.mutate(ctx, m)
+	case *CollaboratorInviteMutation:
+		return c.CollaboratorInvite.mutate(ctx, m)
 	case *CollaboratorRequestMutation:
 		return c.CollaboratorRequest.mutate(ctx, m)
 	case *CollectionMutation:
@@ -2189,6 +2199,139 @@ func (c *CollaboratorClient) mutate(ctx context.Context, m *CollaboratorMutation
 		return (&CollaboratorDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Collaborator mutation op: %q", m.Op())
+	}
+}
+
+// CollaboratorInviteClient is a client for the CollaboratorInvite schema.
+type CollaboratorInviteClient struct {
+	config
+}
+
+// NewCollaboratorInviteClient returns a client for the CollaboratorInvite from the given config.
+func NewCollaboratorInviteClient(c config) *CollaboratorInviteClient {
+	return &CollaboratorInviteClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `collaboratorinvite.Hooks(f(g(h())))`.
+func (c *CollaboratorInviteClient) Use(hooks ...Hook) {
+	c.hooks.CollaboratorInvite = append(c.hooks.CollaboratorInvite, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `collaboratorinvite.Intercept(f(g(h())))`.
+func (c *CollaboratorInviteClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CollaboratorInvite = append(c.inters.CollaboratorInvite, interceptors...)
+}
+
+// Create returns a builder for creating a CollaboratorInvite entity.
+func (c *CollaboratorInviteClient) Create() *CollaboratorInviteCreate {
+	mutation := newCollaboratorInviteMutation(c.config, OpCreate)
+	return &CollaboratorInviteCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CollaboratorInvite entities.
+func (c *CollaboratorInviteClient) CreateBulk(builders ...*CollaboratorInviteCreate) *CollaboratorInviteCreateBulk {
+	return &CollaboratorInviteCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CollaboratorInviteClient) MapCreateBulk(slice any, setFunc func(*CollaboratorInviteCreate, int)) *CollaboratorInviteCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CollaboratorInviteCreateBulk{err: fmt.Errorf("calling to CollaboratorInviteClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CollaboratorInviteCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CollaboratorInviteCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CollaboratorInvite.
+func (c *CollaboratorInviteClient) Update() *CollaboratorInviteUpdate {
+	mutation := newCollaboratorInviteMutation(c.config, OpUpdate)
+	return &CollaboratorInviteUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CollaboratorInviteClient) UpdateOne(_m *CollaboratorInvite) *CollaboratorInviteUpdateOne {
+	mutation := newCollaboratorInviteMutation(c.config, OpUpdateOne, withCollaboratorInvite(_m))
+	return &CollaboratorInviteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CollaboratorInviteClient) UpdateOneID(id int) *CollaboratorInviteUpdateOne {
+	mutation := newCollaboratorInviteMutation(c.config, OpUpdateOne, withCollaboratorInviteID(id))
+	return &CollaboratorInviteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CollaboratorInvite.
+func (c *CollaboratorInviteClient) Delete() *CollaboratorInviteDelete {
+	mutation := newCollaboratorInviteMutation(c.config, OpDelete)
+	return &CollaboratorInviteDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CollaboratorInviteClient) DeleteOne(_m *CollaboratorInvite) *CollaboratorInviteDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CollaboratorInviteClient) DeleteOneID(id int) *CollaboratorInviteDeleteOne {
+	builder := c.Delete().Where(collaboratorinvite.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CollaboratorInviteDeleteOne{builder}
+}
+
+// Query returns a query builder for CollaboratorInvite.
+func (c *CollaboratorInviteClient) Query() *CollaboratorInviteQuery {
+	return &CollaboratorInviteQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCollaboratorInvite},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CollaboratorInvite entity by its id.
+func (c *CollaboratorInviteClient) Get(ctx context.Context, id int) (*CollaboratorInvite, error) {
+	return c.Query().Where(collaboratorinvite.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CollaboratorInviteClient) GetX(ctx context.Context, id int) *CollaboratorInvite {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CollaboratorInviteClient) Hooks() []Hook {
+	return c.hooks.CollaboratorInvite
+}
+
+// Interceptors returns the client interceptors.
+func (c *CollaboratorInviteClient) Interceptors() []Interceptor {
+	return c.inters.CollaboratorInvite
+}
+
+func (c *CollaboratorInviteClient) mutate(ctx context.Context, m *CollaboratorInviteMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CollaboratorInviteCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CollaboratorInviteUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CollaboratorInviteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CollaboratorInviteDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CollaboratorInvite mutation op: %q", m.Op())
 	}
 }
 
@@ -4192,16 +4335,16 @@ type (
 	hooks struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
 		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
-		ClientSyncSetting, Collaborator, CollaboratorRequest, Collection,
-		CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
+		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
+		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
 		OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig,
 		Tag, User, UserGroup []ent.Hook
 	}
 	inters struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
 		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
-		ClientSyncSetting, Collaborator, CollaboratorRequest, Collection,
-		CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
+		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
+		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
 		OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig,
 		Tag, User, UserGroup []ent.Interceptor
 	}

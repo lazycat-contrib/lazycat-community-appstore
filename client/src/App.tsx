@@ -60,7 +60,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
-import { api, clientApi } from './shared/api';
+import { api, apiWithUploadProgress, clientApi } from './shared/api';
 import {
   ANNOUNCEMENT_DISMISS_STORAGE_KEY,
   ANNOUNCEMENT_NOTIFY_STORAGE_KEY,
@@ -76,6 +76,7 @@ import type {
   APITokenRecord,
   Category,
   ClientInstallResult,
+  CollaborationData,
   ClientSettings,
   ClientSourceStats,
   CollaboratorRequest,
@@ -143,13 +144,14 @@ import {
 import { AppIcon, AvatarIcon, UserAvatar } from './components/AppIcon';
 import { ArtifactModeOption } from './shared/components/ArtifactModeOption';
 import { FilePicker } from './shared/components/FilePicker';
+import { TagTokenizer } from './shared/components/TagTokenizer';
 import { ClientHistoryView } from './modules/client/ClientHistoryView';
 import { ClientCatalog } from './modules/client/ClientCatalog';
 import { InstalledAppsView } from './modules/client/InstalledAppsView';
 import { ClientSettingsView } from './modules/client/ClientSettingsView';
 import { SourcesView as ClientSourcesView } from './modules/client/SourcesView';
 import { CollectionAppPicker } from './modules/admin/CollectionAppPicker';
-import { AppSubmissionForm, type SubmissionArtifactMode } from './modules/profile/AppSubmissionForm';
+import { AppSubmissionForm, type SubmissionArtifactMode, type SubmissionProgress } from './modules/profile/AppSubmissionForm';
 import { StorageSettingsPanel, defaultStorageSettings, type StorageSettings } from './modules/admin/StorageSettingsPanel';
 import { AppGrid } from './modules/storefront/AppGrid';
 import { StorefrontHome } from './modules/storefront/StorefrontHome';
@@ -203,6 +205,12 @@ type ManagedUserDraft = {
 };
 
 function verificationTokenFromURL() {
+  if (!window.location.pathname.includes('verify')) return '';
+  return new URLSearchParams(window.location.search).get('token') || '';
+}
+
+function collaborationInviteTokenFromURL() {
+  if (!window.location.pathname.includes('collaboration-invite')) return '';
   return new URLSearchParams(window.location.search).get('token') || '';
 }
 
@@ -286,6 +294,21 @@ function defaultUploadStorageKey(storages: StorageOption[]) {
   return storages.find((storage) => storage.isDefault)?.key || storages[0]?.key || 'primary';
 }
 
+function knownAppTags(apps: StoreApp[]) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  apps.forEach((app) => {
+    (app.tags || []).forEach((tag) => {
+      const normalized = tag.trim();
+      const key = normalized.toLowerCase();
+      if (!normalized || seen.has(key)) return;
+      seen.add(key);
+      out.push(normalized);
+    });
+  });
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
 function emptyUserDraft(): ManagedUserDraft {
   return {
     username: '',
@@ -316,8 +339,10 @@ export function App() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(readThemeMode);
   const [astryxThemeName, setAstryxThemeName] = useState(readAstryxThemeName);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(readSystemTheme);
-  const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'sources'));
+  const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() || collaborationInviteTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'sources'));
   const [apps, setApps] = useState<StoreApp[]>([]);
+  const [managedApps, setManagedApps] = useState<StoreApp[]>([]);
+  const [collaborationData, setCollaborationData] = useState<CollaborationData>({ owned: [], collaborating: [], outgoingRequests: [] });
   const [sourceApps, setSourceApps] = useState<SourceApp[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -358,6 +383,7 @@ export function App() {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [openSubmitSignal, setOpenSubmitSignal] = useState(0);
+  const acceptedCollaborationInviteRef = useRef('');
   const defaultSourceCheckedRef = useRef(false);
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const serverNavItems = user ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : serverBaseTabs.filter((item) => item.key !== 'profile');
@@ -367,6 +393,7 @@ export function App() {
   const drawerOpen = false;
   const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
   const selectedAstryxTheme = useMemo(() => getAstryxTheme(astryxThemeName), [astryxThemeName]);
+  const tagOptions = useMemo(() => knownAppTags(apps), [apps]);
   const announcementKey =
     siteProfile.announcement.updatedAt ||
     `${siteProfile.announcement.level}:${siteProfile.announcement.title || ''}:${siteProfile.announcement.body || ''}`;
@@ -495,6 +522,8 @@ export function App() {
       setSetupRequired(setup.needsSetup);
       if (setup.needsSetup) {
         setApps([]);
+        setManagedApps([]);
+        setCollaborationData({ owned: [], collaborating: [], outgoingRequests: [] });
         setCategories([]);
         setCollections([]);
         setGroups([]);
@@ -518,11 +547,17 @@ export function App() {
       if (me.status === 'fulfilled') {
         await loadStorageOptions();
         await loadGroups();
+        await loadCollaborationData();
         if (me.value.user.role === 'SOFTWARE_ADMIN' || me.value.user.role === 'SITE_ADMIN') {
+          await loadManagedApps();
           await loadReviews();
+        } else {
+          setManagedApps([]);
         }
       } else {
         setStorageOptions([]);
+        setManagedApps([]);
+        setCollaborationData({ owned: [], collaborating: [], outgoingRequests: [] });
       }
     } finally {
       setLoading(false);
@@ -535,6 +570,14 @@ export function App() {
     setSiteProfile(data.site);
   }
 
+  async function applySiteProfile(site?: SiteProfile) {
+    if (site) {
+      setSiteProfile(site);
+      return;
+    }
+    await loadSiteProfile();
+  }
+
   async function loadStorageOptions() {
     if (!HAS_API) return;
     try {
@@ -543,6 +586,30 @@ export function App() {
       setStorageOptions(options);
     } catch {
       setStorageOptions([]);
+    }
+  }
+
+  async function loadManagedApps() {
+    if (!HAS_API) return;
+    try {
+      const data = await api<{ apps: StoreApp[] }>('/api/v1/apps?managed=1');
+      setManagedApps(arrayOrEmpty(data.apps));
+    } catch {
+      setManagedApps([]);
+    }
+  }
+
+  async function loadCollaborationData() {
+    if (!HAS_API) return;
+    try {
+      const data = await api<CollaborationData>('/api/v1/me/collaboration');
+      setCollaborationData({
+        owned: arrayOrEmpty(data.owned),
+        collaborating: arrayOrEmpty(data.collaborating),
+        outgoingRequests: arrayOrEmpty(data.outgoingRequests),
+      });
+    } catch {
+      setCollaborationData({ owned: [], collaborating: [], outgoingRequests: [] });
     }
   }
 
@@ -587,6 +654,8 @@ export function App() {
   async function refreshClientData(options: { silent?: boolean } = {}) {
     if (!options.silent) setLoading(true);
     setApps([]);
+    setManagedApps([]);
+    setCollaborationData({ owned: [], collaborating: [], outgoingRequests: [] });
     setCategories([]);
     setCollections([]);
     setGroups([]);
@@ -984,6 +1053,7 @@ export function App() {
                 user={user}
                 groups={groups}
                 categories={categories}
+                tagOptions={tagOptions}
                 storageOptions={storageOptions}
                 onClose={() => {
                   setSelectedApp(null);
@@ -1075,9 +1145,11 @@ export function App() {
                 user={user}
                 setUser={setUser}
                 apps={apps}
+                managedApps={managedApps}
                 groups={groups}
                 setGroups={setGroups}
                 categories={categories}
+                tagOptions={tagOptions}
                 sourceApps={sourceApps}
                 sourceStats={sourceStats}
                 installedApps={installedApps}
@@ -1112,7 +1184,7 @@ export function App() {
             )}
             {tab === 'admin' && (
               user && canReview ? (
-                <AdminPanel user={user} reviews={reviews} onApprove={approveReview} onSiteProfileSaved={loadSiteProfile} onStorageOptionsChanged={loadStorageOptions} setToast={setToast} />
+                <AdminPanel user={user} reviews={reviews} onApprove={approveReview} onSiteProfileSaved={applySiteProfile} onStorageOptionsChanged={loadStorageOptions} setToast={setToast} />
               ) : (
                 <EmptyState
                   icon={ShieldCheck}
@@ -2140,6 +2212,7 @@ function ProfileView({
   user,
   setUser,
   apps,
+  managedApps,
   groups,
   setGroups,
   categories,
@@ -2155,12 +2228,14 @@ function ProfileView({
   hasAPI,
   siteProfile,
   storageOptions,
+  tagOptions,
   openSubmitSignal,
   onNavigate,
 }: {
   user: User | null;
   setUser: (user: User | null) => void;
   apps: StoreApp[];
+  managedApps: StoreApp[];
   groups: Group[];
   setGroups: (groups: Group[]) => void;
   categories: Category[];
@@ -2176,6 +2251,7 @@ function ProfileView({
   hasAPI: boolean;
   siteProfile: SiteProfile;
   storageOptions: StorageOption[];
+  tagOptions: string[];
   openSubmitSignal: number;
   onNavigate: (tab: TabKey) => void;
 }) {
@@ -2183,6 +2259,7 @@ function ProfileView({
   const [mode, setMode] = useState<'login' | 'register' | 'verify'>('login');
   const [workspaceTab, setWorkspaceTab] = useState<ProfileWorkspaceTab>('overview');
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
+  const [managedSubmitter, setManagedSubmitter] = useState('all');
   const [authForm, setAuthForm] = useState({ username: '', password: '', email: '', inviteCode: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
   const [uploadForm, setUploadForm] = useState({
@@ -2197,10 +2274,12 @@ function ProfileView({
     sourceType: 'GITHUB',
     downloadUrl: '',
     sha256: '',
+    useMirrorDownload: true,
     installPassword: '',
   });
   const [recentSubmission, setRecentSubmission] = useState<{ name: string; status: string } | null>(null);
   const [isSubmittingApp, setIsSubmittingApp] = useState(false);
+  const [submissionProgress, setSubmissionProgress] = useState<SubmissionProgress | null>(null);
   const [artifactMode, setArtifactMode] = useState<SubmissionArtifactMode>('local');
   const [uploadStorageKey, setUploadStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [file, setFile] = useState<File | null>(null);
@@ -2226,14 +2305,15 @@ function ProfileView({
       : t('auth.verifyHint');
   const AuthSubmitIcon = mode === 'verify' ? Check : mode === 'register' ? Plus : LogIn;
   const requiredLabel = (label: string) => `${label} · ${t('common.required')}`;
+  const canUseManagementWorkspace = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const workspaceTabs = [
-    { key: 'overview', label: t('profile.tabs.overview'), icon: Gauge },
-    { key: 'apps', label: t('profile.tabs.apps'), icon: PackagePlus },
-    { key: 'manage', label: t('profile.tabs.manage'), icon: Settings },
-    { key: 'tokens', label: t('profile.tabs.tokens'), icon: KeyRound },
-    { key: 'groups', label: t('profile.tabs.groups'), icon: Users },
-    { key: 'favorites', label: t('profile.tabs.favorites'), icon: Heart },
-  ] as const;
+    { key: 'overview' as const, label: t('profile.tabs.overview'), icon: Gauge },
+    { key: 'apps' as const, label: t('profile.tabs.apps'), icon: PackagePlus },
+    ...(canUseManagementWorkspace ? [{ key: 'manage' as const, label: t('profile.tabs.manage'), icon: Settings }] : []),
+    { key: 'tokens' as const, label: t('profile.tabs.tokens'), icon: KeyRound },
+    { key: 'groups' as const, label: t('profile.tabs.groups'), icon: Users },
+    { key: 'favorites' as const, label: t('profile.tabs.favorites'), icon: Heart },
+  ];
   const ownedApps = useMemo(() => {
     if (!user) return [];
     return apps
@@ -2246,12 +2326,22 @@ function ProfileView({
       .map((status) => ({ status, count: ownedApps.filter((app) => app.status === status).length }))
       .filter((item) => item.count > 0);
   }, [ownedApps]);
+  const managedSubmitterOptions = useMemo(() => {
+    const users = new Map<number, string>();
+    managedApps.forEach((app) => {
+      users.set(app.ownerId, app.owner || String(app.ownerId));
+    });
+    return [
+      { value: 'all', label: t('profile.allMaintainers') },
+      ...Array.from(users, ([id, label]) => ({ value: String(id), label })).sort((a, b) => a.label.localeCompare(b.label)),
+    ];
+  }, [managedApps, t]);
   const manageableApps = useMemo(() => {
-    if (!user) return [];
-    return apps
-      .filter((app) => canUserManageApp(user, app) || canUserUploadVersion(user, app))
-      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
-  }, [apps, user]);
+    const filtered = managedSubmitter === 'all'
+      ? managedApps
+      : managedApps.filter((app) => String(app.ownerId) === managedSubmitter);
+    return [...filtered].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  }, [managedApps, managedSubmitter]);
   const publishSummary = useMemo(() => {
     return {
       total: ownedApps.length,
@@ -2317,6 +2407,19 @@ function ProfileView({
     setWorkspaceTab('apps');
     setIsSubmitOpen(true);
   }, [openSubmitSignal, user]);
+
+  useEffect(() => {
+    if (workspaceTab === 'manage' && !canUseManagementWorkspace) {
+      setWorkspaceTab('overview');
+    }
+  }, [canUseManagementWorkspace, workspaceTab]);
+
+  useEffect(() => {
+    if (managedSubmitter === 'all') return;
+    if (!managedSubmitterOptions.some((option) => option.value === managedSubmitter)) {
+      setManagedSubmitter('all');
+    }
+  }, [managedSubmitter, managedSubmitterOptions]);
 
   useEffect(() => {
     if (!user) return;
@@ -2404,6 +2507,19 @@ function ProfileView({
     setMobileScreenshotCaptions((current) => ({ ...current, [screenshotFileKey(file)]: caption }));
   }
 
+  function startSubmissionStageProgress(label: string, initialPercent = 12, maxPercent = 86) {
+    setSubmissionProgress({ percent: initialPercent, label });
+    const timer = window.setInterval(() => {
+      setSubmissionProgress((current) => {
+        if (!current) return current;
+        const remaining = maxPercent - current.percent;
+        if (remaining <= 0) return current;
+        return { ...current, percent: Math.min(maxPercent, current.percent + Math.max(1, remaining * 0.16)) };
+      });
+    }, 700);
+    return () => window.clearInterval(timer);
+  }
+
   async function submitUpload(event: FormEvent) {
     event.preventDefault();
     if (isSubmittingApp) return;
@@ -2416,6 +2532,8 @@ function ProfileView({
       return;
     }
     setIsSubmittingApp(true);
+    setSubmissionProgress({ percent: 6, label: t('submitApp.progressPreparing') });
+    let stopStageProgress: (() => void) | undefined;
     try {
       await runAction(setToast, t('submitApp.failed'), async () => {
         let created: { app?: StoreApp };
@@ -2424,8 +2542,22 @@ function ProfileView({
           Object.entries(uploadForm).forEach(([key, value]) => form.set(key, String(value)));
           form.set('file', file);
           form.set('storageKey', uploadStorageKey);
-          created = await api<{ app: StoreApp }>('/api/v1/apps', { method: 'POST', body: form });
+          created = await apiWithUploadProgress<{ app: StoreApp }>('/api/v1/apps', {
+            method: 'POST',
+            body: form,
+            onUploadProgress: (percent) => {
+              setSubmissionProgress({
+                percent: Math.min(82, Math.max(8, Math.round(percent * 0.76))),
+                label: percent >= 100 ? t('submitApp.progressVerifying') : t('submitApp.progressUploading'),
+              });
+            },
+          });
         } else {
+          stopStageProgress = startSubmissionStageProgress(
+            uploadForm.sourceType === 'GITHUB' && uploadForm.useMirrorDownload
+              ? t('submitApp.progressMirrorFetching')
+              : t('submitApp.progressRemoteFetching'),
+          );
           created = await api<{ app: StoreApp }>('/api/v1/apps', {
             method: 'POST',
             body: JSON.stringify({
@@ -2440,17 +2572,22 @@ function ProfileView({
               sourceType: uploadForm.sourceType,
               downloadUrl: uploadForm.downloadUrl.trim(),
               sha256: uploadForm.sha256.trim(),
+              useMirrorDownload: uploadForm.useMirrorDownload,
               ...(uploadForm.installPassword.trim() ? { installPassword: uploadForm.installPassword.trim() } : {}),
             }),
           });
         }
+        stopStageProgress?.();
+        stopStageProgress = undefined;
         if (created.app?.id) {
+          setSubmissionProgress({ percent: 88, label: t('submitApp.progressScreenshots') });
           await uploadInitialScreenshots(created.app.id, desktopScreenshotFiles, desktopScreenshotCaptions, 'DESKTOP');
           await uploadInitialScreenshots(created.app.id, mobileScreenshotFiles, mobileScreenshotCaptions, 'MOBILE');
         }
+        setSubmissionProgress({ percent: 100, label: t('submitApp.progressDone') });
         setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
         setToast({ tone: 'success', message: t('submitApp.submitted') });
-        setUploadForm({ name: '', version: '', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, emailNotificationsEnabled: true, sourceType: 'GITHUB', downloadUrl: '', sha256: '', installPassword: '' });
+        setUploadForm({ name: '', version: '', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, emailNotificationsEnabled: true, sourceType: 'GITHUB', downloadUrl: '', sha256: '', useMirrorDownload: true, installPassword: '' });
         setArtifactMode('local');
         setFile(null);
         setDesktopScreenshotFiles([]);
@@ -2463,6 +2600,8 @@ function ProfileView({
         await refreshAll({ silent: true });
       });
     } finally {
+      stopStageProgress?.();
+      setSubmissionProgress(null);
       setIsSubmittingApp(false);
     }
   }
@@ -2791,9 +2930,9 @@ function ProfileView({
                 </div>
                 <div className="row-actions">
                   <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
-                  <XButton className="fixed-row-button" type="button" variant="secondary" size="sm" label={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                  <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
                   {(canUserManageApp(user, item) || canUserUploadVersion(user, item)) && (
-                    <XButton className="fixed-row-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
+                    <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
                   )}
                 </div>
               </div>
@@ -2804,32 +2943,37 @@ function ProfileView({
       )}
 
       {workspaceTab === 'apps' && isSubmitOpen && (
-      <AppSubmissionForm
-        draft={uploadForm}
-        onDraftChange={setUploadForm}
-        categories={categories}
-        storageOptions={storageChoices}
-        storageKey={uploadStorageKey}
-        onStorageKeyChange={setUploadStorageKey}
-        artifactMode={artifactMode}
-        onArtifactModeChange={selectArtifactMode}
-        file={file}
-        onFileChange={setFile}
-        fileInputRef={fileInputRef}
-        desktopScreenshotFiles={desktopScreenshotFiles}
-        desktopScreenshotCaptions={desktopScreenshotCaptions}
-        onDesktopScreenshotFilesChange={updateDesktopScreenshotFiles}
-        onDesktopScreenshotCaptionChange={updateDesktopScreenshotCaption}
-        mobileScreenshotFiles={mobileScreenshotFiles}
-        mobileScreenshotCaptions={mobileScreenshotCaptions}
-        onMobileScreenshotFilesChange={updateMobileScreenshotFiles}
-        onMobileScreenshotCaptionChange={updateMobileScreenshotCaption}
-        recentSubmission={recentSubmission}
-        isDirectPublishUser={user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN'}
-        isSubmitting={isSubmittingApp}
-        onSubmit={submitUpload}
-        onCancel={() => setIsSubmitOpen(false)}
-      />
+      <div className="modal-backdrop" role="presentation" onClick={() => setIsSubmitOpen(false)}>
+        <AppSubmissionForm
+          draft={uploadForm}
+          onDraftChange={setUploadForm}
+          categories={categories}
+          knownTags={tagOptions}
+          storageOptions={storageChoices}
+          storageKey={uploadStorageKey}
+          onStorageKeyChange={setUploadStorageKey}
+          artifactMode={artifactMode}
+          onArtifactModeChange={selectArtifactMode}
+          file={file}
+          onFileChange={setFile}
+          fileInputRef={fileInputRef}
+          desktopScreenshotFiles={desktopScreenshotFiles}
+          desktopScreenshotCaptions={desktopScreenshotCaptions}
+          onDesktopScreenshotFilesChange={updateDesktopScreenshotFiles}
+          onDesktopScreenshotCaptionChange={updateDesktopScreenshotCaption}
+          mobileScreenshotFiles={mobileScreenshotFiles}
+          mobileScreenshotCaptions={mobileScreenshotCaptions}
+          onMobileScreenshotFilesChange={updateMobileScreenshotFiles}
+          onMobileScreenshotCaptionChange={updateMobileScreenshotCaption}
+          recentSubmission={recentSubmission}
+          isDirectPublishUser={user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN'}
+          isSubmitting={isSubmittingApp}
+          submissionProgress={submissionProgress}
+          presentation="modal"
+          onSubmit={submitUpload}
+          onCancel={() => setIsSubmitOpen(false)}
+        />
+      </div>
       )}
       {workspaceTab === 'manage' && (
       <section className="workspace-pane">
@@ -2854,8 +2998,8 @@ function ProfileView({
                   </div>
                   <div className="row-actions management-row-actions">
                     <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
-                    <XButton className="fixed-row-button" type="button" variant="secondary" size="sm" label={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
-                    <XButton className="fixed-row-button" type="button" variant="primary" size="sm" label={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
+                    <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                    <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
                   </div>
                 </div>
               ))
@@ -3135,7 +3279,7 @@ function AdminPanel({
   user: User;
   reviews: Review[];
   onApprove: (review: Review, approve: boolean) => void;
-  onSiteProfileSaved: () => Promise<void>;
+  onSiteProfileSaved: (site?: SiteProfile) => Promise<void>;
   onStorageOptionsChanged: () => Promise<void>;
   setToast: (toast: Toast) => void;
 }) {
@@ -3156,6 +3300,7 @@ function AdminPanel({
   const [isStorageCreateOpen, setIsStorageCreateOpen] = useState(false);
   const [siteIconFile, setSiteIconFile] = useState<File | null>(null);
   const [siteIconStorageKey, setSiteIconStorageKey] = useState(defaultStorageSettings.key);
+  const [isUploadingSiteIcon, setIsUploadingSiteIcon] = useState(false);
   const [adminCategories, setAdminCategories] = useState<Category[]>([]);
   const [adminTags, setAdminTags] = useState<TagRecord[]>([]);
   const [adminCollections, setAdminCollections] = useState<Collection[]>([]);
@@ -3202,6 +3347,7 @@ function AdminPanel({
   ] as const;
   const siteIdentityFields = [
     { key: 'site_title', label: t('admin.settings.siteTitle'), help: t('admin.settingsHelp.siteTitle') },
+    { key: 'site_subtitle', label: t('admin.settings.siteSubtitle'), help: t('admin.settingsHelp.siteSubtitle'), type: 'textarea' },
     { key: 'site_icon_url', label: t('admin.settings.siteIconURL'), help: t('admin.settingsHelp.siteIconURL'), type: 'url' },
     { key: 'site_public_url', label: t('admin.settings.sitePublicURL'), help: t('admin.settingsHelp.sitePublicURL'), type: 'url' },
   ];
@@ -3460,16 +3606,21 @@ function AdminPanel({
 
   async function uploadSiteIcon() {
     if (!siteIconFile) return;
-    await runAction(setToast, t('admin.siteIconUploadFailed'), async () => {
-      const form = new FormData();
-      form.set('file', siteIconFile);
-      form.set('storageKey', siteIconStorageKey);
-      const data = await api<{ url: string }>('/api/v1/admin/settings/site-icon', { method: 'POST', body: form });
-      updateSetting('site_icon_url', data.url);
-      setSiteIconFile(null);
-      setToast({ tone: 'success', message: t('admin.siteIconUploaded') });
-      await onSiteProfileSaved();
-    });
+    setIsUploadingSiteIcon(true);
+    try {
+      await runAction(setToast, t('admin.siteIconUploadFailed'), async () => {
+        const form = new FormData();
+        form.set('file', siteIconFile);
+        form.set('storageKey', siteIconStorageKey);
+        const data = await api<{ url: string; site?: SiteProfile }>('/api/v1/admin/settings/site-icon', { method: 'POST', body: form });
+        updateSetting('site_icon_url', data.url);
+        setSiteIconFile(null);
+        setToast({ tone: 'success', message: t('admin.siteIconUploaded') });
+        await onSiteProfileSaved(data.site);
+      });
+    } finally {
+      setIsUploadingSiteIcon(false);
+    }
   }
 
   async function createRegistrationInvite() {
@@ -4030,7 +4181,7 @@ function AdminPanel({
                           onChange={setSiteIconStorageKey}
                         />
                       )}
-                      <XButton type="button" variant="secondary" size="sm" label={t('admin.uploadSiteIcon')} icon={<Upload size={17} />} isDisabled={!siteIconFile} onClick={() => void uploadSiteIcon()} />
+                      <XButton type="button" variant="secondary" size="sm" label={t('admin.uploadSiteIcon')} icon={<Upload size={17} />} isDisabled={!siteIconFile || isUploadingSiteIcon} isLoading={isUploadingSiteIcon} onClick={() => void uploadSiteIcon()} />
                     </div>
                     <XFormLayout>
                       {siteIdentityFields.map(renderSettingField)}
@@ -4209,6 +4360,7 @@ function AdminPanel({
               </div>
               <div>
                 <strong>{settings.site_title || t('appName')}</strong>
+                {settings.site_subtitle && <span className="site-preview-subtitle">{settings.site_subtitle}</span>}
                 <span>{adminPublicURL}</span>
               </div>
             </div>
@@ -4545,6 +4697,7 @@ function AppDrawer({
   user,
   groups,
   categories,
+  tagOptions,
   storageOptions,
   onClose,
   onInstall,
@@ -4558,6 +4711,7 @@ function AppDrawer({
   user: User | null;
   groups: Group[];
   categories: Category[];
+  tagOptions: string[];
   storageOptions: StorageOption[];
   onClose: () => void;
   onInstall: (app: StoreApp) => void;
@@ -4574,10 +4728,11 @@ function AppDrawer({
   const [screenshotStorageKey, setScreenshotStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [screenshotCaptionDrafts, setScreenshotCaptionDrafts] = useState<Record<number, string>>({});
   const preferredScreenshotDevice = usePreferredScreenshotDevice();
-  const [versionForm, setVersionForm] = useState({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
+  const [versionForm, setVersionForm] = useState({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', useMirrorDownload: true, changelog: '' });
   const [versionArtifactMode, setVersionArtifactMode] = useState<'local' | 'external'>('local');
   const [versionFile, setVersionFile] = useState<File | null>(null);
   const [isSubmittingVersion, setIsSubmittingVersion] = useState(false);
+  const [versionProgress, setVersionProgress] = useState<SubmissionProgress | null>(null);
   const [versionStorageKey, setVersionStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [collaboratorRequests, setCollaboratorRequests] = useState<CollaboratorRequest[]>([]);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
@@ -4631,6 +4786,13 @@ function AppDrawer({
   const versionNumberReady = Boolean(versionForm.version.trim());
   const versionExternalDownloadReady = Boolean(versionForm.downloadUrl.trim());
   const versionExternalChecksumReady = Boolean(versionForm.sha256.trim());
+  const versionGithubMirrorKind = githubMirrorKindForURL(versionForm.downloadUrl);
+  const versionMirrorDownloadHelp =
+    versionGithubMirrorKind === 'raw'
+      ? t('submitApp.mirrorDownloadRawHelp')
+      : versionGithubMirrorKind === 'download'
+        ? t('submitApp.mirrorDownloadReleaseHelp')
+        : t('submitApp.mirrorDownloadHelp');
   const versionExternalArtifactReady = versionExternalDownloadReady;
   const versionArtifactReady = versionArtifactMode === 'local' ? Boolean(versionFile) : versionExternalArtifactReady;
   const canSubmitVersion = versionArtifactReady;
@@ -4658,6 +4820,7 @@ function AppDrawer({
     setVersionArtifactMode('local');
     setVersionFile(null);
     setIsSubmittingVersion(false);
+    setVersionProgress(null);
     setScreenshotCaptionDrafts(Object.fromEntries((app.screenshots || []).map((shot) => [shot.id, shot.caption || ''])));
     if (versionFileInputRef.current) versionFileInputRef.current.value = '';
   }, [app]);
@@ -4747,6 +4910,19 @@ function AppDrawer({
     if (versionFileInputRef.current) versionFileInputRef.current.value = '';
   }
 
+  function startVersionStageProgress(label: string, initialPercent = 12, maxPercent = 86) {
+    setVersionProgress({ percent: initialPercent, label });
+    const timer = window.setInterval(() => {
+      setVersionProgress((current) => {
+        if (!current) return current;
+        const remaining = maxPercent - current.percent;
+        if (remaining <= 0) return current;
+        return { ...current, percent: Math.min(maxPercent, current.percent + Math.max(1, remaining * 0.16)) };
+      });
+    }, 700);
+    return () => window.clearInterval(timer);
+  }
+
   async function submitExternalVersion(event: FormEvent) {
     event.preventDefault();
     if (isSubmittingVersion) return;
@@ -4759,6 +4935,8 @@ function AppDrawer({
       return;
     }
     setIsSubmittingVersion(true);
+    setVersionProgress({ percent: 6, label: t('submitApp.progressPreparing') });
+    let stopStageProgress: (() => void) | undefined;
     try {
       await runAction(setToast, t('drawer.versionSubmitFailed'), async () => {
         if (versionArtifactMode === 'local' && versionFile) {
@@ -4767,8 +4945,22 @@ function AppDrawer({
           form.set('version', versionForm.version.trim());
           form.set('changelog', versionForm.changelog);
           form.set('storageKey', versionStorageKey);
-          await api(`/api/v1/apps/${app.id}/versions`, { method: 'POST', body: form });
+          await apiWithUploadProgress(`/api/v1/apps/${app.id}/versions`, {
+            method: 'POST',
+            body: form,
+            onUploadProgress: (percent) => {
+              setVersionProgress({
+                percent: Math.min(88, Math.max(8, Math.round(percent * 0.82))),
+                label: percent >= 100 ? t('submitApp.progressVerifying') : t('submitApp.progressUploading'),
+              });
+            },
+          });
         } else {
+          stopStageProgress = startVersionStageProgress(
+            versionForm.sourceType === 'GITHUB' && versionForm.useMirrorDownload
+              ? t('submitApp.progressMirrorFetching')
+              : t('submitApp.progressRemoteFetching'),
+          );
           await api(`/api/v1/apps/${app.id}/versions`, {
             method: 'POST',
             body: JSON.stringify({
@@ -4779,7 +4971,10 @@ function AppDrawer({
             }),
           });
         }
-        setVersionForm({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
+        stopStageProgress?.();
+        stopStageProgress = undefined;
+        setVersionProgress({ percent: 100, label: t('submitApp.progressDone') });
+        setVersionForm({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', useMirrorDownload: true, changelog: '' });
         setVersionArtifactMode('local');
         setVersionFile(null);
         if (versionFileInputRef.current) versionFileInputRef.current.value = '';
@@ -4787,6 +4982,8 @@ function AppDrawer({
         await onRefresh();
       });
     } finally {
+      stopStageProgress?.();
+      setVersionProgress(null);
       setIsSubmittingVersion(false);
     }
   }
@@ -5112,7 +5309,7 @@ function AppDrawer({
                   ]}
                   onChange={(value) => setAppForm({ ...appForm, categoryId: value })}
                 />
-                <XTextInput label={t('common.tags')} value={appForm.tags} onChange={(value) => setAppForm({ ...appForm, tags: value })} />
+                <TagTokenizer label={t('common.tags')} value={appForm.tags} knownTags={tagOptions} onChange={(value) => setAppForm({ ...appForm, tags: value })} />
                 <XTextInput
                   type="password"
                   label={t('drawer.installPassword')}
@@ -5276,10 +5473,33 @@ function AppDrawer({
                         value={versionForm.sha256}
                         onChange={(value) => setVersionForm({ ...versionForm, sha256: value })}
                       />
+                      {versionForm.sourceType === 'GITHUB' && (
+                        <div className="mirror-download-option">
+                          <XSwitch
+                            label={t('submitApp.useMirrorDownload')}
+                            value={versionForm.useMirrorDownload}
+                            labelSpacing="spread"
+                            width="100%"
+                            onChange={(checked) => setVersionForm({ ...versionForm, useMirrorDownload: checked })}
+                          />
+                          <p className="field-help">{versionMirrorDownloadHelp}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
                 {!canSubmitVersion && <p className="field-help">{t('drawer.versionSubmitBlocked')}</p>}
+                {versionProgress && (
+                  <div className="submit-progress" role="status" aria-live="polite">
+                    <div className="submit-progress-row">
+                      <strong>{versionProgress.label}</strong>
+                      <span>{Math.round(versionProgress.percent)}%</span>
+                    </div>
+                    <div className="progress">
+                      <span style={{ width: `${Math.max(4, Math.min(100, versionProgress.percent))}%` }} />
+                    </div>
+                  </div>
+                )}
                 <XButton
                   type="submit"
                   variant="secondary"

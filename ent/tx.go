@@ -38,6 +38,8 @@ type Tx struct {
 	ClientSyncSetting *ClientSyncSettingClient
 	// Collaborator is the client for interacting with the Collaborator builders.
 	Collaborator *CollaboratorClient
+	// CollaboratorInvite is the client for interacting with the CollaboratorInvite builders.
+	CollaboratorInvite *CollaboratorInviteClient
 	// CollaboratorRequest is the client for interacting with the CollaboratorRequest builders.
 	CollaboratorRequest *CollaboratorRequestClient
 	// Collection is the client for interacting with the Collection builders.
@@ -212,6 +214,7 @@ func (tx *Tx) init() {
 	tx.ClientSourceApp = NewClientSourceAppClient(tx.config)
 	tx.ClientSyncSetting = NewClientSyncSettingClient(tx.config)
 	tx.Collaborator = NewCollaboratorClient(tx.config)
+	tx.CollaboratorInvite = NewCollaboratorInviteClient(tx.config)
 	tx.CollaboratorRequest = NewCollaboratorRequestClient(tx.config)
 	tx.Collection = NewCollectionClient(tx.config)
 	tx.CollectionApp = NewCollectionAppClient(tx.config)

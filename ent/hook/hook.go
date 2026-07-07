@@ -165,6 +165,18 @@ func (f CollaboratorFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CollaboratorMutation", m)
 }
 
+// The CollaboratorInviteFunc type is an adapter to allow the use of ordinary
+// function as CollaboratorInvite mutator.
+type CollaboratorInviteFunc func(context.Context, *ent.CollaboratorInviteMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CollaboratorInviteFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CollaboratorInviteMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CollaboratorInviteMutation", m)
+}
+
 // The CollaboratorRequestFunc type is an adapter to allow the use of ordinary
 // function as CollaboratorRequest mutator.
 type CollaboratorRequestFunc func(context.Context, *ent.CollaboratorRequestMutation) (ent.Value, error)

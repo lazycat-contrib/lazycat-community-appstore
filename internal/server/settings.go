@@ -22,6 +22,7 @@ const (
 	settingGitHubDownloadMirrors    = "github_download_mirrors"
 	settingGitHubRawMirrors         = "github_raw_mirrors"
 	settingSiteTitle                = "site_title"
+	settingSiteSubtitle             = "site_subtitle"
 	settingSiteIconURL              = "site_icon_url"
 	settingSitePublicURL            = "site_public_url"
 	settingDefaultStorageKey        = "default_storage_key"
@@ -176,6 +177,7 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 	}
 	return siteProfile{
 		Title:        title,
+		Subtitle:     strings.TrimSpace(s.setting(ctx, settingSiteSubtitle, "")),
 		IconURL:      cleanURLSetting(s.setting(ctx, settingSiteIconURL, "")),
 		PublicURL:    publicURL,
 		SourceURL:    publicURL + "/source/v1/index.json",

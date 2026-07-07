@@ -122,6 +122,7 @@ export type CollaboratorRequest = {
   id: number;
   app_id?: number;
   appId?: number;
+  appName?: string;
   user_id?: number;
   userId?: number;
   username?: string;
@@ -130,6 +131,42 @@ export type CollaboratorRequest = {
   message: string;
   created_at?: string;
   createdAt?: string;
+};
+
+export type Collaborator = {
+  id: number;
+  appId: number;
+  appName: string;
+  userId: number;
+  username: string;
+  email?: string;
+  createdAt: string;
+};
+
+export type CollaboratorInvite = {
+  id: number;
+  appId: number;
+  appName: string;
+  email?: string;
+  tokenPrefix: string;
+  inviteUrl?: string;
+  acceptedBy?: number;
+  acceptedAt?: string;
+  expiresAt: string;
+  createdAt: string;
+};
+
+export type OwnedCollaboration = {
+  app: StoreApp;
+  collaborators: Collaborator[];
+  requests: CollaboratorRequest[];
+  invites: CollaboratorInvite[];
+};
+
+export type CollaborationData = {
+  owned: OwnedCollaboration[];
+  collaborating: StoreApp[];
+  outgoingRequests: CollaboratorRequest[];
 };
 
 export type Group = {
@@ -275,6 +312,7 @@ export type SiteRegistration = {
 
 export type SiteProfile = {
   title: string;
+  subtitle?: string;
   iconUrl?: string;
   publicUrl: string;
   sourceUrl: string;

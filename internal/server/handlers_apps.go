@@ -19,6 +19,7 @@ import (
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/collaborator"
+	"lazycat.community/appstore/ent/collaboratorinvite"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collectionapp"
 	commentpkg "lazycat.community/appstore/ent/comment"
@@ -36,11 +37,27 @@ import (
 func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	u := s.optionalUser(r)
 	q := s.db.App.Query().Order(entgo.Desc(app.FieldUpdatedAt)).Limit(100)
+	managedList := r.URL.Query().Get("managed") == "1" || r.URL.Query().Get("managed") == "true"
+	if managedList {
+		if u == nil {
+			writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required", nil)
+			return
+		}
+		if !isAdmin(u) {
+			writeError(w, http.StatusForbidden, "FORBIDDEN", "Only administrators can list managed apps", nil)
+			return
+		}
+	}
 	if !isAdmin(u) {
 		if u == nil {
 			q.Where(app.StatusEQ(app.StatusAPPROVED))
 		} else {
-			q.Where(app.Or(app.StatusEQ(app.StatusAPPROVED), app.OwnerIDEQ(u.ID)))
+			collaboratorAppIDs := s.collaboratorAppIDs(r.Context(), u.ID)
+			if len(collaboratorAppIDs) > 0 {
+				q.Where(app.Or(app.StatusEQ(app.StatusAPPROVED), app.OwnerIDEQ(u.ID), app.IDIn(collaboratorAppIDs...)))
+			} else {
+				q.Where(app.Or(app.StatusEQ(app.StatusAPPROVED), app.OwnerIDEQ(u.ID)))
+			}
 		}
 	}
 	if search := strings.TrimSpace(r.URL.Query().Get("q")); search != "" {
@@ -130,6 +147,7 @@ type createAppJSON struct {
 	DownloadURL               string   `json:"downloadUrl"`
 	SourceType                string   `json:"sourceType"`
 	SHA256                    string   `json:"sha256"`
+	UseMirrorDownload         bool     `json:"useMirrorDownload"`
 }
 
 type updateAppJSON struct {
@@ -176,7 +194,7 @@ func (s *Server) handleCreateApp(w http.ResponseWriter, r *http.Request, u *entg
 	var inspected lpkInspection
 	if input.DownloadURL != "" && appInputNeedsLPKInspection(input) {
 		var err error
-		inspected, err = s.inspectLPKURL(r.Context(), input.DownloadURL, s.effectiveMaxLPKSize(r.Context()))
+		inspected, err = s.inspectLPKURL(r.Context(), input.DownloadURL, s.effectiveMaxLPKSize(r.Context()), input.UseMirrorDownload)
 		if err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "LPK_METADATA_FAILED", err.Error(), nil)
 			return
@@ -221,6 +239,7 @@ func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *e
 		Version:                   r.FormValue("version"),
 		Changelog:                 r.FormValue("changelog"),
 		InstallPassword:           r.FormValue("installPassword"),
+		UseMirrorDownload:         formBool(r, "useMirrorDownload"),
 		AllowUnreviewedUpdates:    formBool(r, "allowUnreviewedUpdates"),
 		CommentsEnabled:           &commentsEnabled,
 		EmailNotificationsEnabled: &emailNotificationsEnabled,
@@ -454,6 +473,7 @@ func (s *Server) handleDeleteApp(w http.ResponseWriter, r *http.Request, u *entg
 	_, _ = s.db.AppVisibility.Delete().Where(appvisibility.AppIDEQ(id)).Exec(r.Context())
 	_, _ = s.db.AppTag.Delete().Where(apptag.AppIDEQ(id)).Exec(r.Context())
 	_, _ = s.db.Collaborator.Delete().Where(collaborator.AppIDEQ(id)).Exec(r.Context())
+	_, _ = s.db.CollaboratorInvite.Delete().Where(collaboratorinvite.AppIDEQ(id)).Exec(r.Context())
 	_, _ = s.db.CollaboratorRequest.Delete().Where(collaboratorrequest.AppIDEQ(id)).Exec(r.Context())
 	_, _ = s.db.OutdatedMark.Delete().Where(outdatedpkg.AppIDEQ(id)).Exec(r.Context())
 	_, _ = s.db.ReviewRequest.Delete().Where(reviewrequest.AppIDEQ(id)).Exec(r.Context())
@@ -535,7 +555,7 @@ func (s *Server) handleCreateVersion(w http.ResponseWriter, r *http.Request, u *
 	input.DownloadURL = normalizeGitHubRawURL(input.DownloadURL)
 	var inspected lpkInspection
 	if input.DownloadURL != "" && versionInputNeedsLPKInspection(input) {
-		inspected, err = s.inspectLPKURL(r.Context(), input.DownloadURL, s.effectiveMaxLPKSize(r.Context()))
+		inspected, err = s.inspectLPKURL(r.Context(), input.DownloadURL, s.effectiveMaxLPKSize(r.Context()), input.UseMirrorDownload)
 		if err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "LPK_METADATA_FAILED", err.Error(), nil)
 			return
@@ -777,6 +797,18 @@ func (s *Server) isCollaborator(r *http.Request, appID, userID int) bool {
 	return ok
 }
 
+func (s *Server) collaboratorAppIDs(ctx context.Context, userID int) []int {
+	records, err := s.db.Collaborator.Query().Where(collaborator.UserIDEQ(userID)).All(ctx)
+	if err != nil {
+		return nil
+	}
+	ids := make([]int, 0, len(records))
+	for _, record := range records {
+		ids = append(ids, record.AppID)
+	}
+	return ids
+}
+
 func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User) appSummary {
 	dto := appSummary{
 		ID:                        record.ID,
@@ -802,6 +834,10 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 	}
 	if owner, err := s.db.User.Get(r.Context(), record.OwnerID); err == nil {
 		dto.Owner = userDisplayName(owner)
+	}
+	if u != nil {
+		dto.CanManageApp = isAdmin(u) || record.OwnerID == u.ID
+		dto.CanUploadVersion = dto.CanManageApp || s.isCollaborator(r, record.ID, u.ID)
 	}
 	if record.CategoryID != nil {
 		if cat, err := s.db.Category.Get(r.Context(), *record.CategoryID); err == nil {

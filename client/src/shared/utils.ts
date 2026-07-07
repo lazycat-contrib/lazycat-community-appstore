@@ -156,6 +156,7 @@ export function defaultSiteProfile(title: string): SiteProfile {
   const publicUrl = stripTrailingSlash(API_BASE || window.location.origin);
   return {
     title,
+    subtitle: '',
     publicUrl,
     sourceUrl: `${publicUrl}/source/v1/index.json`,
     announcement: { enabled: false, level: 'info' },

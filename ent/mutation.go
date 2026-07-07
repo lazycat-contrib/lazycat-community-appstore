@@ -24,6 +24,7 @@ import (
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/clientsyncsetting"
 	"lazycat.community/appstore/ent/collaborator"
+	"lazycat.community/appstore/ent/collaboratorinvite"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collection"
 	"lazycat.community/appstore/ent/collectionapp"
@@ -64,6 +65,7 @@ const (
 	TypeClientSourceApp      = "ClientSourceApp"
 	TypeClientSyncSetting    = "ClientSyncSetting"
 	TypeCollaborator         = "Collaborator"
+	TypeCollaboratorInvite   = "CollaboratorInvite"
 	TypeCollaboratorRequest  = "CollaboratorRequest"
 	TypeCollection           = "Collection"
 	TypeCollectionApp        = "CollectionApp"
@@ -11234,6 +11236,981 @@ func (m *CollaboratorMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *CollaboratorMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Collaborator edge %s", name)
+}
+
+// CollaboratorInviteMutation represents an operation that mutates the CollaboratorInvite nodes in the graph.
+type CollaboratorInviteMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	app_id         *int
+	addapp_id      *int
+	inviter_id     *int
+	addinviter_id  *int
+	email          *string
+	token_hash     *string
+	token_prefix   *string
+	accepted_by    *int
+	addaccepted_by *int
+	accepted_at    *time.Time
+	expires_at     *time.Time
+	created_at     *time.Time
+	updated_at     *time.Time
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*CollaboratorInvite, error)
+	predicates     []predicate.CollaboratorInvite
+}
+
+var _ ent.Mutation = (*CollaboratorInviteMutation)(nil)
+
+// collaboratorinviteOption allows management of the mutation configuration using functional options.
+type collaboratorinviteOption func(*CollaboratorInviteMutation)
+
+// newCollaboratorInviteMutation creates new mutation for the CollaboratorInvite entity.
+func newCollaboratorInviteMutation(c config, op Op, opts ...collaboratorinviteOption) *CollaboratorInviteMutation {
+	m := &CollaboratorInviteMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCollaboratorInvite,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCollaboratorInviteID sets the ID field of the mutation.
+func withCollaboratorInviteID(id int) collaboratorinviteOption {
+	return func(m *CollaboratorInviteMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CollaboratorInvite
+		)
+		m.oldValue = func(ctx context.Context) (*CollaboratorInvite, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CollaboratorInvite.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCollaboratorInvite sets the old CollaboratorInvite of the mutation.
+func withCollaboratorInvite(node *CollaboratorInvite) collaboratorinviteOption {
+	return func(m *CollaboratorInviteMutation) {
+		m.oldValue = func(context.Context) (*CollaboratorInvite, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CollaboratorInviteMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CollaboratorInviteMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CollaboratorInviteMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CollaboratorInviteMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CollaboratorInvite.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAppID sets the "app_id" field.
+func (m *CollaboratorInviteMutation) SetAppID(i int) {
+	m.app_id = &i
+	m.addapp_id = nil
+}
+
+// AppID returns the value of the "app_id" field in the mutation.
+func (m *CollaboratorInviteMutation) AppID() (r int, exists bool) {
+	v := m.app_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppID returns the old "app_id" field's value of the CollaboratorInvite entity.
+// If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CollaboratorInviteMutation) OldAppID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppID: %w", err)
+	}
+	return oldValue.AppID, nil
+}
+
+// AddAppID adds i to the "app_id" field.
+func (m *CollaboratorInviteMutation) AddAppID(i int) {
+	if m.addapp_id != nil {
+		*m.addapp_id += i
+	} else {
+		m.addapp_id = &i
+	}
+}
+
+// AddedAppID returns the value that was added to the "app_id" field in this mutation.
+func (m *CollaboratorInviteMutation) AddedAppID() (r int, exists bool) {
+	v := m.addapp_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAppID resets all changes to the "app_id" field.
+func (m *CollaboratorInviteMutation) ResetAppID() {
+	m.app_id = nil
+	m.addapp_id = nil
+}
+
+// SetInviterID sets the "inviter_id" field.
+func (m *CollaboratorInviteMutation) SetInviterID(i int) {
+	m.inviter_id = &i
+	m.addinviter_id = nil
+}
+
+// InviterID returns the value of the "inviter_id" field in the mutation.
+func (m *CollaboratorInviteMutation) InviterID() (r int, exists bool) {
+	v := m.inviter_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInviterID returns the old "inviter_id" field's value of the CollaboratorInvite entity.
+// If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CollaboratorInviteMutation) OldInviterID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInviterID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInviterID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInviterID: %w", err)
+	}
+	return oldValue.InviterID, nil
+}
+
+// AddInviterID adds i to the "inviter_id" field.
+func (m *CollaboratorInviteMutation) AddInviterID(i int) {
+	if m.addinviter_id != nil {
+		*m.addinviter_id += i
+	} else {
+		m.addinviter_id = &i
+	}
+}
+
+// AddedInviterID returns the value that was added to the "inviter_id" field in this mutation.
+func (m *CollaboratorInviteMutation) AddedInviterID() (r int, exists bool) {
+	v := m.addinviter_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetInviterID resets all changes to the "inviter_id" field.
+func (m *CollaboratorInviteMutation) ResetInviterID() {
+	m.inviter_id = nil
+	m.addinviter_id = nil
+}
+
+// SetEmail sets the "email" field.
+func (m *CollaboratorInviteMutation) SetEmail(s string) {
+	m.email = &s
+}
+
+// Email returns the value of the "email" field in the mutation.
+func (m *CollaboratorInviteMutation) Email() (r string, exists bool) {
+	v := m.email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmail returns the old "email" field's value of the CollaboratorInvite entity.
+// If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CollaboratorInviteMutation) OldEmail(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmail: %w", err)
+	}
+	return oldValue.Email, nil
+}
+
+// ClearEmail clears the value of the "email" field.
+func (m *CollaboratorInviteMutation) ClearEmail() {
+	m.email = nil
+	m.clearedFields[collaboratorinvite.FieldEmail] = struct{}{}
+}
+
+// EmailCleared returns if the "email" field was cleared in this mutation.
+func (m *CollaboratorInviteMutation) EmailCleared() bool {
+	_, ok := m.clearedFields[collaboratorinvite.FieldEmail]
+	return ok
+}
+
+// ResetEmail resets all changes to the "email" field.
+func (m *CollaboratorInviteMutation) ResetEmail() {
+	m.email = nil
+	delete(m.clearedFields, collaboratorinvite.FieldEmail)
+}
+
+// SetTokenHash sets the "token_hash" field.
+func (m *CollaboratorInviteMutation) SetTokenHash(s string) {
+	m.token_hash = &s
+}
+
+// TokenHash returns the value of the "token_hash" field in the mutation.
+func (m *CollaboratorInviteMutation) TokenHash() (r string, exists bool) {
+	v := m.token_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenHash returns the old "token_hash" field's value of the CollaboratorInvite entity.
+// If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CollaboratorInviteMutation) OldTokenHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenHash: %w", err)
+	}
+	return oldValue.TokenHash, nil
+}
+
+// ResetTokenHash resets all changes to the "token_hash" field.
+func (m *CollaboratorInviteMutation) ResetTokenHash() {
+	m.token_hash = nil
+}
+
+// SetTokenPrefix sets the "token_prefix" field.
+func (m *CollaboratorInviteMutation) SetTokenPrefix(s string) {
+	m.token_prefix = &s
+}
+
+// TokenPrefix returns the value of the "token_prefix" field in the mutation.
+func (m *CollaboratorInviteMutation) TokenPrefix() (r string, exists bool) {
+	v := m.token_prefix
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenPrefix returns the old "token_prefix" field's value of the CollaboratorInvite entity.
+// If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CollaboratorInviteMutation) OldTokenPrefix(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenPrefix is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenPrefix requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenPrefix: %w", err)
+	}
+	return oldValue.TokenPrefix, nil
+}
+
+// ResetTokenPrefix resets all changes to the "token_prefix" field.
+func (m *CollaboratorInviteMutation) ResetTokenPrefix() {
+	m.token_prefix = nil
+}
+
+// SetAcceptedBy sets the "accepted_by" field.
+func (m *CollaboratorInviteMutation) SetAcceptedBy(i int) {
+	m.accepted_by = &i
+	m.addaccepted_by = nil
+}
+
+// AcceptedBy returns the value of the "accepted_by" field in the mutation.
+func (m *CollaboratorInviteMutation) AcceptedBy() (r int, exists bool) {
+	v := m.accepted_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcceptedBy returns the old "accepted_by" field's value of the CollaboratorInvite entity.
+// If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CollaboratorInviteMutation) OldAcceptedBy(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcceptedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcceptedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcceptedBy: %w", err)
+	}
+	return oldValue.AcceptedBy, nil
+}
+
+// AddAcceptedBy adds i to the "accepted_by" field.
+func (m *CollaboratorInviteMutation) AddAcceptedBy(i int) {
+	if m.addaccepted_by != nil {
+		*m.addaccepted_by += i
+	} else {
+		m.addaccepted_by = &i
+	}
+}
+
+// AddedAcceptedBy returns the value that was added to the "accepted_by" field in this mutation.
+func (m *CollaboratorInviteMutation) AddedAcceptedBy() (r int, exists bool) {
+	v := m.addaccepted_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAcceptedBy clears the value of the "accepted_by" field.
+func (m *CollaboratorInviteMutation) ClearAcceptedBy() {
+	m.accepted_by = nil
+	m.addaccepted_by = nil
+	m.clearedFields[collaboratorinvite.FieldAcceptedBy] = struct{}{}
+}
+
+// AcceptedByCleared returns if the "accepted_by" field was cleared in this mutation.
+func (m *CollaboratorInviteMutation) AcceptedByCleared() bool {
+	_, ok := m.clearedFields[collaboratorinvite.FieldAcceptedBy]
+	return ok
+}
+
+// ResetAcceptedBy resets all changes to the "accepted_by" field.
+func (m *CollaboratorInviteMutation) ResetAcceptedBy() {
+	m.accepted_by = nil
+	m.addaccepted_by = nil
+	delete(m.clearedFields, collaboratorinvite.FieldAcceptedBy)
+}
+
+// SetAcceptedAt sets the "accepted_at" field.
+func (m *CollaboratorInviteMutation) SetAcceptedAt(t time.Time) {
+	m.accepted_at = &t
+}
+
+// AcceptedAt returns the value of the "accepted_at" field in the mutation.
+func (m *CollaboratorInviteMutation) AcceptedAt() (r time.Time, exists bool) {
+	v := m.accepted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcceptedAt returns the old "accepted_at" field's value of the CollaboratorInvite entity.
+// If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CollaboratorInviteMutation) OldAcceptedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcceptedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcceptedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcceptedAt: %w", err)
+	}
+	return oldValue.AcceptedAt, nil
+}
+
+// ClearAcceptedAt clears the value of the "accepted_at" field.
+func (m *CollaboratorInviteMutation) ClearAcceptedAt() {
+	m.accepted_at = nil
+	m.clearedFields[collaboratorinvite.FieldAcceptedAt] = struct{}{}
+}
+
+// AcceptedAtCleared returns if the "accepted_at" field was cleared in this mutation.
+func (m *CollaboratorInviteMutation) AcceptedAtCleared() bool {
+	_, ok := m.clearedFields[collaboratorinvite.FieldAcceptedAt]
+	return ok
+}
+
+// ResetAcceptedAt resets all changes to the "accepted_at" field.
+func (m *CollaboratorInviteMutation) ResetAcceptedAt() {
+	m.accepted_at = nil
+	delete(m.clearedFields, collaboratorinvite.FieldAcceptedAt)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *CollaboratorInviteMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *CollaboratorInviteMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the CollaboratorInvite entity.
+// If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CollaboratorInviteMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *CollaboratorInviteMutation) ResetExpiresAt() {
+	m.expires_at = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CollaboratorInviteMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CollaboratorInviteMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CollaboratorInvite entity.
+// If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CollaboratorInviteMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CollaboratorInviteMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CollaboratorInviteMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CollaboratorInviteMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CollaboratorInvite entity.
+// If the CollaboratorInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CollaboratorInviteMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CollaboratorInviteMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the CollaboratorInviteMutation builder.
+func (m *CollaboratorInviteMutation) Where(ps ...predicate.CollaboratorInvite) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CollaboratorInviteMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CollaboratorInviteMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CollaboratorInvite, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CollaboratorInviteMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CollaboratorInviteMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CollaboratorInvite).
+func (m *CollaboratorInviteMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CollaboratorInviteMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.app_id != nil {
+		fields = append(fields, collaboratorinvite.FieldAppID)
+	}
+	if m.inviter_id != nil {
+		fields = append(fields, collaboratorinvite.FieldInviterID)
+	}
+	if m.email != nil {
+		fields = append(fields, collaboratorinvite.FieldEmail)
+	}
+	if m.token_hash != nil {
+		fields = append(fields, collaboratorinvite.FieldTokenHash)
+	}
+	if m.token_prefix != nil {
+		fields = append(fields, collaboratorinvite.FieldTokenPrefix)
+	}
+	if m.accepted_by != nil {
+		fields = append(fields, collaboratorinvite.FieldAcceptedBy)
+	}
+	if m.accepted_at != nil {
+		fields = append(fields, collaboratorinvite.FieldAcceptedAt)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, collaboratorinvite.FieldExpiresAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, collaboratorinvite.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, collaboratorinvite.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CollaboratorInviteMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case collaboratorinvite.FieldAppID:
+		return m.AppID()
+	case collaboratorinvite.FieldInviterID:
+		return m.InviterID()
+	case collaboratorinvite.FieldEmail:
+		return m.Email()
+	case collaboratorinvite.FieldTokenHash:
+		return m.TokenHash()
+	case collaboratorinvite.FieldTokenPrefix:
+		return m.TokenPrefix()
+	case collaboratorinvite.FieldAcceptedBy:
+		return m.AcceptedBy()
+	case collaboratorinvite.FieldAcceptedAt:
+		return m.AcceptedAt()
+	case collaboratorinvite.FieldExpiresAt:
+		return m.ExpiresAt()
+	case collaboratorinvite.FieldCreatedAt:
+		return m.CreatedAt()
+	case collaboratorinvite.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CollaboratorInviteMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case collaboratorinvite.FieldAppID:
+		return m.OldAppID(ctx)
+	case collaboratorinvite.FieldInviterID:
+		return m.OldInviterID(ctx)
+	case collaboratorinvite.FieldEmail:
+		return m.OldEmail(ctx)
+	case collaboratorinvite.FieldTokenHash:
+		return m.OldTokenHash(ctx)
+	case collaboratorinvite.FieldTokenPrefix:
+		return m.OldTokenPrefix(ctx)
+	case collaboratorinvite.FieldAcceptedBy:
+		return m.OldAcceptedBy(ctx)
+	case collaboratorinvite.FieldAcceptedAt:
+		return m.OldAcceptedAt(ctx)
+	case collaboratorinvite.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case collaboratorinvite.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case collaboratorinvite.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CollaboratorInvite field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CollaboratorInviteMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case collaboratorinvite.FieldAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppID(v)
+		return nil
+	case collaboratorinvite.FieldInviterID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInviterID(v)
+		return nil
+	case collaboratorinvite.FieldEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmail(v)
+		return nil
+	case collaboratorinvite.FieldTokenHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenHash(v)
+		return nil
+	case collaboratorinvite.FieldTokenPrefix:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenPrefix(v)
+		return nil
+	case collaboratorinvite.FieldAcceptedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcceptedBy(v)
+		return nil
+	case collaboratorinvite.FieldAcceptedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcceptedAt(v)
+		return nil
+	case collaboratorinvite.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case collaboratorinvite.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case collaboratorinvite.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CollaboratorInvite field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CollaboratorInviteMutation) AddedFields() []string {
+	var fields []string
+	if m.addapp_id != nil {
+		fields = append(fields, collaboratorinvite.FieldAppID)
+	}
+	if m.addinviter_id != nil {
+		fields = append(fields, collaboratorinvite.FieldInviterID)
+	}
+	if m.addaccepted_by != nil {
+		fields = append(fields, collaboratorinvite.FieldAcceptedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CollaboratorInviteMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case collaboratorinvite.FieldAppID:
+		return m.AddedAppID()
+	case collaboratorinvite.FieldInviterID:
+		return m.AddedInviterID()
+	case collaboratorinvite.FieldAcceptedBy:
+		return m.AddedAcceptedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CollaboratorInviteMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case collaboratorinvite.FieldAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAppID(v)
+		return nil
+	case collaboratorinvite.FieldInviterID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInviterID(v)
+		return nil
+	case collaboratorinvite.FieldAcceptedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAcceptedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CollaboratorInvite numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CollaboratorInviteMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(collaboratorinvite.FieldEmail) {
+		fields = append(fields, collaboratorinvite.FieldEmail)
+	}
+	if m.FieldCleared(collaboratorinvite.FieldAcceptedBy) {
+		fields = append(fields, collaboratorinvite.FieldAcceptedBy)
+	}
+	if m.FieldCleared(collaboratorinvite.FieldAcceptedAt) {
+		fields = append(fields, collaboratorinvite.FieldAcceptedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CollaboratorInviteMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CollaboratorInviteMutation) ClearField(name string) error {
+	switch name {
+	case collaboratorinvite.FieldEmail:
+		m.ClearEmail()
+		return nil
+	case collaboratorinvite.FieldAcceptedBy:
+		m.ClearAcceptedBy()
+		return nil
+	case collaboratorinvite.FieldAcceptedAt:
+		m.ClearAcceptedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CollaboratorInvite nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CollaboratorInviteMutation) ResetField(name string) error {
+	switch name {
+	case collaboratorinvite.FieldAppID:
+		m.ResetAppID()
+		return nil
+	case collaboratorinvite.FieldInviterID:
+		m.ResetInviterID()
+		return nil
+	case collaboratorinvite.FieldEmail:
+		m.ResetEmail()
+		return nil
+	case collaboratorinvite.FieldTokenHash:
+		m.ResetTokenHash()
+		return nil
+	case collaboratorinvite.FieldTokenPrefix:
+		m.ResetTokenPrefix()
+		return nil
+	case collaboratorinvite.FieldAcceptedBy:
+		m.ResetAcceptedBy()
+		return nil
+	case collaboratorinvite.FieldAcceptedAt:
+		m.ResetAcceptedAt()
+		return nil
+	case collaboratorinvite.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case collaboratorinvite.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case collaboratorinvite.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CollaboratorInvite field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CollaboratorInviteMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CollaboratorInviteMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CollaboratorInviteMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CollaboratorInviteMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CollaboratorInviteMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CollaboratorInviteMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CollaboratorInviteMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown CollaboratorInvite unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CollaboratorInviteMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown CollaboratorInvite edge %s", name)
 }
 
 // CollaboratorRequestMutation represents an operation that mutates the CollaboratorRequest nodes in the graph.

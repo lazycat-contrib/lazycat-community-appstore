@@ -55,7 +55,7 @@ export function StorefrontHome({
         <div className="storefront-hero-copy">
           <span className="eyebrow">{t('home.eyebrow')}</span>
           <h1>{siteProfile.title || t('home.title')}</h1>
-          <p>{t('home.body')}</p>
+          <p>{siteProfile.subtitle || t('home.body')}</p>
           <div className="hero-actions">
             <XButton type="button" variant="primary" label={t('nav.discover')} icon={<Search size={18} />} onClick={() => onNavigate('search')} />
             <XButton type="button" variant="primary" label={backstageLabel} icon={<BackstageIcon size={18} />} onClick={onSubmitApp} />

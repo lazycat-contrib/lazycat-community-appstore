@@ -8,8 +8,9 @@ import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { ArtifactModeOption } from '../../shared/components/ArtifactModeOption';
 import { FilePicker } from '../../shared/components/FilePicker';
+import { TagTokenizer } from '../../shared/components/TagTokenizer';
 import type { Category } from '../../shared/types';
-import { cx, formatBytes, localizedName } from '../../shared/utils';
+import { cx, formatBytes, githubMirrorKindForURL, localizedName } from '../../shared/utils';
 
 export type AppSubmissionDraft = {
   name: string;
@@ -23,15 +24,21 @@ export type AppSubmissionDraft = {
   sourceType: string;
   downloadUrl: string;
   sha256: string;
+  useMirrorDownload: boolean;
   installPassword: string;
 };
 
 export type SubmissionArtifactMode = 'local' | 'external';
+export type SubmissionProgress = {
+  percent: number;
+  label: string;
+};
 
 export function AppSubmissionForm({
   draft,
   onDraftChange,
   categories,
+  knownTags,
   storageOptions,
   storageKey,
   onStorageKeyChange,
@@ -51,12 +58,15 @@ export function AppSubmissionForm({
   recentSubmission,
   isDirectPublishUser,
   isSubmitting,
+  submissionProgress,
+  presentation = 'inline',
   onSubmit,
   onCancel,
 }: {
   draft: AppSubmissionDraft;
   onDraftChange: (draft: AppSubmissionDraft) => void;
   categories: Category[];
+  knownTags: string[];
   storageOptions: Array<{ value: string; label: string }>;
   storageKey: string;
   onStorageKeyChange: (key: string) => void;
@@ -76,6 +86,8 @@ export function AppSubmissionForm({
   recentSubmission: { name: string; status: string } | null;
   isDirectPublishUser: boolean;
   isSubmitting: boolean;
+  submissionProgress: SubmissionProgress | null;
+  presentation?: 'inline' | 'modal';
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onCancel: () => void;
 }) {
@@ -88,6 +100,13 @@ export function AppSubmissionForm({
   const artifactReady = artifactMode === 'local' ? Boolean(file) : externalDownloadReady;
   const appIdentityCanAutofill = artifactMode === 'local' ? Boolean(file) : externalDownloadReady;
   const canSubmitUpload = (appInfoReady || appIdentityCanAutofill) && artifactReady;
+  const githubMirrorKind = githubMirrorKindForURL(draft.downloadUrl);
+  const mirrorDownloadHelp =
+    githubMirrorKind === 'raw'
+      ? t('submitApp.mirrorDownloadRawHelp')
+      : githubMirrorKind === 'download'
+        ? t('submitApp.mirrorDownloadReleaseHelp')
+        : t('submitApp.mirrorDownloadHelp');
   const screenshotFileKey = (screenshot: File) => `${screenshot.name}:${screenshot.size}:${screenshot.lastModified}`;
   const renderScreenshotCaptionList = (
     files: File[],
@@ -113,8 +132,14 @@ export function AppSubmissionForm({
   ) : null;
 
   return (
-    <section className="workspace-pane">
-      <form className="panel form-panel" onSubmit={onSubmit}>
+      <form
+        className={cx('form-panel app-submission-form', presentation === 'modal' && 'modal-panel app-submission-dialog')}
+        role={presentation === 'modal' ? 'dialog' : undefined}
+        aria-modal={presentation === 'modal' ? true : undefined}
+        aria-label={presentation === 'modal' ? t('submitApp.title') : undefined}
+        onClick={(event) => event.stopPropagation()}
+        onSubmit={onSubmit}
+      >
         <div className="section-title with-action">
           <div>
             <Upload size={19} />
@@ -128,28 +153,14 @@ export function AppSubmissionForm({
             <span>{t('submitApp.reviewHint')}</span>
           </div>
           <div className="workflow-steps" aria-label={t('submitApp.publishPath')}>
-            <span>{t('submitApp.stepIdentity')}</span>
-            <ChevronRight size={14} />
             <span>{t('submitApp.stepArtifact')}</span>
+            <ChevronRight size={14} />
+            <span>{t('submitApp.stepIdentity')}</span>
             <ChevronRight size={14} />
             <span>{t('submitApp.stepReview')}</span>
           </div>
         </div>
         <div className="submission-readiness" aria-label={t('submitApp.readiness')}>
-          <div className={cx('readiness-step', appInfoComplete && 'ready')}>
-            <span className={cx('status-badge', appInfoComplete ? 'approved' : appInfoReady ? 'pending' : 'unlisted')}>
-              {appInfoComplete ? <Check size={14} /> : <AlertCircle size={14} />}
-              {appInfoComplete ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
-            </span>
-            <strong>{t('submitApp.readinessAppInfo')}</strong>
-            <small>
-              {appInfoReady
-                ? appInfoDetailed
-                  ? t('submitApp.readinessAppInfoReady')
-                  : t('submitApp.readinessAppInfoNeedsDetails')
-                : t('submitApp.readinessAppInfoMissing')}
-            </small>
-          </div>
           <div className={cx('readiness-step', artifactReady && 'ready')}>
             <span className={cx('status-badge', artifactReady ? 'approved' : 'unlisted')}>
               {artifactReady ? <Check size={14} /> : <AlertCircle size={14} />}
@@ -166,6 +177,20 @@ export function AppSubmissionForm({
                   : externalChecksumReady
                     ? t('submitApp.readinessArtifactExternalPartial')
                     : t('submitApp.readinessArtifactExternalMissing')}
+            </small>
+          </div>
+          <div className={cx('readiness-step', appInfoComplete && 'ready')}>
+            <span className={cx('status-badge', appInfoComplete ? 'approved' : appInfoReady ? 'pending' : 'unlisted')}>
+              {appInfoComplete ? <Check size={14} /> : <AlertCircle size={14} />}
+              {appInfoComplete ? t('submitApp.readinessReady') : t('submitApp.readinessNeedsAction')}
+            </span>
+            <strong>{t('submitApp.readinessAppInfo')}</strong>
+            <small>
+              {appInfoReady
+                ? appInfoDetailed
+                  ? t('submitApp.readinessAppInfoReady')
+                  : t('submitApp.readinessAppInfoNeedsDetails')
+                : t('submitApp.readinessAppInfoMissing')}
             </small>
           </div>
           <div className="readiness-step ready">
@@ -187,30 +212,7 @@ export function AppSubmissionForm({
             </span>
           </p>
         )}
-        <XTextInput label={t('submitApp.appName')} value={draft.name} onChange={(value) => onDraftChange({ ...draft, name: value })} />
-        <XTextInput label={t('common.version')} value={draft.version} onChange={(value) => onDraftChange({ ...draft, version: value })} />
-        <XTextInput label={t('common.summary')} value={draft.summary} onChange={(value) => onDraftChange({ ...draft, summary: value })} />
-        <XTextArea label={t('common.description')} value={draft.description} rows={4} onChange={(value) => onDraftChange({ ...draft, description: value })} />
-        <XSelector
-          label={t('common.category')}
-          value={draft.categoryId}
-          options={[
-            { value: '', label: t('common.uncategorized') },
-            ...categories.map((category) => ({ value: String(category.id), label: localizedName(category) })),
-          ]}
-          onChange={(value) => onDraftChange({ ...draft, categoryId: value })}
-        />
-        <XTextInput label={t('common.tags')} value={draft.tags} onChange={(value) => onDraftChange({ ...draft, tags: value })} />
-        {storageOptions.length > 0 && (
-          <XSelector
-            label={t('common.storage')}
-            description={t('submitApp.storageHelp')}
-            value={storageKey}
-            options={storageOptions}
-            onChange={onStorageKeyChange}
-          />
-        )}
-        <div className="artifact-section">
+        <div className="artifact-section primary-artifact-section">
           <div className="artifact-section-head">
             <strong>{t('submitApp.artifactMode')}</strong>
             <span>{artifactMode === 'local' ? t('submitApp.localArtifactHint') : t('submitApp.externalArtifactHint')}</span>
@@ -231,6 +233,15 @@ export function AppSubmissionForm({
               onSelect={() => onArtifactModeChange('external')}
             />
           </div>
+          {storageOptions.length > 0 && (
+            <XSelector
+              label={t('common.storage')}
+              description={t('submitApp.storageHelp')}
+              value={storageKey}
+              options={storageOptions}
+              onChange={onStorageKeyChange}
+            />
+          )}
           {artifactMode === 'local' ? (
             <FilePicker
               label={t('common.lpkFile')}
@@ -266,8 +277,40 @@ export function AppSubmissionForm({
                 value={draft.sha256}
                 onChange={(value) => onDraftChange({ ...draft, sha256: value })}
               />
+              {draft.sourceType === 'GITHUB' && (
+                <div className="mirror-download-option">
+                  <XSwitch
+                    label={t('submitApp.useMirrorDownload')}
+                    value={draft.useMirrorDownload}
+                    labelSpacing="spread"
+                    width="100%"
+                    onChange={(checked) => onDraftChange({ ...draft, useMirrorDownload: checked })}
+                  />
+                  <p className="field-help">{mirrorDownloadHelp}</p>
+                </div>
+              )}
             </div>
           )}
+        </div>
+        <div className="artifact-section app-info-section">
+          <div className="artifact-section-head">
+            <strong>{t('submitApp.appInfoSection')}</strong>
+            <span>{t('submitApp.appInfoSectionHelp')}</span>
+          </div>
+        <XTextInput label={t('submitApp.appName')} value={draft.name} onChange={(value) => onDraftChange({ ...draft, name: value })} />
+        <XTextInput label={t('common.version')} value={draft.version} onChange={(value) => onDraftChange({ ...draft, version: value })} />
+        <XTextInput label={t('common.summary')} value={draft.summary} onChange={(value) => onDraftChange({ ...draft, summary: value })} />
+        <XTextArea label={t('common.description')} value={draft.description} rows={4} onChange={(value) => onDraftChange({ ...draft, description: value })} />
+        <XSelector
+          label={t('common.category')}
+          value={draft.categoryId}
+          options={[
+            { value: '', label: t('common.uncategorized') },
+            ...categories.map((category) => ({ value: String(category.id), label: localizedName(category) })),
+          ]}
+          onChange={(value) => onDraftChange({ ...draft, categoryId: value })}
+        />
+        <TagTokenizer label={t('common.tags')} value={draft.tags} knownTags={knownTags} onChange={(value) => onDraftChange({ ...draft, tags: value })} />
         </div>
         <div className="artifact-section">
           <div className="artifact-section-head">
@@ -322,6 +365,17 @@ export function AppSubmissionForm({
           width="100%"
           onChange={(checked) => onDraftChange({ ...draft, allowUnreviewedUpdates: checked })}
         />
+        {submissionProgress && (
+          <div className="submit-progress" role="status" aria-live="polite">
+            <div className="submit-progress-row">
+              <strong>{submissionProgress.label}</strong>
+              <span>{Math.round(submissionProgress.percent)}%</span>
+            </div>
+            <div className="progress">
+              <span style={{ width: `${Math.max(4, Math.min(100, submissionProgress.percent))}%` }} />
+            </div>
+          </div>
+        )}
         {!canSubmitUpload && <p className="field-help">{t('submitApp.submitBlocked')}</p>}
         <XButton
           type="submit"
@@ -331,6 +385,5 @@ export function AppSubmissionForm({
           isDisabled={!canSubmitUpload || isSubmitting}
         />
       </form>
-    </section>
   );
 }

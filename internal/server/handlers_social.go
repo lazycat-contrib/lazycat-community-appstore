@@ -1,18 +1,26 @@
 package server
 
 import (
+	"context"
+	"fmt"
 	"hash/fnv"
+	"net/mail"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/collaborator"
+	"lazycat.community/appstore/ent/collaboratorinvite"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	commentpkg "lazycat.community/appstore/ent/comment"
 	commentnotificationpkg "lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/outdatedmark"
+	userpkg "lazycat.community/appstore/ent/user"
 )
 
 type commentRequest struct {
@@ -550,6 +558,302 @@ type collaboratorRequestBody struct {
 	Message string `json:"message"`
 }
 
+type addCollaboratorBody struct {
+	UserID   int    `json:"userId"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+type collaboratorInviteBody struct {
+	Email     string `json:"email"`
+	SendEmail bool   `json:"sendEmail"`
+}
+
+type acceptCollaboratorInviteBody struct {
+	Token string `json:"token"`
+}
+
+func (s *Server) handleMyCollaboration(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	ownedApps, err := s.db.App.Query().
+		Where(app.OwnerIDEQ(u.ID)).
+		Order(entgo.Desc(app.FieldUpdatedAt)).
+		All(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "COLLABORATION_LOAD_FAILED", "Could not load owned apps", nil)
+		return
+	}
+	owned := make([]ownedCollaborationDTO, 0, len(ownedApps))
+	for _, appRecord := range ownedApps {
+		collaborators, err := s.collaboratorsForApp(r, appRecord.ID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "COLLABORATION_LOAD_FAILED", "Could not load collaborators", nil)
+			return
+		}
+		requests, err := s.db.CollaboratorRequest.Query().
+			Where(collaboratorrequest.AppIDEQ(appRecord.ID), collaboratorrequest.StatusEQ(collaboratorrequest.StatusPENDING)).
+			Order(entgo.Desc(collaboratorrequest.FieldCreatedAt)).
+			All(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "COLLABORATION_LOAD_FAILED", "Could not load collaborator requests", nil)
+			return
+		}
+		invites, err := s.db.CollaboratorInvite.Query().
+			Where(collaboratorinvite.AppIDEQ(appRecord.ID), collaboratorinvite.AcceptedAtIsNil(), collaboratorinvite.ExpiresAtGT(time.Now())).
+			Order(entgo.Desc(collaboratorinvite.FieldCreatedAt)).
+			All(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "COLLABORATION_LOAD_FAILED", "Could not load collaborator invites", nil)
+			return
+		}
+		ownedRequests := make([]collaboratorRequestDTO, 0, len(requests))
+		for _, request := range requests {
+			ownedRequests = append(ownedRequests, s.collaboratorRequestDTO(r, request))
+		}
+		ownedInvites := make([]collaboratorInviteDTO, 0, len(invites))
+		for _, invite := range invites {
+			ownedInvites = append(ownedInvites, s.collaboratorInviteDTO(r.Context(), invite, "", appRecord.Name))
+		}
+		owned = append(owned, ownedCollaborationDTO{
+			App:           s.appSummaryDTO(r, appRecord, u),
+			Collaborators: collaborators,
+			Requests:      ownedRequests,
+			Invites:       ownedInvites,
+		})
+	}
+
+	collabRecords, err := s.db.Collaborator.Query().
+		Where(collaborator.UserIDEQ(u.ID)).
+		Order(entgo.Desc(collaborator.FieldCreatedAt)).
+		All(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "COLLABORATION_LOAD_FAILED", "Could not load collaboration apps", nil)
+		return
+	}
+	collaborating := make([]appSummary, 0, len(collabRecords))
+	for _, record := range collabRecords {
+		appRecord, err := s.db.App.Get(r.Context(), record.AppID)
+		if err != nil || !s.userCanSeeApp(r, appRecord, u) {
+			continue
+		}
+		collaborating = append(collaborating, s.appSummaryDTO(r, appRecord, u))
+	}
+
+	outgoingRecords, err := s.db.CollaboratorRequest.Query().
+		Where(collaboratorrequest.UserIDEQ(u.ID)).
+		Order(entgo.Desc(collaboratorrequest.FieldCreatedAt)).
+		All(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "COLLABORATION_LOAD_FAILED", "Could not load outgoing collaborator requests", nil)
+		return
+	}
+	outgoing := make([]collaboratorRequestDTO, 0, len(outgoingRecords))
+	for _, record := range outgoingRecords {
+		outgoing = append(outgoing, s.collaboratorRequestDTO(r, record))
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"owned":            owned,
+		"collaborating":    collaborating,
+		"outgoingRequests": outgoing,
+	})
+}
+
+func (s *Server) handleAddCollaborator(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	appRecord, err := s.authorizedAppOwner(r, u)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+		return
+	}
+	if appRecord == nil {
+		writeError(w, http.StatusForbidden, "FORBIDDEN", "Only app owners can add collaborators", nil)
+		return
+	}
+	var input addCollaboratorBody
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	target, err := s.findCollaboratorUser(r.Context(), input)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "USER_NOT_FOUND", "Collaborator user not found", nil)
+		return
+	}
+	if target.Disabled {
+		writeError(w, http.StatusUnprocessableEntity, "USER_DISABLED", "Disabled users cannot be added as collaborators", nil)
+		return
+	}
+	if target.ID == appRecord.OwnerID {
+		writeError(w, http.StatusConflict, "COLLABORATOR_EXISTS", "The app owner already maintains this app", nil)
+		return
+	}
+	created, err := s.db.Collaborator.Create().SetAppID(appRecord.ID).SetUserID(target.ID).Save(r.Context())
+	if err != nil {
+		if entgo.IsConstraintError(err) {
+			writeError(w, http.StatusConflict, "COLLABORATOR_EXISTS", "This user is already a collaborator", nil)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "COLLABORATOR_CREATE_FAILED", "Could not add collaborator", nil)
+		return
+	}
+	_, _ = s.db.CollaboratorRequest.Update().
+		Where(collaboratorrequest.AppIDEQ(appRecord.ID), collaboratorrequest.UserIDEQ(target.ID), collaboratorrequest.StatusEQ(collaboratorrequest.StatusPENDING)).
+		SetStatus(collaboratorrequest.StatusAPPROVED).
+		SetReviewedAt(time.Now()).
+		Save(r.Context())
+	writeJSON(w, http.StatusCreated, map[string]any{"collaborator": s.collaboratorDTO(r.Context(), created, appRecord.Name)})
+}
+
+func (s *Server) handleDeleteCollaborator(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	appID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		badRequest(w, err)
+		return
+	}
+	targetID, err := strconv.Atoi(r.PathValue("userId"))
+	if err != nil {
+		badRequest(w, err)
+		return
+	}
+	appRecord, err := s.db.App.Get(r.Context(), appID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+		return
+	}
+	if targetID != u.ID && !isAdmin(u) && appRecord.OwnerID != u.ID {
+		writeError(w, http.StatusForbidden, "FORBIDDEN", "Only app owners can remove other collaborators", nil)
+		return
+	}
+	deleted, err := s.db.Collaborator.Delete().
+		Where(collaborator.AppIDEQ(appID), collaborator.UserIDEQ(targetID)).
+		Exec(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "COLLABORATOR_DELETE_FAILED", "Could not remove collaborator", nil)
+		return
+	}
+	if deleted == 0 {
+		writeError(w, http.StatusNotFound, "COLLABORATOR_NOT_FOUND", "Collaborator not found", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleCreateCollaboratorInvite(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	appRecord, err := s.authorizedAppOwner(r, u)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+		return
+	}
+	if appRecord == nil {
+		writeError(w, http.StatusForbidden, "FORBIDDEN", "Only app owners can invite collaborators", nil)
+		return
+	}
+	var input collaboratorInviteBody
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	email := strings.TrimSpace(input.Email)
+	if input.SendEmail && email == "" {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Email is required when sending collaborator invite email", nil)
+		return
+	}
+	if email != "" {
+		if _, err := mail.ParseAddress(email); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "A valid collaborator email is required", nil)
+			return
+		}
+	}
+	if input.SendEmail && !s.emailDeliveryConfigured(r.Context()) {
+		writeError(w, http.StatusUnprocessableEntity, "SMTP_NOT_CONFIGURED", "SMTP host and from address are required before sending invite email", nil)
+		return
+	}
+	token, err := randomToken()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "COLLABORATOR_INVITE_CREATE_FAILED", "Could not create collaborator invite", nil)
+		return
+	}
+	create := s.db.CollaboratorInvite.Create().
+		SetAppID(appRecord.ID).
+		SetInviterID(u.ID).
+		SetTokenHash(tokenHash(token)).
+		SetTokenPrefix(tokenPrefix(token)).
+		SetExpiresAt(time.Now().Add(7 * 24 * time.Hour))
+	if email != "" {
+		create.SetEmail(email)
+	}
+	invite, err := create.Save(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "COLLABORATOR_INVITE_CREATE_FAILED", "Could not create collaborator invite", nil)
+		return
+	}
+	inviteURL := s.collaboratorInviteURL(r.Context(), token)
+	if input.SendEmail && email != "" {
+		if err := s.sendCollaboratorInviteEmail(r.Context(), email, appRecord.Name, inviteURL); err != nil {
+			writeError(w, http.StatusInternalServerError, "EMAIL_SEND_FAILED", "Could not send collaborator invite email", nil)
+			return
+		}
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"invite": s.collaboratorInviteDTO(r.Context(), invite, inviteURL, appRecord.Name), "inviteUrl": inviteURL})
+}
+
+func (s *Server) handleAcceptCollaboratorInvite(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	var input acceptCollaboratorInviteBody
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	token := strings.TrimSpace(input.Token)
+	if token == "" {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Invite token is required", nil)
+		return
+	}
+	now := time.Now()
+	tx, err := s.db.Tx(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "COLLABORATOR_INVITE_ACCEPT_FAILED", "Could not accept collaborator invite", nil)
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+	invite, err := tx.CollaboratorInvite.Query().
+		Where(collaboratorinvite.TokenHashEQ(tokenHash(token)), collaboratorinvite.AcceptedAtIsNil(), collaboratorinvite.ExpiresAtGT(now)).
+		Only(r.Context())
+	if err != nil {
+		writeError(w, http.StatusNotFound, "COLLABORATOR_INVITE_NOT_FOUND", "Collaborator invite not found or expired", nil)
+		return
+	}
+	appRecord, err := tx.App.Get(r.Context(), invite.AppID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+		return
+	}
+	if appRecord.OwnerID == u.ID {
+		writeError(w, http.StatusConflict, "COLLABORATOR_INVITE_OWNER", "The app owner already maintains this app", nil)
+		return
+	}
+	if invite.Email != nil && !strings.EqualFold(strings.TrimSpace(*invite.Email), strings.TrimSpace(emailString(u.Email))) {
+		writeError(w, http.StatusForbidden, "FORBIDDEN", "This invite was sent to a different email address", nil)
+		return
+	}
+	claimed, err := tx.CollaboratorInvite.Update().
+		Where(collaboratorinvite.IDEQ(invite.ID), collaboratorinvite.AcceptedAtIsNil()).
+		SetAcceptedBy(u.ID).
+		SetAcceptedAt(now).
+		Save(r.Context())
+	if err != nil || claimed != 1 {
+		writeError(w, http.StatusConflict, "COLLABORATOR_INVITE_USED", "Collaborator invite was already used", nil)
+		return
+	}
+	if _, err := tx.Collaborator.Create().SetAppID(invite.AppID).SetUserID(u.ID).Save(r.Context()); err != nil && !entgo.IsConstraintError(err) {
+		writeError(w, http.StatusInternalServerError, "COLLABORATOR_INVITE_ACCEPT_FAILED", "Could not add collaborator", nil)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "COLLABORATOR_INVITE_ACCEPT_FAILED", "Could not accept collaborator invite", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"app": s.appSummaryDTO(r, appRecord, u)})
+}
+
 func (s *Server) handleCreateCollaboratorRequest(w http.ResponseWriter, r *http.Request, u *entgo.User) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
@@ -658,9 +962,119 @@ func (s *Server) collaboratorRequestDTO(r *http.Request, record *entgo.Collabora
 		CreatedAt: record.CreatedAt,
 		UpdatedAt: record.UpdatedAt,
 	}
+	if appRecord, err := s.db.App.Get(r.Context(), record.AppID); err == nil {
+		dto.AppName = appRecord.Name
+	}
 	if requester, err := s.db.User.Get(r.Context(), record.UserID); err == nil {
 		dto.Username = userDisplayName(requester)
 		dto.Email = requester.Email
 	}
 	return dto
+}
+
+func (s *Server) authorizedAppOwner(r *http.Request, u *entgo.User) (*entgo.App, error) {
+	appID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		return nil, err
+	}
+	appRecord, err := s.db.App.Get(r.Context(), appID)
+	if err != nil {
+		return nil, err
+	}
+	if !isAdmin(u) && appRecord.OwnerID != u.ID {
+		return nil, nil
+	}
+	return appRecord, nil
+}
+
+func (s *Server) findCollaboratorUser(ctx context.Context, input addCollaboratorBody) (*entgo.User, error) {
+	if input.UserID > 0 {
+		return s.db.User.Get(ctx, input.UserID)
+	}
+	identity := strings.TrimSpace(input.Username)
+	if identity == "" {
+		identity = strings.TrimSpace(input.Email)
+	}
+	if identity == "" {
+		return nil, fmt.Errorf("collaborator identity is required")
+	}
+	return s.db.User.Query().
+		Where(userpkg.Or(userpkg.UsernameEqualFold(identity), userpkg.EmailEqualFold(identity))).
+		Only(ctx)
+}
+
+func (s *Server) collaboratorsForApp(r *http.Request, appID int) ([]collaboratorDTO, error) {
+	records, err := s.db.Collaborator.Query().
+		Where(collaborator.AppIDEQ(appID)).
+		Order(entgo.Desc(collaborator.FieldCreatedAt)).
+		All(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	appName := ""
+	if appRecord, err := s.db.App.Get(r.Context(), appID); err == nil {
+		appName = appRecord.Name
+	}
+	out := make([]collaboratorDTO, 0, len(records))
+	for _, record := range records {
+		out = append(out, s.collaboratorDTO(r.Context(), record, appName))
+	}
+	return out, nil
+}
+
+func (s *Server) collaboratorDTO(ctx context.Context, record *entgo.Collaborator, appName string) collaboratorDTO {
+	dto := collaboratorDTO{
+		ID:        record.ID,
+		AppID:     record.AppID,
+		AppName:   appName,
+		UserID:    record.UserID,
+		CreatedAt: record.CreatedAt,
+	}
+	if dto.AppName == "" {
+		if appRecord, err := s.db.App.Get(ctx, record.AppID); err == nil {
+			dto.AppName = appRecord.Name
+		}
+	}
+	if collabUser, err := s.db.User.Get(ctx, record.UserID); err == nil {
+		dto.Username = userDisplayName(collabUser)
+		dto.Email = collabUser.Email
+	}
+	return dto
+}
+
+func (s *Server) collaboratorInviteDTO(ctx context.Context, record *entgo.CollaboratorInvite, inviteURL, appName string) collaboratorInviteDTO {
+	dto := collaboratorInviteDTO{
+		ID:          record.ID,
+		AppID:       record.AppID,
+		AppName:     appName,
+		Email:       record.Email,
+		TokenPrefix: record.TokenPrefix,
+		InviteURL:   inviteURL,
+		AcceptedBy:  record.AcceptedBy,
+		AcceptedAt:  record.AcceptedAt,
+		ExpiresAt:   record.ExpiresAt,
+		CreatedAt:   record.CreatedAt,
+	}
+	if dto.AppName == "" {
+		if appRecord, err := s.db.App.Get(ctx, record.AppID); err == nil {
+			dto.AppName = appRecord.Name
+		}
+	}
+	return dto
+}
+
+func (s *Server) collaboratorInviteURL(ctx context.Context, token string) string {
+	return strings.TrimRight(s.sitePublicURL(ctx), "/") + "/collaboration-invite?token=" + url.QueryEscape(token)
+}
+
+func (s *Server) sendCollaboratorInviteEmail(ctx context.Context, to, appName, inviteURL string) error {
+	body := fmt.Sprintf("You have been invited to collaborate on %s in LazyCat Private Store.\n\nOpen this link to accept the invitation:\n\n%s\n\nIf you did not expect this invitation, ignore this email.\n", appName, inviteURL)
+	return s.sendEmail(ctx, to, "LazyCat app collaborator invite", body)
+}
+
+func emailString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

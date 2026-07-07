@@ -175,6 +175,7 @@ func ensureSQLiteDir(cfg config.Config) error {
 func (s *Server) routes() {
 	s.mux.Handle("GET /files/", http.StripPrefix("/files/", http.HandlerFunc(s.handleLocalFile)))
 	s.mux.HandleFunc("GET /api/v1/files/{storageKey}/{path...}", s.handleProxyFile)
+	s.mux.HandleFunc("GET /favicon.ico", s.handleFavicon)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "lazycat-appstore-server"})
 	})
@@ -194,6 +195,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/v1/me/tokens/{id}", s.withAuth(s.handleDeleteToken))
 	s.mux.HandleFunc("GET /api/v1/storage-options", s.withAuth(s.handleListStorageOptions))
 	s.mux.HandleFunc("GET /api/v1/me/favorites", s.withAuth(s.handleListFavorites))
+	s.mux.HandleFunc("GET /api/v1/me/collaboration", s.withAuth(s.handleMyCollaboration))
 	s.mux.HandleFunc("GET /api/v1/me/comment-notifications", s.withAuth(s.handleListCommentNotifications))
 	s.mux.HandleFunc("POST /api/v1/me/comment-notifications/read", s.withAuth(s.handleReadAllCommentNotifications))
 	s.mux.HandleFunc("POST /api/v1/me/comment-notifications/{id}/read", s.withAuth(s.handleReadCommentNotification))
@@ -219,6 +221,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/outdated-marks", s.handleClearOutdated)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/collaborator-requests", s.withAuth(s.handleCreateCollaboratorRequest))
 	s.mux.HandleFunc("GET /api/v1/apps/{id}/collaborator-requests", s.withAuth(s.handleListCollaboratorRequests))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/collaborators", s.withAuth(s.handleAddCollaborator))
+	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/collaborators/{userId}", s.withAuth(s.handleDeleteCollaborator))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/collaborator-invites", s.withAuth(s.handleCreateCollaboratorInvite))
+	s.mux.HandleFunc("POST /api/v1/collaborator-invites/accept", s.withAuth(s.handleAcceptCollaboratorInvite))
 	s.mux.HandleFunc("POST /api/v1/collaborator-requests/{id}/approve", s.withAuth(s.handleApproveCollaboratorRequest))
 	s.mux.HandleFunc("POST /api/v1/collaborator-requests/{id}/reject", s.withAuth(s.handleRejectCollaboratorRequest))
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/visibility", s.withAuth(s.handleSetAppVisibility))
@@ -290,6 +296,20 @@ func (s *Server) routes() {
 
 func isAPINamespace(rawPath string) bool {
 	return strings.HasPrefix(rawPath, "/api/") || strings.HasPrefix(rawPath, "/source/") || strings.HasPrefix(rawPath, "/files/")
+}
+
+func (s *Server) handleFavicon(w http.ResponseWriter, r *http.Request) {
+	iconURL := s.siteProfile(r.Context()).IconURL
+	if iconURL != "" {
+		w.Header().Set("Cache-Control", "no-store")
+		http.Redirect(w, r, iconURL, http.StatusFound)
+		return
+	}
+	if s.web != nil {
+		s.web.ServeHTTP(w, r)
+		return
+	}
+	http.NotFound(w, r)
 }
 
 func embeddedWebHandler(cfg config.Config) http.Handler {

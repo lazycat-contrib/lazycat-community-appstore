@@ -45,6 +45,9 @@ type ClientSyncSetting func(*sql.Selector)
 // Collaborator is the predicate function for collaborator builders.
 type Collaborator func(*sql.Selector)
 
+// CollaboratorInvite is the predicate function for collaboratorinvite builders.
+type CollaboratorInvite func(*sql.Selector)
+
 // CollaboratorRequest is the predicate function for collaboratorrequest builders.
 type CollaboratorRequest func(*sql.Selector)
 

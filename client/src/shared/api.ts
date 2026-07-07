@@ -30,6 +30,49 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   return data as T;
 }
 
+export function apiWithUploadProgress<T>(
+  path: string,
+  options: RequestInit & { onUploadProgress?: (percent: number) => void } = {},
+): Promise<T> {
+  if (!HAS_API) {
+    return Promise.reject(new Error(i18n.t('toast.apiMissing')));
+  }
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(options.method || 'GET', `${API_BASE}${path}`);
+    xhr.withCredentials = true;
+
+    const headers = new Headers(options.body instanceof FormData ? options.headers : { 'Content-Type': 'application/json', ...options.headers });
+    headers.forEach((value, key) => xhr.setRequestHeader(key, value));
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !options.onUploadProgress) return;
+      options.onUploadProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      const text = xhr.responseText || '';
+      let data: any = {};
+      if (text.trim()) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            reject(new Error(i18n.t('toast.invalidApiResponse')));
+            return;
+          }
+        }
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(data?.error?.message || `HTTP ${xhr.status}`));
+        return;
+      }
+      resolve(data as T);
+    };
+    xhr.onerror = () => reject(new Error(i18n.t('toast.apiMissing')));
+    xhr.send((options.body as XMLHttpRequestBodyInit | null) || null);
+  });
+}
+
 export async function clientApi<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${CLIENT_API_BASE}${path}`, {
     credentials: 'include',

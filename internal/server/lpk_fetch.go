@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"lazycat.community/appstore/internal/lpkmeta"
+	"lazycat.community/appstore/internal/mirror"
 	"lazycat.community/appstore/internal/storage"
 )
 
@@ -40,20 +41,17 @@ func parseUploadedLPKMetadata(file multipart.File, header *multipart.FileHeader,
 	return meta, err
 }
 
-func (s *Server) inspectLPKURL(ctx context.Context, rawURL string, maxBytes int64) (lpkInspection, error) {
-	parsed, err := url.Parse(normalizeGitHubRawURL(rawURL))
-	if err != nil || parsed.Host == "" {
-		return lpkInspection{}, errors.New("downloadUrl must be a valid URL")
-	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return lpkInspection{}, errors.New("downloadUrl must use http or https")
-	}
+func (s *Server) inspectLPKURL(ctx context.Context, rawURL string, maxBytes int64, useMirrorDownload bool) (lpkInspection, error) {
 	if maxBytes <= 0 {
 		return lpkInspection{}, errors.New("max LPK size must be positive")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+	parsed, err := s.lpkFetchURL(ctx, rawURL, useMirrorDownload)
+	if err != nil {
+		return lpkInspection{}, err
+	}
 	if err := validateLPKURLHost(ctx, parsed, s.allowPrivateLPKURLHosts); err != nil {
 		return lpkInspection{}, err
 	}
@@ -118,6 +116,44 @@ func (s *Server) inspectLPKURL(ctx context.Context, rawURL string, maxBytes int6
 		SHA256:   hex.EncodeToString(hasher.Sum(nil)),
 		Size:     written,
 	}, nil
+}
+
+func (s *Server) lpkFetchURL(ctx context.Context, rawURL string, useMirrorDownload bool) (*url.URL, error) {
+	normalized := normalizeGitHubRawURL(rawURL)
+	parsed, err := parseHTTPDownloadURL(normalized)
+	if err != nil {
+		return nil, err
+	}
+	if useMirrorDownload {
+		if entry, ok := firstGitHubMirrorForURL(s.effectiveGitHubMirrors(ctx), parsed.String()); ok {
+			return parseHTTPDownloadURL(mirror.RewriteGitHub(parsed.String(), entry))
+		}
+	}
+	return parsed, nil
+}
+
+func parseHTTPDownloadURL(rawURL string) (*url.URL, error) {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed.Host == "" {
+		return nil, errors.New("downloadUrl must be a valid URL")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return nil, errors.New("downloadUrl must use http or https")
+	}
+	return parsed, nil
+}
+
+func firstGitHubMirrorForURL(entries []mirror.Entry, rawURL string) (mirror.Entry, bool) {
+	kind := mirror.KindForURL(rawURL)
+	if kind == "" {
+		return mirror.Entry{}, false
+	}
+	for _, entry := range entries {
+		if entry.Kind == kind {
+			return entry, true
+		}
+	}
+	return mirror.Entry{}, false
 }
 
 func normalizeGitHubRawURL(rawURL string) string {

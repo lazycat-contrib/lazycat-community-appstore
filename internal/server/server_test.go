@@ -157,6 +157,7 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	app.login("admin", "changeme")
 	rec = app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{
 		"site_title":              "My NAS Store",
+		"site_subtitle":           "发现适合这台 NAS 的应用。",
 		"site_icon_url":           "https://cdn.example.com/icon.png",
 		"site_public_url":         "https://apps.example.com/",
 		"announcement_enabled":    "true",
@@ -178,6 +179,7 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{
 		`"title":"My NAS Store"`,
+		`"subtitle":"发现适合这台 NAS 的应用。"`,
 		`"iconUrl":"https://cdn.example.com/icon.png"`,
 		`"publicUrl":"https://apps.example.com"`,
 		`"sourceUrl":"https://apps.example.com/source/v1/index.json"`,
@@ -207,6 +209,7 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	app.login("admin", "changeme")
 	rec = app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{
 		"site_title":               "My NAS Store",
+		"site_subtitle":            "发现适合这台 NAS 的应用。",
 		"site_icon_url":            "https://cdn.example.com/icon.png",
 		"site_public_url":          "https://apps.example.com",
 		"announcement_enabled":     "true",
@@ -1257,6 +1260,41 @@ func TestNormalizeGitHubRawURL(t *testing.T) {
 	}
 }
 
+func TestLPKFetchURLUsesConfiguredGitHubMirrors(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	if err := app.server.setSetting(ctx, settingGitHubDownloadMirrors, "Release=>https://release-mirror.test/https://github.com"); err != nil {
+		t.Fatalf("set download mirror: %v", err)
+	}
+	if err := app.server.setSetting(ctx, settingGitHubRawMirrors, "Raw=>https://raw-mirror.test/https://raw.githubusercontent.com"); err != nil {
+		t.Fatalf("set raw mirror: %v", err)
+	}
+
+	releaseURL, err := app.server.lpkFetchURL(ctx, "https://github.com/acme/demo/releases/download/v1/app.lpk", true)
+	if err != nil {
+		t.Fatalf("release fetch url: %v", err)
+	}
+	if got, want := releaseURL.String(), "https://release-mirror.test/https://github.com/acme/demo/releases/download/v1/app.lpk"; got != want {
+		t.Fatalf("release fetch url = %q, want %q", got, want)
+	}
+
+	rawURL, err := app.server.lpkFetchURL(ctx, "https://github.com/acme/demo/raw/main/app.lpk", true)
+	if err != nil {
+		t.Fatalf("raw fetch url: %v", err)
+	}
+	if got, want := rawURL.String(), "https://raw-mirror.test/https://raw.githubusercontent.com/acme/demo/main/app.lpk"; got != want {
+		t.Fatalf("raw fetch url = %q, want %q", got, want)
+	}
+
+	directURL, err := app.server.lpkFetchURL(ctx, "https://github.com/acme/demo/releases/download/v1/app.lpk", false)
+	if err != nil {
+		t.Fatalf("direct fetch url: %v", err)
+	}
+	if got, want := directURL.String(), "https://github.com/acme/demo/releases/download/v1/app.lpk"; got != want {
+		t.Fatalf("direct fetch url = %q, want %q", got, want)
+	}
+}
+
 func TestVersionUploadRejectsPackageMismatch(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()
@@ -1297,7 +1335,7 @@ func TestVersionUploadRejectsPackageMismatch(t *testing.T) {
 
 func TestInspectLPKURLRejectsPrivateHost(t *testing.T) {
 	app := newTestApp(t)
-	_, err := app.server.inspectLPKURL(t.Context(), "http://127.0.0.1/app.lpk", 1024)
+	_, err := app.server.inspectLPKURL(t.Context(), "http://127.0.0.1/app.lpk", 1024, false)
 	if err == nil || !strings.Contains(err.Error(), "private or local") {
 		t.Fatalf("inspect private host error = %v", err)
 	}

@@ -18,6 +18,7 @@ import (
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/clientsyncsetting"
 	"lazycat.community/appstore/ent/collaborator"
+	"lazycat.community/appstore/ent/collaboratorinvite"
 	"lazycat.community/appstore/ent/collaboratorrequest"
 	"lazycat.community/appstore/ent/collection"
 	"lazycat.community/appstore/ent/collectionapp"
@@ -428,6 +429,26 @@ func init() {
 	collaboratorDescCreatedAt := collaboratorFields[2].Descriptor()
 	// collaborator.DefaultCreatedAt holds the default value on creation for the created_at field.
 	collaborator.DefaultCreatedAt = collaboratorDescCreatedAt.Default.(func() time.Time)
+	collaboratorinviteFields := schema.CollaboratorInvite{}.Fields()
+	_ = collaboratorinviteFields
+	// collaboratorinviteDescTokenHash is the schema descriptor for token_hash field.
+	collaboratorinviteDescTokenHash := collaboratorinviteFields[3].Descriptor()
+	// collaboratorinvite.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	collaboratorinvite.TokenHashValidator = collaboratorinviteDescTokenHash.Validators[0].(func(string) error)
+	// collaboratorinviteDescTokenPrefix is the schema descriptor for token_prefix field.
+	collaboratorinviteDescTokenPrefix := collaboratorinviteFields[4].Descriptor()
+	// collaboratorinvite.TokenPrefixValidator is a validator for the "token_prefix" field. It is called by the builders before save.
+	collaboratorinvite.TokenPrefixValidator = collaboratorinviteDescTokenPrefix.Validators[0].(func(string) error)
+	// collaboratorinviteDescCreatedAt is the schema descriptor for created_at field.
+	collaboratorinviteDescCreatedAt := collaboratorinviteFields[8].Descriptor()
+	// collaboratorinvite.DefaultCreatedAt holds the default value on creation for the created_at field.
+	collaboratorinvite.DefaultCreatedAt = collaboratorinviteDescCreatedAt.Default.(func() time.Time)
+	// collaboratorinviteDescUpdatedAt is the schema descriptor for updated_at field.
+	collaboratorinviteDescUpdatedAt := collaboratorinviteFields[9].Descriptor()
+	// collaboratorinvite.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	collaboratorinvite.DefaultUpdatedAt = collaboratorinviteDescUpdatedAt.Default.(func() time.Time)
+	// collaboratorinvite.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	collaboratorinvite.UpdateDefaultUpdatedAt = collaboratorinviteDescUpdatedAt.UpdateDefault.(func() time.Time)
 	collaboratorrequestFields := schema.CollaboratorRequest{}.Fields()
 	_ = collaboratorrequestFields
 	// collaboratorrequestDescMessage is the schema descriptor for message field.
