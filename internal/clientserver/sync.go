@@ -70,7 +70,7 @@ func (s *Server) handleSyncSource(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SOURCE_SYNC_FAILED", "Could not sync source")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"source": source})
+	writeJSON(w, http.StatusOK, sourceSyncResponse{Source: source})
 }
 
 func (s *Server) handleSyncAllSources(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +80,15 @@ func (s *Server) handleSyncAllSources(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SOURCE_LIST_FAILED", "Could not list sources")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"result": result})
+	writeJSON(w, http.StatusOK, syncAllResponse{Result: result})
+}
+
+type sourceSyncResponse struct {
+	Source SourceDTO `json:"source"`
+}
+
+type syncAllResponse struct {
+	Result SyncAllResult `json:"result"`
 }
 
 func (s *Server) syncAllSources(ctx context.Context, userID string) (SyncAllResult, error) {
@@ -136,6 +144,8 @@ type fetchedSource struct {
 	err     error
 }
 
+const sourceAppInsertBatchSize = 50
+
 func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (SourceDTO, error) {
 	source, err := s.db.ClientSource.Query().
 		Where(clientsource.IDEQ(sourceID), clientsource.UserIDEQ(userID)).
@@ -172,77 +182,21 @@ func normalizeSourceSyncError(err error) sourceSyncError {
 
 func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, apps []feedApp, mirrors []mirror.Entry) (SourceDTO, error) {
 	installableCount := 0
+	rows := make([]sourceAppCacheRow, 0, len(apps))
 	for i := range apps {
 		if apps[i].LatestVersion != nil && apps[i].LatestVersion.DownloadURL != "" {
 			installableCount++
 		}
-	}
-	tx, err := s.db.Tx(ctx)
-	if err != nil {
-		return SourceDTO{}, err
-	}
-	if _, err := tx.ClientSourceApp.Delete().Where(clientsourceapp.SourceIDEQ(source.ID)).Exec(ctx); err != nil {
-		_ = tx.Rollback()
-		return SourceDTO{}, err
-	}
-	for _, app := range apps {
-		versionJSON := ""
-		versions := app.Versions
-		if len(versions) == 0 && app.LatestVersion != nil {
-			versions = []VersionDTO{*app.LatestVersion}
-		}
-		versionsJSON := ""
-		screenshotsJSON := catalogmeta.EncodeScreenshots(app.Screenshots)
-		if app.LatestVersion != nil {
-			encoded, err := json.Marshal(app.LatestVersion)
-			if err != nil {
-				_ = tx.Rollback()
-				return SourceDTO{}, err
-			}
-			versionJSON = string(encoded)
-		}
-		if len(versions) > 0 {
-			encoded, err := json.Marshal(versions)
-			if err != nil {
-				_ = tx.Rollback()
-				return SourceDTO{}, err
-			}
-			versionsJSON = string(encoded)
-		}
-		commentsEnabled := true
-		if app.CommentsEnabled != nil {
-			commentsEnabled = *app.CommentsEnabled
-		}
-		if _, err := tx.ClientSourceApp.Create().
-			SetSourceID(source.ID).
-			SetExternalID(strconv.Itoa(app.ID)).
-			SetPackageID(app.PackageID).
-			SetName(app.Name).
-			SetNameI18nJSON(catalogmeta.EncodeLocalizedText(app.NameI18n)).
-			SetSlug(app.Slug).
-			SetSummary(app.Summary).
-			SetSummaryI18nJSON(catalogmeta.EncodeLocalizedText(app.SummaryI18n)).
-			SetDescriptionI18nJSON(catalogmeta.EncodeLocalizedText(app.DescriptionI18n)).
-			SetCategory(app.Category).
-			SetCategoryI18nJSON(catalogmeta.EncodeLocalizedText(app.CategoryI18n)).
-			SetIconURL(app.IconURL).
-			SetInstallProtected(app.InstallProtected).
-			SetCommentsEnabled(commentsEnabled).
-			SetOutdatedMarks(app.OutdatedMarks).
-			SetScreenshotsJSON(screenshotsJSON).
-			SetLatestVersionJSON(versionJSON).
-			SetVersionsJSON(versionsJSON).
-			Save(ctx); err != nil {
-			_ = tx.Rollback()
+		row, err := buildSourceAppCacheRow(apps[i])
+		if err != nil {
 			return SourceDTO{}, err
 		}
+		rows = append(rows, row)
 	}
-	now := time.Now()
 	mirrorsJSON := ""
 	if len(mirrors) > 0 {
 		encoded, err := json.Marshal(mirrors)
 		if err != nil {
-			_ = tx.Rollback()
 			return SourceDTO{}, err
 		}
 		mirrorsJSON = string(encoded)
@@ -259,6 +213,34 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 			defaultRawMirrorID = ""
 		}
 	}
+
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return SourceDTO{}, err
+	}
+	if _, err := tx.ClientSourceApp.Delete().Where(clientsourceapp.SourceIDEQ(source.ID)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return SourceDTO{}, err
+	}
+	builders := make([]*ent.ClientSourceAppCreate, 0, min(len(rows), sourceAppInsertBatchSize))
+	for i := range rows {
+		builders = append(builders, sourceAppCreateBuilder(tx, source.ID, rows[i]))
+		if len(builders) < sourceAppInsertBatchSize {
+			continue
+		}
+		if err := tx.ClientSourceApp.CreateBulk(builders...).Exec(ctx); err != nil {
+			_ = tx.Rollback()
+			return SourceDTO{}, err
+		}
+		builders = builders[:0]
+	}
+	if len(builders) > 0 {
+		if err := tx.ClientSourceApp.CreateBulk(builders...).Exec(ctx); err != nil {
+			_ = tx.Rollback()
+			return SourceDTO{}, err
+		}
+	}
+	now := time.Now()
 	updated, err := tx.ClientSource.UpdateOneID(source.ID).
 		SetLastSync(now).
 		ClearLastError().
@@ -277,6 +259,95 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 		return SourceDTO{}, err
 	}
 	return sourceDTO(updated), nil
+}
+
+type sourceAppCacheRow struct {
+	ExternalID          string
+	PackageID           string
+	Name                string
+	NameI18nJSON        string
+	Slug                string
+	Summary             string
+	SummaryI18nJSON     string
+	DescriptionI18nJSON string
+	Category            string
+	CategoryI18nJSON    string
+	IconURL             string
+	InstallProtected    bool
+	CommentsEnabled     bool
+	OutdatedMarks       int
+	ScreenshotsJSON     string
+	LatestVersionJSON   string
+	VersionsJSON        string
+}
+
+func buildSourceAppCacheRow(app feedApp) (sourceAppCacheRow, error) {
+	versionJSON := ""
+	versions := app.Versions
+	if len(versions) == 0 && app.LatestVersion != nil {
+		versions = []VersionDTO{*app.LatestVersion}
+	}
+	versionsJSON := ""
+	screenshotsJSON := catalogmeta.EncodeScreenshots(app.Screenshots)
+	if app.LatestVersion != nil {
+		encoded, err := json.Marshal(app.LatestVersion)
+		if err != nil {
+			return sourceAppCacheRow{}, err
+		}
+		versionJSON = string(encoded)
+	}
+	if len(versions) > 0 {
+		encoded, err := json.Marshal(versions)
+		if err != nil {
+			return sourceAppCacheRow{}, err
+		}
+		versionsJSON = string(encoded)
+	}
+	commentsEnabled := true
+	if app.CommentsEnabled != nil {
+		commentsEnabled = *app.CommentsEnabled
+	}
+	return sourceAppCacheRow{
+		ExternalID:          strconv.Itoa(app.ID),
+		PackageID:           app.PackageID,
+		Name:                app.Name,
+		NameI18nJSON:        catalogmeta.EncodeLocalizedText(app.NameI18n),
+		Slug:                app.Slug,
+		Summary:             app.Summary,
+		SummaryI18nJSON:     catalogmeta.EncodeLocalizedText(app.SummaryI18n),
+		DescriptionI18nJSON: catalogmeta.EncodeLocalizedText(app.DescriptionI18n),
+		Category:            app.Category,
+		CategoryI18nJSON:    catalogmeta.EncodeLocalizedText(app.CategoryI18n),
+		IconURL:             app.IconURL,
+		InstallProtected:    app.InstallProtected,
+		CommentsEnabled:     commentsEnabled,
+		OutdatedMarks:       app.OutdatedMarks,
+		ScreenshotsJSON:     screenshotsJSON,
+		LatestVersionJSON:   versionJSON,
+		VersionsJSON:        versionsJSON,
+	}, nil
+}
+
+func sourceAppCreateBuilder(tx *ent.Tx, sourceID int, row sourceAppCacheRow) *ent.ClientSourceAppCreate {
+	return tx.ClientSourceApp.Create().
+		SetSourceID(sourceID).
+		SetExternalID(row.ExternalID).
+		SetPackageID(row.PackageID).
+		SetName(row.Name).
+		SetNameI18nJSON(row.NameI18nJSON).
+		SetSlug(row.Slug).
+		SetSummary(row.Summary).
+		SetSummaryI18nJSON(row.SummaryI18nJSON).
+		SetDescriptionI18nJSON(row.DescriptionI18nJSON).
+		SetCategory(row.Category).
+		SetCategoryI18nJSON(row.CategoryI18nJSON).
+		SetIconURL(row.IconURL).
+		SetInstallProtected(row.InstallProtected).
+		SetCommentsEnabled(row.CommentsEnabled).
+		SetOutdatedMarks(row.OutdatedMarks).
+		SetScreenshotsJSON(row.ScreenshotsJSON).
+		SetLatestVersionJSON(row.LatestVersionJSON).
+		SetVersionsJSON(row.VersionsJSON)
 }
 
 func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) ([]feedApp, []mirror.Entry, error) {

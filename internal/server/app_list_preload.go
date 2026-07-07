@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 
+	entsql "entgo.io/ent/dialect/sql"
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/apptag"
@@ -33,50 +34,55 @@ func (s *Server) applyAppListVisibility(ctx context.Context, q *entgo.AppQuery, 
 	if isAdmin(u) {
 		return nil
 	}
-	visibilityRecords, err := s.db.AppVisibility.Query().All(ctx)
-	if err != nil {
-		return err
-	}
-	if len(visibilityRecords) == 0 {
-		return nil
-	}
-	privateAppIDs := make(map[int]struct{}, len(visibilityRecords))
-	for _, record := range visibilityRecords {
-		privateAppIDs[record.AppID] = struct{}{}
-	}
-	privateIDs := mapKeys(privateAppIDs)
 	if u == nil {
-		q.Where(app.IDNotIn(privateIDs...))
+		q.Where(app.Not(appHasAnyVisibility()))
 		return nil
 	}
 
-	allowedPrivateAppIDs := make(map[int]struct{})
 	groupIDs, err := s.userGroupIDs(ctx, u.ID)
 	if err != nil {
 		return err
 	}
-	if len(groupIDs) > 0 {
-		records, err := s.db.AppVisibility.Query().Where(appvisibility.GroupIDIn(groupIDs...)).All(ctx)
-		if err != nil {
-			return err
-		}
-		for _, record := range records {
-			allowedPrivateAppIDs[record.AppID] = struct{}{}
-		}
-	}
 
 	visibilityPredicates := []predicate.App{
-		app.IDNotIn(privateIDs...),
+		app.Not(appHasAnyVisibility()),
 		app.OwnerIDEQ(u.ID),
 	}
 	if len(collaboratorAppIDs) > 0 {
 		visibilityPredicates = append(visibilityPredicates, app.IDIn(collaboratorAppIDs...))
 	}
-	if ids := mapKeys(allowedPrivateAppIDs); len(ids) > 0 {
-		visibilityPredicates = append(visibilityPredicates, app.IDIn(ids...))
+	if len(groupIDs) > 0 {
+		visibilityPredicates = append(visibilityPredicates, appVisibleToGroups(groupIDs))
 	}
 	q.Where(app.Or(visibilityPredicates...))
 	return nil
+}
+
+func appHasAnyVisibility() predicate.App {
+	return func(selector *entsql.Selector) {
+		visibility := entsql.Table(appvisibility.Table)
+		selector.Where(entsql.Exists(
+			entsql.Select().
+				From(visibility).
+				Where(entsql.ColumnsEQ(visibility.C(appvisibility.FieldAppID), selector.C(app.FieldID))),
+		))
+	}
+}
+
+func appVisibleToGroups(groupIDs []int) predicate.App {
+	return func(selector *entsql.Selector) {
+		visibility := entsql.Table(appvisibility.Table)
+		selector.Where(entsql.Exists(
+			entsql.Select().
+				From(visibility).
+				Where(
+					entsql.And(
+						entsql.ColumnsEQ(visibility.C(appvisibility.FieldAppID), selector.C(app.FieldID)),
+						entsql.InInts(visibility.C(appvisibility.FieldGroupID), groupIDs...),
+					),
+				),
+		))
+	}
 }
 
 func (s *Server) userGroupIDs(ctx context.Context, userID int) ([]int, error) {

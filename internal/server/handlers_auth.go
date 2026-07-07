@@ -11,6 +11,7 @@ import (
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/registrationinvite"
+	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/auth"
 	"lazycat.community/appstore/internal/storage"
@@ -18,11 +19,35 @@ import (
 
 var errInvalidRegistrationInvite = errors.New("invalid registration invite")
 
+const emailVerificationSettingPrefix = "email_verify:"
+
 type registerRequest struct {
 	Username   string `json:"username"`
 	Email      string `json:"email"`
 	Password   string `json:"password"`
 	InviteCode string `json:"inviteCode"`
+}
+
+type userResponse struct {
+	User publicUser `json:"user"`
+}
+
+type avatarResponse struct {
+	User publicUser `json:"user"`
+	URL  string     `json:"url"`
+}
+
+type apiTokensResponse struct {
+	Tokens []*ent.APIToken `json:"tokens"`
+}
+
+type apiTokenCreateResponse struct {
+	Token  string        `json:"token"`
+	Record *ent.APIToken `json:"record"`
+}
+
+type okResponse struct {
+	OK bool `json:"ok"`
 }
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -78,7 +103,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		s.setSession(w, u.ID)
-		writeJSON(w, http.StatusCreated, map[string]any{"user": toPublicUser(u)})
+		writeJSON(w, http.StatusCreated, userResponse{User: toPublicUser(u)})
 		return
 	}
 	create := s.db.User.Create().
@@ -96,7 +121,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if requireEmailVerify {
 		token, err := emailVerificationToken()
 		if err == nil {
-			_ = s.setSetting(r.Context(), "email_verify:"+u.Username, token)
+			_ = s.setSetting(r.Context(), emailVerificationSettingPrefix+u.Username, token)
 			if input.Email != "" {
 				if err := s.sendVerificationEmail(r.Context(), input.Email, token); err != nil {
 					writeError(w, http.StatusInternalServerError, "EMAIL_SEND_FAILED", "Could not send verification email", nil)
@@ -106,7 +131,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.setSession(w, u.ID)
-	writeJSON(w, http.StatusCreated, map[string]any{"user": toPublicUser(u)})
+	writeJSON(w, http.StatusCreated, userResponse{User: toPublicUser(u)})
 }
 
 func (s *Server) createUserWithInvite(r *http.Request, input registerRequest, passwordHash string, requireEmailVerify bool) (*ent.User, string, error) {
@@ -155,7 +180,7 @@ func (s *Server) createUserWithInvite(r *http.Request, input registerRequest, pa
 		return nil, "", err
 	}
 	if requireEmailVerify {
-		if err := setSettingTx(ctx, tx, "email_verify:"+u.Username, verificationToken); err != nil {
+		if err := setSettingTx(ctx, tx, emailVerificationSettingPrefix+u.Username, verificationToken); err != nil {
 			return nil, "", err
 		}
 	}
@@ -185,26 +210,32 @@ func (s *Server) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Verification token is required", nil)
 		return
 	}
-	users, err := s.db.User.Query().All(r.Context())
+	token := strings.TrimSpace(input.Token)
+	record, err := s.db.SiteSetting.Query().
+		Where(sitesetting.KeyHasPrefix(emailVerificationSettingPrefix), sitesetting.ValueEQ(token)).
+		First(r.Context())
+	if err != nil {
+		if ent.IsNotFound(err) {
+			writeError(w, http.StatusNotFound, "TOKEN_NOT_FOUND", "Verification token not found", nil)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "VERIFY_FAILED", "Could not verify email", nil)
+		return
+	}
+	username := strings.TrimPrefix(record.Key, emailVerificationSettingPrefix)
+	u, err := s.db.User.Query().Where(user.UsernameEQ(username)).Only(r.Context())
+	if err != nil {
+		writeError(w, http.StatusNotFound, "TOKEN_NOT_FOUND", "Verification token not found", nil)
+		return
+	}
+	updated, err := s.db.User.UpdateOneID(u.ID).SetEmailVerified(true).Save(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "VERIFY_FAILED", "Could not verify email", nil)
 		return
 	}
-	for _, u := range users {
-		key := "email_verify:" + u.Username
-		if s.setting(r.Context(), key, "") == input.Token {
-			updated, err := s.db.User.UpdateOneID(u.ID).SetEmailVerified(true).Save(r.Context())
-			if err != nil {
-				writeError(w, http.StatusInternalServerError, "VERIFY_FAILED", "Could not verify email", nil)
-				return
-			}
-			_ = s.setSetting(r.Context(), key, "")
-			s.setSession(w, updated.ID)
-			writeJSON(w, http.StatusOK, map[string]any{"user": toPublicUser(updated)})
-			return
-		}
-	}
-	writeError(w, http.StatusNotFound, "TOKEN_NOT_FOUND", "Verification token not found", nil)
+	_ = s.setSetting(r.Context(), record.Key, "")
+	s.setSession(w, updated.ID)
+	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(updated)})
 }
 
 type loginRequest struct {
@@ -232,12 +263,12 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.setSession(w, u.ID)
-	writeJSON(w, http.StatusOK, map[string]any{"user": toPublicUser(u)})
+	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(u)})
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	clearSession(w)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	writeJSON(w, http.StatusOK, okResponse{OK: true})
 }
 
 func emailVerificationToken() (string, error) {
@@ -249,7 +280,7 @@ func emailVerificationToken() (string, error) {
 }
 
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request, u *ent.User) {
-	writeJSON(w, http.StatusOK, map[string]any{"user": toPublicUser(u)})
+	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(u)})
 }
 
 type updateProfileRequest struct {
@@ -308,7 +339,7 @@ func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request, u
 		writeError(w, http.StatusInternalServerError, "PROFILE_UPDATE_FAILED", "Could not update profile", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"user": toPublicUser(updated)})
+	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(updated)})
 }
 
 func (s *Server) handleUploadMyAvatar(w http.ResponseWriter, r *http.Request, u *ent.User) {
@@ -355,7 +386,7 @@ func (s *Server) handleUploadMyAvatar(w http.ResponseWriter, r *http.Request, u 
 	if oldStoragePath != "" {
 		s.deleteStoredObject(r.Context(), oldStorageKey, oldStoragePath)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"user": toPublicUser(updated), "url": updated.AvatarURL})
+	writeJSON(w, http.StatusOK, avatarResponse{User: toPublicUser(updated), URL: updated.AvatarURL})
 }
 
 func (s *Server) handleListTokens(w http.ResponseWriter, r *http.Request, u *ent.User) {
@@ -364,7 +395,7 @@ func (s *Server) handleListTokens(w http.ResponseWriter, r *http.Request, u *ent
 		writeError(w, http.StatusInternalServerError, "TOKEN_LIST_FAILED", "Could not list API tokens", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"tokens": tokens})
+	writeJSON(w, http.StatusOK, apiTokensResponse{Tokens: tokens})
 }
 
 type createTokenRequest struct {
@@ -395,7 +426,7 @@ func (s *Server) handleCreateToken(w http.ResponseWriter, r *http.Request, u *en
 		writeError(w, http.StatusInternalServerError, "TOKEN_CREATE_FAILED", "Could not create API token", nil)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"token": token, "record": record})
+	writeJSON(w, http.StatusCreated, apiTokenCreateResponse{Token: token, Record: record})
 }
 
 func (s *Server) handleDeleteToken(w http.ResponseWriter, r *http.Request, u *ent.User) {
@@ -417,5 +448,5 @@ func (s *Server) handleDeleteToken(w http.ResponseWriter, r *http.Request, u *en
 		writeError(w, http.StatusInternalServerError, "TOKEN_DELETE_FAILED", "Could not delete API token", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	writeJSON(w, http.StatusOK, okResponse{OK: true})
 }
