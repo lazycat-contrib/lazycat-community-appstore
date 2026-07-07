@@ -69,6 +69,9 @@ type Favorite func(*sql.Selector)
 // GroupMember is the predicate function for groupmember builders.
 type GroupMember func(*sql.Selector)
 
+// MCPToken is the predicate function for mcptoken builders.
+type MCPToken func(*sql.Selector)
+
 // OutdatedMark is the predicate function for outdatedmark builders.
 type OutdatedMark func(*sql.Selector)
 

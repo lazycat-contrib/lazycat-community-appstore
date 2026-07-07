@@ -3,3 +3,6 @@ pkgout: ../../dist
 icon: ./icon.png
 contentdir: ./content
 buildscript: ./build.sh
+resource_exports:
+  - kind: mcp-providers
+    source: ./resources/mcp-providers

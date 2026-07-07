@@ -193,6 +193,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/me/tokens", s.withAuth(s.handleListTokens))
 	s.mux.HandleFunc("POST /api/v1/me/tokens", s.withAuth(s.handleCreateToken))
 	s.mux.HandleFunc("DELETE /api/v1/me/tokens/{id}", s.withAuth(s.handleDeleteToken))
+	s.mux.HandleFunc("GET /api/v1/me/mcp", s.withAuth(s.handleMCPProfile))
+	s.mux.HandleFunc("GET /api/v1/me/mcp/tokens", s.withAuth(s.handleListMCPTokens))
+	s.mux.HandleFunc("POST /api/v1/me/mcp/tokens", s.withAuth(s.handleCreateMCPToken))
+	s.mux.HandleFunc("DELETE /api/v1/me/mcp/tokens/{id}", s.withAuth(s.handleDeleteMCPToken))
 	s.mux.HandleFunc("GET /api/v1/storage-options", s.withAuth(s.handleListStorageOptions))
 	s.mux.HandleFunc("GET /api/v1/me/favorites", s.withAuth(s.handleListFavorites))
 	s.mux.HandleFunc("GET /api/v1/me/collaboration", s.withAuth(s.handleMyCollaboration))
@@ -273,6 +277,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/admin/storage/test", s.withRole(userRoleSiteAdmin)(s.handleTestStorageConfig))
 
 	s.mux.HandleFunc("GET /source/v1/index.json", s.handleSourceIndex)
+	s.mux.Handle("/mcp", s.mcpHandler())
 
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if isAPINamespace(r.URL.Path) {

@@ -14,7 +14,7 @@ type ReviewRequest struct {
 
 func (ReviewRequest) Fields() []ent.Field {
 	return []ent.Field{
-		field.Enum("kind").Values("APP_SUBMISSION", "VERSION_UPLOAD", "APP_INFO_UPDATE").Default("APP_SUBMISSION"),
+		field.Enum("kind").Values("APP_SUBMISSION", "VERSION_UPLOAD", "APP_INFO_UPDATE", "APP_RESUBMISSION").Default("APP_SUBMISSION"),
 		field.Enum("status").Values("PENDING", "APPROVED", "REJECTED").Default("PENDING"),
 		field.Int("app_id").Optional().Nillable(),
 		field.Int("version_id").Optional().Nillable(),

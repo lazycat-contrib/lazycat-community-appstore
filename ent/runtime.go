@@ -26,6 +26,7 @@ import (
 	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
+	"lazycat.community/appstore/ent/mcptoken"
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/registrationinvite"
 	"lazycat.community/appstore/ent/reviewrequest"
@@ -565,6 +566,24 @@ func init() {
 	groupmemberDescCreatedAt := groupmemberFields[2].Descriptor()
 	// groupmember.DefaultCreatedAt holds the default value on creation for the created_at field.
 	groupmember.DefaultCreatedAt = groupmemberDescCreatedAt.Default.(func() time.Time)
+	mcptokenFields := schema.MCPToken{}.Fields()
+	_ = mcptokenFields
+	// mcptokenDescNote is the schema descriptor for note field.
+	mcptokenDescNote := mcptokenFields[2].Descriptor()
+	// mcptoken.DefaultNote holds the default value on creation for the note field.
+	mcptoken.DefaultNote = mcptokenDescNote.Default.(string)
+	// mcptokenDescPrefix is the schema descriptor for prefix field.
+	mcptokenDescPrefix := mcptokenFields[3].Descriptor()
+	// mcptoken.PrefixValidator is a validator for the "prefix" field. It is called by the builders before save.
+	mcptoken.PrefixValidator = mcptokenDescPrefix.Validators[0].(func(string) error)
+	// mcptokenDescTokenHash is the schema descriptor for token_hash field.
+	mcptokenDescTokenHash := mcptokenFields[4].Descriptor()
+	// mcptoken.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	mcptoken.TokenHashValidator = mcptokenDescTokenHash.Validators[0].(func(string) error)
+	// mcptokenDescCreatedAt is the schema descriptor for created_at field.
+	mcptokenDescCreatedAt := mcptokenFields[7].Descriptor()
+	// mcptoken.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mcptoken.DefaultCreatedAt = mcptokenDescCreatedAt.Default.(func() time.Time)
 	outdatedmarkFields := schema.OutdatedMark{}.Fields()
 	_ = outdatedmarkFields
 	// outdatedmarkDescNote is the schema descriptor for note field.

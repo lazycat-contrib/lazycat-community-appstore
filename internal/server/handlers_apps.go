@@ -161,6 +161,7 @@ type updateAppJSON struct {
 	CommentsEnabled           *bool    `json:"commentsEnabled,omitempty"`
 	EmailNotificationsEnabled *bool    `json:"emailNotificationsEnabled,omitempty"`
 	InstallPassword           *string  `json:"installPassword,omitempty"`
+	SubmitForReview           *bool    `json:"submitForReview,omitempty"`
 }
 
 func (u *updateAppJSON) UnmarshalJSON(data []byte) error {
@@ -364,7 +365,8 @@ func (s *Server) handleUpdateApp(w http.ResponseWriter, r *http.Request, u *entg
 		return
 	}
 
-	if !isAdmin(u) && !record.AllowUnreviewedUpdates {
+	resubmittingRejectedApp := record.Status == app.StatusREJECTED && (input.SubmitForReview == nil || *input.SubmitForReview)
+	if !isAdmin(u) && (resubmittingRejectedApp || !record.AllowUnreviewedUpdates) {
 		if input.InstallPassword != nil {
 			writeError(w, http.StatusForbidden, "FORBIDDEN", "Install password changes require direct app update permission", nil)
 			return
@@ -374,8 +376,12 @@ func (s *Server) handleUpdateApp(w http.ResponseWriter, r *http.Request, u *entg
 			writeError(w, http.StatusInternalServerError, "APP_UPDATE_REVIEW_FAILED", "Could not prepare app update review", nil)
 			return
 		}
+		kind := reviewrequest.KindAPP_INFO_UPDATE
+		if resubmittingRejectedApp {
+			kind = reviewrequest.KindAPP_RESUBMISSION
+		}
 		review, err := s.db.ReviewRequest.Create().
-			SetKind(reviewrequest.KindAPP_INFO_UPDATE).
+			SetKind(kind).
 			SetStatus(reviewrequest.StatusPENDING).
 			SetAppID(record.ID).
 			SetRequesterID(u.ID).
@@ -385,6 +391,9 @@ func (s *Server) handleUpdateApp(w http.ResponseWriter, r *http.Request, u *entg
 			writeError(w, http.StatusInternalServerError, "APP_UPDATE_REVIEW_FAILED", "Could not create app update review", nil)
 			return
 		}
+		if resubmittingRejectedApp {
+			_, _ = s.db.App.UpdateOneID(record.ID).SetStatus(app.StatusPENDING).Save(r.Context())
+		}
 		writeJSON(w, http.StatusAccepted, map[string]any{"review": review})
 		return
 	}
@@ -393,6 +402,13 @@ func (s *Server) handleUpdateApp(w http.ResponseWriter, r *http.Request, u *entg
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "APP_UPDATE_FAILED", "Could not update app", nil)
 		return
+	}
+	if isAdmin(u) && resubmittingRejectedApp {
+		updated, err = s.db.App.UpdateOneID(id).SetStatus(app.StatusAPPROVED).Save(r.Context())
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "APP_UPDATE_FAILED", "Could not update app status", nil)
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"app": s.appSummaryDTO(r, updated, u)})
 }

@@ -36,6 +36,7 @@ import (
 	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
+	"lazycat.community/appstore/ent/mcptoken"
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/registrationinvite"
 	"lazycat.community/appstore/ent/reviewrequest"
@@ -93,6 +94,8 @@ type Client struct {
 	Favorite *FavoriteClient
 	// GroupMember is the client for interacting with the GroupMember builders.
 	GroupMember *GroupMemberClient
+	// MCPToken is the client for interacting with the MCPToken builders.
+	MCPToken *MCPTokenClient
 	// OutdatedMark is the client for interacting with the OutdatedMark builders.
 	OutdatedMark *OutdatedMarkClient
 	// RegistrationInvite is the client for interacting with the RegistrationInvite builders.
@@ -141,6 +144,7 @@ func (c *Client) init() {
 	c.CommentNotification = NewCommentNotificationClient(c.config)
 	c.Favorite = NewFavoriteClient(c.config)
 	c.GroupMember = NewGroupMemberClient(c.config)
+	c.MCPToken = NewMCPTokenClient(c.config)
 	c.OutdatedMark = NewOutdatedMarkClient(c.config)
 	c.RegistrationInvite = NewRegistrationInviteClient(c.config)
 	c.ReviewRequest = NewReviewRequestClient(c.config)
@@ -262,6 +266,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		CommentNotification:  NewCommentNotificationClient(cfg),
 		Favorite:             NewFavoriteClient(cfg),
 		GroupMember:          NewGroupMemberClient(cfg),
+		MCPToken:             NewMCPTokenClient(cfg),
 		OutdatedMark:         NewOutdatedMarkClient(cfg),
 		RegistrationInvite:   NewRegistrationInviteClient(cfg),
 		ReviewRequest:        NewReviewRequestClient(cfg),
@@ -310,6 +315,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		CommentNotification:  NewCommentNotificationClient(cfg),
 		Favorite:             NewFavoriteClient(cfg),
 		GroupMember:          NewGroupMemberClient(cfg),
+		MCPToken:             NewMCPTokenClient(cfg),
 		OutdatedMark:         NewOutdatedMarkClient(cfg),
 		RegistrationInvite:   NewRegistrationInviteClient(cfg),
 		ReviewRequest:        NewReviewRequestClient(cfg),
@@ -351,7 +357,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
 		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
 		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
-		c.CommentNotification, c.Favorite, c.GroupMember, c.OutdatedMark,
+		c.CommentNotification, c.Favorite, c.GroupMember, c.MCPToken, c.OutdatedMark,
 		c.RegistrationInvite, c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag,
 		c.User, c.UserGroup,
 	} {
@@ -367,7 +373,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
 		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
 		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
-		c.CommentNotification, c.Favorite, c.GroupMember, c.OutdatedMark,
+		c.CommentNotification, c.Favorite, c.GroupMember, c.MCPToken, c.OutdatedMark,
 		c.RegistrationInvite, c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag,
 		c.User, c.UserGroup,
 	} {
@@ -420,6 +426,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Favorite.mutate(ctx, m)
 	case *GroupMemberMutation:
 		return c.GroupMember.mutate(ctx, m)
+	case *MCPTokenMutation:
+		return c.MCPToken.mutate(ctx, m)
 	case *OutdatedMarkMutation:
 		return c.OutdatedMark.mutate(ctx, m)
 	case *RegistrationInviteMutation:
@@ -3266,6 +3274,139 @@ func (c *GroupMemberClient) mutate(ctx context.Context, m *GroupMemberMutation) 
 	}
 }
 
+// MCPTokenClient is a client for the MCPToken schema.
+type MCPTokenClient struct {
+	config
+}
+
+// NewMCPTokenClient returns a client for the MCPToken from the given config.
+func NewMCPTokenClient(c config) *MCPTokenClient {
+	return &MCPTokenClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mcptoken.Hooks(f(g(h())))`.
+func (c *MCPTokenClient) Use(hooks ...Hook) {
+	c.hooks.MCPToken = append(c.hooks.MCPToken, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mcptoken.Intercept(f(g(h())))`.
+func (c *MCPTokenClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MCPToken = append(c.inters.MCPToken, interceptors...)
+}
+
+// Create returns a builder for creating a MCPToken entity.
+func (c *MCPTokenClient) Create() *MCPTokenCreate {
+	mutation := newMCPTokenMutation(c.config, OpCreate)
+	return &MCPTokenCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MCPToken entities.
+func (c *MCPTokenClient) CreateBulk(builders ...*MCPTokenCreate) *MCPTokenCreateBulk {
+	return &MCPTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MCPTokenClient) MapCreateBulk(slice any, setFunc func(*MCPTokenCreate, int)) *MCPTokenCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MCPTokenCreateBulk{err: fmt.Errorf("calling to MCPTokenClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MCPTokenCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MCPTokenCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MCPToken.
+func (c *MCPTokenClient) Update() *MCPTokenUpdate {
+	mutation := newMCPTokenMutation(c.config, OpUpdate)
+	return &MCPTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MCPTokenClient) UpdateOne(_m *MCPToken) *MCPTokenUpdateOne {
+	mutation := newMCPTokenMutation(c.config, OpUpdateOne, withMCPToken(_m))
+	return &MCPTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MCPTokenClient) UpdateOneID(id int) *MCPTokenUpdateOne {
+	mutation := newMCPTokenMutation(c.config, OpUpdateOne, withMCPTokenID(id))
+	return &MCPTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MCPToken.
+func (c *MCPTokenClient) Delete() *MCPTokenDelete {
+	mutation := newMCPTokenMutation(c.config, OpDelete)
+	return &MCPTokenDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MCPTokenClient) DeleteOne(_m *MCPToken) *MCPTokenDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MCPTokenClient) DeleteOneID(id int) *MCPTokenDeleteOne {
+	builder := c.Delete().Where(mcptoken.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MCPTokenDeleteOne{builder}
+}
+
+// Query returns a query builder for MCPToken.
+func (c *MCPTokenClient) Query() *MCPTokenQuery {
+	return &MCPTokenQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMCPToken},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MCPToken entity by its id.
+func (c *MCPTokenClient) Get(ctx context.Context, id int) (*MCPToken, error) {
+	return c.Query().Where(mcptoken.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MCPTokenClient) GetX(ctx context.Context, id int) *MCPToken {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MCPTokenClient) Hooks() []Hook {
+	return c.hooks.MCPToken
+}
+
+// Interceptors returns the client interceptors.
+func (c *MCPTokenClient) Interceptors() []Interceptor {
+	return c.inters.MCPToken
+}
+
+func (c *MCPTokenClient) mutate(ctx context.Context, m *MCPTokenMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MCPTokenCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MCPTokenUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MCPTokenUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MCPTokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MCPToken mutation op: %q", m.Op())
+	}
+}
+
 // OutdatedMarkClient is a client for the OutdatedMark schema.
 type OutdatedMarkClient struct {
 	config
@@ -4337,15 +4478,15 @@ type (
 		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
 		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
 		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
-		OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig,
-		Tag, User, UserGroup []ent.Hook
+		MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting,
+		StorageConfig, Tag, User, UserGroup []ent.Hook
 	}
 	inters struct {
 		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
 		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
 		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
 		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
-		OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig,
-		Tag, User, UserGroup []ent.Interceptor
+		MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting,
+		StorageConfig, Tag, User, UserGroup []ent.Interceptor
 	}
 )

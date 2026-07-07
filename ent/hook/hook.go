@@ -261,6 +261,18 @@ func (f GroupMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GroupMemberMutation", m)
 }
 
+// The MCPTokenFunc type is an adapter to allow the use of ordinary
+// function as MCPToken mutator.
+type MCPTokenFunc func(context.Context, *ent.MCPTokenMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MCPTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MCPTokenMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MCPTokenMutation", m)
+}
+
 // The OutdatedMarkFunc type is an adapter to allow the use of ordinary
 // function as OutdatedMark mutator.
 type OutdatedMarkFunc func(context.Context, *ent.OutdatedMarkMutation) (ent.Value, error)

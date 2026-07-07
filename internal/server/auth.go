@@ -159,11 +159,19 @@ func (s *Server) verifySession(value string) (int, bool) {
 }
 
 func randomToken() (string, error) {
+	return randomTokenWithPrefix("lcst_")
+}
+
+func randomMCPToken() (string, error) {
+	return randomTokenWithPrefix("lcmcp_")
+}
+
+func randomTokenWithPrefix(prefix string) (string, error) {
 	var buf [32]byte
 	if _, err := rand.Read(buf[:]); err != nil {
 		return "", err
 	}
-	return "lcst_" + base64.RawURLEncoding.EncodeToString(buf[:]), nil
+	return prefix + base64.RawURLEncoding.EncodeToString(buf[:]), nil
 }
 
 func tokenPrefix(token string) string {

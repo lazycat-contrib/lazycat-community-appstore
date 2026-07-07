@@ -2270,6 +2270,83 @@ body,
   justify-content: center;
 }
 
+.fixed-row-icon-button {
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  height: 36px;
+  min-height: 36px;
+}
+
+.mcp-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.mcp-endpoint-row {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 10px;
+}
+
+.mcp-endpoint-row span,
+.mcp-endpoint-row code {
+  display: block;
+}
+
+.mcp-endpoint-row span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.mcp-endpoint-row code {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.mcp-token-row {
+  max-width: 100%;
+}
+
+.mcp-token-row span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.token-reveal {
+  min-width: 0;
+  border: 1px solid var(--status-success-line);
+  border-radius: 8px;
+  background: var(--status-success-bg);
+  color: var(--status-success-ink);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.token-reveal strong,
+.token-reveal span {
+  display: block;
+}
+
+.token-reveal span {
+  margin-top: 3px;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--status-success-ink) 78%, var(--muted));
+}
+
+.mcp-token-dialog {
+  width: min(430px, 100%);
+}
+
 .horizontal-control-scroll {
   max-width: 100%;
   min-width: 0;

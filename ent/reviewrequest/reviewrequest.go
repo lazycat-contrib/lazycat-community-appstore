@@ -87,9 +87,10 @@ const DefaultKind = KindAPP_SUBMISSION
 
 // Kind values.
 const (
-	KindAPP_SUBMISSION  Kind = "APP_SUBMISSION"
-	KindVERSION_UPLOAD  Kind = "VERSION_UPLOAD"
-	KindAPP_INFO_UPDATE Kind = "APP_INFO_UPDATE"
+	KindAPP_SUBMISSION   Kind = "APP_SUBMISSION"
+	KindVERSION_UPLOAD   Kind = "VERSION_UPLOAD"
+	KindAPP_INFO_UPDATE  Kind = "APP_INFO_UPDATE"
+	KindAPP_RESUBMISSION Kind = "APP_RESUBMISSION"
 )
 
 func (k Kind) String() string {
@@ -99,7 +100,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindAPP_SUBMISSION, KindVERSION_UPLOAD, KindAPP_INFO_UPDATE:
+	case KindAPP_SUBMISSION, KindVERSION_UPLOAD, KindAPP_INFO_UPDATE, KindAPP_RESUBMISSION:
 		return nil
 	default:
 		return fmt.Errorf("reviewrequest: invalid enum value for kind field: %q", k)

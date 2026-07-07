@@ -1,0 +1,751 @@
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, Check, ChevronRight, Cloud, Gauge, Heart, KeyRound, LogIn, LogOut, PackagePlus, RefreshCw, Search, Server, Settings, Upload, Users, X } from 'lucide-react';
+import { Button as XButton } from '@astryxdesign/core/Button';
+import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
+import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
+import { useTranslation } from 'react-i18next';
+import { UserAvatar } from '../../components/AppIcon';
+import { api, apiWithUploadProgress } from '../../shared/api';
+import { canUserManageApp, canUserUploadVersion, defaultUploadStorageKey, displayUserName, reconcileScreenshotCaptions, screenshotFileKey, storageSelectOptions } from '../../shared/appHelpers';
+import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
+import type { Category, ClientSourceStats, CollaborationData, FavoriteData, Group, InstalledApplication, SourceApp, StorageOption, StoreApp, Toast, User } from '../../shared/types';
+import { cx, formatDate, hasInstallableVersion, runAction, statusKey } from '../../shared/utils';
+import { InstalledAppsView } from '../client/InstalledAppsView';
+import type { AppDetailMode } from '../storefront/AppDrawer';
+import { APITokenWorkspace } from './APITokenWorkspace';
+import { AppSubmissionForm, type SubmissionArtifactMode, type SubmissionProgress } from './AppSubmissionForm';
+import { CollaborationPanel } from './CollaborationPanel';
+import { GroupPanel } from './GroupPanel';
+import { MCPWorkspace } from './MCPWorkspace';
+
+type ProfileWorkspaceTab = 'overview' | 'apps' | 'collaboration' | 'manage' | 'mcp' | 'tokens' | 'groups' | 'favorites';
+type ProfileNavigationTarget = 'sources' | 'search';
+
+function verificationTokenFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  if (window.location.pathname.includes('verify')) return params.get('token') || '';
+  if (window.location.pathname === '/login' && params.get('mode') === 'verify') return params.get('token') || '';
+  return '';
+}
+
+function collaborationInviteTokenFromURL() {
+  if (!window.location.pathname.includes('collaboration-invite')) return '';
+  return new URLSearchParams(window.location.search).get('token') || '';
+}
+
+export function ProfileView({
+  user,
+  setUser,
+  apps,
+  managedApps,
+  groups,
+  setGroups,
+  categories,
+  sourceApps,
+  sourceStats,
+  installedApps,
+  installedState,
+  installedError,
+  onLoadInstalled,
+  onOpen,
+  refreshAll,
+  setToast,
+  hasAPI,
+  storageOptions,
+  collaborationData,
+  onCollaborationRefresh,
+  tagOptions,
+  openSubmitSignal,
+  onNavigate,
+  onLogin,
+}: {
+  user: User | null;
+  setUser: (user: User | null) => void;
+  apps: StoreApp[];
+  managedApps: StoreApp[];
+  groups: Group[];
+  setGroups: (groups: Group[]) => void;
+  categories: Category[];
+  sourceApps: SourceApp[];
+  sourceStats: ClientSourceStats;
+  installedApps: InstalledApplication[];
+  installedState: 'idle' | 'loading' | 'loaded' | 'error';
+  installedError: string;
+  onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
+  onOpen: (app: StoreApp, mode?: AppDetailMode) => void;
+  refreshAll: (options?: { silent?: boolean }) => Promise<void>;
+  setToast: (toast: Toast) => void;
+  hasAPI: boolean;
+  storageOptions: StorageOption[];
+  collaborationData: CollaborationData;
+  onCollaborationRefresh: () => Promise<void>;
+  tagOptions: string[];
+  openSubmitSignal: number;
+  onNavigate: (tab: ProfileNavigationTarget) => void;
+  onLogin: () => void;
+}) {
+  const { t } = useTranslation();
+  const [workspaceTab, setWorkspaceTab] = useState<ProfileWorkspaceTab>(() => (collaborationInviteTokenFromURL() ? 'collaboration' : 'overview'));
+  const [isSubmitOpen, setIsSubmitOpen] = useState(false);
+  const [managedSubmitter, setManagedSubmitter] = useState('all');
+  const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
+  const [uploadForm, setUploadForm] = useState({
+    name: '',
+    version: '',
+    summary: '',
+    description: '',
+    categoryId: '',
+    tags: '',
+    allowUnreviewedUpdates: false,
+    emailNotificationsEnabled: true,
+    sourceType: 'GITHUB',
+    downloadUrl: '',
+    sha256: '',
+    useMirrorDownload: true,
+    installPassword: '',
+  });
+  const [recentSubmission, setRecentSubmission] = useState<{ name: string; status: string } | null>(null);
+  const [isSubmittingApp, setIsSubmittingApp] = useState(false);
+  const [submissionProgress, setSubmissionProgress] = useState<SubmissionProgress | null>(null);
+  const [artifactMode, setArtifactMode] = useState<SubmissionArtifactMode>('local');
+  const [uploadStorageKey, setUploadStorageKey] = useState(defaultUploadStorageKey(storageOptions));
+  const [file, setFile] = useState<File | null>(null);
+  const [desktopScreenshotFiles, setDesktopScreenshotFiles] = useState<File[]>([]);
+  const [mobileScreenshotFiles, setMobileScreenshotFiles] = useState<File[]>([]);
+  const [desktopScreenshotCaptions, setDesktopScreenshotCaptions] = useState<Record<string, string>>({});
+  const [mobileScreenshotCaptions, setMobileScreenshotCaptions] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
+  const canUseManagementWorkspace = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
+  const workspaceTabs = [
+    { key: 'overview' as const, label: t('profile.tabs.overview'), icon: Gauge },
+    { key: 'apps' as const, label: t('profile.tabs.apps'), icon: PackagePlus },
+    { key: 'collaboration' as const, label: t('profile.tabs.collaboration'), icon: Users },
+    ...(canUseManagementWorkspace ? [{ key: 'manage' as const, label: t('profile.tabs.manage'), icon: Settings }] : []),
+    { key: 'mcp' as const, label: t('profile.tabs.mcp'), icon: Server },
+    { key: 'tokens' as const, label: t('profile.tabs.tokens'), icon: KeyRound },
+    { key: 'groups' as const, label: t('profile.tabs.groups'), icon: Users },
+    { key: 'favorites' as const, label: t('profile.tabs.favorites'), icon: Heart },
+  ];
+  const ownedApps = useMemo(() => {
+    if (!user) return [];
+    return apps
+      .filter((app) => app.ownerId === user.id)
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  }, [apps, user]);
+  const ownedStatusSummary = useMemo(() => {
+    const order = ['APPROVED', 'PENDING', 'REJECTED', 'UNLISTED'];
+    return order
+      .map((status) => ({ status, count: ownedApps.filter((app) => app.status === status).length }))
+      .filter((item) => item.count > 0);
+  }, [ownedApps]);
+  const managedSubmitterOptions = useMemo(() => {
+    const users = new Map<number, string>();
+    managedApps.forEach((app) => {
+      users.set(app.ownerId, app.owner || String(app.ownerId));
+    });
+    return [
+      { value: 'all', label: t('profile.allMaintainers') },
+      ...Array.from(users, ([id, label]) => ({ value: String(id), label })).sort((a, b) => a.label.localeCompare(b.label)),
+    ];
+  }, [managedApps, t]);
+  const manageableApps = useMemo(() => {
+    const filtered = managedSubmitter === 'all'
+      ? managedApps
+      : managedApps.filter((app) => String(app.ownerId) === managedSubmitter);
+    return [...filtered].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  }, [managedApps, managedSubmitter]);
+  const publishSummary = useMemo(() => {
+    return {
+      total: ownedApps.length,
+      approved: ownedApps.filter((app) => app.status === 'APPROVED').length,
+      pending: ownedApps.filter((app) => app.status === 'PENDING').length,
+      needsVersion: ownedApps.filter((app) => app.status === 'APPROVED' && !hasInstallableVersion(app)).length,
+    };
+  }, [ownedApps]);
+  const sourceCacheReady = sourceStats.syncedSourceCount > 0;
+  const installCatalogReady = sourceStats.installableSourceAppCount > 0;
+  const installedLookupReady = installedState === 'loaded';
+  const sourceCacheBody =
+    sourceStats.sourceCount === 0
+      ? t('profile.clientSourceMissing')
+      : sourceStats.syncedSourceCount === 0 && sourceStats.authSourceCount > 0
+        ? t('profile.clientSourceNeedsPassword', { count: sourceStats.authSourceCount })
+      : sourceStats.syncedSourceCount === 0 && sourceStats.staleSourceCount > 0
+        ? t('profile.clientSourceStale', { count: sourceStats.staleSourceCount })
+      : sourceStats.syncedSourceCount === 0
+        ? t('profile.clientSourceNeedsSync', { count: sourceStats.sourceCount })
+        : sourceStats.authSourceCount > 0
+          ? t('profile.clientSourcePartlyNeedsPassword', {
+              synced: sourceStats.syncedSourceCount,
+              auth: sourceStats.authSourceCount,
+              total: sourceStats.sourceCount,
+            })
+        : sourceStats.staleSourceCount > 0
+          ? t('profile.clientSourcePartlyStale', {
+              synced: sourceStats.syncedSourceCount,
+              stale: sourceStats.staleSourceCount,
+              total: sourceStats.sourceCount,
+            })
+        : t('profile.clientSourceReady', { synced: sourceStats.syncedSourceCount, total: sourceStats.sourceCount });
+  const installCatalogBody =
+    sourceStats.installableSourceAppCount > 0
+      ? t('profile.clientInstallReady', { count: sourceStats.installableSourceAppCount })
+      : sourceStats.sourceAppCount > 0
+        ? t('profile.clientInstallMissingInstallable', { count: sourceStats.sourceAppCount })
+        : t('profile.clientInstallMissing');
+  const installedReadinessBody =
+    installedState === 'loaded'
+      ? t('profile.clientInstalledLoaded', { count: installedApps.length })
+      : installedState === 'loading'
+        ? t('profile.clientInstalledLoading')
+        : installedState === 'error'
+          ? installedError || t('profile.clientInstalledError')
+          : t('profile.clientInstalledIdle');
+  const storageChoices = storageSelectOptions(storageOptions);
+
+  useEffect(() => {
+    const fallback = defaultUploadStorageKey(storageOptions);
+    setUploadStorageKey((current) => (storageOptions.some((storage) => storage.key === current) ? current : fallback));
+  }, [storageOptions]);
+
+  useEffect(() => {
+    if (!user || openSubmitSignal === 0) return;
+    setWorkspaceTab('apps');
+    setIsSubmitOpen(true);
+  }, [openSubmitSignal, user]);
+
+  useEffect(() => {
+    if (workspaceTab === 'manage' && !canUseManagementWorkspace) {
+      setWorkspaceTab('overview');
+    }
+  }, [canUseManagementWorkspace, workspaceTab]);
+
+  useEffect(() => {
+    if (managedSubmitter === 'all') return;
+    if (!managedSubmitterOptions.some((option) => option.value === managedSubmitter)) {
+      setManagedSubmitter('all');
+    }
+  }, [managedSubmitter, managedSubmitterOptions]);
+
+  useEffect(() => {
+    if (!user) return;
+    void loadFavorites();
+  }, [user]);
+
+  async function submitVerification(event: FormEvent) {
+    event.preventDefault();
+    await runAction(setToast, t('auth.verifyFailed'), async () => {
+      const data = await api<{ user: User }>('/api/v1/auth/verify-email', {
+        method: 'POST',
+        body: JSON.stringify({ token: verifyToken }),
+      });
+      setUser(data.user);
+      setToast({ tone: 'success', message: t('auth.emailVerified') });
+      await refreshAll();
+    });
+  }
+
+  function selectArtifactMode(nextMode: 'local' | 'external') {
+    setArtifactMode(nextMode);
+    if (nextMode === 'external') {
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  function updateDesktopScreenshotFiles(files: File[]) {
+    setDesktopScreenshotFiles(files);
+    setDesktopScreenshotCaptions((current) => reconcileScreenshotCaptions(files, current));
+  }
+
+  function updateMobileScreenshotFiles(files: File[]) {
+    setMobileScreenshotFiles(files);
+    setMobileScreenshotCaptions((current) => reconcileScreenshotCaptions(files, current));
+  }
+
+  function updateDesktopScreenshotCaption(file: File, caption: string) {
+    setDesktopScreenshotCaptions((current) => ({ ...current, [screenshotFileKey(file)]: caption }));
+  }
+
+  function updateMobileScreenshotCaption(file: File, caption: string) {
+    setMobileScreenshotCaptions((current) => ({ ...current, [screenshotFileKey(file)]: caption }));
+  }
+
+  function startSubmissionStageProgress(label: string, initialPercent = 12, maxPercent = 86) {
+    setSubmissionProgress({ percent: initialPercent, label });
+    const timer = window.setInterval(() => {
+      setSubmissionProgress((current) => {
+        if (!current) return current;
+        const remaining = maxPercent - current.percent;
+        if (remaining <= 0) return current;
+        return { ...current, percent: Math.min(maxPercent, current.percent + Math.max(1, remaining * 0.16)) };
+      });
+    }, 700);
+    return () => window.clearInterval(timer);
+  }
+
+  async function submitUpload(event: FormEvent) {
+    event.preventDefault();
+    if (isSubmittingApp) return;
+    if (artifactMode === 'local' && !file) {
+      setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
+      return;
+    }
+    if (artifactMode === 'external' && !uploadForm.downloadUrl.trim()) {
+      setToast({ tone: 'error', message: t('submitApp.selectFileOrUrl') });
+      return;
+    }
+    setIsSubmittingApp(true);
+    setSubmissionProgress({ percent: 6, label: t('submitApp.progressPreparing') });
+    let stopStageProgress: (() => void) | undefined;
+    try {
+      await runAction(setToast, t('submitApp.failed'), async () => {
+        let created: { app?: StoreApp };
+        if (artifactMode === 'local' && file) {
+          const form = new FormData();
+          Object.entries(uploadForm).forEach(([key, value]) => form.set(key, String(value)));
+          form.set('file', file);
+          form.set('storageKey', uploadStorageKey);
+          created = await apiWithUploadProgress<{ app: StoreApp }>('/api/v1/apps', {
+            method: 'POST',
+            body: form,
+            onUploadProgress: (percent) => {
+              setSubmissionProgress({
+                percent: Math.min(82, Math.max(8, Math.round(percent * 0.76))),
+                label: percent >= 100 ? t('submitApp.progressVerifying') : t('submitApp.progressUploading'),
+              });
+            },
+          });
+        } else {
+          stopStageProgress = startSubmissionStageProgress(
+            uploadForm.sourceType === 'GITHUB' && uploadForm.useMirrorDownload
+              ? t('submitApp.progressMirrorFetching')
+              : t('submitApp.progressRemoteFetching'),
+          );
+          created = await api<{ app: StoreApp }>('/api/v1/apps', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: uploadForm.name,
+              version: uploadForm.version,
+              summary: uploadForm.summary,
+              description: uploadForm.description,
+              categoryId: uploadForm.categoryId ? Number(uploadForm.categoryId) : undefined,
+              tags: uploadForm.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+              allowUnreviewedUpdates: uploadForm.allowUnreviewedUpdates,
+              emailNotificationsEnabled: uploadForm.emailNotificationsEnabled,
+              sourceType: uploadForm.sourceType,
+              downloadUrl: uploadForm.downloadUrl.trim(),
+              sha256: uploadForm.sha256.trim(),
+              useMirrorDownload: uploadForm.useMirrorDownload,
+              ...(uploadForm.installPassword.trim() ? { installPassword: uploadForm.installPassword.trim() } : {}),
+            }),
+          });
+        }
+        stopStageProgress?.();
+        stopStageProgress = undefined;
+        if (created.app?.id) {
+          setSubmissionProgress({ percent: 88, label: t('submitApp.progressScreenshots') });
+          await uploadInitialScreenshots(created.app.id, desktopScreenshotFiles, desktopScreenshotCaptions, 'DESKTOP');
+          await uploadInitialScreenshots(created.app.id, mobileScreenshotFiles, mobileScreenshotCaptions, 'MOBILE');
+        }
+        setSubmissionProgress({ percent: 100, label: t('submitApp.progressDone') });
+        setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
+        setToast({ tone: 'success', message: t('submitApp.submitted') });
+        setUploadForm({ name: '', version: '', summary: '', description: '', categoryId: '', tags: '', allowUnreviewedUpdates: false, emailNotificationsEnabled: true, sourceType: 'GITHUB', downloadUrl: '', sha256: '', useMirrorDownload: true, installPassword: '' });
+        setArtifactMode('local');
+        setFile(null);
+        setDesktopScreenshotFiles([]);
+        setMobileScreenshotFiles([]);
+        setDesktopScreenshotCaptions({});
+        setMobileScreenshotCaptions({});
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setIsSubmitOpen(false);
+        setWorkspaceTab('apps');
+        await refreshAll({ silent: true });
+      });
+    } finally {
+      stopStageProgress?.();
+      setSubmissionProgress(null);
+      setIsSubmittingApp(false);
+    }
+  }
+
+  async function uploadInitialScreenshots(appID: number, files: File[], captions: Record<string, string>, deviceType: 'DESKTOP' | 'MOBILE') {
+    for (const screenshot of files) {
+      const form = new FormData();
+      form.set('file', screenshot);
+      form.set('caption', (captions[screenshotFileKey(screenshot)] || '').trim());
+      form.set('deviceType', deviceType);
+      form.set('storageKey', uploadStorageKey);
+      await api(`/api/v1/apps/${appID}/screenshots`, { method: 'POST', body: form });
+    }
+  }
+
+  async function loadFavorites() {
+    await runAction(setToast, t('favorites.loadFailed'), async () => {
+      const data = await api<FavoriteData>('/api/v1/me/favorites');
+      setFavorites({ apps: data.apps || [], submitters: data.submitters || [] });
+    });
+  }
+
+  function submissionStep(app: StoreApp) {
+    if (app.status === 'PENDING') return { key: 'pending', tone: 'pending' };
+    if (app.status === 'REJECTED') return { key: 'rejected', tone: 'rejected' };
+    if (app.status === 'APPROVED' && !hasInstallableVersion(app)) return { key: 'needsVersion', tone: 'unlisted' };
+    if (app.status === 'APPROVED') return { key: 'listed', tone: 'approved' };
+    return { key: 'draft', tone: 'draft' };
+  }
+
+  if (!hasAPI) {
+    return (
+      <section className="page-grid">
+        <div className="page-heading with-action">
+          <div>
+            <span className="eyebrow subtle">{t('mode.standaloneClient')}</span>
+            <h1>{t('profile.clientTitle')}</h1>
+            <p>{t('profile.clientBody')}</p>
+          </div>
+          <div className="row-actions">
+            <XButton type="button" variant="primary" label={t('profile.openSources')} icon={<Cloud size={18} />} onClick={() => onNavigate('sources')} />
+            <XButton type="button" variant="secondary" label={t('profile.browseInstallable')} icon={<Search size={18} />} onClick={() => onNavigate('search')} />
+          </div>
+        </div>
+        <section className="panel">
+          <SectionTitle icon={Gauge} title={t('profile.clientReadiness')} />
+          <div className="source-readiness" aria-label={t('profile.clientReadiness')}>
+            <div className={cx('readiness-step', sourceCacheReady && 'ready')}>
+              <span className={cx('status-badge', sourceCacheReady ? 'approved' : 'unlisted')}>
+                {sourceCacheReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                {sourceCacheReady ? t('sources.ready') : t('sources.needsValue')}
+              </span>
+              <strong>{t('profile.clientSourceTitle')}</strong>
+              <small>{sourceCacheBody}</small>
+            </div>
+            <div className={cx('readiness-step', installCatalogReady && 'ready')}>
+              <span className={cx('status-badge', installCatalogReady ? 'approved' : 'unlisted')}>
+                {installCatalogReady ? <Check size={14} /> : <AlertCircle size={14} />}
+                {installCatalogReady ? t('sources.ready') : t('sources.needsValue')}
+              </span>
+              <strong>{t('profile.clientInstallTitle')}</strong>
+              <small>{installCatalogBody}</small>
+            </div>
+            <div className={cx('readiness-step', installedLookupReady && 'ready')}>
+              <span className={cx('status-badge', installedState === 'error' ? 'failed' : installedState === 'loading' ? 'pending' : installedLookupReady ? 'synced' : 'unsynced')}>
+                {installedState === 'error' ? <AlertCircle size={14} /> : installedLookupReady ? <Check size={14} /> : <Gauge size={14} />}
+                {t(`profile.installedState.${installedState}`)}
+              </span>
+              <strong>{t('profile.clientInstalledTitle')}</strong>
+              <small>{installedReadinessBody}</small>
+            </div>
+          </div>
+        </section>
+        <InstalledAppsView
+          installedApps={installedApps}
+          sourceApps={sourceApps}
+          installedState={installedState}
+          installedError={installedError}
+          installedReadinessBody={installedReadinessBody}
+          onLoadInstalled={onLoadInstalled}
+        />
+      </section>
+    );
+  }
+
+  if (!user) {
+    return (
+      <section className="page-grid">
+        <EmptyState
+          icon={LogIn}
+          title={t('auth.loginRequired')}
+          body={t('auth.loginRequiredBody')}
+          action={{ label: t('auth.login'), icon: LogIn, onClick: onLogin }}
+        />
+      </section>
+    );
+  }
+
+  if (user.emailVerified === false) {
+    return (
+      <section className="page-grid">
+        <div className="split">
+          <div className="panel profile-card">
+            <UserAvatar user={user} size={74} className="avatar-large" />
+            <h2>{displayUserName(user)}</h2>
+            <p>{t('auth.emailPending')}</p>
+            <XButton
+              type="button"
+              variant="secondary"
+              label={t('auth.logout')}
+              icon={<LogOut size={18} />}
+              onClick={() =>
+                void runAction(setToast, t('toast.logoutFailed'), async () => {
+                  await api('/api/v1/auth/logout', { method: 'POST' });
+                  setUser(null);
+                })
+              }
+            />
+          </div>
+          <form className="panel form-panel" onSubmit={submitVerification}>
+            <SectionTitle icon={AlertCircle} title={t('auth.verifyEmail')} />
+            <p className="inline-note">{t('auth.verificationHelp')}</p>
+            <XTextInput label={t('auth.verifyToken')} value={verifyToken} onChange={setVerifyToken} />
+            <XButton type="submit" variant="primary" label={t('auth.completeVerification')} icon={<Check size={18} />} />
+          </form>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="page-grid">
+      <div className="page-heading">
+        <span className="eyebrow subtle">{t('profile.serverEyebrow')}</span>
+        <h1>{t('profile.serverTitle')}</h1>
+        <p>{t('profile.serverBody')}</p>
+      </div>
+      <div className="horizontal-control-scroll">
+        <XToggleButtonGroup value={workspaceTab} onChange={(value) => value && setWorkspaceTab(value as typeof workspaceTab)} label={t('profile.tabs.label')} size="sm">
+          {workspaceTabs.map((item) => {
+            const Icon = item.icon;
+            return (
+              <XToggleButton
+                key={item.key}
+                value={item.key}
+                label={item.label}
+                icon={<Icon size={17} />}
+              />
+            );
+          })}
+        </XToggleButtonGroup>
+      </div>
+      {workspaceTab === 'overview' && (
+      <div className="split">
+        <div className="panel profile-card">
+          <UserAvatar user={user} size={74} className="avatar-large" />
+          <h2>{displayUserName(user)}</h2>
+          <p>{t(`admin.roles.${user.role === 'SITE_ADMIN' ? 'siteAdmin' : user.role === 'SOFTWARE_ADMIN' ? 'softwareAdmin' : 'user'}`)}</p>
+          <XButton
+            type="button"
+            variant="secondary"
+            label={t('auth.logout')}
+            icon={<LogOut size={18} />}
+            onClick={() =>
+              void runAction(setToast, t('toast.logoutFailed'), async () => {
+                await api('/api/v1/auth/logout', { method: 'POST' });
+                setUser(null);
+              })
+            }
+          />
+        </div>
+
+        <section className="panel">
+          <SectionTitle icon={Gauge} title={t('profile.publishOverview')} />
+          <div className="workflow-summary-grid" aria-label={t('profile.publishOverview')}>
+            <div>
+              <span>{t('profile.totalSubmissions')}</span>
+              <strong>{publishSummary.total}</strong>
+            </div>
+            <div>
+              <span>{t('profile.listedSubmissions')}</span>
+              <strong>{publishSummary.approved}</strong>
+            </div>
+            <div className={cx(publishSummary.pending > 0 && 'attention')}>
+              <span>{t('profile.pendingSubmissions')}</span>
+              <strong>{publishSummary.pending}</strong>
+            </div>
+            <div className={cx(publishSummary.needsVersion > 0 && 'attention')}>
+              <span>{t('profile.needsVersion')}</span>
+              <strong>{publishSummary.needsVersion}</strong>
+            </div>
+          </div>
+          {ownedStatusSummary.length > 0 && (
+            <div className="status-summary">
+              {ownedStatusSummary.map((item) => (
+                <div key={item.status}>
+                  <strong>{item.count}</strong>
+                  <span>{t(`statusLabels.${statusKey(item.status)}`)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+      )}
+
+      {workspaceTab === 'apps' && (
+      <section className="panel">
+        <div className="section-title with-action">
+          <div>
+            <PackagePlus size={19} />
+            <h2>{t('profile.mySubmissions')}</h2>
+          </div>
+          <XButton
+            type="button"
+            variant="primary"
+            size="sm"
+            label={isSubmitOpen ? t('common.close') : t('submitApp.title')}
+            icon={isSubmitOpen ? <X size={17} /> : <Upload size={17} />}
+            onClick={() => setIsSubmitOpen((open) => !open)}
+          />
+        </div>
+        <div className="review-list">
+          {ownedApps.length === 0 ? (
+            <EmptyState icon={PackagePlus} title={t('profile.mySubmissionsEmpty')} body={t('profile.mySubmissionsEmptyBody')} />
+          ) : (
+            ownedApps.map((item) => (
+              <div className="review-row" key={item.id}>
+                <div>
+                  <strong>{item.name}</strong>
+                  <span>{item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
+                  <small className="workflow-hint">{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
+                </div>
+                <div className="row-actions">
+                  <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
+                  <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                  {(canUserManageApp(user, item) || canUserUploadVersion(user, item)) && (
+                    <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+      )}
+
+      {workspaceTab === 'apps' && isSubmitOpen && (
+      <div className="modal-backdrop" role="presentation" onClick={() => setIsSubmitOpen(false)}>
+        <AppSubmissionForm
+          draft={uploadForm}
+          onDraftChange={setUploadForm}
+          categories={categories}
+          knownTags={tagOptions}
+          storageOptions={storageChoices}
+          storageKey={uploadStorageKey}
+          onStorageKeyChange={setUploadStorageKey}
+          artifactMode={artifactMode}
+          onArtifactModeChange={selectArtifactMode}
+          file={file}
+          onFileChange={setFile}
+          fileInputRef={fileInputRef}
+          desktopScreenshotFiles={desktopScreenshotFiles}
+          desktopScreenshotCaptions={desktopScreenshotCaptions}
+          onDesktopScreenshotFilesChange={updateDesktopScreenshotFiles}
+          onDesktopScreenshotCaptionChange={updateDesktopScreenshotCaption}
+          mobileScreenshotFiles={mobileScreenshotFiles}
+          mobileScreenshotCaptions={mobileScreenshotCaptions}
+          onMobileScreenshotFilesChange={updateMobileScreenshotFiles}
+          onMobileScreenshotCaptionChange={updateMobileScreenshotCaption}
+          recentSubmission={recentSubmission}
+          isDirectPublishUser={user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN'}
+          isSubmitting={isSubmittingApp}
+          submissionProgress={submissionProgress}
+          presentation="modal"
+          onSubmit={submitUpload}
+          onCancel={() => setIsSubmitOpen(false)}
+        />
+      </div>
+      )}
+      {workspaceTab === 'collaboration' && (
+      <section className="workspace-pane">
+        <CollaborationPanel
+          data={collaborationData}
+          currentUser={user}
+          onOpen={onOpen}
+          onRefresh={onCollaborationRefresh}
+          onListRefresh={refreshAll}
+          setToast={setToast}
+        />
+      </section>
+      )}
+      {workspaceTab === 'manage' && (
+      <section className="workspace-pane">
+        <section className="panel">
+          <div className="section-title with-action">
+            <div>
+              <Settings size={19} />
+              <h2>{t('profile.appManagement')}</h2>
+            </div>
+            <XButton type="button" variant="secondary" size="sm" label={t('common.refresh')} icon={<RefreshCw size={17} />} onClick={() => void refreshAll({ silent: true })} />
+          </div>
+          <div className="toolbar-row">
+            <XSelector
+              label={t('profile.maintainerFilter')}
+              value={managedSubmitter}
+              options={managedSubmitterOptions}
+              onChange={setManagedSubmitter}
+            />
+          </div>
+          <div className="review-list management-app-list">
+            {manageableApps.length === 0 ? (
+              <EmptyState icon={Settings} title={t('profile.appManagementEmpty')} body={t('profile.appManagementEmptyBody')} />
+            ) : (
+              manageableApps.map((item) => (
+                <div className="review-row management-app-row" key={item.id}>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.owner} · {item.latestVersion?.version || t('app.noPublishedVersion')} · {formatDate(item.updatedAt)}</span>
+                    <small className="workflow-hint">{t(`profile.submissionStep.${submissionStep(item).key}`)}</small>
+                  </div>
+                  <div className="row-actions management-row-actions">
+                    <span className={cx('status-badge', submissionStep(item).tone)}>{t(`statusLabels.${statusKey(item.status)}`)}</span>
+                    <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                    <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </section>
+      )}
+      {workspaceTab === 'mcp' && (
+        <MCPWorkspace user={user} setToast={setToast} />
+      )}
+      {workspaceTab === 'tokens' && (
+        <APITokenWorkspace user={user} setToast={setToast} />
+      )}
+
+      {workspaceTab === 'groups' && (
+      <section className="workspace-pane">
+        <GroupPanel groups={groups} setGroups={setGroups} setToast={setToast} />
+      </section>
+      )}
+      {workspaceTab === 'favorites' && (
+      <section className="workspace-pane">
+        <section className="panel">
+          <SectionTitle icon={Heart} title={t('favorites.title')} />
+          <div className="review-list">
+            {favorites.apps.length === 0 && favorites.submitters.length === 0 ? (
+              <EmptyState icon={Heart} title={t('favorites.empty')} />
+            ) : (
+              <>
+                {favorites.apps.map((item) => (
+                  <div className="review-row" key={`app-${item.id}`}>
+                    <div>
+                      <strong>{item.name}</strong>
+                      <span>{item.owner} · {item.latestVersion?.version || item.status}</span>
+                    </div>
+                  </div>
+                ))}
+                {favorites.submitters.map((item) => (
+                  <div className="review-row" key={`submitter-${item.id}`}>
+                    <div>
+                      <strong>{item.username}</strong>
+                      <span>{item.email || t('favorites.submitter')}</span>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+          <XButton type="button" variant="secondary" label={t('favorites.refresh')} icon={<RefreshCw size={18} />} onClick={() => void loadFavorites()} />
+        </section>
+      </section>
+      )}
+    </section>
+  );
+}

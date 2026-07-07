@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/ent/mcptoken"
 	"lazycat.community/appstore/internal/buildinfo"
 	"lazycat.community/appstore/internal/catalogmeta"
 )
@@ -203,6 +204,28 @@ type commentNotificationDTO struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+type mcpTokenDTO struct {
+	ID            int                    `json:"id"`
+	Note          string                 `json:"note"`
+	Prefix        string                 `json:"prefix"`
+	PrincipalType mcptoken.PrincipalType `json:"principalType"`
+	ExpiresAt     *time.Time             `json:"expiresAt,omitempty"`
+	LastUsedAt    *time.Time             `json:"lastUsedAt,omitempty"`
+	CreatedAt     time.Time              `json:"createdAt"`
+}
+
+func toMCPTokenDTO(token *ent.MCPToken) mcpTokenDTO {
+	return mcpTokenDTO{
+		ID:            token.ID,
+		Note:          token.Note,
+		Prefix:        token.Prefix,
+		PrincipalType: token.PrincipalType,
+		ExpiresAt:     token.ExpiresAt,
+		LastUsedAt:    token.LastUsedAt,
+		CreatedAt:     token.CreatedAt,
+	}
+}
+
 type reviewDTO struct {
 	ID         int        `json:"id"`
 	Kind       string     `json:"kind"`
@@ -249,14 +272,14 @@ type ownedCollaborationDTO struct {
 }
 
 type collaboratorInviteDTO struct {
-	ID         int        `json:"id"`
-	AppID      int        `json:"appId"`
-	AppName    string     `json:"appName"`
-	Email      *string    `json:"email,omitempty"`
-	TokenPrefix string    `json:"tokenPrefix"`
-	InviteURL  string     `json:"inviteUrl,omitempty"`
-	AcceptedBy *int       `json:"acceptedBy,omitempty"`
-	AcceptedAt *time.Time `json:"acceptedAt,omitempty"`
-	ExpiresAt  time.Time  `json:"expiresAt"`
-	CreatedAt  time.Time  `json:"createdAt"`
+	ID          int        `json:"id"`
+	AppID       int        `json:"appId"`
+	AppName     string     `json:"appName"`
+	Email       *string    `json:"email,omitempty"`
+	TokenPrefix string     `json:"tokenPrefix"`
+	InviteURL   string     `json:"inviteUrl,omitempty"`
+	AcceptedBy  *int       `json:"acceptedBy,omitempty"`
+	AcceptedAt  *time.Time `json:"acceptedAt,omitempty"`
+	ExpiresAt   time.Time  `json:"expiresAt"`
+	CreatedAt   time.Time  `json:"createdAt"`
 }

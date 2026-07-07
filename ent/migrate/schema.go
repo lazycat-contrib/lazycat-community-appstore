@@ -691,6 +691,46 @@ var (
 			},
 		},
 	}
+	// McpTokensColumns holds the columns for the "mcp_tokens" table.
+	McpTokensColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "principal_type", Type: field.TypeEnum, Enums: []string{"USER", "ADMIN"}, Default: "USER"},
+		{Name: "note", Type: field.TypeString, Default: ""},
+		{Name: "prefix", Type: field.TypeString},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_used_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// McpTokensTable holds the schema information for the "mcp_tokens" table.
+	McpTokensTable = &schema.Table{
+		Name:       "mcp_tokens",
+		Columns:    McpTokensColumns,
+		PrimaryKey: []*schema.Column{McpTokensColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mcptoken_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{McpTokensColumns[1]},
+			},
+			{
+				Name:    "mcptoken_principal_type",
+				Unique:  false,
+				Columns: []*schema.Column{McpTokensColumns[2]},
+			},
+			{
+				Name:    "mcptoken_prefix",
+				Unique:  false,
+				Columns: []*schema.Column{McpTokensColumns[4]},
+			},
+			{
+				Name:    "mcptoken_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{McpTokensColumns[6]},
+			},
+		},
+	}
 	// OutdatedMarksColumns holds the columns for the "outdated_marks" table.
 	OutdatedMarksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -752,7 +792,7 @@ var (
 	// ReviewRequestsColumns holds the columns for the "review_requests" table.
 	ReviewRequestsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"APP_SUBMISSION", "VERSION_UPLOAD", "APP_INFO_UPDATE"}, Default: "APP_SUBMISSION"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"APP_SUBMISSION", "VERSION_UPLOAD", "APP_INFO_UPDATE", "APP_RESUBMISSION"}, Default: "APP_SUBMISSION"},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"PENDING", "APPROVED", "REJECTED"}, Default: "PENDING"},
 		{Name: "app_id", Type: field.TypeInt, Nullable: true},
 		{Name: "version_id", Type: field.TypeInt, Nullable: true},
@@ -924,6 +964,7 @@ var (
 		CommentNotificationsTable,
 		FavoritesTable,
 		GroupMembersTable,
+		McpTokensTable,
 		OutdatedMarksTable,
 		RegistrationInvitesTable,
 		ReviewRequestsTable,

@@ -614,6 +614,77 @@ func TestOwnerAppInfoUpdateRequiresReviewUnlessUnreviewedUpdatesAllowed(t *testi
 	}
 }
 
+func TestRejectedAppOwnerCanResubmitAppInfo(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	owner := app.server.db.User.Create().SetUsername("resubmitter").SetPasswordHash("x").SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.rejected-app").
+		SetName("Rejected App").
+		SetSlug("rejected-app").
+		SetSummary("old summary").
+		SetStatus(apppkg.StatusREJECTED).
+		SetAllowUnreviewedUpdates(false).
+		SaveX(ctx)
+
+	app.cookies = []*http.Cookie{app.serverCookieFor(owner.ID)}
+	rec := app.do(http.MethodPatch, fmt.Sprintf("/api/v1/apps/%d", record.ID), map[string]any{
+		"name":            "Resubmitted App",
+		"summary":         "ready now",
+		"submitForReview": true,
+	})
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("resubmit status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	pending := app.server.db.App.GetX(ctx, record.ID)
+	if pending.Status != apppkg.StatusPENDING || pending.Name != "Rejected App" || pending.Summary != "old summary" {
+		t.Fatalf("pending app = status:%s name:%q summary:%q", pending.Status, pending.Name, pending.Summary)
+	}
+	review := app.server.db.ReviewRequest.Query().
+		Where(reviewrequest.KindEQ(reviewrequest.KindAPP_RESUBMISSION), reviewrequest.StatusEQ(reviewrequest.StatusPENDING)).
+		OnlyX(ctx)
+
+	app.login("admin", "changeme")
+	rec = app.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/reviews/%d/approve", review.ID), map[string]string{"note": "fixed"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("approve resubmission status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	approved := app.server.db.App.GetX(ctx, record.ID)
+	if approved.Status != apppkg.StatusAPPROVED || approved.Name != "Resubmitted App" || approved.Summary != "ready now" {
+		t.Fatalf("approved app = status:%s name:%q summary:%q", approved.Status, approved.Name, approved.Summary)
+	}
+}
+
+func TestAdminCanUpdateRejectedAppDirectly(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	owner := app.server.db.User.Create().SetUsername("admin-resubmit-owner").SetPasswordHash("x").SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.admin-resubmit").
+		SetName("Rejected Admin App").
+		SetSlug("rejected-admin-app").
+		SetSummary("old").
+		SetStatus(apppkg.StatusREJECTED).
+		SaveX(ctx)
+
+	app.cookies = []*http.Cookie{app.serverCookieFor(admin.ID)}
+	rec := app.do(http.MethodPatch, fmt.Sprintf("/api/v1/apps/%d", record.ID), map[string]any{
+		"name":            "Admin Fixed App",
+		"summary":         "fixed",
+		"submitForReview": true,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("admin rejected app update status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	updated := app.server.db.App.GetX(ctx, record.ID)
+	if updated.Status != apppkg.StatusAPPROVED || updated.Name != "Admin Fixed App" || updated.Summary != "fixed" {
+		t.Fatalf("admin updated app = status:%s name:%q summary:%q", updated.Status, updated.Name, updated.Summary)
+	}
+}
+
 func TestRejectingVersionUploadDoesNotRejectApprovedApp(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()

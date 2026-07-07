@@ -186,6 +186,23 @@ export type APITokenRecord = {
   createdAt?: string;
 };
 
+export type MCPPrincipalType = 'USER' | 'ADMIN';
+
+export type MCPProfile = {
+  endpoint: string;
+  principalTypes: MCPPrincipalType[];
+};
+
+export type MCPTokenRecord = {
+  id: number;
+  note: string;
+  prefix: string;
+  principalType: MCPPrincipalType;
+  expiresAt?: string;
+  lastUsedAt?: string;
+  createdAt: string;
+};
+
 export type RegistrationInvite = {
   id: number;
   code: string;

@@ -101,7 +101,7 @@ func (s *Server) decideReview(w http.ResponseWriter, r *http.Request, u *entgo.U
 				appStatus = app.StatusAPPROVED
 			}
 			_, _ = s.db.App.UpdateOneID(*record.AppID).SetStatus(appStatus).Save(r.Context())
-		case reviewrequest.KindAPP_INFO_UPDATE:
+		case reviewrequest.KindAPP_INFO_UPDATE, reviewrequest.KindAPP_RESUBMISSION:
 			if approve {
 				var payload updateAppJSON
 				if err := json.Unmarshal([]byte(record.Note), &payload); err != nil {
@@ -112,6 +112,13 @@ func (s *Server) decideReview(w http.ResponseWriter, r *http.Request, u *entgo.U
 					writeError(w, http.StatusInternalServerError, "APP_INFO_REVIEW_FAILED", "Could not apply app update payload", nil)
 					return
 				}
+			}
+			if record.Kind == reviewrequest.KindAPP_RESUBMISSION {
+				appStatus := app.StatusREJECTED
+				if approve {
+					appStatus = app.StatusAPPROVED
+				}
+				_, _ = s.db.App.UpdateOneID(*record.AppID).SetStatus(appStatus).Save(r.Context())
 			}
 		}
 	}
