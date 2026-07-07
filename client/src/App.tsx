@@ -2459,12 +2459,16 @@ function AuthGateway({
     if (verifyToken) setMode('verify');
   }, [verifyToken]);
 
-  async function submitVerification(event: FormEvent) {
-    event.preventDefault();
+  function formString(formData: FormData, key: string, fallback = '') {
+    const value = formData.get(key);
+    return typeof value === 'string' ? value : fallback;
+  }
+
+  async function submitVerificationToken(token: string) {
     await runAction(setToast, t('auth.verifyFailed'), async () => {
       const data = await api<{ user: User }>('/api/v1/auth/verify-email', {
         method: 'POST',
-        body: JSON.stringify({ token: verifyToken }),
+        body: JSON.stringify({ token }),
       });
       setUser(data.user);
       setToast({ tone: 'success', message: t('auth.emailVerified') });
@@ -2473,14 +2477,27 @@ function AuthGateway({
     });
   }
 
-  async function submitAuth(event: FormEvent) {
+  async function submitVerification(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    await submitVerificationToken(formString(formData, 'token', verifyToken));
+  }
+
+  async function submitAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
     if (mode === 'verify') {
-      await submitVerification(event);
+      await submitVerificationToken(formString(formData, 'token', verifyToken));
       return;
     }
     await runAction(setToast, mode === 'login' ? t('auth.loginFailed') : t('auth.registerFailed'), async () => {
-      const body = mode === 'login' ? { username: authForm.username, password: authForm.password } : authForm;
+      const submittedForm = {
+        username: formString(formData, 'username', authForm.username),
+        password: formString(formData, 'password', authForm.password),
+        email: formString(formData, 'email', authForm.email),
+        inviteCode: formString(formData, 'inviteCode', authForm.inviteCode),
+      };
+      const body = mode === 'login' ? { username: submittedForm.username, password: submittedForm.password } : submittedForm;
       const data = await api<{ user: User }>(`/api/v1/auth/${mode}`, {
         method: 'POST',
         body: JSON.stringify(body),
