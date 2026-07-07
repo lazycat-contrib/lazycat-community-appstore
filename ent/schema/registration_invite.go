@@ -14,6 +14,7 @@ type RegistrationInvite struct {
 
 func (RegistrationInvite) Fields() []ent.Field {
 	return []ent.Field{
+		field.String("code").NotEmpty().Unique(),
 		field.String("code_hash").NotEmpty().Unique().Sensitive(),
 		field.String("code_prefix").NotEmpty(),
 		field.String("note").Default(""),

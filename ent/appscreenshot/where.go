@@ -69,6 +69,11 @@ func ImageURL(v string) predicate.AppScreenshot {
 	return predicate.AppScreenshot(sql.FieldEQ(FieldImageURL, v))
 }
 
+// StorageKey applies equality check predicate on the "storage_key" field. It's identical to StorageKeyEQ.
+func StorageKey(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldEQ(FieldStorageKey, v))
+}
+
 // StoragePath applies equality check predicate on the "storage_path" field. It's identical to StoragePathEQ.
 func StoragePath(v string) predicate.AppScreenshot {
 	return predicate.AppScreenshot(sql.FieldEQ(FieldStoragePath, v))
@@ -232,6 +237,71 @@ func ImageURLEqualFold(v string) predicate.AppScreenshot {
 // ImageURLContainsFold applies the ContainsFold predicate on the "image_url" field.
 func ImageURLContainsFold(v string) predicate.AppScreenshot {
 	return predicate.AppScreenshot(sql.FieldContainsFold(FieldImageURL, v))
+}
+
+// StorageKeyEQ applies the EQ predicate on the "storage_key" field.
+func StorageKeyEQ(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldEQ(FieldStorageKey, v))
+}
+
+// StorageKeyNEQ applies the NEQ predicate on the "storage_key" field.
+func StorageKeyNEQ(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldNEQ(FieldStorageKey, v))
+}
+
+// StorageKeyIn applies the In predicate on the "storage_key" field.
+func StorageKeyIn(vs ...string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldIn(FieldStorageKey, vs...))
+}
+
+// StorageKeyNotIn applies the NotIn predicate on the "storage_key" field.
+func StorageKeyNotIn(vs ...string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldNotIn(FieldStorageKey, vs...))
+}
+
+// StorageKeyGT applies the GT predicate on the "storage_key" field.
+func StorageKeyGT(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldGT(FieldStorageKey, v))
+}
+
+// StorageKeyGTE applies the GTE predicate on the "storage_key" field.
+func StorageKeyGTE(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldGTE(FieldStorageKey, v))
+}
+
+// StorageKeyLT applies the LT predicate on the "storage_key" field.
+func StorageKeyLT(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldLT(FieldStorageKey, v))
+}
+
+// StorageKeyLTE applies the LTE predicate on the "storage_key" field.
+func StorageKeyLTE(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldLTE(FieldStorageKey, v))
+}
+
+// StorageKeyContains applies the Contains predicate on the "storage_key" field.
+func StorageKeyContains(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldContains(FieldStorageKey, v))
+}
+
+// StorageKeyHasPrefix applies the HasPrefix predicate on the "storage_key" field.
+func StorageKeyHasPrefix(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldHasPrefix(FieldStorageKey, v))
+}
+
+// StorageKeyHasSuffix applies the HasSuffix predicate on the "storage_key" field.
+func StorageKeyHasSuffix(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldHasSuffix(FieldStorageKey, v))
+}
+
+// StorageKeyEqualFold applies the EqualFold predicate on the "storage_key" field.
+func StorageKeyEqualFold(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldEqualFold(FieldStorageKey, v))
+}
+
+// StorageKeyContainsFold applies the ContainsFold predicate on the "storage_key" field.
+func StorageKeyContainsFold(v string) predicate.AppScreenshot {
+	return predicate.AppScreenshot(sql.FieldContainsFold(FieldStorageKey, v))
 }
 
 // StoragePathEQ applies the EQ predicate on the "storage_path" field.

@@ -22,6 +22,7 @@ func (StorageConfig) Annotations() []schema.Annotation {
 func (StorageConfig) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("key").NotEmpty().Unique(),
+		field.String("name").Default(""),
 		field.Enum("provider").Values("LOCAL", "S3", "CLOUDFLARE_R2", "WEBDAV").Default("LOCAL"),
 		field.Enum("delivery_mode").Values("SERVER", "DIRECT").Default("SERVER"),
 		field.String("local_path").Default(""),

@@ -31,6 +31,8 @@ type AppVersion struct {
 	SourceType appversion.SourceType `json:"source_type,omitempty"`
 	// DownloadURL holds the value of the "download_url" field.
 	DownloadURL string `json:"download_url,omitempty"`
+	// StorageKey holds the value of the "storage_key" field.
+	StorageKey string `json:"storage_key,omitempty"`
 	// StoragePath holds the value of the "storage_path" field.
 	StoragePath string `json:"storage_path,omitempty"`
 	// FileSize holds the value of the "file_size" field.
@@ -53,7 +55,7 @@ func (*AppVersion) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case appversion.FieldID, appversion.FieldAppID, appversion.FieldUploaderID, appversion.FieldFileSize:
 			values[i] = new(sql.NullInt64)
-		case appversion.FieldVersion, appversion.FieldChangelog, appversion.FieldStatus, appversion.FieldSourceType, appversion.FieldDownloadURL, appversion.FieldStoragePath, appversion.FieldSha256:
+		case appversion.FieldVersion, appversion.FieldChangelog, appversion.FieldStatus, appversion.FieldSourceType, appversion.FieldDownloadURL, appversion.FieldStorageKey, appversion.FieldStoragePath, appversion.FieldSha256:
 			values[i] = new(sql.NullString)
 		case appversion.FieldPublishedAt, appversion.FieldCreatedAt, appversion.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -119,6 +121,12 @@ func (_m *AppVersion) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field download_url", values[i])
 			} else if value.Valid {
 				_m.DownloadURL = value.String
+			}
+		case appversion.FieldStorageKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field storage_key", values[i])
+			} else if value.Valid {
+				_m.StorageKey = value.String
 			}
 		case appversion.FieldStoragePath:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -213,6 +221,9 @@ func (_m *AppVersion) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("download_url=")
 	builder.WriteString(_m.DownloadURL)
+	builder.WriteString(", ")
+	builder.WriteString("storage_key=")
+	builder.WriteString(_m.StorageKey)
 	builder.WriteString(", ")
 	builder.WriteString("storage_path=")
 	builder.WriteString(_m.StoragePath)

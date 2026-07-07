@@ -86,6 +86,7 @@ var (
 		{Name: "app_id", Type: field.TypeInt},
 		{Name: "uploader_id", Type: field.TypeInt},
 		{Name: "image_url", Type: field.TypeString},
+		{Name: "storage_key", Type: field.TypeString, Default: "primary"},
 		{Name: "storage_path", Type: field.TypeString, Default: ""},
 		{Name: "caption", Type: field.TypeString, Default: ""},
 		{Name: "device_type", Type: field.TypeEnum, Enums: []string{"DESKTOP", "MOBILE"}, Default: "DESKTOP"},
@@ -101,7 +102,7 @@ var (
 			{
 				Name:    "appscreenshot_app_id_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{AppScreenshotsColumns[1], AppScreenshotsColumns[7]},
+				Columns: []*schema.Column{AppScreenshotsColumns[1], AppScreenshotsColumns[8]},
 			},
 			{
 				Name:    "appscreenshot_uploader_id",
@@ -145,6 +146,7 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"PENDING", "APPROVED", "REJECTED"}, Default: "PENDING"},
 		{Name: "source_type", Type: field.TypeEnum, Enums: []string{"LOCAL", "WEBDAV", "S3", "GITHUB"}, Default: "LOCAL"},
 		{Name: "download_url", Type: field.TypeString, Default: ""},
+		{Name: "storage_key", Type: field.TypeString, Default: "primary"},
 		{Name: "storage_path", Type: field.TypeString, Default: ""},
 		{Name: "file_size", Type: field.TypeInt64, Default: 0},
 		{Name: "sha256", Type: field.TypeString, Default: ""},
@@ -677,6 +679,7 @@ var (
 	// RegistrationInvitesColumns holds the columns for the "registration_invites" table.
 	RegistrationInvitesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "code", Type: field.TypeString, Unique: true},
 		{Name: "code_hash", Type: field.TypeString, Unique: true},
 		{Name: "code_prefix", Type: field.TypeString},
 		{Name: "note", Type: field.TypeString, Default: ""},
@@ -695,12 +698,12 @@ var (
 			{
 				Name:    "registrationinvite_code_prefix",
 				Unique:  false,
-				Columns: []*schema.Column{RegistrationInvitesColumns[2]},
+				Columns: []*schema.Column{RegistrationInvitesColumns[3]},
 			},
 			{
 				Name:    "registrationinvite_created_by",
 				Unique:  false,
-				Columns: []*schema.Column{RegistrationInvitesColumns[6]},
+				Columns: []*schema.Column{RegistrationInvitesColumns[7]},
 			},
 		},
 	}
@@ -765,6 +768,7 @@ var (
 	StorageConfigsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "key", Type: field.TypeString, Unique: true},
+		{Name: "name", Type: field.TypeString, Default: ""},
 		{Name: "provider", Type: field.TypeEnum, Enums: []string{"LOCAL", "S3", "CLOUDFLARE_R2", "WEBDAV"}, Default: "LOCAL"},
 		{Name: "delivery_mode", Type: field.TypeEnum, Enums: []string{"SERVER", "DIRECT"}, Default: "SERVER"},
 		{Name: "local_path", Type: field.TypeString, Default: ""},
@@ -807,10 +811,15 @@ var (
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "username", Type: field.TypeString, Unique: true},
+		{Name: "nickname", Type: field.TypeString, Default: ""},
+		{Name: "avatar_url", Type: field.TypeString, Default: ""},
+		{Name: "avatar_storage_key", Type: field.TypeString, Default: "primary"},
+		{Name: "avatar_storage_path", Type: field.TypeString, Default: ""},
 		{Name: "email", Type: field.TypeString, Nullable: true},
 		{Name: "password_hash", Type: field.TypeString},
 		{Name: "role", Type: field.TypeEnum, Enums: []string{"USER", "SOFTWARE_ADMIN", "SITE_ADMIN"}, Default: "USER"},
 		{Name: "email_verified", Type: field.TypeBool, Default: false},
+		{Name: "disabled", Type: field.TypeBool, Default: false},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -823,7 +832,7 @@ var (
 			{
 				Name:    "user_email",
 				Unique:  true,
-				Columns: []*schema.Column{UsersColumns[2]},
+				Columns: []*schema.Column{UsersColumns[6]},
 			},
 		},
 	}

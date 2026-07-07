@@ -2026,6 +2026,7 @@ type AppScreenshotMutation struct {
 	uploader_id    *int
 	adduploader_id *int
 	image_url      *string
+	storage_key    *string
 	storage_path   *string
 	caption        *string
 	device_type    *appscreenshot.DeviceType
@@ -2284,6 +2285,42 @@ func (m *AppScreenshotMutation) ResetImageURL() {
 	m.image_url = nil
 }
 
+// SetStorageKey sets the "storage_key" field.
+func (m *AppScreenshotMutation) SetStorageKey(s string) {
+	m.storage_key = &s
+}
+
+// StorageKey returns the value of the "storage_key" field in the mutation.
+func (m *AppScreenshotMutation) StorageKey() (r string, exists bool) {
+	v := m.storage_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStorageKey returns the old "storage_key" field's value of the AppScreenshot entity.
+// If the AppScreenshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppScreenshotMutation) OldStorageKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStorageKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStorageKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStorageKey: %w", err)
+	}
+	return oldValue.StorageKey, nil
+}
+
+// ResetStorageKey resets all changes to the "storage_key" field.
+func (m *AppScreenshotMutation) ResetStorageKey() {
+	m.storage_key = nil
+}
+
 // SetStoragePath sets the "storage_path" field.
 func (m *AppScreenshotMutation) SetStoragePath(s string) {
 	m.storage_path = &s
@@ -2518,7 +2555,7 @@ func (m *AppScreenshotMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AppScreenshotMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.app_id != nil {
 		fields = append(fields, appscreenshot.FieldAppID)
 	}
@@ -2527,6 +2564,9 @@ func (m *AppScreenshotMutation) Fields() []string {
 	}
 	if m.image_url != nil {
 		fields = append(fields, appscreenshot.FieldImageURL)
+	}
+	if m.storage_key != nil {
+		fields = append(fields, appscreenshot.FieldStorageKey)
 	}
 	if m.storage_path != nil {
 		fields = append(fields, appscreenshot.FieldStoragePath)
@@ -2557,6 +2597,8 @@ func (m *AppScreenshotMutation) Field(name string) (ent.Value, bool) {
 		return m.UploaderID()
 	case appscreenshot.FieldImageURL:
 		return m.ImageURL()
+	case appscreenshot.FieldStorageKey:
+		return m.StorageKey()
 	case appscreenshot.FieldStoragePath:
 		return m.StoragePath()
 	case appscreenshot.FieldCaption:
@@ -2582,6 +2624,8 @@ func (m *AppScreenshotMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldUploaderID(ctx)
 	case appscreenshot.FieldImageURL:
 		return m.OldImageURL(ctx)
+	case appscreenshot.FieldStorageKey:
+		return m.OldStorageKey(ctx)
 	case appscreenshot.FieldStoragePath:
 		return m.OldStoragePath(ctx)
 	case appscreenshot.FieldCaption:
@@ -2621,6 +2665,13 @@ func (m *AppScreenshotMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetImageURL(v)
+		return nil
+	case appscreenshot.FieldStorageKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStorageKey(v)
 		return nil
 	case appscreenshot.FieldStoragePath:
 		v, ok := value.(string)
@@ -2753,6 +2804,9 @@ func (m *AppScreenshotMutation) ResetField(name string) error {
 		return nil
 	case appscreenshot.FieldImageURL:
 		m.ResetImageURL()
+		return nil
+	case appscreenshot.FieldStorageKey:
+		m.ResetStorageKey()
 		return nil
 	case appscreenshot.FieldStoragePath:
 		m.ResetStoragePath()
@@ -3339,6 +3393,7 @@ type AppVersionMutation struct {
 	status         *appversion.Status
 	source_type    *appversion.SourceType
 	download_url   *string
+	storage_key    *string
 	storage_path   *string
 	file_size      *int64
 	addfile_size   *int64
@@ -3742,6 +3797,42 @@ func (m *AppVersionMutation) ResetDownloadURL() {
 	m.download_url = nil
 }
 
+// SetStorageKey sets the "storage_key" field.
+func (m *AppVersionMutation) SetStorageKey(s string) {
+	m.storage_key = &s
+}
+
+// StorageKey returns the value of the "storage_key" field in the mutation.
+func (m *AppVersionMutation) StorageKey() (r string, exists bool) {
+	v := m.storage_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStorageKey returns the old "storage_key" field's value of the AppVersion entity.
+// If the AppVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppVersionMutation) OldStorageKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStorageKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStorageKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStorageKey: %w", err)
+	}
+	return oldValue.StorageKey, nil
+}
+
+// ResetStorageKey resets all changes to the "storage_key" field.
+func (m *AppVersionMutation) ResetStorageKey() {
+	m.storage_key = nil
+}
+
 // SetStoragePath sets the "storage_path" field.
 func (m *AppVersionMutation) SetStoragePath(s string) {
 	m.storage_path = &s
@@ -4025,7 +4116,7 @@ func (m *AppVersionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AppVersionMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.app_id != nil {
 		fields = append(fields, appversion.FieldAppID)
 	}
@@ -4046,6 +4137,9 @@ func (m *AppVersionMutation) Fields() []string {
 	}
 	if m.download_url != nil {
 		fields = append(fields, appversion.FieldDownloadURL)
+	}
+	if m.storage_key != nil {
+		fields = append(fields, appversion.FieldStorageKey)
 	}
 	if m.storage_path != nil {
 		fields = append(fields, appversion.FieldStoragePath)
@@ -4087,6 +4181,8 @@ func (m *AppVersionMutation) Field(name string) (ent.Value, bool) {
 		return m.SourceType()
 	case appversion.FieldDownloadURL:
 		return m.DownloadURL()
+	case appversion.FieldStorageKey:
+		return m.StorageKey()
 	case appversion.FieldStoragePath:
 		return m.StoragePath()
 	case appversion.FieldFileSize:
@@ -4122,6 +4218,8 @@ func (m *AppVersionMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldSourceType(ctx)
 	case appversion.FieldDownloadURL:
 		return m.OldDownloadURL(ctx)
+	case appversion.FieldStorageKey:
+		return m.OldStorageKey(ctx)
 	case appversion.FieldStoragePath:
 		return m.OldStoragePath(ctx)
 	case appversion.FieldFileSize:
@@ -4191,6 +4289,13 @@ func (m *AppVersionMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDownloadURL(v)
+		return nil
+	case appversion.FieldStorageKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStorageKey(v)
 		return nil
 	case appversion.FieldStoragePath:
 		v, ok := value.(string)
@@ -4351,6 +4456,9 @@ func (m *AppVersionMutation) ResetField(name string) error {
 		return nil
 	case appversion.FieldDownloadURL:
 		m.ResetDownloadURL()
+		return nil
+	case appversion.FieldStorageKey:
+		m.ResetStorageKey()
 		return nil
 	case appversion.FieldStoragePath:
 		m.ResetStoragePath()
@@ -16652,6 +16760,7 @@ type RegistrationInviteMutation struct {
 	op                Op
 	typ               string
 	id                *int
+	code              *string
 	code_hash         *string
 	code_prefix       *string
 	note              *string
@@ -16765,6 +16874,42 @@ func (m *RegistrationInviteMutation) IDs(ctx context.Context) ([]int, error) {
 	default:
 		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
 	}
+}
+
+// SetCode sets the "code" field.
+func (m *RegistrationInviteMutation) SetCode(s string) {
+	m.code = &s
+}
+
+// Code returns the value of the "code" field in the mutation.
+func (m *RegistrationInviteMutation) Code() (r string, exists bool) {
+	v := m.code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCode returns the old "code" field's value of the RegistrationInvite entity.
+// If the RegistrationInvite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RegistrationInviteMutation) OldCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCode: %w", err)
+	}
+	return oldValue.Code, nil
+}
+
+// ResetCode resets all changes to the "code" field.
+func (m *RegistrationInviteMutation) ResetCode() {
+	m.code = nil
 }
 
 // SetCodeHash sets the "code_hash" field.
@@ -17149,7 +17294,10 @@ func (m *RegistrationInviteMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RegistrationInviteMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
+	if m.code != nil {
+		fields = append(fields, registrationinvite.FieldCode)
+	}
 	if m.code_hash != nil {
 		fields = append(fields, registrationinvite.FieldCodeHash)
 	}
@@ -17182,6 +17330,8 @@ func (m *RegistrationInviteMutation) Fields() []string {
 // schema.
 func (m *RegistrationInviteMutation) Field(name string) (ent.Value, bool) {
 	switch name {
+	case registrationinvite.FieldCode:
+		return m.Code()
 	case registrationinvite.FieldCodeHash:
 		return m.CodeHash()
 	case registrationinvite.FieldCodePrefix:
@@ -17207,6 +17357,8 @@ func (m *RegistrationInviteMutation) Field(name string) (ent.Value, bool) {
 // database failed.
 func (m *RegistrationInviteMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
 	switch name {
+	case registrationinvite.FieldCode:
+		return m.OldCode(ctx)
 	case registrationinvite.FieldCodeHash:
 		return m.OldCodeHash(ctx)
 	case registrationinvite.FieldCodePrefix:
@@ -17232,6 +17384,13 @@ func (m *RegistrationInviteMutation) OldField(ctx context.Context, name string) 
 // type.
 func (m *RegistrationInviteMutation) SetField(name string, value ent.Value) error {
 	switch name {
+	case registrationinvite.FieldCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCode(v)
+		return nil
 	case registrationinvite.FieldCodeHash:
 		v, ok := value.(string)
 		if !ok {
@@ -17376,6 +17535,9 @@ func (m *RegistrationInviteMutation) ClearField(name string) error {
 // It returns an error if the field is not defined in the schema.
 func (m *RegistrationInviteMutation) ResetField(name string) error {
 	switch name {
+	case registrationinvite.FieldCode:
+		m.ResetCode()
+		return nil
 	case registrationinvite.FieldCodeHash:
 		m.ResetCodeHash()
 		return nil
@@ -19030,6 +19192,7 @@ type StorageConfigMutation struct {
 	typ               string
 	id                *int
 	key               *string
+	name              *string
 	provider          *storageconfig.Provider
 	delivery_mode     *storageconfig.DeliveryMode
 	local_path        *string
@@ -19184,6 +19347,42 @@ func (m *StorageConfigMutation) OldKey(ctx context.Context) (v string, err error
 // ResetKey resets all changes to the "key" field.
 func (m *StorageConfigMutation) ResetKey() {
 	m.key = nil
+}
+
+// SetName sets the "name" field.
+func (m *StorageConfigMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *StorageConfigMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the StorageConfig entity.
+// If the StorageConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *StorageConfigMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *StorageConfigMutation) ResetName() {
+	m.name = nil
 }
 
 // SetProvider sets the "provider" field.
@@ -19796,9 +19995,12 @@ func (m *StorageConfigMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *StorageConfigMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 18)
 	if m.key != nil {
 		fields = append(fields, storageconfig.FieldKey)
+	}
+	if m.name != nil {
+		fields = append(fields, storageconfig.FieldName)
 	}
 	if m.provider != nil {
 		fields = append(fields, storageconfig.FieldProvider)
@@ -19858,6 +20060,8 @@ func (m *StorageConfigMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case storageconfig.FieldKey:
 		return m.Key()
+	case storageconfig.FieldName:
+		return m.Name()
 	case storageconfig.FieldProvider:
 		return m.Provider()
 	case storageconfig.FieldDeliveryMode:
@@ -19901,6 +20105,8 @@ func (m *StorageConfigMutation) OldField(ctx context.Context, name string) (ent.
 	switch name {
 	case storageconfig.FieldKey:
 		return m.OldKey(ctx)
+	case storageconfig.FieldName:
+		return m.OldName(ctx)
 	case storageconfig.FieldProvider:
 		return m.OldProvider(ctx)
 	case storageconfig.FieldDeliveryMode:
@@ -19948,6 +20154,13 @@ func (m *StorageConfigMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetKey(v)
+		return nil
+	case storageconfig.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
 		return nil
 	case storageconfig.FieldProvider:
 		v, ok := value.(storageconfig.Provider)
@@ -20112,6 +20325,9 @@ func (m *StorageConfigMutation) ResetField(name string) error {
 	switch name {
 	case storageconfig.FieldKey:
 		m.ResetKey()
+		return nil
+	case storageconfig.FieldName:
+		m.ResetName()
 		return nil
 	case storageconfig.FieldProvider:
 		m.ResetProvider()
@@ -20758,20 +20974,25 @@ func (m *TagMutation) ResetEdge(name string) error {
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	username       *string
-	email          *string
-	password_hash  *string
-	role           *user.Role
-	email_verified *bool
-	created_at     *time.Time
-	updated_at     *time.Time
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*User, error)
-	predicates     []predicate.User
+	op                  Op
+	typ                 string
+	id                  *int
+	username            *string
+	nickname            *string
+	avatar_url          *string
+	avatar_storage_key  *string
+	avatar_storage_path *string
+	email               *string
+	password_hash       *string
+	role                *user.Role
+	email_verified      *bool
+	disabled            *bool
+	created_at          *time.Time
+	updated_at          *time.Time
+	clearedFields       map[string]struct{}
+	done                bool
+	oldValue            func(context.Context) (*User, error)
+	predicates          []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -20906,6 +21127,150 @@ func (m *UserMutation) OldUsername(ctx context.Context) (v string, err error) {
 // ResetUsername resets all changes to the "username" field.
 func (m *UserMutation) ResetUsername() {
 	m.username = nil
+}
+
+// SetNickname sets the "nickname" field.
+func (m *UserMutation) SetNickname(s string) {
+	m.nickname = &s
+}
+
+// Nickname returns the value of the "nickname" field in the mutation.
+func (m *UserMutation) Nickname() (r string, exists bool) {
+	v := m.nickname
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNickname returns the old "nickname" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldNickname(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNickname is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNickname requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNickname: %w", err)
+	}
+	return oldValue.Nickname, nil
+}
+
+// ResetNickname resets all changes to the "nickname" field.
+func (m *UserMutation) ResetNickname() {
+	m.nickname = nil
+}
+
+// SetAvatarURL sets the "avatar_url" field.
+func (m *UserMutation) SetAvatarURL(s string) {
+	m.avatar_url = &s
+}
+
+// AvatarURL returns the value of the "avatar_url" field in the mutation.
+func (m *UserMutation) AvatarURL() (r string, exists bool) {
+	v := m.avatar_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvatarURL returns the old "avatar_url" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAvatarURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvatarURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvatarURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvatarURL: %w", err)
+	}
+	return oldValue.AvatarURL, nil
+}
+
+// ResetAvatarURL resets all changes to the "avatar_url" field.
+func (m *UserMutation) ResetAvatarURL() {
+	m.avatar_url = nil
+}
+
+// SetAvatarStorageKey sets the "avatar_storage_key" field.
+func (m *UserMutation) SetAvatarStorageKey(s string) {
+	m.avatar_storage_key = &s
+}
+
+// AvatarStorageKey returns the value of the "avatar_storage_key" field in the mutation.
+func (m *UserMutation) AvatarStorageKey() (r string, exists bool) {
+	v := m.avatar_storage_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvatarStorageKey returns the old "avatar_storage_key" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAvatarStorageKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvatarStorageKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvatarStorageKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvatarStorageKey: %w", err)
+	}
+	return oldValue.AvatarStorageKey, nil
+}
+
+// ResetAvatarStorageKey resets all changes to the "avatar_storage_key" field.
+func (m *UserMutation) ResetAvatarStorageKey() {
+	m.avatar_storage_key = nil
+}
+
+// SetAvatarStoragePath sets the "avatar_storage_path" field.
+func (m *UserMutation) SetAvatarStoragePath(s string) {
+	m.avatar_storage_path = &s
+}
+
+// AvatarStoragePath returns the value of the "avatar_storage_path" field in the mutation.
+func (m *UserMutation) AvatarStoragePath() (r string, exists bool) {
+	v := m.avatar_storage_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvatarStoragePath returns the old "avatar_storage_path" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAvatarStoragePath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvatarStoragePath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvatarStoragePath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvatarStoragePath: %w", err)
+	}
+	return oldValue.AvatarStoragePath, nil
+}
+
+// ResetAvatarStoragePath resets all changes to the "avatar_storage_path" field.
+func (m *UserMutation) ResetAvatarStoragePath() {
+	m.avatar_storage_path = nil
 }
 
 // SetEmail sets the "email" field.
@@ -21065,6 +21430,42 @@ func (m *UserMutation) ResetEmailVerified() {
 	m.email_verified = nil
 }
 
+// SetDisabled sets the "disabled" field.
+func (m *UserMutation) SetDisabled(b bool) {
+	m.disabled = &b
+}
+
+// Disabled returns the value of the "disabled" field in the mutation.
+func (m *UserMutation) Disabled() (r bool, exists bool) {
+	v := m.disabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisabled returns the old "disabled" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldDisabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisabled: %w", err)
+	}
+	return oldValue.Disabled, nil
+}
+
+// ResetDisabled resets all changes to the "disabled" field.
+func (m *UserMutation) ResetDisabled() {
+	m.disabled = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *UserMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -21171,9 +21572,21 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 12)
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
+	}
+	if m.nickname != nil {
+		fields = append(fields, user.FieldNickname)
+	}
+	if m.avatar_url != nil {
+		fields = append(fields, user.FieldAvatarURL)
+	}
+	if m.avatar_storage_key != nil {
+		fields = append(fields, user.FieldAvatarStorageKey)
+	}
+	if m.avatar_storage_path != nil {
+		fields = append(fields, user.FieldAvatarStoragePath)
 	}
 	if m.email != nil {
 		fields = append(fields, user.FieldEmail)
@@ -21186,6 +21599,9 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.email_verified != nil {
 		fields = append(fields, user.FieldEmailVerified)
+	}
+	if m.disabled != nil {
+		fields = append(fields, user.FieldDisabled)
 	}
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
@@ -21203,6 +21619,14 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case user.FieldUsername:
 		return m.Username()
+	case user.FieldNickname:
+		return m.Nickname()
+	case user.FieldAvatarURL:
+		return m.AvatarURL()
+	case user.FieldAvatarStorageKey:
+		return m.AvatarStorageKey()
+	case user.FieldAvatarStoragePath:
+		return m.AvatarStoragePath()
 	case user.FieldEmail:
 		return m.Email()
 	case user.FieldPasswordHash:
@@ -21211,6 +21635,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Role()
 	case user.FieldEmailVerified:
 		return m.EmailVerified()
+	case user.FieldDisabled:
+		return m.Disabled()
 	case user.FieldCreatedAt:
 		return m.CreatedAt()
 	case user.FieldUpdatedAt:
@@ -21226,6 +21652,14 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 	switch name {
 	case user.FieldUsername:
 		return m.OldUsername(ctx)
+	case user.FieldNickname:
+		return m.OldNickname(ctx)
+	case user.FieldAvatarURL:
+		return m.OldAvatarURL(ctx)
+	case user.FieldAvatarStorageKey:
+		return m.OldAvatarStorageKey(ctx)
+	case user.FieldAvatarStoragePath:
+		return m.OldAvatarStoragePath(ctx)
 	case user.FieldEmail:
 		return m.OldEmail(ctx)
 	case user.FieldPasswordHash:
@@ -21234,6 +21668,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldRole(ctx)
 	case user.FieldEmailVerified:
 		return m.OldEmailVerified(ctx)
+	case user.FieldDisabled:
+		return m.OldDisabled(ctx)
 	case user.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case user.FieldUpdatedAt:
@@ -21253,6 +21689,34 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUsername(v)
+		return nil
+	case user.FieldNickname:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNickname(v)
+		return nil
+	case user.FieldAvatarURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvatarURL(v)
+		return nil
+	case user.FieldAvatarStorageKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvatarStorageKey(v)
+		return nil
+	case user.FieldAvatarStoragePath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvatarStoragePath(v)
 		return nil
 	case user.FieldEmail:
 		v, ok := value.(string)
@@ -21281,6 +21745,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetEmailVerified(v)
+		return nil
+	case user.FieldDisabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisabled(v)
 		return nil
 	case user.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -21357,6 +21828,18 @@ func (m *UserMutation) ResetField(name string) error {
 	case user.FieldUsername:
 		m.ResetUsername()
 		return nil
+	case user.FieldNickname:
+		m.ResetNickname()
+		return nil
+	case user.FieldAvatarURL:
+		m.ResetAvatarURL()
+		return nil
+	case user.FieldAvatarStorageKey:
+		m.ResetAvatarStorageKey()
+		return nil
+	case user.FieldAvatarStoragePath:
+		m.ResetAvatarStoragePath()
+		return nil
 	case user.FieldEmail:
 		m.ResetEmail()
 		return nil
@@ -21368,6 +21851,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldEmailVerified:
 		m.ResetEmailVerified()
+		return nil
+	case user.FieldDisabled:
+		m.ResetDisabled()
 		return nil
 	case user.FieldCreatedAt:
 		m.ResetCreatedAt()

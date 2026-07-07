@@ -1,6 +1,7 @@
 package server
 
 import (
+	"strings"
 	"time"
 
 	"lazycat.community/appstore/ent"
@@ -10,9 +11,12 @@ import (
 type publicUser struct {
 	ID            int       `json:"id"`
 	Username      string    `json:"username"`
+	Nickname      string    `json:"nickname"`
+	AvatarURL     string    `json:"avatarUrl,omitempty"`
 	Email         *string   `json:"email,omitempty"`
 	Role          string    `json:"role"`
 	EmailVerified bool      `json:"emailVerified"`
+	Disabled      bool      `json:"disabled"`
 	CreatedAt     time.Time `json:"createdAt"`
 }
 
@@ -20,11 +24,24 @@ func toPublicUser(u *ent.User) publicUser {
 	return publicUser{
 		ID:            u.ID,
 		Username:      u.Username,
+		Nickname:      u.Nickname,
+		AvatarURL:     u.AvatarURL,
 		Email:         u.Email,
 		Role:          string(u.Role),
 		EmailVerified: u.EmailVerified,
+		Disabled:      u.Disabled,
 		CreatedAt:     u.CreatedAt,
 	}
+}
+
+func userDisplayName(u *ent.User) string {
+	if u == nil {
+		return ""
+	}
+	if strings.TrimSpace(u.Nickname) != "" {
+		return strings.TrimSpace(u.Nickname)
+	}
+	return u.Username
 }
 
 type siteProfile struct {
@@ -114,6 +131,7 @@ type screenshot struct {
 	ID         int       `json:"id"`
 	AppID      int       `json:"appId"`
 	ImageURL   string    `json:"imageUrl"`
+	StorageKey string    `json:"storageKey,omitempty"`
 	Caption    string    `json:"caption"`
 	DeviceType string    `json:"deviceType"`
 	SortOrder  int       `json:"sortOrder"`
@@ -140,6 +158,7 @@ type version struct {
 	Status      string     `json:"status"`
 	SourceType  string     `json:"sourceType"`
 	DownloadURL string     `json:"downloadUrl"`
+	StorageKey  string     `json:"storageKey,omitempty"`
 	StoragePath string     `json:"storagePath,omitempty"`
 	FileSize    int64      `json:"fileSize"`
 	SHA256      string     `json:"sha256"`

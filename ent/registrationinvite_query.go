@@ -262,12 +262,12 @@ func (_q *RegistrationInviteQuery) Clone() *RegistrationInviteQuery {
 // Example:
 //
 //	var v []struct {
-//		CodeHash string `json:"code_hash,omitempty"`
+//		Code string `json:"code,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.RegistrationInvite.Query().
-//		GroupBy(registrationinvite.FieldCodeHash).
+//		GroupBy(registrationinvite.FieldCode).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 func (_q *RegistrationInviteQuery) GroupBy(field string, fields ...string) *RegistrationInviteGroupBy {
@@ -285,11 +285,11 @@ func (_q *RegistrationInviteQuery) GroupBy(field string, fields ...string) *Regi
 // Example:
 //
 //	var v []struct {
-//		CodeHash string `json:"code_hash,omitempty"`
+//		Code string `json:"code,omitempty"`
 //	}
 //
 //	client.RegistrationInvite.Query().
-//		Select(registrationinvite.FieldCodeHash).
+//		Select(registrationinvite.FieldCode).
 //		Scan(ctx, &v)
 func (_q *RegistrationInviteQuery) Select(fields ...string) *RegistrationInviteSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)

@@ -797,8 +797,8 @@ func TestRegistrationModeAndInvites(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list invites status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), second.Invite.CodePrefix) || strings.Contains(rec.Body.String(), second.Code) {
-		t.Fatalf("invite list should expose prefix only, body = %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), second.Invite.CodePrefix) || !strings.Contains(rec.Body.String(), second.Code) {
+		t.Fatalf("invite list should expose reusable code, body = %s", rec.Body.String())
 	}
 	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/registration-invites/%d", second.Invite.ID), nil)
 	if rec.Code != http.StatusOK {
@@ -1514,7 +1514,7 @@ func TestStorageProxyServesConfiguredLocalObjects(t *testing.T) {
 		t.Fatalf("storage update status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 
-	rec = app.do(http.MethodGet, "/api/v1/files/nested/file.txt", nil)
+	rec = app.do(http.MethodGet, "/api/v1/files/primary/nested/file.txt", nil)
 	if rec.Code != http.StatusOK || rec.Body.String() != "content" {
 		t.Fatalf("proxy file status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -1951,7 +1951,7 @@ func TestManualOutdatedClearRequiresSettingAndMaintainer(t *testing.T) {
 	app.cookies = []*http.Cookie{app.serverCookieFor(owner.ID)}
 
 	rec := app.do(http.MethodDelete, fmt.Sprintf("/api/v1/apps/%d/outdated-marks", record.ID), nil)
-	if rec.Code != http.StatusOK {
+	if rec.Code != http.StatusForbidden {
 		t.Fatalf("default clear status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	if count := app.server.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID)).CountX(ctx); count != 1 {
@@ -1965,11 +1965,11 @@ func TestManualOutdatedClearRequiresSettingAndMaintainer(t *testing.T) {
 	app.server.db.OutdatedMark.Create().SetAppID(record.ID).SetUserID(other.ID).SetNote("also needs update").SaveX(ctx)
 	app.cookies = []*http.Cookie{app.serverCookieFor(viewer.ID)}
 	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/apps/%d/outdated-marks", record.ID), nil)
-	if rec.Code != http.StatusOK {
+	if rec.Code != http.StatusForbidden {
 		t.Fatalf("viewer clear status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if count := app.server.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID)).CountX(ctx); count != 1 {
-		t.Fatalf("outdated marks after enabled viewer clear = %d, want 1", count)
+	if count := app.server.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(record.ID)).CountX(ctx); count != 2 {
+		t.Fatalf("outdated marks after enabled viewer clear = %d, want 2", count)
 	}
 
 	app.cookies = []*http.Cookie{app.serverCookieFor(owner.ID)}

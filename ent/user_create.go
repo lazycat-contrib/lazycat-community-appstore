@@ -26,6 +26,62 @@ func (_c *UserCreate) SetUsername(v string) *UserCreate {
 	return _c
 }
 
+// SetNickname sets the "nickname" field.
+func (_c *UserCreate) SetNickname(v string) *UserCreate {
+	_c.mutation.SetNickname(v)
+	return _c
+}
+
+// SetNillableNickname sets the "nickname" field if the given value is not nil.
+func (_c *UserCreate) SetNillableNickname(v *string) *UserCreate {
+	if v != nil {
+		_c.SetNickname(*v)
+	}
+	return _c
+}
+
+// SetAvatarURL sets the "avatar_url" field.
+func (_c *UserCreate) SetAvatarURL(v string) *UserCreate {
+	_c.mutation.SetAvatarURL(v)
+	return _c
+}
+
+// SetNillableAvatarURL sets the "avatar_url" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAvatarURL(v *string) *UserCreate {
+	if v != nil {
+		_c.SetAvatarURL(*v)
+	}
+	return _c
+}
+
+// SetAvatarStorageKey sets the "avatar_storage_key" field.
+func (_c *UserCreate) SetAvatarStorageKey(v string) *UserCreate {
+	_c.mutation.SetAvatarStorageKey(v)
+	return _c
+}
+
+// SetNillableAvatarStorageKey sets the "avatar_storage_key" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAvatarStorageKey(v *string) *UserCreate {
+	if v != nil {
+		_c.SetAvatarStorageKey(*v)
+	}
+	return _c
+}
+
+// SetAvatarStoragePath sets the "avatar_storage_path" field.
+func (_c *UserCreate) SetAvatarStoragePath(v string) *UserCreate {
+	_c.mutation.SetAvatarStoragePath(v)
+	return _c
+}
+
+// SetNillableAvatarStoragePath sets the "avatar_storage_path" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAvatarStoragePath(v *string) *UserCreate {
+	if v != nil {
+		_c.SetAvatarStoragePath(*v)
+	}
+	return _c
+}
+
 // SetEmail sets the "email" field.
 func (_c *UserCreate) SetEmail(v string) *UserCreate {
 	_c.mutation.SetEmail(v)
@@ -70,6 +126,20 @@ func (_c *UserCreate) SetEmailVerified(v bool) *UserCreate {
 func (_c *UserCreate) SetNillableEmailVerified(v *bool) *UserCreate {
 	if v != nil {
 		_c.SetEmailVerified(*v)
+	}
+	return _c
+}
+
+// SetDisabled sets the "disabled" field.
+func (_c *UserCreate) SetDisabled(v bool) *UserCreate {
+	_c.mutation.SetDisabled(v)
+	return _c
+}
+
+// SetNillableDisabled sets the "disabled" field if the given value is not nil.
+func (_c *UserCreate) SetNillableDisabled(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetDisabled(*v)
 	}
 	return _c
 }
@@ -137,6 +207,22 @@ func (_c *UserCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *UserCreate) defaults() {
+	if _, ok := _c.mutation.Nickname(); !ok {
+		v := user.DefaultNickname
+		_c.mutation.SetNickname(v)
+	}
+	if _, ok := _c.mutation.AvatarURL(); !ok {
+		v := user.DefaultAvatarURL
+		_c.mutation.SetAvatarURL(v)
+	}
+	if _, ok := _c.mutation.AvatarStorageKey(); !ok {
+		v := user.DefaultAvatarStorageKey
+		_c.mutation.SetAvatarStorageKey(v)
+	}
+	if _, ok := _c.mutation.AvatarStoragePath(); !ok {
+		v := user.DefaultAvatarStoragePath
+		_c.mutation.SetAvatarStoragePath(v)
+	}
 	if _, ok := _c.mutation.Role(); !ok {
 		v := user.DefaultRole
 		_c.mutation.SetRole(v)
@@ -144,6 +230,10 @@ func (_c *UserCreate) defaults() {
 	if _, ok := _c.mutation.EmailVerified(); !ok {
 		v := user.DefaultEmailVerified
 		_c.mutation.SetEmailVerified(v)
+	}
+	if _, ok := _c.mutation.Disabled(); !ok {
+		v := user.DefaultDisabled
+		_c.mutation.SetDisabled(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := user.DefaultCreatedAt()
@@ -165,6 +255,18 @@ func (_c *UserCreate) check() error {
 			return &ValidationError{Name: "username", err: fmt.Errorf(`ent: validator failed for field "User.username": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.Nickname(); !ok {
+		return &ValidationError{Name: "nickname", err: errors.New(`ent: missing required field "User.nickname"`)}
+	}
+	if _, ok := _c.mutation.AvatarURL(); !ok {
+		return &ValidationError{Name: "avatar_url", err: errors.New(`ent: missing required field "User.avatar_url"`)}
+	}
+	if _, ok := _c.mutation.AvatarStorageKey(); !ok {
+		return &ValidationError{Name: "avatar_storage_key", err: errors.New(`ent: missing required field "User.avatar_storage_key"`)}
+	}
+	if _, ok := _c.mutation.AvatarStoragePath(); !ok {
+		return &ValidationError{Name: "avatar_storage_path", err: errors.New(`ent: missing required field "User.avatar_storage_path"`)}
+	}
 	if _, ok := _c.mutation.PasswordHash(); !ok {
 		return &ValidationError{Name: "password_hash", err: errors.New(`ent: missing required field "User.password_hash"`)}
 	}
@@ -178,6 +280,9 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.EmailVerified(); !ok {
 		return &ValidationError{Name: "email_verified", err: errors.New(`ent: missing required field "User.email_verified"`)}
+	}
+	if _, ok := _c.mutation.Disabled(); !ok {
+		return &ValidationError{Name: "disabled", err: errors.New(`ent: missing required field "User.disabled"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "User.created_at"`)}
@@ -215,6 +320,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		_spec.SetField(user.FieldUsername, field.TypeString, value)
 		_node.Username = value
 	}
+	if value, ok := _c.mutation.Nickname(); ok {
+		_spec.SetField(user.FieldNickname, field.TypeString, value)
+		_node.Nickname = value
+	}
+	if value, ok := _c.mutation.AvatarURL(); ok {
+		_spec.SetField(user.FieldAvatarURL, field.TypeString, value)
+		_node.AvatarURL = value
+	}
+	if value, ok := _c.mutation.AvatarStorageKey(); ok {
+		_spec.SetField(user.FieldAvatarStorageKey, field.TypeString, value)
+		_node.AvatarStorageKey = value
+	}
+	if value, ok := _c.mutation.AvatarStoragePath(); ok {
+		_spec.SetField(user.FieldAvatarStoragePath, field.TypeString, value)
+		_node.AvatarStoragePath = value
+	}
 	if value, ok := _c.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 		_node.Email = &value
@@ -230,6 +351,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.EmailVerified(); ok {
 		_spec.SetField(user.FieldEmailVerified, field.TypeBool, value)
 		_node.EmailVerified = value
+	}
+	if value, ok := _c.mutation.Disabled(); ok {
+		_spec.SetField(user.FieldDisabled, field.TypeBool, value)
+		_node.Disabled = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)

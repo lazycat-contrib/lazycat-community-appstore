@@ -21,6 +21,7 @@ import (
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/mirror"
+	"lazycat.community/appstore/internal/storage"
 )
 
 func (s *Server) handleListReviews(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -445,6 +446,45 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request, u 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+func (s *Server) handleUploadSiteIcon(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	if err := r.ParseMultipartForm(maxSiteIconImageSize + 1<<20); err != nil {
+		badRequest(w, err)
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		badRequest(w, err)
+		return
+	}
+	defer file.Close()
+	if err := validateUploadedImage(file, header, maxSiteIconImageSize); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	storageKey, err := s.uploadStorageKey(r.Context(), r.FormValue("storageKey"))
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "SITE_ICON_UPLOAD_FAILED", err.Error(), nil)
+		return
+	}
+	backend, err := s.storageBackendForKey(r.Context(), storageKey)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "SITE_ICON_UPLOAD_FAILED", err.Error(), nil)
+		return
+	}
+	obj, err := storage.SaveFile(r.Context(), backend, file, header.Filename, maxSiteIconImageSize)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "SITE_ICON_UPLOAD_FAILED", err.Error(), nil)
+		return
+	}
+	iconURL := s.absoluteURL(r.Context(), obj.DownloadURL)
+	if err := s.setSetting(r.Context(), settingSiteIconURL, iconURL); err != nil {
+		_ = backend.Delete(r.Context(), obj.Path)
+		writeError(w, http.StatusInternalServerError, "SITE_ICON_SAVE_FAILED", "Could not save site icon", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"url": iconURL})
+}
+
 type testEmailRequest struct {
 	To       string            `json:"to"`
 	Settings map[string]string `json:"settings"`
@@ -690,7 +730,7 @@ func (s *Server) enforceVersionRetention(r *http.Request, appID int) {
 	}
 	for _, old := range records[maxVersions:] {
 		if old.StoragePath != "" {
-			s.deleteStoredObject(r.Context(), old.StoragePath)
+			s.deleteStoredObject(r.Context(), old.StorageKey, old.StoragePath)
 		}
 		_ = s.db.AppVersion.DeleteOneID(old.ID).Exec(r.Context())
 	}

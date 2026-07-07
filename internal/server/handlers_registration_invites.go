@@ -16,6 +16,7 @@ const maxInviteUses = 10000
 
 type registrationInviteDTO struct {
 	ID            int       `json:"id"`
+	Code          string    `json:"code"`
 	CodePrefix    string    `json:"codePrefix"`
 	Note          string    `json:"note"`
 	MaxUses       int       `json:"maxUses"`
@@ -70,6 +71,7 @@ func (s *Server) handleCreateRegistrationInvite(w http.ResponseWriter, r *http.R
 		return
 	}
 	record, err := s.db.RegistrationInvite.Create().
+		SetCode(code).
 		SetCodeHash(tokenHash(code)).
 		SetCodePrefix(tokenPrefix(code)).
 		SetNote(input.Note).
@@ -100,6 +102,7 @@ func (s *Server) handleDeleteRegistrationInvite(w http.ResponseWriter, r *http.R
 func toRegistrationInviteDTO(record *entgo.RegistrationInvite) registrationInviteDTO {
 	return registrationInviteDTO{
 		ID:            record.ID,
+		Code:          record.Code,
 		CodePrefix:    record.CodePrefix,
 		Note:          record.Note,
 		MaxUses:       record.MaxUses,

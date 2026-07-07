@@ -19,6 +19,8 @@ type StorageConfig struct {
 	ID int `json:"id,omitempty"`
 	// Key holds the value of the "key" field.
 	Key string `json:"key,omitempty"`
+	// Name holds the value of the "name" field.
+	Name string `json:"name,omitempty"`
 	// Provider holds the value of the "provider" field.
 	Provider storageconfig.Provider `json:"provider,omitempty"`
 	// DeliveryMode holds the value of the "delivery_mode" field.
@@ -63,7 +65,7 @@ func (*StorageConfig) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case storageconfig.FieldID:
 			values[i] = new(sql.NullInt64)
-		case storageconfig.FieldKey, storageconfig.FieldProvider, storageconfig.FieldDeliveryMode, storageconfig.FieldLocalPath, storageconfig.FieldEndpointURL, storageconfig.FieldBucketName, storageconfig.FieldRegion, storageconfig.FieldAccountID, storageconfig.FieldRootPrefix, storageconfig.FieldAccessKeyID, storageconfig.FieldSecretAccessKey, storageconfig.FieldWebdavUsername, storageconfig.FieldWebdavPassword, storageconfig.FieldPublicBaseURL:
+		case storageconfig.FieldKey, storageconfig.FieldName, storageconfig.FieldProvider, storageconfig.FieldDeliveryMode, storageconfig.FieldLocalPath, storageconfig.FieldEndpointURL, storageconfig.FieldBucketName, storageconfig.FieldRegion, storageconfig.FieldAccountID, storageconfig.FieldRootPrefix, storageconfig.FieldAccessKeyID, storageconfig.FieldSecretAccessKey, storageconfig.FieldWebdavUsername, storageconfig.FieldWebdavPassword, storageconfig.FieldPublicBaseURL:
 			values[i] = new(sql.NullString)
 		case storageconfig.FieldCreatedAt, storageconfig.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -93,6 +95,12 @@ func (_m *StorageConfig) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field key", values[i])
 			} else if value.Valid {
 				_m.Key = value.String
+			}
+		case storageconfig.FieldName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field name", values[i])
+			} else if value.Valid {
+				_m.Name = value.String
 			}
 		case storageconfig.FieldProvider:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -228,6 +236,9 @@ func (_m *StorageConfig) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("key=")
 	builder.WriteString(_m.Key)
+	builder.WriteString(", ")
+	builder.WriteString("name=")
+	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
 	builder.WriteString("provider=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Provider))

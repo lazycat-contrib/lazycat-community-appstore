@@ -140,6 +140,20 @@ func (_u *AppVersionUpdate) SetNillableDownloadURL(v *string) *AppVersionUpdate 
 	return _u
 }
 
+// SetStorageKey sets the "storage_key" field.
+func (_u *AppVersionUpdate) SetStorageKey(v string) *AppVersionUpdate {
+	_u.mutation.SetStorageKey(v)
+	return _u
+}
+
+// SetNillableStorageKey sets the "storage_key" field if the given value is not nil.
+func (_u *AppVersionUpdate) SetNillableStorageKey(v *string) *AppVersionUpdate {
+	if v != nil {
+		_u.SetStorageKey(*v)
+	}
+	return _u
+}
+
 // SetStoragePath sets the "storage_path" field.
 func (_u *AppVersionUpdate) SetStoragePath(v string) *AppVersionUpdate {
 	_u.mutation.SetStoragePath(v)
@@ -329,6 +343,9 @@ func (_u *AppVersionUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.DownloadURL(); ok {
 		_spec.SetField(appversion.FieldDownloadURL, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.StorageKey(); ok {
+		_spec.SetField(appversion.FieldStorageKey, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.StoragePath(); ok {
 		_spec.SetField(appversion.FieldStoragePath, field.TypeString, value)
 	}
@@ -481,6 +498,20 @@ func (_u *AppVersionUpdateOne) SetDownloadURL(v string) *AppVersionUpdateOne {
 func (_u *AppVersionUpdateOne) SetNillableDownloadURL(v *string) *AppVersionUpdateOne {
 	if v != nil {
 		_u.SetDownloadURL(*v)
+	}
+	return _u
+}
+
+// SetStorageKey sets the "storage_key" field.
+func (_u *AppVersionUpdateOne) SetStorageKey(v string) *AppVersionUpdateOne {
+	_u.mutation.SetStorageKey(v)
+	return _u
+}
+
+// SetNillableStorageKey sets the "storage_key" field if the given value is not nil.
+func (_u *AppVersionUpdateOne) SetNillableStorageKey(v *string) *AppVersionUpdateOne {
+	if v != nil {
+		_u.SetStorageKey(*v)
 	}
 	return _u
 }
@@ -703,6 +734,9 @@ func (_u *AppVersionUpdateOne) sqlSave(ctx context.Context) (_node *AppVersion, 
 	}
 	if value, ok := _u.mutation.DownloadURL(); ok {
 		_spec.SetField(appversion.FieldDownloadURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StorageKey(); ok {
+		_spec.SetField(appversion.FieldStorageKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.StoragePath(); ok {
 		_spec.SetField(appversion.FieldStoragePath, field.TypeString, value)

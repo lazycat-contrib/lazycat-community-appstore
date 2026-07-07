@@ -94,6 +94,20 @@ func (_c *AppVersionCreate) SetNillableDownloadURL(v *string) *AppVersionCreate 
 	return _c
 }
 
+// SetStorageKey sets the "storage_key" field.
+func (_c *AppVersionCreate) SetStorageKey(v string) *AppVersionCreate {
+	_c.mutation.SetStorageKey(v)
+	return _c
+}
+
+// SetNillableStorageKey sets the "storage_key" field if the given value is not nil.
+func (_c *AppVersionCreate) SetNillableStorageKey(v *string) *AppVersionCreate {
+	if v != nil {
+		_c.SetStorageKey(*v)
+	}
+	return _c
+}
+
 // SetStoragePath sets the "storage_path" field.
 func (_c *AppVersionCreate) SetStoragePath(v string) *AppVersionCreate {
 	_c.mutation.SetStoragePath(v)
@@ -229,6 +243,10 @@ func (_c *AppVersionCreate) defaults() {
 		v := appversion.DefaultDownloadURL
 		_c.mutation.SetDownloadURL(v)
 	}
+	if _, ok := _c.mutation.StorageKey(); !ok {
+		v := appversion.DefaultStorageKey
+		_c.mutation.SetStorageKey(v)
+	}
 	if _, ok := _c.mutation.StoragePath(); !ok {
 		v := appversion.DefaultStoragePath
 		_c.mutation.SetStoragePath(v)
@@ -288,6 +306,9 @@ func (_c *AppVersionCreate) check() error {
 	}
 	if _, ok := _c.mutation.DownloadURL(); !ok {
 		return &ValidationError{Name: "download_url", err: errors.New(`ent: missing required field "AppVersion.download_url"`)}
+	}
+	if _, ok := _c.mutation.StorageKey(); !ok {
+		return &ValidationError{Name: "storage_key", err: errors.New(`ent: missing required field "AppVersion.storage_key"`)}
 	}
 	if _, ok := _c.mutation.StoragePath(); !ok {
 		return &ValidationError{Name: "storage_path", err: errors.New(`ent: missing required field "AppVersion.storage_path"`)}
@@ -357,6 +378,10 @@ func (_c *AppVersionCreate) createSpec() (*AppVersion, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DownloadURL(); ok {
 		_spec.SetField(appversion.FieldDownloadURL, field.TypeString, value)
 		_node.DownloadURL = value
+	}
+	if value, ok := _c.mutation.StorageKey(); ok {
+		_spec.SetField(appversion.FieldStorageKey, field.TypeString, value)
+		_node.StorageKey = value
 	}
 	if value, ok := _c.mutation.StoragePath(); ok {
 		_spec.SetField(appversion.FieldStoragePath, field.TypeString, value)

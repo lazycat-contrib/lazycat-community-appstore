@@ -1,9 +1,12 @@
 export type User = {
   id: number;
   username: string;
+  nickname?: string;
   email?: string;
   role: 'USER' | 'SOFTWARE_ADMIN' | 'SITE_ADMIN';
   emailVerified?: boolean;
+  avatarUrl?: string;
+  disabled?: boolean;
 };
 
 export type Version = {
@@ -16,6 +19,7 @@ export type Version = {
   downloadUrl: string;
   fileSize: number;
   sha256: string;
+  storageKey?: string;
   createdAt: string;
   publishedAt?: string;
 };
@@ -59,6 +63,7 @@ export type Screenshot = {
   id: number;
   appId: number;
   imageUrl: string;
+  storageKey?: string;
   caption: string;
   deviceType?: 'DESKTOP' | 'MOBILE' | string;
   sortOrder: number;
@@ -146,6 +151,7 @@ export type APITokenRecord = {
 
 export type RegistrationInvite = {
   id: number;
+  code: string;
   codePrefix: string;
   note: string;
   maxUses: number;
@@ -153,6 +159,14 @@ export type RegistrationInvite = {
   createdBy: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type StorageOption = {
+  key: string;
+  name: string;
+  isDefault: boolean;
+  provider: string;
+  deliveryMode: string;
 };
 
 export type SourceID = number | string;

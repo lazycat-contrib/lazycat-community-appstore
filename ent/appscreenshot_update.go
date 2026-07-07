@@ -84,6 +84,20 @@ func (_u *AppScreenshotUpdate) SetNillableImageURL(v *string) *AppScreenshotUpda
 	return _u
 }
 
+// SetStorageKey sets the "storage_key" field.
+func (_u *AppScreenshotUpdate) SetStorageKey(v string) *AppScreenshotUpdate {
+	_u.mutation.SetStorageKey(v)
+	return _u
+}
+
+// SetNillableStorageKey sets the "storage_key" field if the given value is not nil.
+func (_u *AppScreenshotUpdate) SetNillableStorageKey(v *string) *AppScreenshotUpdate {
+	if v != nil {
+		_u.SetStorageKey(*v)
+	}
+	return _u
+}
+
 // SetStoragePath sets the "storage_path" field.
 func (_u *AppScreenshotUpdate) SetStoragePath(v string) *AppScreenshotUpdate {
 	_u.mutation.SetStoragePath(v)
@@ -235,6 +249,9 @@ func (_u *AppScreenshotUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if value, ok := _u.mutation.ImageURL(); ok {
 		_spec.SetField(appscreenshot.FieldImageURL, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.StorageKey(); ok {
+		_spec.SetField(appscreenshot.FieldStorageKey, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.StoragePath(); ok {
 		_spec.SetField(appscreenshot.FieldStoragePath, field.TypeString, value)
 	}
@@ -325,6 +342,20 @@ func (_u *AppScreenshotUpdateOne) SetImageURL(v string) *AppScreenshotUpdateOne 
 func (_u *AppScreenshotUpdateOne) SetNillableImageURL(v *string) *AppScreenshotUpdateOne {
 	if v != nil {
 		_u.SetImageURL(*v)
+	}
+	return _u
+}
+
+// SetStorageKey sets the "storage_key" field.
+func (_u *AppScreenshotUpdateOne) SetStorageKey(v string) *AppScreenshotUpdateOne {
+	_u.mutation.SetStorageKey(v)
+	return _u
+}
+
+// SetNillableStorageKey sets the "storage_key" field if the given value is not nil.
+func (_u *AppScreenshotUpdateOne) SetNillableStorageKey(v *string) *AppScreenshotUpdateOne {
+	if v != nil {
+		_u.SetStorageKey(*v)
 	}
 	return _u
 }
@@ -509,6 +540,9 @@ func (_u *AppScreenshotUpdateOne) sqlSave(ctx context.Context) (_node *AppScreen
 	}
 	if value, ok := _u.mutation.ImageURL(); ok {
 		_spec.SetField(appscreenshot.FieldImageURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StorageKey(); ok {
+		_spec.SetField(appscreenshot.FieldStorageKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.StoragePath(); ok {
 		_spec.SetField(appscreenshot.FieldStoragePath, field.TypeString, value)

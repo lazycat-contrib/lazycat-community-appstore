@@ -79,6 +79,11 @@ func DownloadURL(v string) predicate.AppVersion {
 	return predicate.AppVersion(sql.FieldEQ(FieldDownloadURL, v))
 }
 
+// StorageKey applies equality check predicate on the "storage_key" field. It's identical to StorageKeyEQ.
+func StorageKey(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldEQ(FieldStorageKey, v))
+}
+
 // StoragePath applies equality check predicate on the "storage_path" field. It's identical to StoragePathEQ.
 func StoragePath(v string) predicate.AppVersion {
 	return predicate.AppVersion(sql.FieldEQ(FieldStoragePath, v))
@@ -422,6 +427,71 @@ func DownloadURLEqualFold(v string) predicate.AppVersion {
 // DownloadURLContainsFold applies the ContainsFold predicate on the "download_url" field.
 func DownloadURLContainsFold(v string) predicate.AppVersion {
 	return predicate.AppVersion(sql.FieldContainsFold(FieldDownloadURL, v))
+}
+
+// StorageKeyEQ applies the EQ predicate on the "storage_key" field.
+func StorageKeyEQ(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldEQ(FieldStorageKey, v))
+}
+
+// StorageKeyNEQ applies the NEQ predicate on the "storage_key" field.
+func StorageKeyNEQ(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldNEQ(FieldStorageKey, v))
+}
+
+// StorageKeyIn applies the In predicate on the "storage_key" field.
+func StorageKeyIn(vs ...string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldIn(FieldStorageKey, vs...))
+}
+
+// StorageKeyNotIn applies the NotIn predicate on the "storage_key" field.
+func StorageKeyNotIn(vs ...string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldNotIn(FieldStorageKey, vs...))
+}
+
+// StorageKeyGT applies the GT predicate on the "storage_key" field.
+func StorageKeyGT(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldGT(FieldStorageKey, v))
+}
+
+// StorageKeyGTE applies the GTE predicate on the "storage_key" field.
+func StorageKeyGTE(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldGTE(FieldStorageKey, v))
+}
+
+// StorageKeyLT applies the LT predicate on the "storage_key" field.
+func StorageKeyLT(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldLT(FieldStorageKey, v))
+}
+
+// StorageKeyLTE applies the LTE predicate on the "storage_key" field.
+func StorageKeyLTE(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldLTE(FieldStorageKey, v))
+}
+
+// StorageKeyContains applies the Contains predicate on the "storage_key" field.
+func StorageKeyContains(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldContains(FieldStorageKey, v))
+}
+
+// StorageKeyHasPrefix applies the HasPrefix predicate on the "storage_key" field.
+func StorageKeyHasPrefix(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldHasPrefix(FieldStorageKey, v))
+}
+
+// StorageKeyHasSuffix applies the HasSuffix predicate on the "storage_key" field.
+func StorageKeyHasSuffix(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldHasSuffix(FieldStorageKey, v))
+}
+
+// StorageKeyEqualFold applies the EqualFold predicate on the "storage_key" field.
+func StorageKeyEqualFold(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldEqualFold(FieldStorageKey, v))
+}
+
+// StorageKeyContainsFold applies the ContainsFold predicate on the "storage_key" field.
+func StorageKeyContainsFold(v string) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldContainsFold(FieldStorageKey, v))
 }
 
 // StoragePathEQ applies the EQ predicate on the "storage_path" field.

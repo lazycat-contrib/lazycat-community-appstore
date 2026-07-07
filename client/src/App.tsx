@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowUp,
   Check,
+  ChevronDown,
   ChevronRight,
   Cloud,
   Copy,
@@ -37,6 +38,8 @@ import {
   Tag,
   Trash2,
   Upload,
+  UserPlus,
+  UserRound,
   Users,
   X,
 } from 'lucide-react';
@@ -101,6 +104,7 @@ import type {
   SourceInput,
   SourceSubscription,
   SourceVersion,
+  StorageOption,
   StoreApp,
   TagRecord,
   ThemeMode,
@@ -136,7 +140,7 @@ import {
   stripTrailingSlash,
   withInstallPassword,
 } from './shared/utils';
-import { AppIcon, AvatarIcon } from './components/AppIcon';
+import { AppIcon, AvatarIcon, UserAvatar } from './components/AppIcon';
 import { ArtifactModeOption } from './shared/components/ArtifactModeOption';
 import { FilePicker } from './shared/components/FilePicker';
 import { ClientHistoryView } from './modules/client/ClientHistoryView';
@@ -185,6 +189,16 @@ const clientTabs: NavItem[] = [
 ];
 
 type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string };
+type ManagedUserDraft = {
+  id?: number;
+  username: string;
+  nickname: string;
+  email: string;
+  password: string;
+  role: User['role'];
+  emailVerified: boolean;
+  disabled: boolean;
+};
 
 function verificationTokenFromURL() {
   return new URLSearchParams(window.location.search).get('token') || '';
@@ -216,6 +230,76 @@ function screenshotDeviceLabel(t: (key: string, options?: any) => string, device
   return deviceType === 'MOBILE' ? t('drawer.screenshotDeviceMobile') : t('drawer.screenshotDeviceDesktop');
 }
 
+function screenshotFileKey(file: File) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
+function reconcileScreenshotCaptions(files: File[], current: Record<string, string>) {
+  return Object.fromEntries(files.map((file) => {
+    const key = screenshotFileKey(file);
+    return [key, current[key] || ''];
+  }));
+}
+
+function displayUserName(user: User | null | undefined) {
+  return user?.nickname?.trim() || user?.username || '';
+}
+
+function normalizeStorageRecord(storage?: Partial<StorageSettings>): StorageSettings {
+  return {
+    ...defaultStorageSettings,
+    ...(storage || {}),
+    key: storage?.key || defaultStorageSettings.key,
+    name: storage?.name || storage?.key || defaultStorageSettings.name,
+  };
+}
+
+function storageOptionsFromRecords(storages: StorageSettings[], defaultKey: string): StorageOption[] {
+  return storages.map((storage) => ({
+    key: storage.key,
+    name: storage.name || storage.key,
+    isDefault: storage.key === defaultKey || Boolean(storage.isDefault),
+    provider: storage.provider,
+    deliveryMode: storage.deliveryMode,
+  }));
+}
+
+function storageSelectOptions(storages: StorageOption[]) {
+  return storages.map((storage) => ({
+    value: storage.key,
+    label: storage.name || storage.key,
+  }));
+}
+
+function defaultUploadStorageKey(storages: StorageOption[]) {
+  return storages.find((storage) => storage.isDefault)?.key || storages[0]?.key || 'primary';
+}
+
+function emptyUserDraft(): ManagedUserDraft {
+  return {
+    username: '',
+    nickname: '',
+    email: '',
+    password: '',
+    role: 'USER',
+    emailVerified: true,
+    disabled: false,
+  };
+}
+
+function draftFromUser(user: User): ManagedUserDraft {
+  return {
+    id: user.id,
+    username: user.username,
+    nickname: user.nickname || '',
+    email: user.email || '',
+    password: '',
+    role: user.role,
+    emailVerified: Boolean(user.emailVerified),
+    disabled: Boolean(user.disabled),
+  };
+}
+
 export function App() {
   const { t } = useTranslation();
   const [themeMode, setThemeMode] = useState<ThemeMode>(readThemeMode);
@@ -229,6 +313,7 @@ export function App() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [storageOptions, setStorageOptions] = useState<StorageOption[]>([]);
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [activeSubmitter, setActiveSubmitter] = useState<string>('all');
@@ -258,6 +343,9 @@ export function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
   const [setupRequired, setSetupRequired] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [openSubmitSignal, setOpenSubmitSignal] = useState(0);
   const defaultSourceCheckedRef = useRef(false);
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const serverNavItems = user ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : serverBaseTabs.filter((item) => item.key !== 'profile');
@@ -282,6 +370,11 @@ export function App() {
     setSelectedApp(null);
     setSelectedSourceApp(null);
     setTab(nextTab);
+  }
+
+  function openSubmitApp() {
+    setOpenSubmitSignal((signal) => signal + 1);
+    navigateTo('profile');
   }
 
   const sourceStats = useMemo<ClientSourceStats>(() => {
@@ -394,6 +487,7 @@ export function App() {
         setGroups([]);
         setReviews([]);
         setUser(null);
+        setStorageOptions([]);
         return;
       }
       const [siteData, me, appData, categoryData, collectionData] = await Promise.allSettled([
@@ -409,10 +503,13 @@ export function App() {
       if (categoryData.status === 'fulfilled') setCategories(categoryData.value.categories);
       if (collectionData.status === 'fulfilled') setCollections(collectionData.value.collections);
       if (me.status === 'fulfilled') {
+        await loadStorageOptions();
         await loadGroups();
         if (me.value.user.role === 'SOFTWARE_ADMIN' || me.value.user.role === 'SITE_ADMIN') {
           await loadReviews();
         }
+      } else {
+        setStorageOptions([]);
       }
     } finally {
       setLoading(false);
@@ -423,6 +520,17 @@ export function App() {
     if (!HAS_API) return;
     const data = await api<{ site: SiteProfile }>('/api/v1/site/profile');
     setSiteProfile(data.site);
+  }
+
+  async function loadStorageOptions() {
+    if (!HAS_API) return;
+    try {
+      const data = await api<{ storages: StorageOption[]; defaultKey: string }>('/api/v1/storage-options');
+      const options = arrayOrEmpty(data.storages).map((storage) => ({ ...storage, isDefault: storage.isDefault || storage.key === data.defaultKey }));
+      setStorageOptions(options);
+    } catch {
+      setStorageOptions([]);
+    }
   }
 
   async function loadClientSources() {
@@ -774,23 +882,62 @@ export function App() {
               onClick={() => void (HAS_API ? refreshAll() : syncAllSources())}
             />
             {HAS_API && user ? (
-              <XButton
-                type="button"
-                variant="secondary"
-                label={user.username}
-                icon={<LogOut size={16} />}
-                onClick={() =>
-                  void runAction(setToast, t('toast.logoutFailed'), async () => {
-                    await api('/api/v1/auth/logout', { method: 'POST' });
-                    setUser(null);
-                  })
-                }
-              />
+              <div className="account-menu">
+                <button type="button" className="account-trigger" onClick={() => setIsAccountMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isAccountMenuOpen}>
+                  <UserAvatar user={user} size={32} />
+                  <span>{displayUserName(user)}</span>
+                  <ChevronDown size={15} aria-hidden="true" />
+                </button>
+                {isAccountMenuOpen && (
+                  <div className="account-menu-popover" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        setIsProfileDialogOpen(true);
+                      }}
+                    >
+                      <UserRound size={16} />
+                      <span>{t('profile.personalProfile')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() =>
+                        void runAction(setToast, t('toast.logoutFailed'), async () => {
+                          await api('/api/v1/auth/logout', { method: 'POST' });
+                          setUser(null);
+                          setStorageOptions([]);
+                          setIsAccountMenuOpen(false);
+                        })
+                      }
+                    >
+                      <LogOut size={16} />
+                      <span>{t('auth.logout')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : HAS_API ? (
               <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => navigateTo('profile')} />
             ) : null}
           </div>
         </header>
+
+        {HAS_API && user && isProfileDialogOpen && (
+          <ProfileSettingsDialog
+            user={user}
+            storageOptions={storageOptions}
+            onClose={() => setIsProfileDialogOpen(false)}
+            onSaved={(nextUser) => {
+              setUser(nextUser);
+              setIsProfileDialogOpen(false);
+              void refreshAll({ silent: true });
+            }}
+            setToast={setToast}
+          />
+        )}
 
         {loading ? (
           <div className="loading-state skeleton-state" aria-label={t('common.loading')} aria-live="polite">
@@ -821,6 +968,7 @@ export function App() {
                 user={user}
                 groups={groups}
                 categories={categories}
+                storageOptions={storageOptions}
                 onClose={() => setSelectedApp(null)}
                 onInstall={installApp}
                 onRefresh={async () => {
@@ -855,6 +1003,7 @@ export function App() {
                 onOpen={openApp}
                 onInstall={installApp}
                 onNavigate={navigateTo}
+                onSubmitApp={openSubmitApp}
                 onCategory={(category) => {
                   setActiveCategory(category);
                   navigateTo('search');
@@ -921,6 +1070,8 @@ export function App() {
                 setToast={setToast}
                 hasAPI={HAS_API}
                 siteProfile={siteProfile}
+                storageOptions={storageOptions}
+                openSubmitSignal={openSubmitSignal}
                 onNavigate={navigateTo}
               />
             )}
@@ -942,7 +1093,7 @@ export function App() {
             )}
             {tab === 'admin' && (
               user && canReview ? (
-                <AdminPanel user={user} reviews={reviews} onApprove={approveReview} onSiteProfileSaved={loadSiteProfile} setToast={setToast} />
+                <AdminPanel user={user} reviews={reviews} onApprove={approveReview} onSiteProfileSaved={loadSiteProfile} onStorageOptionsChanged={loadStorageOptions} setToast={setToast} />
               ) : (
                 <EmptyState
                   icon={ShieldCheck}
@@ -1859,6 +2010,113 @@ function CommentBody({ comment, onDelete }: { comment: Comment; onDelete: (id: n
   );
 }
 
+function ProfileSettingsDialog({
+  user,
+  storageOptions,
+  onClose,
+  onSaved,
+  setToast,
+}: {
+  user: User;
+  storageOptions: StorageOption[];
+  onClose: () => void;
+  onSaved: (user: User) => void;
+  setToast: (toast: Toast) => void;
+}) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState({
+    nickname: user.nickname || '',
+    email: user.email || '',
+    currentPassword: '',
+    newPassword: '',
+  });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarStorageKey, setAvatarStorageKey] = useState(defaultUploadStorageKey(storageOptions));
+  const storageChoices = storageSelectOptions(storageOptions);
+
+  useEffect(() => {
+    setDraft({
+      nickname: user.nickname || '',
+      email: user.email || '',
+      currentPassword: '',
+      newPassword: '',
+    });
+  }, [user]);
+
+  useEffect(() => {
+    const fallback = defaultUploadStorageKey(storageOptions);
+    setAvatarStorageKey((current) => (storageOptions.some((storage) => storage.key === current) ? current : fallback));
+  }, [storageOptions]);
+
+  async function saveProfile(event: FormEvent) {
+    event.preventDefault();
+    await runAction(setToast, t('profile.profileSaveFailed'), async () => {
+      let nextUser = user;
+      const profileData = await api<{ user: User }>('/api/v1/me/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          nickname: draft.nickname,
+          email: draft.email,
+          currentPassword: draft.currentPassword,
+          newPassword: draft.newPassword,
+        }),
+      });
+      nextUser = profileData.user;
+      if (avatarFile) {
+        const form = new FormData();
+        form.set('file', avatarFile);
+        form.set('storageKey', avatarStorageKey);
+        const avatarData = await api<{ user: User; url: string }>('/api/v1/me/avatar', { method: 'POST', body: form });
+        nextUser = avatarData.user;
+      }
+      setToast({ tone: 'success', message: t('profile.profileSaved') });
+      onSaved(nextUser);
+    });
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <form className="modal-panel form-panel profile-dialog" role="dialog" aria-modal="true" aria-label={t('profile.personalProfile')} onClick={(event) => event.stopPropagation()} onSubmit={saveProfile}>
+        <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={onClose} />
+        <div className="profile-dialog-head">
+          <UserAvatar user={user} size={72} className="avatar-large" />
+          <div>
+            <h2>{t('profile.personalProfile')}</h2>
+            <p>{displayUserName(user)}</p>
+          </div>
+        </div>
+        <XFormLayout>
+          <XTextInput label={t('profile.nickname')} value={draft.nickname} onChange={(value) => setDraft({ ...draft, nickname: value })} />
+          <XTextInput type="email" label={t('common.email')} value={draft.email} onChange={(value) => setDraft({ ...draft, email: value })} />
+          <XTextInput type="password" label={t('profile.currentPassword')} value={draft.currentPassword} onChange={(value) => setDraft({ ...draft, currentPassword: value })} />
+          <XTextInput type="password" label={t('profile.newPassword')} description={t('profile.newPasswordHelp')} value={draft.newPassword} onChange={(value) => setDraft({ ...draft, newPassword: value })} />
+        </XFormLayout>
+        <div className="avatar-upload-grid">
+          <FilePicker
+            label={t('profile.avatar')}
+            help={t('profile.avatarHelp')}
+            value={avatarFile}
+            accept=".png,.jpg,.jpeg,.webp"
+            onChange={(nextFile) => setAvatarFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
+          />
+          {storageChoices.length > 0 && (
+            <XSelector
+              label={t('common.storage')}
+              value={avatarStorageKey}
+              options={storageChoices}
+              onChange={setAvatarStorageKey}
+            />
+          )}
+        </div>
+        <div className="dialog-actions">
+          <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={onClose} />
+          <XButton type="submit" variant="primary" label={t('profile.saveProfile')} icon={<Save size={17} />} />
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function ProfileView({
   user,
   setUser,
@@ -1877,6 +2135,8 @@ function ProfileView({
   setToast,
   hasAPI,
   siteProfile,
+  storageOptions,
+  openSubmitSignal,
   onNavigate,
 }: {
   user: User | null;
@@ -1896,6 +2156,8 @@ function ProfileView({
   setToast: (toast: Toast) => void;
   hasAPI: boolean;
   siteProfile: SiteProfile;
+  storageOptions: StorageOption[];
+  openSubmitSignal: number;
   onNavigate: (tab: TabKey) => void;
 }) {
   const { t } = useTranslation();
@@ -1920,9 +2182,12 @@ function ProfileView({
   });
   const [recentSubmission, setRecentSubmission] = useState<{ name: string; status: string } | null>(null);
   const [artifactMode, setArtifactMode] = useState<SubmissionArtifactMode>('local');
+  const [uploadStorageKey, setUploadStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [file, setFile] = useState<File | null>(null);
   const [desktopScreenshotFiles, setDesktopScreenshotFiles] = useState<File[]>([]);
   const [mobileScreenshotFiles, setMobileScreenshotFiles] = useState<File[]>([]);
+  const [desktopScreenshotCaptions, setDesktopScreenshotCaptions] = useState<Record<string, string>>({});
+  const [mobileScreenshotCaptions, setMobileScreenshotCaptions] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [tokens, setTokens] = useState<APITokenRecord[]>([]);
   const [newToken, setNewToken] = useState('');
@@ -2013,6 +2278,18 @@ function ProfileView({
     const active = installedApps.filter((item) => /running|active|started/i.test(`${item.status || ''} ${item.instanceStatus || ''}`)).length;
     return { total: installedApps.length, versioned, statusKnown, active };
   }, [installedApps]);
+  const storageChoices = storageSelectOptions(storageOptions);
+
+  useEffect(() => {
+    const fallback = defaultUploadStorageKey(storageOptions);
+    setUploadStorageKey((current) => (storageOptions.some((storage) => storage.key === current) ? current : fallback));
+  }, [storageOptions]);
+
+  useEffect(() => {
+    if (!user || openSubmitSignal === 0) return;
+    setWorkspaceTab('apps');
+    setIsSubmitOpen(true);
+  }, [openSubmitSignal, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -2082,6 +2359,24 @@ function ProfileView({
     }
   }
 
+  function updateDesktopScreenshotFiles(files: File[]) {
+    setDesktopScreenshotFiles(files);
+    setDesktopScreenshotCaptions((current) => reconcileScreenshotCaptions(files, current));
+  }
+
+  function updateMobileScreenshotFiles(files: File[]) {
+    setMobileScreenshotFiles(files);
+    setMobileScreenshotCaptions((current) => reconcileScreenshotCaptions(files, current));
+  }
+
+  function updateDesktopScreenshotCaption(file: File, caption: string) {
+    setDesktopScreenshotCaptions((current) => ({ ...current, [screenshotFileKey(file)]: caption }));
+  }
+
+  function updateMobileScreenshotCaption(file: File, caption: string) {
+    setMobileScreenshotCaptions((current) => ({ ...current, [screenshotFileKey(file)]: caption }));
+  }
+
   async function submitUpload(event: FormEvent) {
     event.preventDefault();
     if (artifactMode === 'local' && !file) {
@@ -2098,6 +2393,7 @@ function ProfileView({
         const form = new FormData();
         Object.entries(uploadForm).forEach(([key, value]) => form.set(key, String(value)));
         form.set('file', file);
+        form.set('storageKey', uploadStorageKey);
         created = await api<{ app: StoreApp }>('/api/v1/apps', { method: 'POST', body: form });
       } else {
         created = await api<{ app: StoreApp }>('/api/v1/apps', {
@@ -2119,8 +2415,8 @@ function ProfileView({
         });
       }
       if (created.app?.id) {
-        await uploadInitialScreenshots(created.app.id, desktopScreenshotFiles, 'DESKTOP');
-        await uploadInitialScreenshots(created.app.id, mobileScreenshotFiles, 'MOBILE');
+        await uploadInitialScreenshots(created.app.id, desktopScreenshotFiles, desktopScreenshotCaptions, 'DESKTOP');
+        await uploadInitialScreenshots(created.app.id, mobileScreenshotFiles, mobileScreenshotCaptions, 'MOBILE');
       }
       setRecentSubmission({ name: created.app?.name || uploadForm.name, status: created.app?.status || 'PENDING' });
       setToast({ tone: 'success', message: t('submitApp.submitted') });
@@ -2129,6 +2425,8 @@ function ProfileView({
       setFile(null);
       setDesktopScreenshotFiles([]);
       setMobileScreenshotFiles([]);
+      setDesktopScreenshotCaptions({});
+      setMobileScreenshotCaptions({});
       if (fileInputRef.current) fileInputRef.current.value = '';
       setIsSubmitOpen(false);
       setWorkspaceTab('apps');
@@ -2136,12 +2434,13 @@ function ProfileView({
     });
   }
 
-  async function uploadInitialScreenshots(appID: number, files: File[], deviceType: 'DESKTOP' | 'MOBILE') {
+  async function uploadInitialScreenshots(appID: number, files: File[], captions: Record<string, string>, deviceType: 'DESKTOP' | 'MOBILE') {
     for (const screenshot of files) {
       const form = new FormData();
       form.set('file', screenshot);
-      form.set('caption', screenshot.name.replace(/\.[^.]+$/, ''));
+      form.set('caption', (captions[screenshotFileKey(screenshot)] || '').trim());
       form.set('deviceType', deviceType);
+      form.set('storageKey', uploadStorageKey);
       await api(`/api/v1/apps/${appID}/screenshots`, { method: 'POST', body: form });
     }
   }
@@ -2327,8 +2626,8 @@ function ProfileView({
       <section className="page-grid">
         <div className="split">
           <div className="panel profile-card">
-            <AvatarIcon seed={user.email || user.username} title={user.username} size={74} className="avatar-large" />
-            <h2>{user.username}</h2>
+            <UserAvatar user={user} size={74} className="avatar-large" />
+            <h2>{displayUserName(user)}</h2>
             <p>{t('auth.emailPending')}</p>
             <XButton
               type="button"
@@ -2361,24 +2660,26 @@ function ProfileView({
         <h1>{t('profile.serverTitle')}</h1>
         <p>{t('profile.serverBody')}</p>
       </div>
-      <XToggleButtonGroup value={workspaceTab} onChange={(value) => value && setWorkspaceTab(value as typeof workspaceTab)} label={t('profile.tabs.label')} size="sm">
-        {workspaceTabs.map((item) => {
-          const Icon = item.icon;
-          return (
-            <XToggleButton
-              key={item.key}
-              value={item.key}
-              label={item.label}
-              icon={<Icon size={17} />}
-            />
-          );
-        })}
-      </XToggleButtonGroup>
+      <div className="horizontal-control-scroll">
+        <XToggleButtonGroup value={workspaceTab} onChange={(value) => value && setWorkspaceTab(value as typeof workspaceTab)} label={t('profile.tabs.label')} size="sm">
+          {workspaceTabs.map((item) => {
+            const Icon = item.icon;
+            return (
+              <XToggleButton
+                key={item.key}
+                value={item.key}
+                label={item.label}
+                icon={<Icon size={17} />}
+              />
+            );
+          })}
+        </XToggleButtonGroup>
+      </div>
       {workspaceTab === 'overview' && (
       <div className="split">
         <div className="panel profile-card">
-          <AvatarIcon seed={user.email || user.username} title={user.username} size={74} className="avatar-large" />
-          <h2>{user.username}</h2>
+          <UserAvatar user={user} size={74} className="avatar-large" />
+          <h2>{displayUserName(user)}</h2>
           <p>{t(`admin.roles.${user.role === 'SITE_ADMIN' ? 'siteAdmin' : user.role === 'SOFTWARE_ADMIN' ? 'softwareAdmin' : 'user'}`)}</p>
           <XButton
             type="button"
@@ -2471,15 +2772,22 @@ function ProfileView({
         draft={uploadForm}
         onDraftChange={setUploadForm}
         categories={categories}
+        storageOptions={storageChoices}
+        storageKey={uploadStorageKey}
+        onStorageKeyChange={setUploadStorageKey}
         artifactMode={artifactMode}
         onArtifactModeChange={selectArtifactMode}
         file={file}
         onFileChange={setFile}
         fileInputRef={fileInputRef}
         desktopScreenshotFiles={desktopScreenshotFiles}
-        onDesktopScreenshotFilesChange={setDesktopScreenshotFiles}
+        desktopScreenshotCaptions={desktopScreenshotCaptions}
+        onDesktopScreenshotFilesChange={updateDesktopScreenshotFiles}
+        onDesktopScreenshotCaptionChange={updateDesktopScreenshotCaption}
         mobileScreenshotFiles={mobileScreenshotFiles}
-        onMobileScreenshotFilesChange={setMobileScreenshotFiles}
+        mobileScreenshotCaptions={mobileScreenshotCaptions}
+        onMobileScreenshotFilesChange={updateMobileScreenshotFiles}
+        onMobileScreenshotCaptionChange={updateMobileScreenshotCaption}
         recentSubmission={recentSubmission}
         isDirectPublishUser={user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN'}
         onSubmit={submitUpload}
@@ -2751,24 +3059,33 @@ function AdminPanel({
   reviews,
   onApprove,
   onSiteProfileSaved,
+  onStorageOptionsChanged,
   setToast,
 }: {
   user: User;
   reviews: Review[];
   onApprove: (review: Review, approve: boolean) => void;
   onSiteProfileSaved: () => Promise<void>;
+  onStorageOptionsChanged: () => Promise<void>;
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
-  const [adminTab, setAdminTab] = useState<'reviews' | 'site' | 'users' | 'taxonomy' | 'collections' | 'inventory'>('reviews');
+  const [adminTab, setAdminTab] = useState<'reviews' | 'site' | 'users' | 'taxonomy' | 'collections'>('reviews');
   const [users, setUsers] = useState<User[]>([]);
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [reviewApps, setReviewApps] = useState<StoreApp[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [registrationInvites, setRegistrationInvites] = useState<RegistrationInvite[]>([]);
   const [inviteDraft, setInviteDraft] = useState({ note: '', maxUses: '1' });
-  const [newInviteCode, setNewInviteCode] = useState('');
-  const [storageSettings, setStorageSettings] = useState<StorageSettings>(defaultStorageSettings);
+  const [isInviteCreateOpen, setIsInviteCreateOpen] = useState(false);
+  const [storageRecords, setStorageRecords] = useState<StorageSettings[]>([defaultStorageSettings]);
+  const [defaultStorageKey, setDefaultStorageKey] = useState(defaultStorageSettings.key);
+  const [selectedStorageKey, setSelectedStorageKey] = useState(defaultStorageSettings.key);
+  const [storageDraft, setStorageDraft] = useState<StorageSettings>(defaultStorageSettings);
+  const [storageCreateDraft, setStorageCreateDraft] = useState<StorageSettings>({ ...defaultStorageSettings, key: '', name: '' });
+  const [isStorageCreateOpen, setIsStorageCreateOpen] = useState(false);
+  const [siteIconFile, setSiteIconFile] = useState<File | null>(null);
+  const [siteIconStorageKey, setSiteIconStorageKey] = useState(defaultStorageSettings.key);
   const [adminCategories, setAdminCategories] = useState<Category[]>([]);
   const [adminTags, setAdminTags] = useState<TagRecord[]>([]);
   const [adminCollections, setAdminCollections] = useState<Collection[]>([]);
@@ -2776,6 +3093,8 @@ function AdminPanel({
   const [tagForm, setTagForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' });
   const [collectionForm, setCollectionForm] = useState<{ name: string; kind: string; appIds: number[] }>({ name: '', kind: 'MANUAL', appIds: [] });
   const [siteSettingsTab, setSiteSettingsTab] = useState<'identity' | 'announcement' | 'registration' | 'policy' | 'storage' | 'mail'>('identity');
+  const [userDialogMode, setUserDialogMode] = useState<'create' | 'edit' | null>(null);
+  const [userDraft, setUserDraft] = useState<ManagedUserDraft>(emptyUserDraft);
   const [isCollectionCreateOpen, setIsCollectionCreateOpen] = useState(false);
   const [taxonomyCreateMode, setTaxonomyCreateMode] = useState<'category' | 'tag' | null>(null);
   const [editingCategoryID, setEditingCategoryID] = useState<number | null>(null);
@@ -2792,7 +3111,6 @@ function AdminPanel({
     ...(isSiteAdmin ? [{ key: 'users' as const, label: t('admin.tabs.users'), icon: Users }] : []),
     { key: 'taxonomy', label: t('admin.tabs.taxonomy'), icon: Tag },
     { key: 'collections', label: t('admin.tabs.collections'), icon: Layers3 },
-    { key: 'inventory', label: t('admin.tabs.inventory'), icon: PackagePlus },
   ] as const;
   const collectionKindOptions = [
     { value: 'MANUAL', label: t('admin.collectionKinds.manual') },
@@ -2893,6 +3211,8 @@ function AdminPanel({
       : t('admin.opsSourceOpen');
   const adminPublicURL = stripTrailingSlash(settings.site_public_url || window.location.origin);
   const adminSourceURL = adminPublicURL ? `${adminPublicURL}/source/v1/index.json` : '';
+  const adminStorageOptions = useMemo(() => storageOptionsFromRecords(storageRecords, defaultStorageKey), [storageRecords, defaultStorageKey]);
+  const adminStorageChoices = useMemo(() => storageSelectOptions(adminStorageOptions), [adminStorageOptions]);
   const announcementPreview: SiteAnnouncement = {
     enabled: settings.announcement_enabled === 'true',
     level: settings.announcement_level === 'warning' || settings.announcement_level === 'success' ? settings.announcement_level : 'info',
@@ -2906,6 +3226,23 @@ function AdminPanel({
   useEffect(() => {
     void reload();
   }, []);
+
+  useEffect(() => {
+    const selected = storageRecords.find((storage) => storage.key === selectedStorageKey) || storageRecords[0] || defaultStorageSettings;
+    setStorageDraft({ ...defaultStorageSettings, ...selected });
+  }, [selectedStorageKey, storageRecords]);
+
+  useEffect(() => {
+    setSiteIconStorageKey((current) => (adminStorageOptions.some((storage) => storage.key === current) ? current : defaultUploadStorageKey(adminStorageOptions)));
+  }, [adminStorageOptions]);
+
+  function setLoadedStorageRecords(storages: StorageSettings[], defaultKey: string) {
+    const normalized = (storages.length > 0 ? storages : [defaultStorageSettings]).map(normalizeStorageRecord);
+    const nextDefaultKey = defaultKey || normalized.find((storage) => storage.isDefault)?.key || normalized[0]?.key || defaultStorageSettings.key;
+    setStorageRecords(normalized.map((storage) => ({ ...storage, isDefault: storage.key === nextDefaultKey })));
+    setDefaultStorageKey(nextDefaultKey);
+    setSelectedStorageKey((current) => (normalized.some((storage) => storage.key === current) ? current : nextDefaultKey));
+  }
 
   async function reload() {
     await runAction(setToast, t('admin.loadFailed'), async () => {
@@ -2927,12 +3264,12 @@ function AdminPanel({
         const [userData, settingData, storageData, inviteData] = await Promise.all([
           api<{ users: User[] }>('/api/v1/admin/users'),
           api<{ settings: Record<string, string> }>('/api/v1/admin/settings'),
-          api<{ storage: StorageSettings }>('/api/v1/admin/storage'),
+          api<{ storages: StorageSettings[]; defaultKey: string }>('/api/v1/admin/storage'),
           api<{ invites: RegistrationInvite[] }>('/api/v1/admin/registration-invites'),
         ]);
         setUsers(userData.users);
         setSettings(settingData.settings || {});
-        setStorageSettings({ ...defaultStorageSettings, ...(storageData.storage || {}) });
+        setLoadedStorageRecords(storageData.storages || [], storageData.defaultKey);
         setRegistrationInvites(inviteData.invites || []);
       }
     });
@@ -2955,14 +3292,6 @@ function AdminPanel({
       return note;
     }
     return note;
-  }
-
-  async function updateUserRole(userID: number, role: User['role']) {
-    await runAction(setToast, t('admin.userRoleUpdateFailed'), async () => {
-      await api(`/api/v1/admin/users/${userID}`, { method: 'PATCH', body: JSON.stringify({ role }) });
-      setToast({ tone: 'success', message: t('admin.userRoleUpdated') });
-      await reload();
-    });
   }
 
   async function saveSettings(event: FormEvent) {
@@ -2990,12 +3319,13 @@ function AdminPanel({
 
   async function saveStorageSettings() {
     await runAction(setToast, t('admin.storageSaveFailed'), async () => {
-      const data = await api<{ storage: StorageSettings }>('/api/v1/admin/storage', {
+      const data = await api<{ storage: StorageSettings }>(`/api/v1/admin/storage/${encodeURIComponent(storageDraft.key)}`, {
         method: 'PATCH',
-        body: JSON.stringify(storageSettings),
+        body: JSON.stringify(storageDraft),
       });
-      setStorageSettings({ ...defaultStorageSettings, ...(data.storage || {}) });
+      setStorageRecords((current) => current.map((item) => (item.key === data.storage.key ? normalizeStorageRecord(data.storage) : item)));
       setToast({ tone: 'success', message: t('admin.storageSaved') });
+      await onStorageOptionsChanged();
     });
   }
 
@@ -3003,9 +3333,72 @@ function AdminPanel({
     await runAction(setToast, t('admin.storageTestFailed'), async () => {
       await api('/api/v1/admin/storage/test', {
         method: 'POST',
-        body: JSON.stringify(storageSettings),
+        body: JSON.stringify(storageDraft),
       });
       setToast({ tone: 'success', message: t('admin.storageTested') });
+    });
+  }
+
+  async function createStorage() {
+    await runAction(setToast, t('admin.storageSaveFailed'), async () => {
+      const data = await api<{ storage: StorageSettings }>('/api/v1/admin/storage', {
+        method: 'POST',
+        body: JSON.stringify(storageCreateDraft),
+      });
+      const next = normalizeStorageRecord(data.storage);
+      setStorageRecords((current) => [next, ...current.filter((item) => item.key !== next.key)]);
+      setSelectedStorageKey(next.key);
+      setStorageCreateDraft({ ...defaultStorageSettings, key: '', name: '' });
+      setIsStorageCreateOpen(false);
+      setToast({ tone: 'success', message: t('admin.storageSaved') });
+      await onStorageOptionsChanged();
+    });
+  }
+
+  async function testSavedStorage(storage: StorageSettings) {
+    await runAction(setToast, t('admin.storageTestFailed'), async () => {
+      await api(`/api/v1/admin/storage/${encodeURIComponent(storage.key)}/test`, { method: 'POST' });
+      setToast({ tone: 'success', message: t('admin.storageTested') });
+    });
+  }
+
+  async function setDefaultStorage(storage: StorageSettings) {
+    await runAction(setToast, t('admin.storageSaveFailed'), async () => {
+      await api(`/api/v1/admin/storage/${encodeURIComponent(storage.key)}/default`, { method: 'POST' });
+      setDefaultStorageKey(storage.key);
+      setStorageRecords((current) => current.map((item) => ({ ...item, isDefault: item.key === storage.key })));
+      setToast({ tone: 'success', message: t('admin.storageSaved') });
+      await onStorageOptionsChanged();
+    });
+  }
+
+  async function deleteStorage(storage: StorageSettings) {
+    const confirmKey = `storage:${storage.key}`;
+    if (confirmDelete !== confirmKey) {
+      setConfirmDelete(confirmKey);
+      setToast({ tone: 'neutral', message: t('admin.confirmDeleteStorage', { name: storage.name || storage.key }) });
+      return;
+    }
+    await runAction(setToast, t('admin.storageDeleteFailed'), async () => {
+      await api(`/api/v1/admin/storage/${encodeURIComponent(storage.key)}`, { method: 'DELETE' });
+      setStorageRecords((current) => current.filter((item) => item.key !== storage.key));
+      setConfirmDelete(null);
+      setToast({ tone: 'neutral', message: t('admin.storageDeleted') });
+      await onStorageOptionsChanged();
+    });
+  }
+
+  async function uploadSiteIcon() {
+    if (!siteIconFile) return;
+    await runAction(setToast, t('admin.siteIconUploadFailed'), async () => {
+      const form = new FormData();
+      form.set('file', siteIconFile);
+      form.set('storageKey', siteIconStorageKey);
+      const data = await api<{ url: string }>('/api/v1/admin/settings/site-icon', { method: 'POST', body: form });
+      updateSetting('site_icon_url', data.url);
+      setSiteIconFile(null);
+      setToast({ tone: 'success', message: t('admin.siteIconUploaded') });
+      await onSiteProfileSaved();
     });
   }
 
@@ -3020,8 +3413,8 @@ function AdminPanel({
         }),
       });
       setRegistrationInvites((current) => [data.invite, ...current]);
-      setNewInviteCode(data.code);
       setInviteDraft({ note: '', maxUses: '1' });
+      setIsInviteCreateOpen(false);
       setToast({ tone: 'success', message: t('admin.inviteCreated') });
     });
   }
@@ -3030,7 +3423,7 @@ function AdminPanel({
     const confirmKey = `invite:${invite.id}`;
     if (confirmDelete !== confirmKey) {
       setConfirmDelete(confirmKey);
-      setToast({ tone: 'neutral', message: t('admin.confirmDeleteInvite', { code: invite.codePrefix }) });
+      setToast({ tone: 'neutral', message: t('admin.confirmDeleteInvite', { code: invite.note || invite.codePrefix }) });
       return;
     }
     await runAction(setToast, t('admin.inviteDeleteFailed'), async () => {
@@ -3041,14 +3434,71 @@ function AdminPanel({
     });
   }
 
-  async function copyInviteCode() {
+  async function copyInviteCode(invite: RegistrationInvite) {
     try {
-      if (!newInviteCode || !navigator.clipboard?.writeText) throw new Error(t('home.copySourceUnsupported'));
-      await navigator.clipboard.writeText(newInviteCode);
+      if (!invite.code || !navigator.clipboard?.writeText) throw new Error(t('home.copySourceUnsupported'));
+      await navigator.clipboard.writeText(invite.code);
       setToast({ tone: 'success', message: t('admin.inviteCopied') });
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('admin.inviteCopyFailed')) });
     }
+  }
+
+  function openCreateUserDialog() {
+    setUserDraft(emptyUserDraft());
+    setUserDialogMode('create');
+  }
+
+  function openEditUserDialog(item: User) {
+    setUserDraft(draftFromUser(item));
+    setUserDialogMode('edit');
+  }
+
+  async function saveManagedUser(event: FormEvent) {
+    event.preventDefault();
+    const body = {
+      username: userDraft.username,
+      nickname: userDraft.nickname,
+      email: userDraft.email,
+      ...(userDraft.password.trim() ? { password: userDraft.password } : userDialogMode === 'create' ? { password: userDraft.password } : {}),
+      role: userDraft.role,
+      emailVerified: userDraft.emailVerified,
+      disabled: userDraft.disabled,
+    };
+    await runAction(setToast, userDialogMode === 'create' ? t('admin.userCreateFailed') : t('admin.userUpdateFailed'), async () => {
+      if (userDialogMode === 'create') {
+        await api('/api/v1/admin/users', { method: 'POST', body: JSON.stringify(body) });
+        setToast({ tone: 'success', message: t('admin.userCreated') });
+      } else if (userDraft.id) {
+        await api(`/api/v1/admin/users/${userDraft.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+        setToast({ tone: 'success', message: t('admin.userUpdated') });
+      }
+      setUserDialogMode(null);
+      await reload();
+    });
+  }
+
+  async function toggleUserDisabled(item: User) {
+    await runAction(setToast, t('admin.userUpdateFailed'), async () => {
+      await api(`/api/v1/admin/users/${item.id}`, { method: 'PATCH', body: JSON.stringify({ disabled: !item.disabled }) });
+      setToast({ tone: 'success', message: item.disabled ? t('admin.userEnabled') : t('admin.userDisabled') });
+      await reload();
+    });
+  }
+
+  async function deleteManagedUser(item: User) {
+    const confirmKey = `user:${item.id}`;
+    if (confirmDelete !== confirmKey) {
+      setConfirmDelete(confirmKey);
+      setToast({ tone: 'neutral', message: t('admin.confirmDeleteUser', { name: displayUserName(item) }) });
+      return;
+    }
+    await runAction(setToast, t('admin.userDeleteFailed'), async () => {
+      await api(`/api/v1/admin/users/${item.id}`, { method: 'DELETE' });
+      setConfirmDelete(null);
+      setToast({ tone: 'neutral', message: t('admin.userDeleted') });
+      await reload();
+    });
   }
 
   function updateSetting(key: string, value: string) {
@@ -3339,12 +3789,14 @@ function AdminPanel({
         <h1>{t('admin.title')}</h1>
         <p>{t('admin.body')}</p>
       </div>
-      <XTabList value={adminTab} onChange={(value) => setAdminTab(value as typeof adminTab)} hasDivider size="md">
-        {adminTabs.map((item) => {
-          const Icon = item.icon;
-          return <XTab key={item.key} value={item.key} label={item.label} icon={<Icon size={17} />} />;
-        })}
-      </XTabList>
+      <div className="horizontal-control-scroll">
+        <XTabList value={adminTab} onChange={(value) => setAdminTab(value as typeof adminTab)} hasDivider size="md">
+          {adminTabs.map((item) => {
+            const Icon = item.icon;
+            return <XTab key={item.key} value={item.key} label={item.label} icon={<Icon size={17} />} />;
+          })}
+        </XTabList>
+      </div>
       {adminTab === 'reviews' && (
       <>
       <section className="panel">
@@ -3472,12 +3924,14 @@ function AdminPanel({
         <section className="settings-layout">
           <section className="panel form-panel site-settings-panel">
             <SectionTitle icon={Settings} title={t('admin.siteSettings')} />
-            <XTabList value={siteSettingsTab} onChange={(value) => setSiteSettingsTab(value as typeof siteSettingsTab)} hasDivider size="sm">
-              {siteSettingsTabs.map((item) => {
-                const Icon = item.icon;
-                return <XTab key={item.key} value={item.key} label={item.label} icon={<Icon size={16} />} />;
-              })}
-            </XTabList>
+            <div className="horizontal-control-scroll">
+              <XTabList value={siteSettingsTab} onChange={(value) => setSiteSettingsTab(value as typeof siteSettingsTab)} hasDivider size="sm">
+                {siteSettingsTabs.map((item) => {
+                  const Icon = item.icon;
+                  return <XTab key={item.key} value={item.key} label={item.label} icon={<Icon size={16} />} />;
+                })}
+              </XTabList>
+            </div>
 
             {siteSettingsTab !== 'storage' ? (
               <form className="settings-tab-panel" onSubmit={saveSettings}>
@@ -3486,6 +3940,27 @@ function AdminPanel({
                     <div className="settings-section-head">
                       <strong>{t('admin.siteIdentity')}</strong>
                       <span>{t('admin.siteIdentityBody')}</span>
+                    </div>
+                    <div className="site-icon-upload">
+                      <div className="brand-mark preview">
+                        {settings.site_icon_url ? <img src={settings.site_icon_url} alt="" /> : <Archive size={22} />}
+                      </div>
+                      <FilePicker
+                        label={t('admin.uploadSiteIcon')}
+                        help={t('admin.uploadSiteIconHelp')}
+                        value={siteIconFile}
+                        accept=".png,.jpg,.jpeg,.webp"
+                        onChange={(nextFile) => setSiteIconFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
+                      />
+                      {adminStorageChoices.length > 0 && (
+                        <XSelector
+                          label={t('common.storage')}
+                          value={siteIconStorageKey}
+                          options={adminStorageChoices}
+                          onChange={setSiteIconStorageKey}
+                        />
+                      )}
+                      <XButton type="button" variant="secondary" size="sm" label={t('admin.uploadSiteIcon')} icon={<Upload size={17} />} isDisabled={!siteIconFile} onClick={() => void uploadSiteIcon()} />
                     </div>
                     <XFormLayout>
                       {siteIdentityFields.map(renderSettingField)}
@@ -3516,33 +3991,12 @@ function AdminPanel({
                     </XFormLayout>
                     <div className="invite-manager">
                       <div className="settings-section-head">
-                        <strong>{t('admin.inviteManagement')}</strong>
-                        <span>{t('admin.inviteManagementBody')}</span>
-                      </div>
-                      <div className="invite-create-grid">
-                        <XTextInput
-                          label={t('admin.inviteNote')}
-                          description={t('admin.inviteNoteHelp')}
-                          value={inviteDraft.note}
-                          onChange={(value) => setInviteDraft((current) => ({ ...current, note: value }))}
-                        />
-                        <XTextInput
-                          label={t('admin.inviteMaxUses')}
-                          description={t('admin.inviteMaxUsesHelp')}
-                          value={inviteDraft.maxUses}
-                          onChange={(value) => setInviteDraft((current) => ({ ...current, maxUses: value }))}
-                        />
-                        <XButton type="button" variant="secondary" label={t('admin.createInvite')} icon={<KeyRound size={17} />} onClick={() => void createRegistrationInvite()} />
-                      </div>
-                      {newInviteCode && (
-                        <div className="invite-code-output">
-                          <div>
-                            <strong>{t('admin.latestInviteCode')}</strong>
-                            <code>{newInviteCode}</code>
-                          </div>
-                          <XButton type="button" variant="secondary" size="sm" label={t('admin.copyInviteCode')} icon={<Copy size={16} />} onClick={() => void copyInviteCode()} />
+                        <div>
+                          <strong>{t('admin.inviteManagement')}</strong>
+                          <span>{t('admin.inviteManagementBody')}</span>
                         </div>
-                      )}
+                        <XButton type="button" variant="secondary" size="sm" label={t('admin.createInvite')} icon={<KeyRound size={17} />} onClick={() => setIsInviteCreateOpen(true)} />
+                      </div>
                       <div className="review-list invite-list">
                         {registrationInvites.length === 0 ? (
                           <EmptyState icon={KeyRound} title={t('admin.noInvites')} body={t('admin.noInvitesBody')} />
@@ -3550,18 +4004,27 @@ function AdminPanel({
                           registrationInvites.map((invite) => (
                             <div className="review-row invite-row" key={invite.id}>
                               <div>
-                                <strong>{invite.note || t('admin.inviteCodePrefix', { code: invite.codePrefix })}</strong>
+                                <strong>{invite.note || t('admin.inviteUntitled')}</strong>
                                 <span>
-                                  {t('admin.inviteUsage', { remaining: invite.remainingUses, max: invite.maxUses })} · {invite.codePrefix} · {formatDate(invite.createdAt)}
+                                  {t('admin.inviteUsage', { remaining: invite.remainingUses, max: invite.maxUses })} · {formatDate(invite.createdAt)}
                                 </span>
+                                <code className="invite-code-inline">{invite.code}</code>
                               </div>
                               <div className="row-actions">
                                 <XBadge label={invite.remainingUses > 0 ? t('admin.inviteUsable') : t('admin.inviteExhausted')} variant={invite.remainingUses > 0 ? 'success' : 'neutral'} />
-                                <XButton
+                                <XIconButton
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  label={t('admin.copyInviteCode')}
+                                  icon={<Copy size={16} />}
+                                  onClick={() => void copyInviteCode(invite)}
+                                />
+                                <XIconButton
                                   type="button"
                                   variant="destructive"
                                   size="sm"
-                                  label={t('admin.deleteInvite', { code: invite.codePrefix })}
+                                  label={t('admin.deleteInvite')}
                                   icon={<Trash2 size={16} />}
                                   onClick={() => void deleteRegistrationInvite(invite)}
                                 />
@@ -3571,6 +4034,38 @@ function AdminPanel({
                         )}
                       </div>
                     </div>
+                    {isInviteCreateOpen && (
+                      <div className="modal-backdrop" role="presentation" onClick={() => setIsInviteCreateOpen(false)}>
+                        <div
+                          className="modal-panel form-panel invite-dialog"
+                          role="dialog"
+                          aria-modal="true"
+                          aria-label={t('admin.createInvite')}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setIsInviteCreateOpen(false)} />
+                          <SectionTitle icon={KeyRound} title={t('admin.createInvite')} />
+                          <XFormLayout>
+                            <XTextInput
+                              label={t('admin.inviteNote')}
+                              description={t('admin.inviteNoteHelp')}
+                              value={inviteDraft.note}
+                              onChange={(value) => setInviteDraft((current) => ({ ...current, note: value }))}
+                            />
+                            <XTextInput
+                              label={t('admin.inviteMaxUses')}
+                              description={t('admin.inviteMaxUsesHelp')}
+                              value={inviteDraft.maxUses}
+                              onChange={(value) => setInviteDraft((current) => ({ ...current, maxUses: value }))}
+                            />
+                          </XFormLayout>
+                          <div className="dialog-actions">
+                            <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setIsInviteCreateOpen(false)} />
+                            <XButton type="button" variant="primary" label={t('admin.createInvite')} icon={<KeyRound size={17} />} onClick={() => void createRegistrationInvite()} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -3615,10 +4110,23 @@ function AdminPanel({
             ) : (
               <div className="settings-tab-panel">
                 <StorageSettingsPanel
-                  storage={storageSettings}
-                  onChange={setStorageSettings}
+                  storages={storageRecords}
+                  defaultKey={defaultStorageKey}
+                  selectedKey={selectedStorageKey}
+                  draft={storageDraft}
+                  createDraft={storageCreateDraft}
+                  isCreateOpen={isStorageCreateOpen}
+                  onSelect={setSelectedStorageKey}
+                  onDraftChange={setStorageDraft}
+                  onCreateDraftChange={setStorageCreateDraft}
+                  onOpenCreate={() => setIsStorageCreateOpen(true)}
+                  onCloseCreate={() => setIsStorageCreateOpen(false)}
+                  onCreate={createStorage}
                   onSave={saveStorageSettings}
-                  onTest={testStorageSettings}
+                  onTestDraft={testStorageSettings}
+                  onTestSaved={testSavedStorage}
+                  onSetDefault={setDefaultStorage}
+                  onDelete={deleteStorage}
                 />
               </div>
             )}
@@ -3653,26 +4161,78 @@ function AdminPanel({
       {isSiteAdmin && adminTab === 'users' && (
         <section className="workspace-pane">
           <section className="panel">
-            <SectionTitle icon={Users} title={t('admin.userManagement')} />
-            <div className="review-list">
-              {users.map((item) => (
-                <div className="review-row" key={item.id}>
-                <div>
-                  <strong>#{item.id} {item.username}</strong>
-                  <span>{item.email || t('admin.noEmail')}</span>
-                </div>
-                  <XSelector
-                    label={t('admin.userRoleFor', { username: item.username })}
-                    isLabelHidden
-                    value={item.role}
-                    options={userRoleOptions}
-                    width={220}
-                    onChange={(value) => void updateUserRole(item.id, value as User['role'])}
-                  />
+            <div className="section-title with-action">
+              <div>
+                <Users size={19} />
+                <h2>{t('admin.userManagement')}</h2>
+              </div>
+              <XButton type="button" variant="primary" size="sm" label={t('admin.createUser')} icon={<UserPlus size={17} />} onClick={openCreateUserDialog} />
+            </div>
+            <div className="review-list user-management-list">
+              {users.length === 0 ? (
+                <EmptyState icon={Users} title={t('admin.noUsers')} />
+              ) : users.map((item) => (
+                <div className="review-row user-row" key={item.id}>
+                  <UserAvatar user={item} size={42} />
+                  <div>
+                    <strong>{displayUserName(item)}</strong>
+                    <span>{item.username} · {item.email || t('admin.noEmail')}</span>
+                  </div>
+                  <div className="row-actions">
+                    <XBadge label={t(`admin.roles.${item.role === 'SITE_ADMIN' ? 'siteAdmin' : item.role === 'SOFTWARE_ADMIN' ? 'softwareAdmin' : 'user'}`)} variant={item.role === 'SITE_ADMIN' ? 'info' : item.role === 'SOFTWARE_ADMIN' ? 'success' : 'neutral'} />
+                    {item.disabled && <XBadge label={t('admin.userDisabledBadge')} variant="error" />}
+                    <XIconButton type="button" variant="ghost" size="sm" label={t('admin.editUserNamed', { name: displayUserName(item) })} icon={<Pencil size={16} />} onClick={() => openEditUserDialog(item)} />
+                    <XIconButton type="button" variant="ghost" size="sm" label={item.disabled ? t('admin.enableUserNamed', { name: displayUserName(item) }) : t('admin.disableUserNamed', { name: displayUserName(item) })} icon={<UserRound size={16} />} onClick={() => void toggleUserDisabled(item)} />
+                    <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteUserNamed', { name: displayUserName(item) })} icon={<Trash2 size={16} />} onClick={() => void deleteManagedUser(item)} />
+                  </div>
                 </div>
               ))}
             </div>
           </section>
+          {userDialogMode && (
+            <div className="modal-backdrop" role="presentation" onClick={() => setUserDialogMode(null)}>
+              <form
+                className="modal-panel form-panel user-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-label={userDialogMode === 'create' ? t('admin.createUser') : t('admin.editUser')}
+                onClick={(event) => event.stopPropagation()}
+                onSubmit={saveManagedUser}
+              >
+                <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setUserDialogMode(null)} />
+                <SectionTitle icon={userDialogMode === 'create' ? UserPlus : UserRound} title={userDialogMode === 'create' ? t('admin.createUser') : t('admin.editUser')} />
+                <XFormLayout>
+                  <XTextInput label={t('common.username')} value={userDraft.username} onChange={(value) => setUserDraft({ ...userDraft, username: value })} />
+                  <XTextInput label={t('profile.nickname')} value={userDraft.nickname} onChange={(value) => setUserDraft({ ...userDraft, nickname: value })} />
+                  <XTextInput type="email" label={t('common.email')} value={userDraft.email} onChange={(value) => setUserDraft({ ...userDraft, email: value })} />
+                  <XTextInput type="password" label={userDialogMode === 'create' ? t('common.password') : t('admin.newPasswordOptional')} value={userDraft.password} onChange={(value) => setUserDraft({ ...userDraft, password: value })} />
+                  <XSelector label={t('common.role')} value={userDraft.role} options={userRoleOptions} onChange={(value) => setUserDraft({ ...userDraft, role: value as User['role'] })} />
+                  <XSelector
+                    label={t('admin.emailVerified')}
+                    value={String(userDraft.emailVerified)}
+                    options={[
+                      { value: 'true', label: t('common.on') },
+                      { value: 'false', label: t('common.off') },
+                    ]}
+                    onChange={(value) => setUserDraft({ ...userDraft, emailVerified: value === 'true' })}
+                  />
+                  <XSelector
+                    label={t('admin.userDisabledField')}
+                    value={String(userDraft.disabled)}
+                    options={[
+                      { value: 'false', label: t('common.off') },
+                      { value: 'true', label: t('common.on') },
+                    ]}
+                    onChange={(value) => setUserDraft({ ...userDraft, disabled: value === 'true' })}
+                  />
+                </XFormLayout>
+                <div className="dialog-actions">
+                  <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setUserDialogMode(null)} />
+                  <XButton type="submit" variant="primary" label={userDialogMode === 'create' ? t('admin.createUser') : t('common.save')} icon={<Save size={17} />} />
+                </div>
+              </form>
+            </div>
+          )}
         </section>
       )}
       {adminTab === 'taxonomy' && (
@@ -3904,23 +4464,6 @@ function AdminPanel({
         </section>
       </section>
       )}
-      {adminTab === 'inventory' && (
-      <section className="panel">
-        <SectionTitle icon={PackagePlus} title={t('admin.optionalApps')} />
-          <div className="review-list">
-            {apps.length === 0 ? (
-              <EmptyState icon={PackagePlus} title={t('admin.noApprovedApps')} body={t('admin.noApprovedAppsBody')} />
-            ) : apps.map((item) => (
-              <div className="review-row" key={item.id}>
-                <div>
-                  <strong>#{item.id} {item.name}</strong>
-                  <span>{item.owner} · {item.latestVersion?.version || item.status}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-      </section>
-      )}
     </section>
   );
 }
@@ -3930,6 +4473,7 @@ function AppDrawer({
   user,
   groups,
   categories,
+  storageOptions,
   onClose,
   onInstall,
   onRefresh,
@@ -3940,6 +4484,7 @@ function AppDrawer({
   user: User | null;
   groups: Group[];
   categories: Category[];
+  storageOptions: StorageOption[];
   onClose: () => void;
   onInstall: (app: StoreApp) => void;
   onRefresh: () => Promise<void>;
@@ -3952,11 +4497,13 @@ function AppDrawer({
   const [replyText, setReplyText] = useState('');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotDeviceType, setScreenshotDeviceType] = useState<'DESKTOP' | 'MOBILE'>('DESKTOP');
+  const [screenshotStorageKey, setScreenshotStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [screenshotCaptionDrafts, setScreenshotCaptionDrafts] = useState<Record<number, string>>({});
   const preferredScreenshotDevice = usePreferredScreenshotDevice();
   const [versionForm, setVersionForm] = useState({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', changelog: '' });
   const [versionArtifactMode, setVersionArtifactMode] = useState<'local' | 'external'>('local');
   const [versionFile, setVersionFile] = useState<File | null>(null);
+  const [versionStorageKey, setVersionStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [collaboratorRequests, setCollaboratorRequests] = useState<CollaboratorRequest[]>([]);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
   const [appForm, setAppForm] = useState({
@@ -4010,6 +4557,7 @@ function AppDrawer({
   const versionArtifactReady = versionArtifactMode === 'local' ? Boolean(versionFile) : versionExternalArtifactReady;
   const canSubmitVersion = versionArtifactReady;
   const versionPublishesDirectly = user?.role === 'SITE_ADMIN' || user?.role === 'SOFTWARE_ADMIN' || app.allowUnreviewedUpdates;
+  const storageChoices = storageSelectOptions(storageOptions);
 
   useEffect(() => {
     setAppForm({
@@ -4034,6 +4582,12 @@ function AppDrawer({
     setScreenshotCaptionDrafts(Object.fromEntries((app.screenshots || []).map((shot) => [shot.id, shot.caption || ''])));
     if (versionFileInputRef.current) versionFileInputRef.current.value = '';
   }, [app]);
+
+  useEffect(() => {
+    const fallback = defaultUploadStorageKey(storageOptions);
+    setVersionStorageKey((current) => (storageOptions.some((storage) => storage.key === current) ? current : fallback));
+    setScreenshotStorageKey((current) => (storageOptions.some((storage) => storage.key === current) ? current : fallback));
+  }, [storageOptions]);
 
   useEffect(() => {
     if (!canMaintain) return;
@@ -4130,6 +4684,7 @@ function AppDrawer({
         form.set('file', versionFile);
         form.set('version', versionForm.version.trim());
         form.set('changelog', versionForm.changelog);
+        form.set('storageKey', versionStorageKey);
         await api(`/api/v1/apps/${app.id}/versions`, { method: 'POST', body: form });
       } else {
         await api(`/api/v1/apps/${app.id}/versions`, {
@@ -4187,6 +4742,7 @@ function AppDrawer({
     form.set('file', screenshotFile);
     form.set('caption', '');
     form.set('deviceType', screenshotDeviceType);
+    form.set('storageKey', screenshotStorageKey);
     await runAction(setToast, t('drawer.screenshotUploadFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/screenshots`, { method: 'POST', body: form });
       setScreenshotFile(null);
@@ -4299,7 +4855,7 @@ function AppDrawer({
       <article className="detail-page server-detail-page" aria-labelledby={drawerTitleId}>
         <XButton ref={closeButtonRef} className="detail-back-button" type="button" variant="secondary" size="sm" label={t('common.back')} icon={<ArrowLeft size={17} />} onClick={onClose} />
         <div className="detail-head">
-          <AvatarIcon seed={app.slug || app.name} title={app.name} size={58} className="detail-avatar" />
+          <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={app.name} size={58} className="detail-avatar" />
           <div>
             <h2 id={drawerTitleId}>{app.name}</h2>
             <p>{app.summary || app.description}</p>
@@ -4535,15 +5091,26 @@ function AppDrawer({
                     />
                   </div>
                   {versionArtifactMode === 'local' ? (
-                    <FilePicker
-                      label={t('common.lpkFile')}
-                      help={t('drawer.versionLocalFileHelp')}
-                      value={versionFile}
-                      inputRef={versionFileInputRef}
-                      accept=".lpk"
-                      required
-                      onChange={(nextFile) => setVersionFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
-                    />
+                    <div className="artifact-fields">
+                      <FilePicker
+                        label={t('common.lpkFile')}
+                        help={t('drawer.versionLocalFileHelp')}
+                        value={versionFile}
+                        inputRef={versionFileInputRef}
+                        accept=".lpk"
+                        required
+                        onChange={(nextFile) => setVersionFile(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
+                      />
+                      {storageChoices.length > 0 && (
+                        <XSelector
+                          label={t('common.storage')}
+                          description={t('drawer.versionStorageHelp')}
+                          value={versionStorageKey}
+                          options={storageChoices}
+                          onChange={setVersionStorageKey}
+                        />
+                      )}
+                    </div>
                   ) : (
                     <div className="artifact-fields">
                       <p className="field-help">{t('submitApp.externalFieldsHelp')}</p>
@@ -4700,6 +5267,15 @@ function AppDrawer({
                 ]}
                 onChange={(value) => setScreenshotDeviceType(value as 'DESKTOP' | 'MOBILE')}
               />
+              {storageChoices.length > 0 && (
+                <XSelector
+                  label={t('common.storage')}
+                  isLabelHidden
+                  value={screenshotStorageKey}
+                  options={storageChoices}
+                  onChange={setScreenshotStorageKey}
+                />
+              )}
               <XIconButton type="submit" variant="ghost" label={t('drawer.uploadScreenshot')} icon={<Upload size={17} />} />
             </form>
           )}

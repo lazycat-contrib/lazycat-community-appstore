@@ -24,6 +24,7 @@ const (
 	settingSiteTitle                = "site_title"
 	settingSiteIconURL              = "site_icon_url"
 	settingSitePublicURL            = "site_public_url"
+	settingDefaultStorageKey        = "default_storage_key"
 	settingAnnouncementEnabled      = "announcement_enabled"
 	settingAnnouncementLevel        = "announcement_level"
 	settingAnnouncementTitle        = "announcement_title"

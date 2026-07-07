@@ -21,6 +21,7 @@ func (AppVersion) Fields() []ent.Field {
 		field.Enum("status").Values("PENDING", "APPROVED", "REJECTED").Default("PENDING"),
 		field.Enum("source_type").Values("LOCAL", "WEBDAV", "S3", "GITHUB").Default("LOCAL"),
 		field.String("download_url").Default(""),
+		field.String("storage_key").Default("primary"),
 		field.String("storage_path").Default(""),
 		field.Int64("file_size").Default(0),
 		field.String("sha256").Default(""),

@@ -13,6 +13,8 @@ const (
 	Label = "registration_invite"
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
+	// FieldCode holds the string denoting the code field in the database.
+	FieldCode = "code"
 	// FieldCodeHash holds the string denoting the code_hash field in the database.
 	FieldCodeHash = "code_hash"
 	// FieldCodePrefix holds the string denoting the code_prefix field in the database.
@@ -36,6 +38,7 @@ const (
 // Columns holds all SQL columns for registrationinvite fields.
 var Columns = []string{
 	FieldID,
+	FieldCode,
 	FieldCodeHash,
 	FieldCodePrefix,
 	FieldNote,
@@ -57,6 +60,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	CodeValidator func(string) error
 	// CodeHashValidator is a validator for the "code_hash" field. It is called by the builders before save.
 	CodeHashValidator func(string) error
 	// CodePrefixValidator is a validator for the "code_prefix" field. It is called by the builders before save.
@@ -85,6 +90,11 @@ type OrderOption func(*sql.Selector)
 // ByID orders the results by the id field.
 func ByID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldID, opts...).ToFunc()
+}
+
+// ByCode orders the results by the code field.
+func ByCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCode, opts...).ToFunc()
 }
 
 // ByCodeHash orders the results by the code_hash field.

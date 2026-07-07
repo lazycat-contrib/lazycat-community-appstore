@@ -32,15 +32,22 @@ export function AppSubmissionForm({
   draft,
   onDraftChange,
   categories,
+  storageOptions,
+  storageKey,
+  onStorageKeyChange,
   artifactMode,
   onArtifactModeChange,
   file,
   onFileChange,
   fileInputRef,
   desktopScreenshotFiles,
+  desktopScreenshotCaptions,
   onDesktopScreenshotFilesChange,
+  onDesktopScreenshotCaptionChange,
   mobileScreenshotFiles,
+  mobileScreenshotCaptions,
   onMobileScreenshotFilesChange,
+  onMobileScreenshotCaptionChange,
   recentSubmission,
   isDirectPublishUser,
   onSubmit,
@@ -49,15 +56,22 @@ export function AppSubmissionForm({
   draft: AppSubmissionDraft;
   onDraftChange: (draft: AppSubmissionDraft) => void;
   categories: Category[];
+  storageOptions: Array<{ value: string; label: string }>;
+  storageKey: string;
+  onStorageKeyChange: (key: string) => void;
   artifactMode: SubmissionArtifactMode;
   onArtifactModeChange: (mode: SubmissionArtifactMode) => void;
   file: File | null;
   onFileChange: (file: File | null) => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
   desktopScreenshotFiles: File[];
+  desktopScreenshotCaptions: Record<string, string>;
   onDesktopScreenshotFilesChange: (files: File[]) => void;
+  onDesktopScreenshotCaptionChange: (file: File, caption: string) => void;
   mobileScreenshotFiles: File[];
+  mobileScreenshotCaptions: Record<string, string>;
   onMobileScreenshotFilesChange: (files: File[]) => void;
+  onMobileScreenshotCaptionChange: (file: File, caption: string) => void;
   recentSubmission: { name: string; status: string } | null;
   isDirectPublishUser: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -72,6 +86,29 @@ export function AppSubmissionForm({
   const artifactReady = artifactMode === 'local' ? Boolean(file) : externalDownloadReady;
   const appIdentityCanAutofill = artifactMode === 'local' ? Boolean(file) : externalDownloadReady;
   const canSubmitUpload = (appInfoReady || appIdentityCanAutofill) && artifactReady;
+  const screenshotFileKey = (screenshot: File) => `${screenshot.name}:${screenshot.size}:${screenshot.lastModified}`;
+  const renderScreenshotCaptionList = (
+    files: File[],
+    captions: Record<string, string>,
+    onCaptionChange: (file: File, caption: string) => void,
+  ) => files.length > 0 ? (
+    <div className="selected-screenshot-list">
+      {files.map((screenshot, index) => (
+        <div className="selected-screenshot-row" key={screenshotFileKey(screenshot)}>
+          <div className="selected-screenshot-meta">
+            <strong>{screenshot.name}</strong>
+            <span>{formatBytes(screenshot.size)}</span>
+          </div>
+          <XTextInput
+            label={t('submitApp.screenshotCaptionFor', { index: index + 1 })}
+            value={captions[screenshotFileKey(screenshot)] || ''}
+            placeholder={t('submitApp.screenshotCaption')}
+            onChange={(value) => onCaptionChange(screenshot, value)}
+          />
+        </div>
+      ))}
+    </div>
+  ) : null;
 
   return (
     <section className="workspace-pane">
@@ -162,6 +199,15 @@ export function AppSubmissionForm({
           onChange={(value) => onDraftChange({ ...draft, categoryId: value })}
         />
         <XTextInput label={t('common.tags')} value={draft.tags} onChange={(value) => onDraftChange({ ...draft, tags: value })} />
+        {storageOptions.length > 0 && (
+          <XSelector
+            label={t('common.storage')}
+            description={t('submitApp.storageHelp')}
+            value={storageKey}
+            options={storageOptions}
+            onChange={onStorageKeyChange}
+          />
+        )}
         <div className="artifact-section">
           <div className="artifact-section-head">
             <strong>{t('submitApp.artifactMode')}</strong>
@@ -227,24 +273,30 @@ export function AppSubmissionForm({
             <span>{t('submitApp.screenshotsHelp')}</span>
           </div>
           <div className="screenshot-upload-grid">
-            <FilePicker
-              label={t('submitApp.desktopScreenshots')}
-              help={t('submitApp.desktopScreenshotsHelp', { count: desktopScreenshotFiles.length })}
-              value={desktopScreenshotFiles}
-              accept=".png,.jpg,.jpeg,.webp"
-              multiple
-              maxFiles={8}
-              onChange={(nextFiles) => onDesktopScreenshotFilesChange(Array.isArray(nextFiles) ? nextFiles : nextFiles ? [nextFiles] : [])}
-            />
-            <FilePicker
-              label={t('submitApp.mobileScreenshots')}
-              help={t('submitApp.mobileScreenshotsHelp', { count: mobileScreenshotFiles.length })}
-              value={mobileScreenshotFiles}
-              accept=".png,.jpg,.jpeg,.webp"
-              multiple
-              maxFiles={8}
-              onChange={(nextFiles) => onMobileScreenshotFilesChange(Array.isArray(nextFiles) ? nextFiles : nextFiles ? [nextFiles] : [])}
-            />
+            <div className="screenshot-upload-stack">
+              <FilePicker
+                label={t('submitApp.desktopScreenshots')}
+                help={t('submitApp.desktopScreenshotsHelp', { count: desktopScreenshotFiles.length })}
+                value={desktopScreenshotFiles}
+                accept=".png,.jpg,.jpeg,.webp"
+                multiple
+                maxFiles={8}
+                onChange={(nextFiles) => onDesktopScreenshotFilesChange(Array.isArray(nextFiles) ? nextFiles : nextFiles ? [nextFiles] : [])}
+              />
+              {renderScreenshotCaptionList(desktopScreenshotFiles, desktopScreenshotCaptions, onDesktopScreenshotCaptionChange)}
+            </div>
+            <div className="screenshot-upload-stack">
+              <FilePicker
+                label={t('submitApp.mobileScreenshots')}
+                help={t('submitApp.mobileScreenshotsHelp', { count: mobileScreenshotFiles.length })}
+                value={mobileScreenshotFiles}
+                accept=".png,.jpg,.jpeg,.webp"
+                multiple
+                maxFiles={8}
+                onChange={(nextFiles) => onMobileScreenshotFilesChange(Array.isArray(nextFiles) ? nextFiles : nextFiles ? [nextFiles] : [])}
+              />
+              {renderScreenshotCaptionList(mobileScreenshotFiles, mobileScreenshotCaptions, onMobileScreenshotCaptionChange)}
+            </div>
           </div>
         </div>
         <XTextInput

@@ -26,6 +26,20 @@ func (_c *StorageConfigCreate) SetKey(v string) *StorageConfigCreate {
 	return _c
 }
 
+// SetName sets the "name" field.
+func (_c *StorageConfigCreate) SetName(v string) *StorageConfigCreate {
+	_c.mutation.SetName(v)
+	return _c
+}
+
+// SetNillableName sets the "name" field if the given value is not nil.
+func (_c *StorageConfigCreate) SetNillableName(v *string) *StorageConfigCreate {
+	if v != nil {
+		_c.SetName(*v)
+	}
+	return _c
+}
+
 // SetProvider sets the "provider" field.
 func (_c *StorageConfigCreate) SetProvider(v storageconfig.Provider) *StorageConfigCreate {
 	_c.mutation.SetProvider(v)
@@ -285,6 +299,10 @@ func (_c *StorageConfigCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *StorageConfigCreate) defaults() {
+	if _, ok := _c.mutation.Name(); !ok {
+		v := storageconfig.DefaultName
+		_c.mutation.SetName(v)
+	}
 	if _, ok := _c.mutation.Provider(); !ok {
 		v := storageconfig.DefaultProvider
 		_c.mutation.SetProvider(v)
@@ -360,6 +378,9 @@ func (_c *StorageConfigCreate) check() error {
 		if err := storageconfig.KeyValidator(v); err != nil {
 			return &ValidationError{Name: "key", err: fmt.Errorf(`ent: validator failed for field "StorageConfig.key": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.Name(); !ok {
+		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "StorageConfig.name"`)}
 	}
 	if _, ok := _c.mutation.Provider(); !ok {
 		return &ValidationError{Name: "provider", err: errors.New(`ent: missing required field "StorageConfig.provider"`)}
@@ -448,6 +469,10 @@ func (_c *StorageConfigCreate) createSpec() (*StorageConfig, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.Key(); ok {
 		_spec.SetField(storageconfig.FieldKey, field.TypeString, value)
 		_node.Key = value
+	}
+	if value, ok := _c.mutation.Name(); ok {
+		_spec.SetField(storageconfig.FieldName, field.TypeString, value)
+		_node.Name = value
 	}
 	if value, ok := _c.mutation.Provider(); ok {
 		_spec.SetField(storageconfig.FieldProvider, field.TypeEnum, value)

@@ -16,6 +16,8 @@ const (
 	FieldID = "id"
 	// FieldKey holds the string denoting the key field in the database.
 	FieldKey = "key"
+	// FieldName holds the string denoting the name field in the database.
+	FieldName = "name"
 	// FieldProvider holds the string denoting the provider field in the database.
 	FieldProvider = "provider"
 	// FieldDeliveryMode holds the string denoting the delivery_mode field in the database.
@@ -56,6 +58,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldKey,
+	FieldName,
 	FieldProvider,
 	FieldDeliveryMode,
 	FieldLocalPath,
@@ -87,6 +90,8 @@ func ValidColumn(column string) bool {
 var (
 	// KeyValidator is a validator for the "key" field. It is called by the builders before save.
 	KeyValidator func(string) error
+	// DefaultName holds the default value on creation for the "name" field.
+	DefaultName string
 	// DefaultLocalPath holds the default value on creation for the "local_path" field.
 	DefaultLocalPath string
 	// DefaultEndpointURL holds the default value on creation for the "endpoint_url" field.
@@ -184,6 +189,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByKey orders the results by the key field.
 func ByKey(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldKey, opts...).ToFunc()
+}
+
+// ByName orders the results by the name field.
+func ByName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldName, opts...).ToFunc()
 }
 
 // ByProvider orders the results by the provider field.

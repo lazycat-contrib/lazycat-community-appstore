@@ -17,6 +17,8 @@ type RegistrationInvite struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
+	// Code holds the value of the "code" field.
+	Code string `json:"code,omitempty"`
 	// CodeHash holds the value of the "code_hash" field.
 	CodeHash string `json:"-"`
 	// CodePrefix holds the value of the "code_prefix" field.
@@ -43,7 +45,7 @@ func (*RegistrationInvite) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case registrationinvite.FieldID, registrationinvite.FieldMaxUses, registrationinvite.FieldRemainingUses, registrationinvite.FieldCreatedBy:
 			values[i] = new(sql.NullInt64)
-		case registrationinvite.FieldCodeHash, registrationinvite.FieldCodePrefix, registrationinvite.FieldNote:
+		case registrationinvite.FieldCode, registrationinvite.FieldCodeHash, registrationinvite.FieldCodePrefix, registrationinvite.FieldNote:
 			values[i] = new(sql.NullString)
 		case registrationinvite.FieldCreatedAt, registrationinvite.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -68,6 +70,12 @@ func (_m *RegistrationInvite) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
 			_m.ID = int(value.Int64)
+		case registrationinvite.FieldCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field code", values[i])
+			} else if value.Valid {
+				_m.Code = value.String
+			}
 		case registrationinvite.FieldCodeHash:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field code_hash", values[i])
@@ -152,6 +160,9 @@ func (_m *RegistrationInvite) String() string {
 	var builder strings.Builder
 	builder.WriteString("RegistrationInvite(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
+	builder.WriteString("code=")
+	builder.WriteString(_m.Code)
+	builder.WriteString(", ")
 	builder.WriteString("code_hash=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("code_prefix=")

@@ -223,7 +223,7 @@ func (s *Server) handleReadAllCommentNotifications(w http.ResponseWriter, r *htt
 
 func (s *Server) resolveCommentActor(r *http.Request) (commentActor, int, string, string) {
 	if u, ok := s.authenticate(r); ok && !s.emailVerificationRequiredForUser(r.Context(), u) {
-		return commentActor{User: u, UserID: u.ID, DisplayName: u.Username}, 0, "", ""
+		return commentActor{User: u, UserID: u.ID, DisplayName: userDisplayName(u)}, 0, "", ""
 	}
 	if !s.cfg.TrustLazyCatClientComments || r.Header.Get("X-LazyCat-Client-Proxy") != "lazycat-appstore-client" || sanitizeIdentity(r.Header.Get("X-LazyCat-Client-Device-ID")) == "" {
 		return commentActor{}, http.StatusUnauthorized, "LAZYCAT_CLIENT_REQUIRED", "Comments from clients require the LazyCat app store client"
@@ -488,19 +488,21 @@ func (s *Server) handleClearOutdated(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
 		return
 	}
-	if s.manualOutdatedClearAllowed(r.Context()) && s.actorCanMaintainApp(actor, record) {
-		_, _ = s.db.OutdatedMark.Delete().Where(outdatedmark.AppIDEQ(id)).Exec(r.Context())
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "outdatedMarked": false, "outdatedMarks": 0})
+	if !s.manualOutdatedClearAllowed(r.Context()) {
+		writeError(w, http.StatusForbidden, "OUTDATED_CLEAR_DISABLED", "Manual outdated clearing is disabled", nil)
 		return
 	}
-	_, _ = s.db.OutdatedMark.Delete().Where(outdatedmark.AppIDEQ(id), outdatedmark.UserIDEQ(actor.UserID)).Exec(r.Context())
-	count, _ := s.db.OutdatedMark.Query().Where(outdatedmark.AppIDEQ(id)).Count(r.Context())
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "outdatedMarked": false, "outdatedMarks": count})
+	if !s.actorCanMaintainApp(actor, record) {
+		writeError(w, http.StatusForbidden, "FORBIDDEN", "Only the app maintainer or an admin can clear outdated marks", nil)
+		return
+	}
+	_, _ = s.db.OutdatedMark.Delete().Where(outdatedmark.AppIDEQ(id)).Exec(r.Context())
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "outdatedMarked": false, "outdatedMarks": 0})
 }
 
 func (s *Server) resolveOutdatedActor(r *http.Request) (commentActor, int, string, string) {
 	if u, ok := s.authenticate(r); ok && !s.emailVerificationRequiredForUser(r.Context(), u) {
-		return commentActor{User: u, UserID: u.ID, DisplayName: u.Username}, 0, "", ""
+		return commentActor{User: u, UserID: u.ID, DisplayName: userDisplayName(u)}, 0, "", ""
 	}
 	if !s.cfg.TrustLazyCatClientComments || r.Header.Get("X-LazyCat-Client-Proxy") != "lazycat-appstore-client" || sanitizeIdentity(r.Header.Get("X-LazyCat-Client-Device-ID")) == "" {
 		return commentActor{}, http.StatusUnauthorized, "LAZYCAT_CLIENT_REQUIRED", "Outdated marks require the LazyCat app store client"
@@ -657,7 +659,7 @@ func (s *Server) collaboratorRequestDTO(r *http.Request, record *entgo.Collabora
 		UpdatedAt: record.UpdatedAt,
 	}
 	if requester, err := s.db.User.Get(r.Context(), record.UserID); err == nil {
-		dto.Username = requester.Username
+		dto.Username = userDisplayName(requester)
 		dto.Email = requester.Email
 	}
 	return dto

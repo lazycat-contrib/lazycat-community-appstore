@@ -42,6 +42,20 @@ func (_u *StorageConfigUpdate) SetNillableKey(v *string) *StorageConfigUpdate {
 	return _u
 }
 
+// SetName sets the "name" field.
+func (_u *StorageConfigUpdate) SetName(v string) *StorageConfigUpdate {
+	_u.mutation.SetName(v)
+	return _u
+}
+
+// SetNillableName sets the "name" field if the given value is not nil.
+func (_u *StorageConfigUpdate) SetNillableName(v *string) *StorageConfigUpdate {
+	if v != nil {
+		_u.SetName(*v)
+	}
+	return _u
+}
+
 // SetProvider sets the "provider" field.
 func (_u *StorageConfigUpdate) SetProvider(v storageconfig.Provider) *StorageConfigUpdate {
 	_u.mutation.SetProvider(v)
@@ -320,6 +334,9 @@ func (_u *StorageConfigUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if value, ok := _u.mutation.Key(); ok {
 		_spec.SetField(storageconfig.FieldKey, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Name(); ok {
+		_spec.SetField(storageconfig.FieldName, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Provider(); ok {
 		_spec.SetField(storageconfig.FieldProvider, field.TypeEnum, value)
 	}
@@ -395,6 +412,20 @@ func (_u *StorageConfigUpdateOne) SetKey(v string) *StorageConfigUpdateOne {
 func (_u *StorageConfigUpdateOne) SetNillableKey(v *string) *StorageConfigUpdateOne {
 	if v != nil {
 		_u.SetKey(*v)
+	}
+	return _u
+}
+
+// SetName sets the "name" field.
+func (_u *StorageConfigUpdateOne) SetName(v string) *StorageConfigUpdateOne {
+	_u.mutation.SetName(v)
+	return _u
+}
+
+// SetNillableName sets the "name" field if the given value is not nil.
+func (_u *StorageConfigUpdateOne) SetNillableName(v *string) *StorageConfigUpdateOne {
+	if v != nil {
+		_u.SetName(*v)
 	}
 	return _u
 }
@@ -706,6 +737,9 @@ func (_u *StorageConfigUpdateOne) sqlSave(ctx context.Context) (_node *StorageCo
 	}
 	if value, ok := _u.mutation.Key(); ok {
 		_spec.SetField(storageconfig.FieldKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Name(); ok {
+		_spec.SetField(storageconfig.FieldName, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Provider(); ok {
 		_spec.SetField(storageconfig.FieldProvider, field.TypeEnum, value)

@@ -20,6 +20,8 @@ const (
 	FieldUploaderID = "uploader_id"
 	// FieldImageURL holds the string denoting the image_url field in the database.
 	FieldImageURL = "image_url"
+	// FieldStorageKey holds the string denoting the storage_key field in the database.
+	FieldStorageKey = "storage_key"
 	// FieldStoragePath holds the string denoting the storage_path field in the database.
 	FieldStoragePath = "storage_path"
 	// FieldCaption holds the string denoting the caption field in the database.
@@ -40,6 +42,7 @@ var Columns = []string{
 	FieldAppID,
 	FieldUploaderID,
 	FieldImageURL,
+	FieldStorageKey,
 	FieldStoragePath,
 	FieldCaption,
 	FieldDeviceType,
@@ -60,6 +63,8 @@ func ValidColumn(column string) bool {
 var (
 	// ImageURLValidator is a validator for the "image_url" field. It is called by the builders before save.
 	ImageURLValidator func(string) error
+	// DefaultStorageKey holds the default value on creation for the "storage_key" field.
+	DefaultStorageKey string
 	// DefaultStoragePath holds the default value on creation for the "storage_path" field.
 	DefaultStoragePath string
 	// DefaultCaption holds the default value on creation for the "caption" field.
@@ -117,6 +122,11 @@ func ByUploaderID(opts ...sql.OrderTermOption) OrderOption {
 // ByImageURL orders the results by the image_url field.
 func ByImageURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldImageURL, opts...).ToFunc()
+}
+
+// ByStorageKey orders the results by the storage_key field.
+func ByStorageKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStorageKey, opts...).ToFunc()
 }
 
 // ByStoragePath orders the results by the storage_path field.

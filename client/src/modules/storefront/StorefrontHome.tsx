@@ -15,6 +15,7 @@ export function StorefrontHome({
   onOpen,
   onInstall,
   onNavigate,
+  onSubmitApp,
   onCategory,
   setToast,
   isAuthenticated,
@@ -26,6 +27,7 @@ export function StorefrontHome({
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp) => void;
   onNavigate: (tab: 'search' | 'profile') => void;
+  onSubmitApp: () => void;
   onCategory: (category: string) => void;
   setToast: (toast: Toast) => void;
   isAuthenticated: boolean;
@@ -56,7 +58,7 @@ export function StorefrontHome({
           <p>{t('home.body')}</p>
           <div className="hero-actions">
             <XButton type="button" variant="primary" label={t('nav.discover')} icon={<Search size={18} />} onClick={() => onNavigate('search')} />
-            <XButton type="button" variant="primary" label={backstageLabel} icon={<BackstageIcon size={18} />} onClick={() => onNavigate('profile')} />
+            <XButton type="button" variant="primary" label={backstageLabel} icon={<BackstageIcon size={18} />} onClick={onSubmitApp} />
           </div>
         </div>
       </div>
@@ -104,7 +106,7 @@ export function StorefrontHome({
           empty={{
             title: t('home.emptyTitle'),
             body: isAuthenticated ? t('home.emptyBody') : t('home.emptyLoginBody'),
-            action: { label: backstageLabel, icon: BackstageIcon, onClick: () => onNavigate('profile') },
+            action: { label: backstageLabel, icon: BackstageIcon, onClick: onSubmitApp },
           }}
         />
       </section>

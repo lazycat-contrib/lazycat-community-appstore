@@ -252,7 +252,7 @@ func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *e
 		return
 	}
 	if fileErr == nil {
-		if _, err := s.createUploadedVersion(r, u, record, input.Version, input.Changelog, file, header); err != nil {
+		if _, err := s.createUploadedVersion(r, u, record, input.Version, input.Changelog, r.FormValue("storageKey"), file, header); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "VERSION_CREATE_FAILED", err.Error(), nil)
 			return
 		}
@@ -439,13 +439,13 @@ func (s *Server) handleDeleteApp(w http.ResponseWriter, r *http.Request, u *entg
 	versions, _ := s.db.AppVersion.Query().Where(appversion.AppIDEQ(id)).All(r.Context())
 	for _, version := range versions {
 		if version.StoragePath != "" {
-			s.deleteStoredObject(r.Context(), version.StoragePath)
+			s.deleteStoredObject(r.Context(), version.StorageKey, version.StoragePath)
 		}
 	}
 	screenshots, _ := s.db.AppScreenshot.Query().Where(appscreenshot.AppIDEQ(id)).All(r.Context())
 	for _, shot := range screenshots {
 		if shot.StoragePath != "" {
-			s.deleteStoredObject(r.Context(), shot.StoragePath)
+			s.deleteStoredObject(r.Context(), shot.StorageKey, shot.StoragePath)
 		}
 	}
 	_, _ = s.db.AppVersion.Delete().Where(appversion.AppIDEQ(id)).Exec(r.Context())
@@ -517,7 +517,7 @@ func (s *Server) handleCreateVersion(w http.ResponseWriter, r *http.Request, u *
 			return
 		}
 		defer file.Close()
-		created, err := s.createUploadedVersion(r, u, record, r.FormValue("version"), r.FormValue("changelog"), file, header)
+		created, err := s.createUploadedVersion(r, u, record, r.FormValue("version"), r.FormValue("changelog"), r.FormValue("storageKey"), file, header)
 		if err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "VERSION_CREATE_FAILED", err.Error(), nil)
 			return
@@ -557,7 +557,7 @@ func (s *Server) handleCreateVersion(w http.ResponseWriter, r *http.Request, u *
 	writeJSON(w, http.StatusCreated, map[string]any{"version": toVersionDTO(created)})
 }
 
-func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *entgo.App, versionName, changelog string, file multipart.File, header *multipart.FileHeader) (*entgo.AppVersion, error) {
+func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *entgo.App, versionName, changelog, storageKeyInput string, file multipart.File, header *multipart.FileHeader) (*entgo.AppVersion, error) {
 	meta, err := parseUploadedLPKMetadata(file, header, s.effectiveMaxLPKSize(r.Context()))
 	if err != nil {
 		return nil, err
@@ -572,7 +572,11 @@ func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *e
 	if versionName == "" {
 		return nil, errors.New("version is required")
 	}
-	backend, err := s.storageBackend(r.Context())
+	storageKey, err := s.uploadStorageKey(r.Context(), storageKeyInput)
+	if err != nil {
+		return nil, err
+	}
+	backend, err := s.storageBackendForKey(r.Context(), storageKey)
 	if err != nil {
 		return nil, err
 	}
@@ -594,6 +598,7 @@ func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *e
 		SetStatus(status).
 		SetSourceType(appversion.SourceTypeLOCAL).
 		SetDownloadURL(s.absoluteURL(r.Context(), obj.DownloadURL)).
+		SetStorageKey(storageKey).
 		SetStoragePath(obj.Path).
 		SetFileSize(obj.Size).
 		SetSha256(obj.SHA256)
@@ -794,7 +799,7 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 		VisibleGroupIDs:           s.visibleGroupIDs(r.Context(), record.ID),
 	}
 	if owner, err := s.db.User.Get(r.Context(), record.OwnerID); err == nil {
-		dto.Owner = owner.Username
+		dto.Owner = userDisplayName(owner)
 	}
 	if record.CategoryID != nil {
 		if cat, err := s.db.Category.Get(r.Context(), *record.CategoryID); err == nil {
@@ -823,6 +828,7 @@ func toVersionDTO(v *entgo.AppVersion) version {
 		Status:      string(v.Status),
 		SourceType:  string(v.SourceType),
 		DownloadURL: v.DownloadURL,
+		StorageKey:  v.StorageKey,
 		StoragePath: v.StoragePath,
 		FileSize:    v.FileSize,
 		SHA256:      v.Sha256,
@@ -927,7 +933,12 @@ func (s *Server) handleUploadScreenshot(w http.ResponseWriter, r *http.Request, 
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Screenshots must be png, jpg, or webp", nil)
 		return
 	}
-	backend, err := s.storageBackend(r.Context())
+	storageKey, err := s.uploadStorageKey(r.Context(), r.FormValue("storageKey"))
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "SCREENSHOT_UPLOAD_FAILED", err.Error(), nil)
+		return
+	}
+	backend, err := s.storageBackendForKey(r.Context(), storageKey)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "SCREENSHOT_UPLOAD_FAILED", err.Error(), nil)
 		return
@@ -943,6 +954,7 @@ func (s *Server) handleUploadScreenshot(w http.ResponseWriter, r *http.Request, 
 		SetAppID(appID).
 		SetUploaderID(u.ID).
 		SetImageURL(s.absoluteURL(r.Context(), obj.DownloadURL)).
+		SetStorageKey(storageKey).
 		SetStoragePath(obj.Path).
 		SetCaption(r.FormValue("caption")).
 		SetDeviceType(deviceType).
@@ -1076,7 +1088,7 @@ func (s *Server) handleDeleteScreenshot(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	if shot.StoragePath != "" {
-		s.deleteStoredObject(r.Context(), shot.StoragePath)
+		s.deleteStoredObject(r.Context(), shot.StorageKey, shot.StoragePath)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
@@ -1105,6 +1117,7 @@ func toScreenshotDTO(record *entgo.AppScreenshot) screenshot {
 		ID:         record.ID,
 		AppID:      record.AppID,
 		ImageURL:   record.ImageURL,
+		StorageKey: record.StorageKey,
 		Caption:    record.Caption,
 		DeviceType: catalogmeta.CleanDeviceType(record.DeviceType.String()),
 		SortOrder:  record.SortOrder,
@@ -1193,7 +1206,7 @@ func (s *Server) commentDTO(r *http.Request, record *entgo.Comment, actor commen
 	username := strings.TrimSpace(record.AuthorName)
 	if username == "" && record.AuthorType == commentpkg.AuthorTypeUSER && record.UserID > 0 {
 		if u, err := s.db.User.Get(r.Context(), record.UserID); err == nil {
-			username = u.Username
+			username = userDisplayName(u)
 		}
 	}
 	if username == "" {

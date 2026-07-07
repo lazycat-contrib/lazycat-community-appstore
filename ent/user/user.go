@@ -16,6 +16,14 @@ const (
 	FieldID = "id"
 	// FieldUsername holds the string denoting the username field in the database.
 	FieldUsername = "username"
+	// FieldNickname holds the string denoting the nickname field in the database.
+	FieldNickname = "nickname"
+	// FieldAvatarURL holds the string denoting the avatar_url field in the database.
+	FieldAvatarURL = "avatar_url"
+	// FieldAvatarStorageKey holds the string denoting the avatar_storage_key field in the database.
+	FieldAvatarStorageKey = "avatar_storage_key"
+	// FieldAvatarStoragePath holds the string denoting the avatar_storage_path field in the database.
+	FieldAvatarStoragePath = "avatar_storage_path"
 	// FieldEmail holds the string denoting the email field in the database.
 	FieldEmail = "email"
 	// FieldPasswordHash holds the string denoting the password_hash field in the database.
@@ -24,6 +32,8 @@ const (
 	FieldRole = "role"
 	// FieldEmailVerified holds the string denoting the email_verified field in the database.
 	FieldEmailVerified = "email_verified"
+	// FieldDisabled holds the string denoting the disabled field in the database.
+	FieldDisabled = "disabled"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -36,10 +46,15 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldUsername,
+	FieldNickname,
+	FieldAvatarURL,
+	FieldAvatarStorageKey,
+	FieldAvatarStoragePath,
 	FieldEmail,
 	FieldPasswordHash,
 	FieldRole,
 	FieldEmailVerified,
+	FieldDisabled,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -57,8 +72,18 @@ func ValidColumn(column string) bool {
 var (
 	// UsernameValidator is a validator for the "username" field. It is called by the builders before save.
 	UsernameValidator func(string) error
+	// DefaultNickname holds the default value on creation for the "nickname" field.
+	DefaultNickname string
+	// DefaultAvatarURL holds the default value on creation for the "avatar_url" field.
+	DefaultAvatarURL string
+	// DefaultAvatarStorageKey holds the default value on creation for the "avatar_storage_key" field.
+	DefaultAvatarStorageKey string
+	// DefaultAvatarStoragePath holds the default value on creation for the "avatar_storage_path" field.
+	DefaultAvatarStoragePath string
 	// DefaultEmailVerified holds the default value on creation for the "email_verified" field.
 	DefaultEmailVerified bool
+	// DefaultDisabled holds the default value on creation for the "disabled" field.
+	DefaultDisabled bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -107,6 +132,26 @@ func ByUsername(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUsername, opts...).ToFunc()
 }
 
+// ByNickname orders the results by the nickname field.
+func ByNickname(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNickname, opts...).ToFunc()
+}
+
+// ByAvatarURL orders the results by the avatar_url field.
+func ByAvatarURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAvatarURL, opts...).ToFunc()
+}
+
+// ByAvatarStorageKey orders the results by the avatar_storage_key field.
+func ByAvatarStorageKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAvatarStorageKey, opts...).ToFunc()
+}
+
+// ByAvatarStoragePath orders the results by the avatar_storage_path field.
+func ByAvatarStoragePath(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAvatarStoragePath, opts...).ToFunc()
+}
+
 // ByEmail orders the results by the email field.
 func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEmail, opts...).ToFunc()
@@ -125,6 +170,11 @@ func ByRole(opts ...sql.OrderTermOption) OrderOption {
 // ByEmailVerified orders the results by the email_verified field.
 func ByEmailVerified(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEmailVerified, opts...).ToFunc()
+}
+
+// ByDisabled orders the results by the disabled field.
+func ByDisabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisabled, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

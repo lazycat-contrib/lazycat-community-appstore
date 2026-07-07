@@ -13,6 +13,7 @@ import (
 	"lazycat.community/appstore/ent/registrationinvite"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/auth"
+	"lazycat.community/appstore/internal/storage"
 )
 
 var errInvalidRegistrationInvite = errors.New("invalid registration invite")
@@ -221,6 +222,10 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Invalid username or password", nil)
 		return
 	}
+	if u.Disabled {
+		writeError(w, http.StatusForbidden, "ACCOUNT_DISABLED", "This account is disabled", nil)
+		return
+	}
 	if s.emailVerificationRequiredForUser(r.Context(), u) {
 		writeError(w, http.StatusForbidden, "EMAIL_NOT_VERIFIED", "Email verification is required before login", nil)
 		return
@@ -244,6 +249,112 @@ func emailVerificationToken() (string, error) {
 
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request, u *ent.User) {
 	writeJSON(w, http.StatusOK, map[string]any{"user": toPublicUser(u)})
+}
+
+type updateProfileRequest struct {
+	Nickname        *string `json:"nickname"`
+	Email           *string `json:"email"`
+	CurrentPassword string  `json:"currentPassword"`
+	NewPassword     string  `json:"newPassword"`
+}
+
+func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request, u *ent.User) {
+	var input updateProfileRequest
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	update := s.db.User.UpdateOneID(u.ID)
+	if input.Nickname != nil {
+		nickname := strings.TrimSpace(*input.Nickname)
+		if len([]rune(nickname)) > 80 {
+			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Nickname must be 80 characters or fewer", nil)
+			return
+		}
+		update.SetNickname(nickname)
+	}
+	if input.Email != nil {
+		email := strings.TrimSpace(*input.Email)
+		if email == "" {
+			update.ClearEmail()
+		} else {
+			update.SetEmail(email)
+		}
+	}
+	if strings.TrimSpace(input.NewPassword) != "" {
+		if !auth.CheckPassword(u.PasswordHash, input.CurrentPassword) {
+			writeError(w, http.StatusForbidden, "INVALID_PASSWORD", "Current password is incorrect", nil)
+			return
+		}
+		password := strings.TrimSpace(input.NewPassword)
+		if len(password) < 8 {
+			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Password must be at least 8 characters", nil)
+			return
+		}
+		hash, err := auth.HashPassword(password)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "PASSWORD_HASH_FAILED", "Could not update password", nil)
+			return
+		}
+		update.SetPasswordHash(hash)
+	}
+	updated, err := update.Save(r.Context())
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			writeError(w, http.StatusConflict, "USER_EXISTS", "Email is already registered", nil)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "PROFILE_UPDATE_FAILED", "Could not update profile", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"user": toPublicUser(updated)})
+}
+
+func (s *Server) handleUploadMyAvatar(w http.ResponseWriter, r *http.Request, u *ent.User) {
+	if err := r.ParseMultipartForm(maxAvatarImageSize + 1<<20); err != nil {
+		badRequest(w, err)
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		badRequest(w, err)
+		return
+	}
+	defer file.Close()
+	if err := validateUploadedImage(file, header, maxAvatarImageSize); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+	storageKey, err := s.uploadStorageKey(r.Context(), r.FormValue("storageKey"))
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "AVATAR_UPLOAD_FAILED", err.Error(), nil)
+		return
+	}
+	backend, err := s.storageBackendForKey(r.Context(), storageKey)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "AVATAR_UPLOAD_FAILED", err.Error(), nil)
+		return
+	}
+	obj, err := storage.SaveFile(r.Context(), backend, file, header.Filename, maxAvatarImageSize)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "AVATAR_UPLOAD_FAILED", err.Error(), nil)
+		return
+	}
+	oldStorageKey, oldStoragePath := u.AvatarStorageKey, u.AvatarStoragePath
+	updated, err := s.db.User.UpdateOneID(u.ID).
+		SetAvatarURL(s.absoluteURL(r.Context(), obj.DownloadURL)).
+		SetAvatarStorageKey(storageKey).
+		SetAvatarStoragePath(obj.Path).
+		Save(r.Context())
+	if err != nil {
+		_ = backend.Delete(r.Context(), obj.Path)
+		writeError(w, http.StatusInternalServerError, "AVATAR_SAVE_FAILED", "Could not save avatar", nil)
+		return
+	}
+	if oldStoragePath != "" {
+		s.deleteStoredObject(r.Context(), oldStorageKey, oldStoragePath)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"user": toPublicUser(updated), "url": updated.AvatarURL})
 }
 
 func (s *Server) handleListTokens(w http.ResponseWriter, r *http.Request, u *ent.User) {

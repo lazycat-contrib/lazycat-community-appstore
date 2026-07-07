@@ -68,7 +68,10 @@ func (s *Server) authenticate(r *http.Request) (*ent.User, bool) {
 		return nil, false
 	}
 	u, err := s.db.User.Get(r.Context(), userID)
-	return u, err == nil
+	if err != nil || u.Disabled {
+		return nil, false
+	}
+	return u, true
 }
 
 func (s *Server) optionalUser(r *http.Request) *ent.User {
@@ -90,7 +93,10 @@ func (s *Server) authenticateToken(ctx context.Context, tokenValue string) (*ent
 	}
 	_, _ = s.db.APIToken.UpdateOneID(record.ID).SetLastUsedAt(time.Now()).Save(ctx)
 	u, err := s.db.User.Get(ctx, record.UserID)
-	return u, err == nil
+	if err != nil || u.Disabled {
+		return nil, false
+	}
+	return u, true
 }
 
 func bearerToken(r *http.Request) string {

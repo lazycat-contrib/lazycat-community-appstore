@@ -28,6 +28,20 @@ func (_u *RegistrationInviteUpdate) Where(ps ...predicate.RegistrationInvite) *R
 	return _u
 }
 
+// SetCode sets the "code" field.
+func (_u *RegistrationInviteUpdate) SetCode(v string) *RegistrationInviteUpdate {
+	_u.mutation.SetCode(v)
+	return _u
+}
+
+// SetNillableCode sets the "code" field if the given value is not nil.
+func (_u *RegistrationInviteUpdate) SetNillableCode(v *string) *RegistrationInviteUpdate {
+	if v != nil {
+		_u.SetCode(*v)
+	}
+	return _u
+}
+
 // SetCodeHash sets the "code_hash" field.
 func (_u *RegistrationInviteUpdate) SetCodeHash(v string) *RegistrationInviteUpdate {
 	_u.mutation.SetCodeHash(v)
@@ -196,6 +210,11 @@ func (_u *RegistrationInviteUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *RegistrationInviteUpdate) check() error {
+	if v, ok := _u.mutation.Code(); ok {
+		if err := registrationinvite.CodeValidator(v); err != nil {
+			return &ValidationError{Name: "code", err: fmt.Errorf(`ent: validator failed for field "RegistrationInvite.code": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CodeHash(); ok {
 		if err := registrationinvite.CodeHashValidator(v); err != nil {
 			return &ValidationError{Name: "code_hash", err: fmt.Errorf(`ent: validator failed for field "RegistrationInvite.code_hash": %w`, err)}
@@ -230,6 +249,9 @@ func (_u *RegistrationInviteUpdate) sqlSave(ctx context.Context) (_node int, err
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Code(); ok {
+		_spec.SetField(registrationinvite.FieldCode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CodeHash(); ok {
 		_spec.SetField(registrationinvite.FieldCodeHash, field.TypeString, value)
@@ -282,6 +304,20 @@ type RegistrationInviteUpdateOne struct {
 	fields   []string
 	hooks    []Hook
 	mutation *RegistrationInviteMutation
+}
+
+// SetCode sets the "code" field.
+func (_u *RegistrationInviteUpdateOne) SetCode(v string) *RegistrationInviteUpdateOne {
+	_u.mutation.SetCode(v)
+	return _u
+}
+
+// SetNillableCode sets the "code" field if the given value is not nil.
+func (_u *RegistrationInviteUpdateOne) SetNillableCode(v *string) *RegistrationInviteUpdateOne {
+	if v != nil {
+		_u.SetCode(*v)
+	}
+	return _u
 }
 
 // SetCodeHash sets the "code_hash" field.
@@ -465,6 +501,11 @@ func (_u *RegistrationInviteUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *RegistrationInviteUpdateOne) check() error {
+	if v, ok := _u.mutation.Code(); ok {
+		if err := registrationinvite.CodeValidator(v); err != nil {
+			return &ValidationError{Name: "code", err: fmt.Errorf(`ent: validator failed for field "RegistrationInvite.code": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CodeHash(); ok {
 		if err := registrationinvite.CodeHashValidator(v); err != nil {
 			return &ValidationError{Name: "code_hash", err: fmt.Errorf(`ent: validator failed for field "RegistrationInvite.code_hash": %w`, err)}
@@ -516,6 +557,9 @@ func (_u *RegistrationInviteUpdateOne) sqlSave(ctx context.Context) (_node *Regi
 				ps[i](selector)
 			}
 		}
+	}
+	if value, ok := _u.mutation.Code(); ok {
+		_spec.SetField(registrationinvite.FieldCode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CodeHash(); ok {
 		_spec.SetField(registrationinvite.FieldCodeHash, field.TypeString, value)

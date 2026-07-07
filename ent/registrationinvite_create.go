@@ -20,6 +20,12 @@ type RegistrationInviteCreate struct {
 	hooks    []Hook
 }
 
+// SetCode sets the "code" field.
+func (_c *RegistrationInviteCreate) SetCode(v string) *RegistrationInviteCreate {
+	_c.mutation.SetCode(v)
+	return _c
+}
+
 // SetCodeHash sets the "code_hash" field.
 func (_c *RegistrationInviteCreate) SetCodeHash(v string) *RegistrationInviteCreate {
 	_c.mutation.SetCodeHash(v)
@@ -167,6 +173,14 @@ func (_c *RegistrationInviteCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *RegistrationInviteCreate) check() error {
+	if _, ok := _c.mutation.Code(); !ok {
+		return &ValidationError{Name: "code", err: errors.New(`ent: missing required field "RegistrationInvite.code"`)}
+	}
+	if v, ok := _c.mutation.Code(); ok {
+		if err := registrationinvite.CodeValidator(v); err != nil {
+			return &ValidationError{Name: "code", err: fmt.Errorf(`ent: validator failed for field "RegistrationInvite.code": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.CodeHash(); !ok {
 		return &ValidationError{Name: "code_hash", err: errors.New(`ent: missing required field "RegistrationInvite.code_hash"`)}
 	}
@@ -237,6 +251,10 @@ func (_c *RegistrationInviteCreate) createSpec() (*RegistrationInvite, *sqlgraph
 		_node = &RegistrationInvite{config: _c.config}
 		_spec = sqlgraph.NewCreateSpec(registrationinvite.Table, sqlgraph.NewFieldSpec(registrationinvite.FieldID, field.TypeInt))
 	)
+	if value, ok := _c.mutation.Code(); ok {
+		_spec.SetField(registrationinvite.FieldCode, field.TypeString, value)
+		_node.Code = value
+	}
 	if value, ok := _c.mutation.CodeHash(); ok {
 		_spec.SetField(registrationinvite.FieldCodeHash, field.TypeString, value)
 		_node.CodeHash = value

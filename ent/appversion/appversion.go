@@ -28,6 +28,8 @@ const (
 	FieldSourceType = "source_type"
 	// FieldDownloadURL holds the string denoting the download_url field in the database.
 	FieldDownloadURL = "download_url"
+	// FieldStorageKey holds the string denoting the storage_key field in the database.
+	FieldStorageKey = "storage_key"
 	// FieldStoragePath holds the string denoting the storage_path field in the database.
 	FieldStoragePath = "storage_path"
 	// FieldFileSize holds the string denoting the file_size field in the database.
@@ -54,6 +56,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldSourceType,
 	FieldDownloadURL,
+	FieldStorageKey,
 	FieldStoragePath,
 	FieldFileSize,
 	FieldSha256,
@@ -79,6 +82,8 @@ var (
 	DefaultChangelog string
 	// DefaultDownloadURL holds the default value on creation for the "download_url" field.
 	DefaultDownloadURL string
+	// DefaultStorageKey holds the default value on creation for the "storage_key" field.
+	DefaultStorageKey string
 	// DefaultStoragePath holds the default value on creation for the "storage_path" field.
 	DefaultStoragePath string
 	// DefaultFileSize holds the default value on creation for the "file_size" field.
@@ -189,6 +194,11 @@ func BySourceType(opts ...sql.OrderTermOption) OrderOption {
 // ByDownloadURL orders the results by the download_url field.
 func ByDownloadURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDownloadURL, opts...).ToFunc()
+}
+
+// ByStorageKey orders the results by the storage_key field.
+func ByStorageKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStorageKey, opts...).ToFunc()
 }
 
 // ByStoragePath orders the results by the storage_path field.

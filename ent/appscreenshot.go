@@ -23,6 +23,8 @@ type AppScreenshot struct {
 	UploaderID int `json:"uploader_id,omitempty"`
 	// ImageURL holds the value of the "image_url" field.
 	ImageURL string `json:"image_url,omitempty"`
+	// StorageKey holds the value of the "storage_key" field.
+	StorageKey string `json:"storage_key,omitempty"`
 	// StoragePath holds the value of the "storage_path" field.
 	StoragePath string `json:"storage_path,omitempty"`
 	// Caption holds the value of the "caption" field.
@@ -43,7 +45,7 @@ func (*AppScreenshot) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case appscreenshot.FieldID, appscreenshot.FieldAppID, appscreenshot.FieldUploaderID, appscreenshot.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
-		case appscreenshot.FieldImageURL, appscreenshot.FieldStoragePath, appscreenshot.FieldCaption, appscreenshot.FieldDeviceType:
+		case appscreenshot.FieldImageURL, appscreenshot.FieldStorageKey, appscreenshot.FieldStoragePath, appscreenshot.FieldCaption, appscreenshot.FieldDeviceType:
 			values[i] = new(sql.NullString)
 		case appscreenshot.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -85,6 +87,12 @@ func (_m *AppScreenshot) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field image_url", values[i])
 			} else if value.Valid {
 				_m.ImageURL = value.String
+			}
+		case appscreenshot.FieldStorageKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field storage_key", values[i])
+			} else if value.Valid {
+				_m.StorageKey = value.String
 			}
 		case appscreenshot.FieldStoragePath:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -160,6 +168,9 @@ func (_m *AppScreenshot) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("image_url=")
 	builder.WriteString(_m.ImageURL)
+	builder.WriteString(", ")
+	builder.WriteString("storage_key=")
+	builder.WriteString(_m.StorageKey)
 	builder.WriteString(", ")
 	builder.WriteString("storage_path=")
 	builder.WriteString(_m.StoragePath)

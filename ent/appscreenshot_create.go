@@ -38,6 +38,20 @@ func (_c *AppScreenshotCreate) SetImageURL(v string) *AppScreenshotCreate {
 	return _c
 }
 
+// SetStorageKey sets the "storage_key" field.
+func (_c *AppScreenshotCreate) SetStorageKey(v string) *AppScreenshotCreate {
+	_c.mutation.SetStorageKey(v)
+	return _c
+}
+
+// SetNillableStorageKey sets the "storage_key" field if the given value is not nil.
+func (_c *AppScreenshotCreate) SetNillableStorageKey(v *string) *AppScreenshotCreate {
+	if v != nil {
+		_c.SetStorageKey(*v)
+	}
+	return _c
+}
+
 // SetStoragePath sets the "storage_path" field.
 func (_c *AppScreenshotCreate) SetStoragePath(v string) *AppScreenshotCreate {
 	_c.mutation.SetStoragePath(v)
@@ -143,6 +157,10 @@ func (_c *AppScreenshotCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *AppScreenshotCreate) defaults() {
+	if _, ok := _c.mutation.StorageKey(); !ok {
+		v := appscreenshot.DefaultStorageKey
+		_c.mutation.SetStorageKey(v)
+	}
 	if _, ok := _c.mutation.StoragePath(); !ok {
 		v := appscreenshot.DefaultStoragePath
 		_c.mutation.SetStoragePath(v)
@@ -180,6 +198,9 @@ func (_c *AppScreenshotCreate) check() error {
 		if err := appscreenshot.ImageURLValidator(v); err != nil {
 			return &ValidationError{Name: "image_url", err: fmt.Errorf(`ent: validator failed for field "AppScreenshot.image_url": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.StorageKey(); !ok {
+		return &ValidationError{Name: "storage_key", err: errors.New(`ent: missing required field "AppScreenshot.storage_key"`)}
 	}
 	if _, ok := _c.mutation.StoragePath(); !ok {
 		return &ValidationError{Name: "storage_path", err: errors.New(`ent: missing required field "AppScreenshot.storage_path"`)}
@@ -238,6 +259,10 @@ func (_c *AppScreenshotCreate) createSpec() (*AppScreenshot, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.ImageURL(); ok {
 		_spec.SetField(appscreenshot.FieldImageURL, field.TypeString, value)
 		_node.ImageURL = value
+	}
+	if value, ok := _c.mutation.StorageKey(); ok {
+		_spec.SetField(appscreenshot.FieldStorageKey, field.TypeString, value)
+		_node.StorageKey = value
 	}
 	if value, ok := _c.mutation.StoragePath(); ok {
 		_spec.SetField(appscreenshot.FieldStoragePath, field.TypeString, value)

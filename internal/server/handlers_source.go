@@ -92,7 +92,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if owner, err := s.db.User.Get(r.Context(), record.OwnerID); err == nil {
-			appInput.Submitter = owner.Username
+			appInput.Submitter = userDisplayName(owner)
 		}
 		if record.CategoryID != nil {
 			if category, err := s.db.Category.Get(r.Context(), *record.CategoryID); err == nil {

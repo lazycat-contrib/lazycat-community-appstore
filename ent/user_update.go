@@ -42,6 +42,62 @@ func (_u *UserUpdate) SetNillableUsername(v *string) *UserUpdate {
 	return _u
 }
 
+// SetNickname sets the "nickname" field.
+func (_u *UserUpdate) SetNickname(v string) *UserUpdate {
+	_u.mutation.SetNickname(v)
+	return _u
+}
+
+// SetNillableNickname sets the "nickname" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableNickname(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetNickname(*v)
+	}
+	return _u
+}
+
+// SetAvatarURL sets the "avatar_url" field.
+func (_u *UserUpdate) SetAvatarURL(v string) *UserUpdate {
+	_u.mutation.SetAvatarURL(v)
+	return _u
+}
+
+// SetNillableAvatarURL sets the "avatar_url" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAvatarURL(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetAvatarURL(*v)
+	}
+	return _u
+}
+
+// SetAvatarStorageKey sets the "avatar_storage_key" field.
+func (_u *UserUpdate) SetAvatarStorageKey(v string) *UserUpdate {
+	_u.mutation.SetAvatarStorageKey(v)
+	return _u
+}
+
+// SetNillableAvatarStorageKey sets the "avatar_storage_key" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAvatarStorageKey(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetAvatarStorageKey(*v)
+	}
+	return _u
+}
+
+// SetAvatarStoragePath sets the "avatar_storage_path" field.
+func (_u *UserUpdate) SetAvatarStoragePath(v string) *UserUpdate {
+	_u.mutation.SetAvatarStoragePath(v)
+	return _u
+}
+
+// SetNillableAvatarStoragePath sets the "avatar_storage_path" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAvatarStoragePath(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetAvatarStoragePath(*v)
+	}
+	return _u
+}
+
 // SetEmail sets the "email" field.
 func (_u *UserUpdate) SetEmail(v string) *UserUpdate {
 	_u.mutation.SetEmail(v)
@@ -100,6 +156,20 @@ func (_u *UserUpdate) SetEmailVerified(v bool) *UserUpdate {
 func (_u *UserUpdate) SetNillableEmailVerified(v *bool) *UserUpdate {
 	if v != nil {
 		_u.SetEmailVerified(*v)
+	}
+	return _u
+}
+
+// SetDisabled sets the "disabled" field.
+func (_u *UserUpdate) SetDisabled(v bool) *UserUpdate {
+	_u.mutation.SetDisabled(v)
+	return _u
+}
+
+// SetNillableDisabled sets the "disabled" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableDisabled(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetDisabled(*v)
 	}
 	return _u
 }
@@ -195,6 +265,18 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Username(); ok {
 		_spec.SetField(user.FieldUsername, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Nickname(); ok {
+		_spec.SetField(user.FieldNickname, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AvatarURL(); ok {
+		_spec.SetField(user.FieldAvatarURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AvatarStorageKey(); ok {
+		_spec.SetField(user.FieldAvatarStorageKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AvatarStoragePath(); ok {
+		_spec.SetField(user.FieldAvatarStoragePath, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 	}
@@ -209,6 +291,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.EmailVerified(); ok {
 		_spec.SetField(user.FieldEmailVerified, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Disabled(); ok {
+		_spec.SetField(user.FieldDisabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
@@ -246,6 +331,62 @@ func (_u *UserUpdateOne) SetUsername(v string) *UserUpdateOne {
 func (_u *UserUpdateOne) SetNillableUsername(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetUsername(*v)
+	}
+	return _u
+}
+
+// SetNickname sets the "nickname" field.
+func (_u *UserUpdateOne) SetNickname(v string) *UserUpdateOne {
+	_u.mutation.SetNickname(v)
+	return _u
+}
+
+// SetNillableNickname sets the "nickname" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableNickname(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetNickname(*v)
+	}
+	return _u
+}
+
+// SetAvatarURL sets the "avatar_url" field.
+func (_u *UserUpdateOne) SetAvatarURL(v string) *UserUpdateOne {
+	_u.mutation.SetAvatarURL(v)
+	return _u
+}
+
+// SetNillableAvatarURL sets the "avatar_url" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAvatarURL(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetAvatarURL(*v)
+	}
+	return _u
+}
+
+// SetAvatarStorageKey sets the "avatar_storage_key" field.
+func (_u *UserUpdateOne) SetAvatarStorageKey(v string) *UserUpdateOne {
+	_u.mutation.SetAvatarStorageKey(v)
+	return _u
+}
+
+// SetNillableAvatarStorageKey sets the "avatar_storage_key" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAvatarStorageKey(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetAvatarStorageKey(*v)
+	}
+	return _u
+}
+
+// SetAvatarStoragePath sets the "avatar_storage_path" field.
+func (_u *UserUpdateOne) SetAvatarStoragePath(v string) *UserUpdateOne {
+	_u.mutation.SetAvatarStoragePath(v)
+	return _u
+}
+
+// SetNillableAvatarStoragePath sets the "avatar_storage_path" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAvatarStoragePath(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetAvatarStoragePath(*v)
 	}
 	return _u
 }
@@ -308,6 +449,20 @@ func (_u *UserUpdateOne) SetEmailVerified(v bool) *UserUpdateOne {
 func (_u *UserUpdateOne) SetNillableEmailVerified(v *bool) *UserUpdateOne {
 	if v != nil {
 		_u.SetEmailVerified(*v)
+	}
+	return _u
+}
+
+// SetDisabled sets the "disabled" field.
+func (_u *UserUpdateOne) SetDisabled(v bool) *UserUpdateOne {
+	_u.mutation.SetDisabled(v)
+	return _u
+}
+
+// SetNillableDisabled sets the "disabled" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableDisabled(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetDisabled(*v)
 	}
 	return _u
 }
@@ -433,6 +588,18 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	if value, ok := _u.mutation.Username(); ok {
 		_spec.SetField(user.FieldUsername, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Nickname(); ok {
+		_spec.SetField(user.FieldNickname, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AvatarURL(); ok {
+		_spec.SetField(user.FieldAvatarURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AvatarStorageKey(); ok {
+		_spec.SetField(user.FieldAvatarStorageKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AvatarStoragePath(); ok {
+		_spec.SetField(user.FieldAvatarStoragePath, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Email(); ok {
 		_spec.SetField(user.FieldEmail, field.TypeString, value)
 	}
@@ -447,6 +614,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.EmailVerified(); ok {
 		_spec.SetField(user.FieldEmailVerified, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.Disabled(); ok {
+		_spec.SetField(user.FieldDisabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)

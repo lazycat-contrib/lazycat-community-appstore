@@ -17,6 +17,7 @@ func (AppScreenshot) Fields() []ent.Field {
 		field.Int("app_id"),
 		field.Int("uploader_id"),
 		field.String("image_url").NotEmpty(),
+		field.String("storage_key").Default("primary"),
 		field.String("storage_path").Default(""),
 		field.String("caption").Default(""),
 		field.Enum("device_type").Values("DESKTOP", "MOBILE").Default("DESKTOP"),
