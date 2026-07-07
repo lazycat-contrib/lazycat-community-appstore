@@ -8,6 +8,9 @@ import {
   cx,
   findInstalledApplication,
   hasInstallableVersion,
+  localizedAppDescription,
+  localizedAppName,
+  localizedAppSummary,
   localizedCategory,
   sourceActionLabel,
   sourceInstallAction,
@@ -54,19 +57,21 @@ export function SourceAppGrid({
         const installedMatch = findInstalledApplication(app, installedApps);
         const installAction = sourceInstallAction(app, installedMatch);
         const isUpdateAvailable = installAction === 'update';
+        const appName = localizedAppName(app);
+        const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
         return (
           <XClickableCard
             className="source-app-card"
             key={`${app.sourceId || app.sourceName}-${app.id}`}
-            label={t('app.open', { name: app.name })}
+            label={t('app.open', { name: appName })}
             onClick={() => onOpen(app)}
             padding={3}
           >
             <div className="app-open">
-              <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} />
+              <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={appName} />
               <div>
-                <h3>{app.name}</h3>
-                <p>{app.summary || t('common.lpkApp')}</p>
+                <h3>{appName}</h3>
+                <p>{appSummary}</p>
               </div>
               <ChevronRight size={18} />
             </div>
@@ -109,7 +114,7 @@ export function SourceAppGrid({
               icon={isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
               isDisabled={!installable}
               onClick={() => void onInstall(app)}
-              aria-label={installable ? t('app.install', { name: app.name }) : t('app.installUnavailable', { name: app.name })}
+              aria-label={installable ? t('app.install', { name: appName }) : t('app.installUnavailable', { name: appName })}
             />
           </XClickableCard>
         );

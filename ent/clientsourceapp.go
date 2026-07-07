@@ -26,10 +26,16 @@ type ClientSourceApp struct {
 	PackageID string `json:"package_id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
+	// NameI18nJSON holds the value of the "name_i18n_json" field.
+	NameI18nJSON string `json:"name_i18n_json,omitempty"`
 	// Slug holds the value of the "slug" field.
 	Slug string `json:"slug,omitempty"`
 	// Summary holds the value of the "summary" field.
 	Summary string `json:"summary,omitempty"`
+	// SummaryI18nJSON holds the value of the "summary_i18n_json" field.
+	SummaryI18nJSON string `json:"summary_i18n_json,omitempty"`
+	// DescriptionI18nJSON holds the value of the "description_i18n_json" field.
+	DescriptionI18nJSON string `json:"description_i18n_json,omitempty"`
 	// Category holds the value of the "category" field.
 	Category string `json:"category,omitempty"`
 	// CategoryI18nJSON holds the value of the "category_i18n_json" field.
@@ -87,7 +93,7 @@ func (*ClientSourceApp) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID, clientsourceapp.FieldOutdatedMarks:
 			values[i] = new(sql.NullInt64)
-		case clientsourceapp.FieldExternalID, clientsourceapp.FieldPackageID, clientsourceapp.FieldName, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldCategory, clientsourceapp.FieldCategoryI18nJSON, clientsourceapp.FieldIconURL, clientsourceapp.FieldScreenshotsJSON, clientsourceapp.FieldLatestVersionJSON, clientsourceapp.FieldVersionsJSON:
+		case clientsourceapp.FieldExternalID, clientsourceapp.FieldPackageID, clientsourceapp.FieldName, clientsourceapp.FieldNameI18nJSON, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldSummaryI18nJSON, clientsourceapp.FieldDescriptionI18nJSON, clientsourceapp.FieldCategory, clientsourceapp.FieldCategoryI18nJSON, clientsourceapp.FieldIconURL, clientsourceapp.FieldScreenshotsJSON, clientsourceapp.FieldLatestVersionJSON, clientsourceapp.FieldVersionsJSON:
 			values[i] = new(sql.NullString)
 		case clientsourceapp.FieldCreatedAt, clientsourceapp.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -136,6 +142,12 @@ func (_m *ClientSourceApp) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Name = value.String
 			}
+		case clientsourceapp.FieldNameI18nJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field name_i18n_json", values[i])
+			} else if value.Valid {
+				_m.NameI18nJSON = value.String
+			}
 		case clientsourceapp.FieldSlug:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field slug", values[i])
@@ -147,6 +159,18 @@ func (_m *ClientSourceApp) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field summary", values[i])
 			} else if value.Valid {
 				_m.Summary = value.String
+			}
+		case clientsourceapp.FieldSummaryI18nJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field summary_i18n_json", values[i])
+			} else if value.Valid {
+				_m.SummaryI18nJSON = value.String
+			}
+		case clientsourceapp.FieldDescriptionI18nJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field description_i18n_json", values[i])
+			} else if value.Valid {
+				_m.DescriptionI18nJSON = value.String
 			}
 		case clientsourceapp.FieldCategory:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -267,11 +291,20 @@ func (_m *ClientSourceApp) String() string {
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
+	builder.WriteString("name_i18n_json=")
+	builder.WriteString(_m.NameI18nJSON)
+	builder.WriteString(", ")
 	builder.WriteString("slug=")
 	builder.WriteString(_m.Slug)
 	builder.WriteString(", ")
 	builder.WriteString("summary=")
 	builder.WriteString(_m.Summary)
+	builder.WriteString(", ")
+	builder.WriteString("summary_i18n_json=")
+	builder.WriteString(_m.SummaryI18nJSON)
+	builder.WriteString(", ")
+	builder.WriteString("description_i18n_json=")
+	builder.WriteString(_m.DescriptionI18nJSON)
 	builder.WriteString(", ")
 	builder.WriteString("category=")
 	builder.WriteString(_m.Category)

@@ -32,8 +32,11 @@ type feedApp struct {
 	ID               int                      `json:"id"`
 	PackageID        string                   `json:"packageId"`
 	Name             string                   `json:"name"`
+	NameI18n         map[string]string        `json:"nameI18n"`
 	Slug             string                   `json:"slug"`
 	Summary          string                   `json:"summary"`
+	SummaryI18n      map[string]string        `json:"summaryI18n"`
+	DescriptionI18n  map[string]string        `json:"descriptionI18n"`
 	Category         string                   `json:"category"`
 	CategoryI18n     map[string]string        `json:"categoryI18n"`
 	IconURL          string                   `json:"iconUrl"`
@@ -163,8 +166,11 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 			SetExternalID(strconv.Itoa(app.ID)).
 			SetPackageID(app.PackageID).
 			SetName(app.Name).
+			SetNameI18nJSON(catalogmeta.EncodeLocalizedText(app.NameI18n)).
 			SetSlug(app.Slug).
 			SetSummary(app.Summary).
+			SetSummaryI18nJSON(catalogmeta.EncodeLocalizedText(app.SummaryI18n)).
+			SetDescriptionI18nJSON(catalogmeta.EncodeLocalizedText(app.DescriptionI18n)).
 			SetCategory(app.Category).
 			SetCategoryI18nJSON(catalogmeta.EncodeLocalizedText(app.CategoryI18n)).
 			SetIconURL(app.IconURL).

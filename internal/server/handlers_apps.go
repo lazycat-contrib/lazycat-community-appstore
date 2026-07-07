@@ -130,24 +130,27 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 }
 
 type createAppJSON struct {
-	Name                      string   `json:"name"`
-	PackageID                 string   `json:"packageId"`
-	Slug                      string   `json:"slug"`
-	Summary                   string   `json:"summary"`
-	Description               string   `json:"description"`
-	IconURL                   string   `json:"iconUrl"`
-	CategoryID                *int     `json:"categoryId"`
-	Tags                      []string `json:"tags"`
-	AllowUnreviewedUpdates    bool     `json:"allowUnreviewedUpdates"`
-	CommentsEnabled           *bool    `json:"commentsEnabled"`
-	EmailNotificationsEnabled *bool    `json:"emailNotificationsEnabled"`
-	InstallPassword           string   `json:"installPassword"`
-	Version                   string   `json:"version"`
-	Changelog                 string   `json:"changelog"`
-	DownloadURL               string   `json:"downloadUrl"`
-	SourceType                string   `json:"sourceType"`
-	SHA256                    string   `json:"sha256"`
-	UseMirrorDownload         bool     `json:"useMirrorDownload"`
+	Name                      string            `json:"name"`
+	NameI18n                  map[string]string `json:"nameI18n"`
+	PackageID                 string            `json:"packageId"`
+	Slug                      string            `json:"slug"`
+	Summary                   string            `json:"summary"`
+	SummaryI18n               map[string]string `json:"summaryI18n"`
+	Description               string            `json:"description"`
+	DescriptionI18n           map[string]string `json:"descriptionI18n"`
+	IconURL                   string            `json:"iconUrl"`
+	CategoryID                *int              `json:"categoryId"`
+	Tags                      []string          `json:"tags"`
+	AllowUnreviewedUpdates    bool              `json:"allowUnreviewedUpdates"`
+	CommentsEnabled           *bool             `json:"commentsEnabled"`
+	EmailNotificationsEnabled *bool             `json:"emailNotificationsEnabled"`
+	InstallPassword           string            `json:"installPassword"`
+	Version                   string            `json:"version"`
+	Changelog                 string            `json:"changelog"`
+	DownloadURL               string            `json:"downloadUrl"`
+	SourceType                string            `json:"sourceType"`
+	SHA256                    string            `json:"sha256"`
+	UseMirrorDownload         bool              `json:"useMirrorDownload"`
 }
 
 type updateAppJSON struct {
@@ -310,9 +313,12 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 		SetOwnerID(u.ID).
 		SetPackageID(packageID).
 		SetName(name).
+		SetNameI18nJSON(catalogmeta.EncodeLocalizedText(input.NameI18n)).
 		SetSlug(slug).
 		SetSummary(input.Summary).
+		SetSummaryI18nJSON(catalogmeta.EncodeLocalizedText(input.SummaryI18n)).
 		SetDescription(input.Description).
+		SetDescriptionI18nJSON(catalogmeta.EncodeLocalizedText(input.DescriptionI18n)).
 		SetStatus(status).
 		SetAllowUnreviewedUpdates(input.AllowUnreviewedUpdates).
 		SetCommentsEnabled(commentsEnabled).
@@ -592,6 +598,9 @@ func (s *Server) handleCreateVersion(w http.ResponseWriter, r *http.Request, u *
 		writeError(w, http.StatusUnprocessableEntity, "VERSION_CREATE_FAILED", err.Error(), nil)
 		return
 	}
+	if created.Status == appversion.StatusAPPROVED && inspected.Metadata.PackageID != "" {
+		_ = s.updateAppFromApprovedLPKMetadata(r, record.ID, inspected.Metadata)
+	}
 	writeJSON(w, http.StatusCreated, map[string]any{"version": toVersionDTO(created)})
 }
 
@@ -657,7 +666,7 @@ func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *e
 			SetRequesterID(u.ID).
 			Save(r.Context())
 	} else {
-		_ = s.db.App.UpdateOneID(record.ID).SetStatus(app.StatusAPPROVED).SaveX(r.Context())
+		_ = s.updateAppFromApprovedLPKMetadata(r, record.ID, meta)
 		s.clearAppOutdatedMarks(r, record.ID)
 		s.enforceVersionRetention(r, record.ID)
 	}
@@ -727,6 +736,31 @@ func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *e
 	return created, nil
 }
 
+func (s *Server) updateAppFromApprovedLPKMetadata(r *http.Request, appID int, meta lpkmeta.Metadata) error {
+	update := s.db.App.UpdateOneID(appID).SetStatus(app.StatusAPPROVED)
+	if !meta.NameI18n.IsZero() {
+		update.SetNameI18nJSON(catalogmeta.EncodeLocalizedText(meta.NameI18n))
+	}
+	if !meta.DescriptionI18n.IsZero() {
+		update.SetDescriptionI18nJSON(catalogmeta.EncodeLocalizedText(meta.DescriptionI18n))
+		summaryI18n := packageSummaryI18n(meta.DescriptionI18n)
+		if !summaryI18n.IsZero() {
+			update.SetSummaryI18nJSON(catalogmeta.EncodeLocalizedText(summaryI18n))
+		}
+	}
+	if strings.TrimSpace(meta.Name) != "" {
+		update.SetName(meta.Name)
+	}
+	if strings.TrimSpace(meta.Description) != "" {
+		update.SetDescription(meta.Description)
+		if summary := packageSummary(meta.Description); summary != "" {
+			update.SetSummary(summary)
+		}
+	}
+	_, err := update.Save(r.Context())
+	return err
+}
+
 func appInputNeedsLPKInspection(input createAppJSON) bool {
 	return strings.TrimSpace(input.PackageID) == "" ||
 		strings.TrimSpace(input.Name) == "" ||
@@ -751,11 +785,20 @@ func applyAppMetadata(input *createAppJSON, meta lpkmeta.Metadata) error {
 			input.Name = packageDisplayName(meta.PackageID)
 		}
 	}
+	if catalogmeta.LocalizedText(input.NameI18n).IsZero() {
+		input.NameI18n = meta.NameI18n
+	}
 	if input.Summary == "" {
 		input.Summary = packageSummary(meta.Description)
 	}
+	if catalogmeta.LocalizedText(input.SummaryI18n).IsZero() {
+		input.SummaryI18n = packageSummaryI18n(meta.DescriptionI18n)
+	}
 	if input.Description == "" {
 		input.Description = meta.Description
+	}
+	if catalogmeta.LocalizedText(input.DescriptionI18n).IsZero() {
+		input.DescriptionI18n = meta.DescriptionI18n
 	}
 	if input.Version == "" {
 		input.Version = meta.Version
@@ -786,6 +829,17 @@ func packageSummary(description string) string {
 		return line
 	}
 	return strings.TrimSpace(string(runes[:117])) + "..."
+}
+
+func packageSummaryI18n(values catalogmeta.LocalizedText) catalogmeta.LocalizedText {
+	out := catalogmeta.LocalizedText{}
+	for key, value := range catalogmeta.CleanLocalizedText(values) {
+		summary := packageSummary(value)
+		if summary != "" {
+			out[key] = summary
+		}
+	}
+	return out
 }
 
 func isSHA256Hex(value string) bool {
@@ -832,9 +886,12 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 		CategoryID:                record.CategoryID,
 		PackageID:                 record.PackageID,
 		Name:                      record.Name,
+		NameI18n:                  catalogmeta.DecodeLocalizedText(record.NameI18nJSON),
 		Slug:                      record.Slug,
 		Summary:                   record.Summary,
+		SummaryI18n:               catalogmeta.DecodeLocalizedText(record.SummaryI18nJSON),
 		Description:               record.Description,
+		DescriptionI18n:           catalogmeta.DecodeLocalizedText(record.DescriptionI18nJSON),
 		IconURL:                   record.IconURL,
 		Status:                    string(record.Status),
 		AllowUnreviewedUpdates:    record.AllowUnreviewedUpdates,

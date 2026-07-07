@@ -38,9 +38,12 @@ type AppInput struct {
 	ID               int                      `json:"id"`
 	PackageID        string                   `json:"packageId"`
 	Name             string                   `json:"name"`
+	NameI18n         map[string]string        `json:"nameI18n,omitempty"`
 	Slug             string                   `json:"slug"`
 	Summary          string                   `json:"summary"`
+	SummaryI18n      map[string]string        `json:"summaryI18n,omitempty"`
 	Description      string                   `json:"description"`
+	DescriptionI18n  map[string]string        `json:"descriptionI18n,omitempty"`
 	IconURL          string                   `json:"iconUrl,omitempty"`
 	Category         string                   `json:"category,omitempty"`
 	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`
@@ -80,9 +83,12 @@ type App struct {
 	ID               int                      `json:"id"`
 	PackageID        string                   `json:"packageId"`
 	Name             string                   `json:"name"`
+	NameI18n         map[string]string        `json:"nameI18n,omitempty"`
 	Slug             string                   `json:"slug"`
 	Summary          string                   `json:"summary"`
+	SummaryI18n      map[string]string        `json:"summaryI18n,omitempty"`
 	Description      string                   `json:"description"`
+	DescriptionI18n  map[string]string        `json:"descriptionI18n,omitempty"`
 	IconURL          string                   `json:"iconUrl,omitempty"`
 	Category         string                   `json:"category,omitempty"`
 	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`
@@ -143,9 +149,12 @@ func BuildIndex(input Input) Index {
 			ID:               inApp.ID,
 			PackageID:        inApp.PackageID,
 			Name:             inApp.Name,
+			NameI18n:         inApp.NameI18n,
 			Slug:             inApp.Slug,
 			Summary:          inApp.Summary,
+			SummaryI18n:      inApp.SummaryI18n,
 			Description:      inApp.Description,
+			DescriptionI18n:  inApp.DescriptionI18n,
 			IconURL:          inApp.IconURL,
 			Category:         inApp.Category,
 			CategoryI18n:     inApp.CategoryI18n,

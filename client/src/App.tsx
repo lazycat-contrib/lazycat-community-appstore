@@ -72,6 +72,9 @@ import {
   findInstalledApplication,
   hasInstallableVersion,
   isSourceStale,
+  localizedAppDescription,
+  localizedAppName,
+  localizedAppSummary,
   runAction,
   selectedSourceVersion,
   shortSHA,
@@ -601,14 +604,17 @@ export function App() {
       const queryMatch =
         needle === '' ||
         app.name.toLowerCase().includes(needle) ||
+        localizedAppName(app).toLowerCase().includes(needle) ||
         app.summary.toLowerCase().includes(needle) ||
+        localizedAppSummary(app).toLowerCase().includes(needle) ||
+        localizedAppDescription(app).toLowerCase().includes(needle) ||
         app.owner.toLowerCase().includes(needle) ||
         app.tags.join(' ').toLowerCase().includes(needle);
       return categoryMatch && submitterMatch && queryMatch;
     });
     return [...filtered].sort((a, b) => {
       if (sortMode === 'downloads') return b.downloadCount - a.downloadCount;
-      if (sortMode === 'name') return a.name.localeCompare(b.name);
+      if (sortMode === 'name') return localizedAppName(a).localeCompare(localizedAppName(b));
       return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
     });
   }, [storeApps, activeCategory, activeSubmitter, query, sortMode]);
@@ -640,6 +646,7 @@ export function App() {
   async function installApp(app: StoreApp | SourceApp, options: InstallOptions = {}) {
     const isSourceApp = 'sourceName' in app;
     const version = isSourceApp ? selectedSourceVersion(app, options.version) : app.latestVersion;
+    const appName = localizedAppName(app);
     if (!version) {
       setToast({ tone: 'error', message: t('toast.noInstallableVersion') });
       return;
@@ -656,7 +663,7 @@ export function App() {
       const source = isSourceApp ? app.sourceName : t('search.localStore');
       const checksum = version.sha256 ? shortSHA(version.sha256) : t('app.checksumMissing');
       setInstallActivity({
-        title: `${app.name} ${version.version}`,
+        title: `${appName} ${version.version}`,
         source,
         checksum,
         status: 'running',
@@ -665,7 +672,7 @@ export function App() {
       });
       await new Promise((resolve) => window.setTimeout(resolve, 180));
       setInstallActivity((current) =>
-        current && current.title === `${app.name} ${version.version}`
+        current && current.title === `${appName} ${version.version}`
           ? { ...current, progress: 42, stageKey: version.sha256 ? 'installActivity.stageVerify' : 'installActivity.stageHandoff' }
           : current,
       );
@@ -692,7 +699,7 @@ export function App() {
             });
       const success = result.mode === 'lazycat-go-sdk' || result.mode === 'download';
       setInstallActivity({
-        title: `${app.name} ${version.version}`,
+        title: `${appName} ${version.version}`,
         source,
         checksum,
         status: success ? 'success' : 'error',

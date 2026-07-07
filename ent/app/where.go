@@ -74,6 +74,11 @@ func Name(v string) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldName, v))
 }
 
+// NameI18nJSON applies equality check predicate on the "name_i18n_json" field. It's identical to NameI18nJSONEQ.
+func NameI18nJSON(v string) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldNameI18nJSON, v))
+}
+
 // Slug applies equality check predicate on the "slug" field. It's identical to SlugEQ.
 func Slug(v string) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldSlug, v))
@@ -84,9 +89,19 @@ func Summary(v string) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldSummary, v))
 }
 
+// SummaryI18nJSON applies equality check predicate on the "summary_i18n_json" field. It's identical to SummaryI18nJSONEQ.
+func SummaryI18nJSON(v string) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldSummaryI18nJSON, v))
+}
+
 // Description applies equality check predicate on the "description" field. It's identical to DescriptionEQ.
 func Description(v string) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldDescription, v))
+}
+
+// DescriptionI18nJSON applies equality check predicate on the "description_i18n_json" field. It's identical to DescriptionI18nJSONEQ.
+func DescriptionI18nJSON(v string) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldDescriptionI18nJSON, v))
 }
 
 // IconURL applies equality check predicate on the "icon_url" field. It's identical to IconURLEQ.
@@ -349,6 +364,71 @@ func NameContainsFold(v string) predicate.App {
 	return predicate.App(sql.FieldContainsFold(FieldName, v))
 }
 
+// NameI18nJSONEQ applies the EQ predicate on the "name_i18n_json" field.
+func NameI18nJSONEQ(v string) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldNameI18nJSON, v))
+}
+
+// NameI18nJSONNEQ applies the NEQ predicate on the "name_i18n_json" field.
+func NameI18nJSONNEQ(v string) predicate.App {
+	return predicate.App(sql.FieldNEQ(FieldNameI18nJSON, v))
+}
+
+// NameI18nJSONIn applies the In predicate on the "name_i18n_json" field.
+func NameI18nJSONIn(vs ...string) predicate.App {
+	return predicate.App(sql.FieldIn(FieldNameI18nJSON, vs...))
+}
+
+// NameI18nJSONNotIn applies the NotIn predicate on the "name_i18n_json" field.
+func NameI18nJSONNotIn(vs ...string) predicate.App {
+	return predicate.App(sql.FieldNotIn(FieldNameI18nJSON, vs...))
+}
+
+// NameI18nJSONGT applies the GT predicate on the "name_i18n_json" field.
+func NameI18nJSONGT(v string) predicate.App {
+	return predicate.App(sql.FieldGT(FieldNameI18nJSON, v))
+}
+
+// NameI18nJSONGTE applies the GTE predicate on the "name_i18n_json" field.
+func NameI18nJSONGTE(v string) predicate.App {
+	return predicate.App(sql.FieldGTE(FieldNameI18nJSON, v))
+}
+
+// NameI18nJSONLT applies the LT predicate on the "name_i18n_json" field.
+func NameI18nJSONLT(v string) predicate.App {
+	return predicate.App(sql.FieldLT(FieldNameI18nJSON, v))
+}
+
+// NameI18nJSONLTE applies the LTE predicate on the "name_i18n_json" field.
+func NameI18nJSONLTE(v string) predicate.App {
+	return predicate.App(sql.FieldLTE(FieldNameI18nJSON, v))
+}
+
+// NameI18nJSONContains applies the Contains predicate on the "name_i18n_json" field.
+func NameI18nJSONContains(v string) predicate.App {
+	return predicate.App(sql.FieldContains(FieldNameI18nJSON, v))
+}
+
+// NameI18nJSONHasPrefix applies the HasPrefix predicate on the "name_i18n_json" field.
+func NameI18nJSONHasPrefix(v string) predicate.App {
+	return predicate.App(sql.FieldHasPrefix(FieldNameI18nJSON, v))
+}
+
+// NameI18nJSONHasSuffix applies the HasSuffix predicate on the "name_i18n_json" field.
+func NameI18nJSONHasSuffix(v string) predicate.App {
+	return predicate.App(sql.FieldHasSuffix(FieldNameI18nJSON, v))
+}
+
+// NameI18nJSONEqualFold applies the EqualFold predicate on the "name_i18n_json" field.
+func NameI18nJSONEqualFold(v string) predicate.App {
+	return predicate.App(sql.FieldEqualFold(FieldNameI18nJSON, v))
+}
+
+// NameI18nJSONContainsFold applies the ContainsFold predicate on the "name_i18n_json" field.
+func NameI18nJSONContainsFold(v string) predicate.App {
+	return predicate.App(sql.FieldContainsFold(FieldNameI18nJSON, v))
+}
+
 // SlugEQ applies the EQ predicate on the "slug" field.
 func SlugEQ(v string) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldSlug, v))
@@ -479,6 +559,71 @@ func SummaryContainsFold(v string) predicate.App {
 	return predicate.App(sql.FieldContainsFold(FieldSummary, v))
 }
 
+// SummaryI18nJSONEQ applies the EQ predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONEQ(v string) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldSummaryI18nJSON, v))
+}
+
+// SummaryI18nJSONNEQ applies the NEQ predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONNEQ(v string) predicate.App {
+	return predicate.App(sql.FieldNEQ(FieldSummaryI18nJSON, v))
+}
+
+// SummaryI18nJSONIn applies the In predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONIn(vs ...string) predicate.App {
+	return predicate.App(sql.FieldIn(FieldSummaryI18nJSON, vs...))
+}
+
+// SummaryI18nJSONNotIn applies the NotIn predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONNotIn(vs ...string) predicate.App {
+	return predicate.App(sql.FieldNotIn(FieldSummaryI18nJSON, vs...))
+}
+
+// SummaryI18nJSONGT applies the GT predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONGT(v string) predicate.App {
+	return predicate.App(sql.FieldGT(FieldSummaryI18nJSON, v))
+}
+
+// SummaryI18nJSONGTE applies the GTE predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONGTE(v string) predicate.App {
+	return predicate.App(sql.FieldGTE(FieldSummaryI18nJSON, v))
+}
+
+// SummaryI18nJSONLT applies the LT predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONLT(v string) predicate.App {
+	return predicate.App(sql.FieldLT(FieldSummaryI18nJSON, v))
+}
+
+// SummaryI18nJSONLTE applies the LTE predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONLTE(v string) predicate.App {
+	return predicate.App(sql.FieldLTE(FieldSummaryI18nJSON, v))
+}
+
+// SummaryI18nJSONContains applies the Contains predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONContains(v string) predicate.App {
+	return predicate.App(sql.FieldContains(FieldSummaryI18nJSON, v))
+}
+
+// SummaryI18nJSONHasPrefix applies the HasPrefix predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONHasPrefix(v string) predicate.App {
+	return predicate.App(sql.FieldHasPrefix(FieldSummaryI18nJSON, v))
+}
+
+// SummaryI18nJSONHasSuffix applies the HasSuffix predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONHasSuffix(v string) predicate.App {
+	return predicate.App(sql.FieldHasSuffix(FieldSummaryI18nJSON, v))
+}
+
+// SummaryI18nJSONEqualFold applies the EqualFold predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONEqualFold(v string) predicate.App {
+	return predicate.App(sql.FieldEqualFold(FieldSummaryI18nJSON, v))
+}
+
+// SummaryI18nJSONContainsFold applies the ContainsFold predicate on the "summary_i18n_json" field.
+func SummaryI18nJSONContainsFold(v string) predicate.App {
+	return predicate.App(sql.FieldContainsFold(FieldSummaryI18nJSON, v))
+}
+
 // DescriptionEQ applies the EQ predicate on the "description" field.
 func DescriptionEQ(v string) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldDescription, v))
@@ -542,6 +687,71 @@ func DescriptionEqualFold(v string) predicate.App {
 // DescriptionContainsFold applies the ContainsFold predicate on the "description" field.
 func DescriptionContainsFold(v string) predicate.App {
 	return predicate.App(sql.FieldContainsFold(FieldDescription, v))
+}
+
+// DescriptionI18nJSONEQ applies the EQ predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONEQ(v string) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldDescriptionI18nJSON, v))
+}
+
+// DescriptionI18nJSONNEQ applies the NEQ predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONNEQ(v string) predicate.App {
+	return predicate.App(sql.FieldNEQ(FieldDescriptionI18nJSON, v))
+}
+
+// DescriptionI18nJSONIn applies the In predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONIn(vs ...string) predicate.App {
+	return predicate.App(sql.FieldIn(FieldDescriptionI18nJSON, vs...))
+}
+
+// DescriptionI18nJSONNotIn applies the NotIn predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONNotIn(vs ...string) predicate.App {
+	return predicate.App(sql.FieldNotIn(FieldDescriptionI18nJSON, vs...))
+}
+
+// DescriptionI18nJSONGT applies the GT predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONGT(v string) predicate.App {
+	return predicate.App(sql.FieldGT(FieldDescriptionI18nJSON, v))
+}
+
+// DescriptionI18nJSONGTE applies the GTE predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONGTE(v string) predicate.App {
+	return predicate.App(sql.FieldGTE(FieldDescriptionI18nJSON, v))
+}
+
+// DescriptionI18nJSONLT applies the LT predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONLT(v string) predicate.App {
+	return predicate.App(sql.FieldLT(FieldDescriptionI18nJSON, v))
+}
+
+// DescriptionI18nJSONLTE applies the LTE predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONLTE(v string) predicate.App {
+	return predicate.App(sql.FieldLTE(FieldDescriptionI18nJSON, v))
+}
+
+// DescriptionI18nJSONContains applies the Contains predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONContains(v string) predicate.App {
+	return predicate.App(sql.FieldContains(FieldDescriptionI18nJSON, v))
+}
+
+// DescriptionI18nJSONHasPrefix applies the HasPrefix predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONHasPrefix(v string) predicate.App {
+	return predicate.App(sql.FieldHasPrefix(FieldDescriptionI18nJSON, v))
+}
+
+// DescriptionI18nJSONHasSuffix applies the HasSuffix predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONHasSuffix(v string) predicate.App {
+	return predicate.App(sql.FieldHasSuffix(FieldDescriptionI18nJSON, v))
+}
+
+// DescriptionI18nJSONEqualFold applies the EqualFold predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONEqualFold(v string) predicate.App {
+	return predicate.App(sql.FieldEqualFold(FieldDescriptionI18nJSON, v))
+}
+
+// DescriptionI18nJSONContainsFold applies the ContainsFold predicate on the "description_i18n_json" field.
+func DescriptionI18nJSONContainsFold(v string) predicate.App {
+	return predicate.App(sql.FieldContainsFold(FieldDescriptionI18nJSON, v))
 }
 
 // IconURLEQ applies the EQ predicate on the "icon_url" field.

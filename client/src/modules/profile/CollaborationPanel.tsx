@@ -9,7 +9,7 @@ import { AppIcon } from '../../components/AppIcon';
 import { api } from '../../shared/api';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import type { CollaborationData, CollaboratorInvite, CollaboratorRequest, OwnedCollaboration, StoreApp, Toast, User } from '../../shared/types';
-import { cx, formatDate, runAction, statusKey } from '../../shared/utils';
+import { cx, formatDate, localizedAppName, runAction, statusKey } from '../../shared/utils';
 
 type AppDetailMode = 'detail' | 'manage';
 
@@ -116,19 +116,22 @@ export function CollaborationPanel({
           {data.collaborating.length === 0 ? (
             <EmptyState icon={Users} title={t('profile.noCollaboratingApps')} />
           ) : (
-            data.collaborating.map((item) => (
-              <div className="review-row collaboration-row" key={item.id}>
-                <div>
-                  <strong>{item.name}</strong>
-                  <span>{item.owner} · {item.latestVersion?.version || t('app.noPublishedVersion')}</span>
+            data.collaborating.map((item) => {
+              const appName = localizedAppName(item);
+              return (
+                <div className="review-row collaboration-row" key={item.id}>
+                  <div>
+                    <strong>{appName}</strong>
+                    <span>{item.owner} · {item.latestVersion?.version || t('app.noPublishedVersion')}</span>
+                  </div>
+                  <div className="row-actions">
+                    <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
+                    <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
+                    <XIconButton className="fixed-row-icon-button" type="button" variant="destructive" size="sm" label={t('profile.leaveCollaboration')} tooltip={t('profile.leaveCollaboration')} icon={<LogOut size={17} />} onClick={() => void removeCollaborator(item.id, currentUser.id, true)} />
+                  </div>
                 </div>
-                <div className="row-actions">
-                  <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('profile.openSubmission')} tooltip={t('profile.openSubmission')} icon={<ChevronRight size={17} />} onClick={() => void onOpen(item)} />
-                  <XIconButton className="fixed-row-icon-button" type="button" variant="secondary" size="sm" label={t('profile.manageApp')} tooltip={t('profile.manageApp')} icon={<Settings size={17} />} onClick={() => void onOpen(item, 'manage')} />
-                  <XIconButton className="fixed-row-icon-button" type="button" variant="destructive" size="sm" label={t('profile.leaveCollaboration')} tooltip={t('profile.leaveCollaboration')} icon={<LogOut size={17} />} onClick={() => void removeCollaborator(item.id, currentUser.id, true)} />
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </section>
@@ -141,13 +144,14 @@ export function CollaborationPanel({
           ) : (
             ownedCollaboration.map((item) => {
               const inviteDraft = inviteDrafts[item.app.id] || { email: '', sendEmail: false };
+              const appName = localizedAppName(item.app);
               return (
                 <article className="nested-panel collaboration-app-panel" key={item.app.id}>
                   <div className="section-title with-action">
                     <div>
-                      <AppIcon src={item.app.iconUrl} seed={item.app.packageId || item.app.slug || item.app.name} title={item.app.name} size={36} />
+                      <AppIcon src={item.app.iconUrl} seed={item.app.packageId || item.app.slug || item.app.name} title={appName} size={36} />
                       <div>
-                        <h3>{item.app.name}</h3>
+                        <h3>{appName}</h3>
                         <span>{item.app.latestVersion?.version || t('app.noPublishedVersion')}</span>
                       </div>
                     </div>

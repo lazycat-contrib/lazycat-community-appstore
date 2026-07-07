@@ -44,9 +44,12 @@ var (
 		{Name: "category_id", Type: field.TypeInt, Nullable: true},
 		{Name: "package_id", Type: field.TypeString, Unique: true},
 		{Name: "name", Type: field.TypeString},
+		{Name: "name_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "slug", Type: field.TypeString, Unique: true},
 		{Name: "summary", Type: field.TypeString, Default: ""},
+		{Name: "summary_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "description", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "description_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "icon_url", Type: field.TypeString, Nullable: true},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"DRAFT", "PENDING", "APPROVED", "REJECTED", "UNLISTED"}, Default: "PENDING"},
 		{Name: "allow_unreviewed_updates", Type: field.TypeBool, Default: false},
@@ -76,7 +79,7 @@ var (
 			{
 				Name:    "app_status",
 				Unique:  false,
-				Columns: []*schema.Column{AppsColumns[9]},
+				Columns: []*schema.Column{AppsColumns[12]},
 			},
 		},
 	}
@@ -329,8 +332,11 @@ var (
 		{Name: "external_id", Type: field.TypeString, Default: ""},
 		{Name: "package_id", Type: field.TypeString},
 		{Name: "name", Type: field.TypeString},
+		{Name: "name_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "slug", Type: field.TypeString},
 		{Name: "summary", Type: field.TypeString, Default: ""},
+		{Name: "summary_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
+		{Name: "description_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "category", Type: field.TypeString, Default: ""},
 		{Name: "category_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "icon_url", Type: field.TypeString, Default: ""},
@@ -352,7 +358,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "client_source_apps_client_sources_apps",
-				Columns:    []*schema.Column{ClientSourceAppsColumns[17]},
+				Columns:    []*schema.Column{ClientSourceAppsColumns[20]},
 				RefColumns: []*schema.Column{ClientSourcesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -361,17 +367,17 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_package_id",
 				Unique:  true,
-				Columns: []*schema.Column{ClientSourceAppsColumns[17], ClientSourceAppsColumns[2]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[20], ClientSourceAppsColumns[2]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_slug",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[17], ClientSourceAppsColumns[4]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[20], ClientSourceAppsColumns[5]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[17], ClientSourceAppsColumns[16]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[20], ClientSourceAppsColumns[19]},
 			},
 		},
 	}

@@ -20,6 +20,9 @@ import {
   findInstalledApplication,
   hasInstallableVersion,
   isSourceAppUpdateAvailable,
+  localizedAppDescription,
+  localizedAppName,
+  localizedAppSummary,
   localizedCategory,
   selectedSourceVersion,
   sourceForApp,
@@ -57,7 +60,16 @@ export function ClientCatalog({
   const sourceNeedle = query.trim().toLowerCase();
   const searchableSourceApps = sourceApps.filter((app) => {
     if (!sourceNeedle) return true;
-    return [app.name, app.summary, app.category, localizedCategory(app), app.sourceName].filter(Boolean).join(' ').toLowerCase().includes(sourceNeedle);
+    return [
+      app.name,
+      localizedAppName(app),
+      app.summary,
+      localizedAppSummary(app),
+      localizedAppDescription(app),
+      app.category,
+      localizedCategory(app),
+      app.sourceName,
+    ].filter(Boolean).join(' ').toLowerCase().includes(sourceNeedle);
   });
   const sourceOptions = sourceAppSourceOptions(searchableSourceApps);
   const categoryOptions = sourceAppCategoryOptions(searchableSourceApps, t('common.uncategorized'));

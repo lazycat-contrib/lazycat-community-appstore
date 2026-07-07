@@ -31,9 +31,12 @@ export type StoreApp = {
   packageId?: string;
   categoryId?: number;
   name: string;
+  nameI18n?: Record<string, string>;
   slug: string;
   summary: string;
+  summaryI18n?: Record<string, string>;
   description: string;
+  descriptionI18n?: Record<string, string>;
   iconUrl?: string;
   status: string;
   category?: string;
@@ -291,8 +294,11 @@ export type SourceApp = {
   externalId?: string;
   packageId?: string;
   name: string;
+  nameI18n?: Record<string, string>;
   slug: string;
   summary: string;
+  summaryI18n?: Record<string, string>;
+  descriptionI18n?: Record<string, string>;
   category?: string;
   categoryI18n?: Record<string, string>;
   iconUrl?: string;

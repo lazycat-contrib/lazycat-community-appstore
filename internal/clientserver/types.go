@@ -54,8 +54,11 @@ type SourceAppDTO struct {
 	ExternalID       string                   `json:"externalId"`
 	PackageID        string                   `json:"packageId"`
 	Name             string                   `json:"name"`
+	NameI18n         map[string]string        `json:"nameI18n,omitempty"`
 	Slug             string                   `json:"slug"`
 	Summary          string                   `json:"summary"`
+	SummaryI18n      map[string]string        `json:"summaryI18n,omitempty"`
+	DescriptionI18n  map[string]string        `json:"descriptionI18n,omitempty"`
 	Category         string                   `json:"category,omitempty"`
 	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`
 	IconURL          string                   `json:"iconUrl,omitempty"`

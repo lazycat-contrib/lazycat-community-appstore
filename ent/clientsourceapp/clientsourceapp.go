@@ -22,10 +22,16 @@ const (
 	FieldPackageID = "package_id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldNameI18nJSON holds the string denoting the name_i18n_json field in the database.
+	FieldNameI18nJSON = "name_i18n_json"
 	// FieldSlug holds the string denoting the slug field in the database.
 	FieldSlug = "slug"
 	// FieldSummary holds the string denoting the summary field in the database.
 	FieldSummary = "summary"
+	// FieldSummaryI18nJSON holds the string denoting the summary_i18n_json field in the database.
+	FieldSummaryI18nJSON = "summary_i18n_json"
+	// FieldDescriptionI18nJSON holds the string denoting the description_i18n_json field in the database.
+	FieldDescriptionI18nJSON = "description_i18n_json"
 	// FieldCategory holds the string denoting the category field in the database.
 	FieldCategory = "category"
 	// FieldCategoryI18nJSON holds the string denoting the category_i18n_json field in the database.
@@ -68,8 +74,11 @@ var Columns = []string{
 	FieldExternalID,
 	FieldPackageID,
 	FieldName,
+	FieldNameI18nJSON,
 	FieldSlug,
 	FieldSummary,
+	FieldSummaryI18nJSON,
+	FieldDescriptionI18nJSON,
 	FieldCategory,
 	FieldCategoryI18nJSON,
 	FieldIconURL,
@@ -100,10 +109,16 @@ var (
 	PackageIDValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultNameI18nJSON holds the default value on creation for the "name_i18n_json" field.
+	DefaultNameI18nJSON string
 	// SlugValidator is a validator for the "slug" field. It is called by the builders before save.
 	SlugValidator func(string) error
 	// DefaultSummary holds the default value on creation for the "summary" field.
 	DefaultSummary string
+	// DefaultSummaryI18nJSON holds the default value on creation for the "summary_i18n_json" field.
+	DefaultSummaryI18nJSON string
+	// DefaultDescriptionI18nJSON holds the default value on creation for the "description_i18n_json" field.
+	DefaultDescriptionI18nJSON string
 	// DefaultCategory holds the default value on creation for the "category" field.
 	DefaultCategory string
 	// DefaultCategoryI18nJSON holds the default value on creation for the "category_i18n_json" field.
@@ -158,6 +173,11 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
 }
 
+// ByNameI18nJSON orders the results by the name_i18n_json field.
+func ByNameI18nJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNameI18nJSON, opts...).ToFunc()
+}
+
 // BySlug orders the results by the slug field.
 func BySlug(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSlug, opts...).ToFunc()
@@ -166,6 +186,16 @@ func BySlug(opts ...sql.OrderTermOption) OrderOption {
 // BySummary orders the results by the summary field.
 func BySummary(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSummary, opts...).ToFunc()
+}
+
+// BySummaryI18nJSON orders the results by the summary_i18n_json field.
+func BySummaryI18nJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSummaryI18nJSON, opts...).ToFunc()
+}
+
+// ByDescriptionI18nJSON orders the results by the description_i18n_json field.
+func ByDescriptionI18nJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDescriptionI18nJSON, opts...).ToFunc()
 }
 
 // ByCategory orders the results by the category field.

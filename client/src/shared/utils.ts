@@ -60,6 +60,19 @@ export function localizedName(record: { name: string; nameI18n?: Record<string, 
   return localizedText(record.nameI18n, record.name);
 }
 
+export function localizedAppName(app: StoreApp | SourceApp) {
+  return localizedText(app.nameI18n, app.name);
+}
+
+export function localizedAppSummary(app: StoreApp | SourceApp, fallback = '') {
+  return localizedText(app.summaryI18n, app.summary || fallback);
+}
+
+export function localizedAppDescription(app: StoreApp | SourceApp, fallback = '') {
+  const description = 'description' in app ? app.description : '';
+  return localizedText(app.descriptionI18n, description || fallback);
+}
+
 export function localizedText(values?: Record<string, string>, fallback = '') {
   const language = (i18n.resolvedLanguage || i18n.language || '').toLowerCase();
   const candidates = language.startsWith('zh') ? ['zh-CN', 'zh_Hans', 'zh', 'en'] : ['en', 'zh-CN', 'zh_Hans', 'zh'];

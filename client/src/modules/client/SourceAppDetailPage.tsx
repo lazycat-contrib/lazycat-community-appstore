@@ -11,7 +11,20 @@ import { clientApi } from '../../shared/api';
 import { EmptyState } from '../../shared/components/Feedback';
 import { orderedScreenshots, screenshotDeviceLabel, usePreferredScreenshotDevice } from '../../shared/screenshotHelpers';
 import type { Comment, InstalledApplication, SourceApp, Toast } from '../../shared/types';
-import { arrayOrEmpty, cx, errorMessage, formatBytes, hasInstallableVersion, localizedCategory, shortSHA, sourceActionLabel, sourceInstallAction } from '../../shared/utils';
+import {
+  arrayOrEmpty,
+  cx,
+  errorMessage,
+  formatBytes,
+  hasInstallableVersion,
+  localizedAppDescription,
+  localizedAppName,
+  localizedAppSummary,
+  localizedCategory,
+  shortSHA,
+  sourceActionLabel,
+  sourceInstallAction,
+} from '../../shared/utils';
 
 export function SourceAppDetailPage({
   app,
@@ -52,6 +65,8 @@ export function SourceAppDetailPage({
   const latestVersion = app.latestVersion;
   const sourceVersions = app.versions && app.versions.length > 0 ? app.versions : latestVersion ? [latestVersion] : [];
   const sourceScreenshots = orderedScreenshots(app.screenshots, preferredScreenshotDevice);
+  const appName = localizedAppName(app);
+  const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
   const installable = hasInstallableVersion(app);
   const installAction = sourceInstallAction(app, installedMatch);
   const isUpdateAvailable = installAction === 'update';
@@ -170,11 +185,11 @@ export function SourceAppDetailPage({
       <article className="detail-page" aria-labelledby={detailTitleId}>
         <XButton ref={backButtonRef} type="button" variant="secondary" size="sm" label={t('common.back')} icon={<ArrowLeft size={17} />} onClick={onClose} />
         <header className="detail-head">
-          <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={app.name} className="detail-avatar" />
+          <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={appName} className="detail-avatar" />
           <div>
             <span className="eyebrow subtle">{t('sourceDetail.eyebrow')}</span>
-            <h2 id={detailTitleId}>{app.name}</h2>
-            <p>{app.summary || t('common.lpkApp')}</p>
+            <h2 id={detailTitleId}>{appName}</h2>
+            <p>{appSummary}</p>
             <div className="app-meta">
               <span><Cloud size={14} /> {app.sourceName}</span>
               <span><Tag size={14} /> {localizedCategory(app, t('common.uncategorized'))}</span>
@@ -317,9 +332,9 @@ export function SourceAppDetailPage({
             <div className="screenshot-grid">
               {sourceScreenshots.map((shot) => (
                 <figure className="screenshot-item" key={`${shot.deviceType || 'DESKTOP'}-${shot.imageUrl}`}>
-                  <img src={shot.imageUrl} alt={shot.caption || app.name} />
+                  <img src={shot.imageUrl} alt={shot.caption || appName} />
                   <figcaption>
-                    <span>{shot.caption || app.name}</span>
+                    <span>{shot.caption || appName}</span>
                     <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
                   </figcaption>
                 </figure>

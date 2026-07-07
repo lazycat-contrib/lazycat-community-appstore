@@ -25,12 +25,18 @@ type App struct {
 	PackageID string `json:"package_id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
+	// NameI18nJSON holds the value of the "name_i18n_json" field.
+	NameI18nJSON string `json:"name_i18n_json,omitempty"`
 	// Slug holds the value of the "slug" field.
 	Slug string `json:"slug,omitempty"`
 	// Summary holds the value of the "summary" field.
 	Summary string `json:"summary,omitempty"`
+	// SummaryI18nJSON holds the value of the "summary_i18n_json" field.
+	SummaryI18nJSON string `json:"summary_i18n_json,omitempty"`
 	// Description holds the value of the "description" field.
 	Description string `json:"description,omitempty"`
+	// DescriptionI18nJSON holds the value of the "description_i18n_json" field.
+	DescriptionI18nJSON string `json:"description_i18n_json,omitempty"`
 	// IconURL holds the value of the "icon_url" field.
 	IconURL *string `json:"icon_url,omitempty"`
 	// Status holds the value of the "status" field.
@@ -61,7 +67,7 @@ func (*App) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldDownloadCount:
 			values[i] = new(sql.NullInt64)
-		case app.FieldPackageID, app.FieldName, app.FieldSlug, app.FieldSummary, app.FieldDescription, app.FieldIconURL, app.FieldStatus, app.FieldInstallPasswordHash:
+		case app.FieldPackageID, app.FieldName, app.FieldNameI18nJSON, app.FieldSlug, app.FieldSummary, app.FieldSummaryI18nJSON, app.FieldDescription, app.FieldDescriptionI18nJSON, app.FieldIconURL, app.FieldStatus, app.FieldInstallPasswordHash:
 			values[i] = new(sql.NullString)
 		case app.FieldCreatedAt, app.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -111,6 +117,12 @@ func (_m *App) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Name = value.String
 			}
+		case app.FieldNameI18nJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field name_i18n_json", values[i])
+			} else if value.Valid {
+				_m.NameI18nJSON = value.String
+			}
 		case app.FieldSlug:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field slug", values[i])
@@ -123,11 +135,23 @@ func (_m *App) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Summary = value.String
 			}
+		case app.FieldSummaryI18nJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field summary_i18n_json", values[i])
+			} else if value.Valid {
+				_m.SummaryI18nJSON = value.String
+			}
 		case app.FieldDescription:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field description", values[i])
 			} else if value.Valid {
 				_m.Description = value.String
+			}
+		case app.FieldDescriptionI18nJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field description_i18n_json", values[i])
+			} else if value.Valid {
+				_m.DescriptionI18nJSON = value.String
 			}
 		case app.FieldIconURL:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -234,14 +258,23 @@ func (_m *App) String() string {
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
 	builder.WriteString(", ")
+	builder.WriteString("name_i18n_json=")
+	builder.WriteString(_m.NameI18nJSON)
+	builder.WriteString(", ")
 	builder.WriteString("slug=")
 	builder.WriteString(_m.Slug)
 	builder.WriteString(", ")
 	builder.WriteString("summary=")
 	builder.WriteString(_m.Summary)
 	builder.WriteString(", ")
+	builder.WriteString("summary_i18n_json=")
+	builder.WriteString(_m.SummaryI18nJSON)
+	builder.WriteString(", ")
 	builder.WriteString("description=")
 	builder.WriteString(_m.Description)
+	builder.WriteString(", ")
+	builder.WriteString("description_i18n_json=")
+	builder.WriteString(_m.DescriptionI18nJSON)
 	builder.WriteString(", ")
 	if v := _m.IconURL; v != nil {
 		builder.WriteString("icon_url=")

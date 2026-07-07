@@ -85,6 +85,20 @@ func (_u *ClientSourceAppUpdate) SetNillableName(v *string) *ClientSourceAppUpda
 	return _u
 }
 
+// SetNameI18nJSON sets the "name_i18n_json" field.
+func (_u *ClientSourceAppUpdate) SetNameI18nJSON(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetNameI18nJSON(v)
+	return _u
+}
+
+// SetNillableNameI18nJSON sets the "name_i18n_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableNameI18nJSON(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetNameI18nJSON(*v)
+	}
+	return _u
+}
+
 // SetSlug sets the "slug" field.
 func (_u *ClientSourceAppUpdate) SetSlug(v string) *ClientSourceAppUpdate {
 	_u.mutation.SetSlug(v)
@@ -109,6 +123,34 @@ func (_u *ClientSourceAppUpdate) SetSummary(v string) *ClientSourceAppUpdate {
 func (_u *ClientSourceAppUpdate) SetNillableSummary(v *string) *ClientSourceAppUpdate {
 	if v != nil {
 		_u.SetSummary(*v)
+	}
+	return _u
+}
+
+// SetSummaryI18nJSON sets the "summary_i18n_json" field.
+func (_u *ClientSourceAppUpdate) SetSummaryI18nJSON(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetSummaryI18nJSON(v)
+	return _u
+}
+
+// SetNillableSummaryI18nJSON sets the "summary_i18n_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableSummaryI18nJSON(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetSummaryI18nJSON(*v)
+	}
+	return _u
+}
+
+// SetDescriptionI18nJSON sets the "description_i18n_json" field.
+func (_u *ClientSourceAppUpdate) SetDescriptionI18nJSON(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetDescriptionI18nJSON(v)
+	return _u
+}
+
+// SetNillableDescriptionI18nJSON sets the "description_i18n_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableDescriptionI18nJSON(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetDescriptionI18nJSON(*v)
 	}
 	return _u
 }
@@ -362,11 +404,20 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(clientsourceapp.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.NameI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldNameI18nJSON, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Slug(); ok {
 		_spec.SetField(clientsourceapp.FieldSlug, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Summary(); ok {
 		_spec.SetField(clientsourceapp.FieldSummary, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SummaryI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldSummaryI18nJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DescriptionI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldDescriptionI18nJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)
@@ -509,6 +560,20 @@ func (_u *ClientSourceAppUpdateOne) SetNillableName(v *string) *ClientSourceAppU
 	return _u
 }
 
+// SetNameI18nJSON sets the "name_i18n_json" field.
+func (_u *ClientSourceAppUpdateOne) SetNameI18nJSON(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetNameI18nJSON(v)
+	return _u
+}
+
+// SetNillableNameI18nJSON sets the "name_i18n_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableNameI18nJSON(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetNameI18nJSON(*v)
+	}
+	return _u
+}
+
 // SetSlug sets the "slug" field.
 func (_u *ClientSourceAppUpdateOne) SetSlug(v string) *ClientSourceAppUpdateOne {
 	_u.mutation.SetSlug(v)
@@ -533,6 +598,34 @@ func (_u *ClientSourceAppUpdateOne) SetSummary(v string) *ClientSourceAppUpdateO
 func (_u *ClientSourceAppUpdateOne) SetNillableSummary(v *string) *ClientSourceAppUpdateOne {
 	if v != nil {
 		_u.SetSummary(*v)
+	}
+	return _u
+}
+
+// SetSummaryI18nJSON sets the "summary_i18n_json" field.
+func (_u *ClientSourceAppUpdateOne) SetSummaryI18nJSON(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetSummaryI18nJSON(v)
+	return _u
+}
+
+// SetNillableSummaryI18nJSON sets the "summary_i18n_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableSummaryI18nJSON(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetSummaryI18nJSON(*v)
+	}
+	return _u
+}
+
+// SetDescriptionI18nJSON sets the "description_i18n_json" field.
+func (_u *ClientSourceAppUpdateOne) SetDescriptionI18nJSON(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetDescriptionI18nJSON(v)
+	return _u
+}
+
+// SetNillableDescriptionI18nJSON sets the "description_i18n_json" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableDescriptionI18nJSON(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetDescriptionI18nJSON(*v)
 	}
 	return _u
 }
@@ -816,11 +909,20 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(clientsourceapp.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.NameI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldNameI18nJSON, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Slug(); ok {
 		_spec.SetField(clientsourceapp.FieldSlug, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Summary(); ok {
 		_spec.SetField(clientsourceapp.FieldSummary, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SummaryI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldSummaryI18nJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DescriptionI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldDescriptionI18nJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)

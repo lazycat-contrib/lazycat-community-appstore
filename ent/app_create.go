@@ -52,6 +52,20 @@ func (_c *AppCreate) SetName(v string) *AppCreate {
 	return _c
 }
 
+// SetNameI18nJSON sets the "name_i18n_json" field.
+func (_c *AppCreate) SetNameI18nJSON(v string) *AppCreate {
+	_c.mutation.SetNameI18nJSON(v)
+	return _c
+}
+
+// SetNillableNameI18nJSON sets the "name_i18n_json" field if the given value is not nil.
+func (_c *AppCreate) SetNillableNameI18nJSON(v *string) *AppCreate {
+	if v != nil {
+		_c.SetNameI18nJSON(*v)
+	}
+	return _c
+}
+
 // SetSlug sets the "slug" field.
 func (_c *AppCreate) SetSlug(v string) *AppCreate {
 	_c.mutation.SetSlug(v)
@@ -72,6 +86,20 @@ func (_c *AppCreate) SetNillableSummary(v *string) *AppCreate {
 	return _c
 }
 
+// SetSummaryI18nJSON sets the "summary_i18n_json" field.
+func (_c *AppCreate) SetSummaryI18nJSON(v string) *AppCreate {
+	_c.mutation.SetSummaryI18nJSON(v)
+	return _c
+}
+
+// SetNillableSummaryI18nJSON sets the "summary_i18n_json" field if the given value is not nil.
+func (_c *AppCreate) SetNillableSummaryI18nJSON(v *string) *AppCreate {
+	if v != nil {
+		_c.SetSummaryI18nJSON(*v)
+	}
+	return _c
+}
+
 // SetDescription sets the "description" field.
 func (_c *AppCreate) SetDescription(v string) *AppCreate {
 	_c.mutation.SetDescription(v)
@@ -82,6 +110,20 @@ func (_c *AppCreate) SetDescription(v string) *AppCreate {
 func (_c *AppCreate) SetNillableDescription(v *string) *AppCreate {
 	if v != nil {
 		_c.SetDescription(*v)
+	}
+	return _c
+}
+
+// SetDescriptionI18nJSON sets the "description_i18n_json" field.
+func (_c *AppCreate) SetDescriptionI18nJSON(v string) *AppCreate {
+	_c.mutation.SetDescriptionI18nJSON(v)
+	return _c
+}
+
+// SetNillableDescriptionI18nJSON sets the "description_i18n_json" field if the given value is not nil.
+func (_c *AppCreate) SetNillableDescriptionI18nJSON(v *string) *AppCreate {
+	if v != nil {
+		_c.SetDescriptionI18nJSON(*v)
 	}
 	return _c
 }
@@ -247,13 +289,25 @@ func (_c *AppCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *AppCreate) defaults() {
+	if _, ok := _c.mutation.NameI18nJSON(); !ok {
+		v := app.DefaultNameI18nJSON
+		_c.mutation.SetNameI18nJSON(v)
+	}
 	if _, ok := _c.mutation.Summary(); !ok {
 		v := app.DefaultSummary
 		_c.mutation.SetSummary(v)
 	}
+	if _, ok := _c.mutation.SummaryI18nJSON(); !ok {
+		v := app.DefaultSummaryI18nJSON
+		_c.mutation.SetSummaryI18nJSON(v)
+	}
 	if _, ok := _c.mutation.Description(); !ok {
 		v := app.DefaultDescription
 		_c.mutation.SetDescription(v)
+	}
+	if _, ok := _c.mutation.DescriptionI18nJSON(); !ok {
+		v := app.DefaultDescriptionI18nJSON
+		_c.mutation.SetDescriptionI18nJSON(v)
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := app.DefaultStatus
@@ -310,6 +364,9 @@ func (_c *AppCreate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "App.name": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.NameI18nJSON(); !ok {
+		return &ValidationError{Name: "name_i18n_json", err: errors.New(`ent: missing required field "App.name_i18n_json"`)}
+	}
 	if _, ok := _c.mutation.Slug(); !ok {
 		return &ValidationError{Name: "slug", err: errors.New(`ent: missing required field "App.slug"`)}
 	}
@@ -321,8 +378,14 @@ func (_c *AppCreate) check() error {
 	if _, ok := _c.mutation.Summary(); !ok {
 		return &ValidationError{Name: "summary", err: errors.New(`ent: missing required field "App.summary"`)}
 	}
+	if _, ok := _c.mutation.SummaryI18nJSON(); !ok {
+		return &ValidationError{Name: "summary_i18n_json", err: errors.New(`ent: missing required field "App.summary_i18n_json"`)}
+	}
 	if _, ok := _c.mutation.Description(); !ok {
 		return &ValidationError{Name: "description", err: errors.New(`ent: missing required field "App.description"`)}
+	}
+	if _, ok := _c.mutation.DescriptionI18nJSON(); !ok {
+		return &ValidationError{Name: "description_i18n_json", err: errors.New(`ent: missing required field "App.description_i18n_json"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "App.status"`)}
@@ -395,6 +458,10 @@ func (_c *AppCreate) createSpec() (*App, *sqlgraph.CreateSpec) {
 		_spec.SetField(app.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
+	if value, ok := _c.mutation.NameI18nJSON(); ok {
+		_spec.SetField(app.FieldNameI18nJSON, field.TypeString, value)
+		_node.NameI18nJSON = value
+	}
 	if value, ok := _c.mutation.Slug(); ok {
 		_spec.SetField(app.FieldSlug, field.TypeString, value)
 		_node.Slug = value
@@ -403,9 +470,17 @@ func (_c *AppCreate) createSpec() (*App, *sqlgraph.CreateSpec) {
 		_spec.SetField(app.FieldSummary, field.TypeString, value)
 		_node.Summary = value
 	}
+	if value, ok := _c.mutation.SummaryI18nJSON(); ok {
+		_spec.SetField(app.FieldSummaryI18nJSON, field.TypeString, value)
+		_node.SummaryI18nJSON = value
+	}
 	if value, ok := _c.mutation.Description(); ok {
 		_spec.SetField(app.FieldDescription, field.TypeString, value)
 		_node.Description = value
+	}
+	if value, ok := _c.mutation.DescriptionI18nJSON(); ok {
+		_spec.SetField(app.FieldDescriptionI18nJSON, field.TypeString, value)
+		_node.DescriptionI18nJSON = value
 	}
 	if value, ok := _c.mutation.IconURL(); ok {
 		_spec.SetField(app.FieldIconURL, field.TypeString, value)

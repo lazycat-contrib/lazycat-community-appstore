@@ -70,44 +70,56 @@ func init() {
 	appDescName := appFields[3].Descriptor()
 	// app.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	app.NameValidator = appDescName.Validators[0].(func(string) error)
+	// appDescNameI18nJSON is the schema descriptor for name_i18n_json field.
+	appDescNameI18nJSON := appFields[4].Descriptor()
+	// app.DefaultNameI18nJSON holds the default value on creation for the name_i18n_json field.
+	app.DefaultNameI18nJSON = appDescNameI18nJSON.Default.(string)
 	// appDescSlug is the schema descriptor for slug field.
-	appDescSlug := appFields[4].Descriptor()
+	appDescSlug := appFields[5].Descriptor()
 	// app.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
 	app.SlugValidator = appDescSlug.Validators[0].(func(string) error)
 	// appDescSummary is the schema descriptor for summary field.
-	appDescSummary := appFields[5].Descriptor()
+	appDescSummary := appFields[6].Descriptor()
 	// app.DefaultSummary holds the default value on creation for the summary field.
 	app.DefaultSummary = appDescSummary.Default.(string)
+	// appDescSummaryI18nJSON is the schema descriptor for summary_i18n_json field.
+	appDescSummaryI18nJSON := appFields[7].Descriptor()
+	// app.DefaultSummaryI18nJSON holds the default value on creation for the summary_i18n_json field.
+	app.DefaultSummaryI18nJSON = appDescSummaryI18nJSON.Default.(string)
 	// appDescDescription is the schema descriptor for description field.
-	appDescDescription := appFields[6].Descriptor()
+	appDescDescription := appFields[8].Descriptor()
 	// app.DefaultDescription holds the default value on creation for the description field.
 	app.DefaultDescription = appDescDescription.Default.(string)
+	// appDescDescriptionI18nJSON is the schema descriptor for description_i18n_json field.
+	appDescDescriptionI18nJSON := appFields[9].Descriptor()
+	// app.DefaultDescriptionI18nJSON holds the default value on creation for the description_i18n_json field.
+	app.DefaultDescriptionI18nJSON = appDescDescriptionI18nJSON.Default.(string)
 	// appDescAllowUnreviewedUpdates is the schema descriptor for allow_unreviewed_updates field.
-	appDescAllowUnreviewedUpdates := appFields[9].Descriptor()
+	appDescAllowUnreviewedUpdates := appFields[12].Descriptor()
 	// app.DefaultAllowUnreviewedUpdates holds the default value on creation for the allow_unreviewed_updates field.
 	app.DefaultAllowUnreviewedUpdates = appDescAllowUnreviewedUpdates.Default.(bool)
 	// appDescCommentsEnabled is the schema descriptor for comments_enabled field.
-	appDescCommentsEnabled := appFields[10].Descriptor()
+	appDescCommentsEnabled := appFields[13].Descriptor()
 	// app.DefaultCommentsEnabled holds the default value on creation for the comments_enabled field.
 	app.DefaultCommentsEnabled = appDescCommentsEnabled.Default.(bool)
 	// appDescEmailNotificationsEnabled is the schema descriptor for email_notifications_enabled field.
-	appDescEmailNotificationsEnabled := appFields[11].Descriptor()
+	appDescEmailNotificationsEnabled := appFields[14].Descriptor()
 	// app.DefaultEmailNotificationsEnabled holds the default value on creation for the email_notifications_enabled field.
 	app.DefaultEmailNotificationsEnabled = appDescEmailNotificationsEnabled.Default.(bool)
 	// appDescInstallPasswordHash is the schema descriptor for install_password_hash field.
-	appDescInstallPasswordHash := appFields[12].Descriptor()
+	appDescInstallPasswordHash := appFields[15].Descriptor()
 	// app.DefaultInstallPasswordHash holds the default value on creation for the install_password_hash field.
 	app.DefaultInstallPasswordHash = appDescInstallPasswordHash.Default.(string)
 	// appDescDownloadCount is the schema descriptor for download_count field.
-	appDescDownloadCount := appFields[13].Descriptor()
+	appDescDownloadCount := appFields[16].Descriptor()
 	// app.DefaultDownloadCount holds the default value on creation for the download_count field.
 	app.DefaultDownloadCount = appDescDownloadCount.Default.(int)
 	// appDescCreatedAt is the schema descriptor for created_at field.
-	appDescCreatedAt := appFields[14].Descriptor()
+	appDescCreatedAt := appFields[17].Descriptor()
 	// app.DefaultCreatedAt holds the default value on creation for the created_at field.
 	app.DefaultCreatedAt = appDescCreatedAt.Default.(func() time.Time)
 	// appDescUpdatedAt is the schema descriptor for updated_at field.
-	appDescUpdatedAt := appFields[15].Descriptor()
+	appDescUpdatedAt := appFields[18].Descriptor()
 	// app.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	app.DefaultUpdatedAt = appDescUpdatedAt.Default.(func() time.Time)
 	// app.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -342,56 +354,68 @@ func init() {
 	clientsourceappDescName := clientsourceappFields[3].Descriptor()
 	// clientsourceapp.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	clientsourceapp.NameValidator = clientsourceappDescName.Validators[0].(func(string) error)
+	// clientsourceappDescNameI18nJSON is the schema descriptor for name_i18n_json field.
+	clientsourceappDescNameI18nJSON := clientsourceappFields[4].Descriptor()
+	// clientsourceapp.DefaultNameI18nJSON holds the default value on creation for the name_i18n_json field.
+	clientsourceapp.DefaultNameI18nJSON = clientsourceappDescNameI18nJSON.Default.(string)
 	// clientsourceappDescSlug is the schema descriptor for slug field.
-	clientsourceappDescSlug := clientsourceappFields[4].Descriptor()
+	clientsourceappDescSlug := clientsourceappFields[5].Descriptor()
 	// clientsourceapp.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
 	clientsourceapp.SlugValidator = clientsourceappDescSlug.Validators[0].(func(string) error)
 	// clientsourceappDescSummary is the schema descriptor for summary field.
-	clientsourceappDescSummary := clientsourceappFields[5].Descriptor()
+	clientsourceappDescSummary := clientsourceappFields[6].Descriptor()
 	// clientsourceapp.DefaultSummary holds the default value on creation for the summary field.
 	clientsourceapp.DefaultSummary = clientsourceappDescSummary.Default.(string)
+	// clientsourceappDescSummaryI18nJSON is the schema descriptor for summary_i18n_json field.
+	clientsourceappDescSummaryI18nJSON := clientsourceappFields[7].Descriptor()
+	// clientsourceapp.DefaultSummaryI18nJSON holds the default value on creation for the summary_i18n_json field.
+	clientsourceapp.DefaultSummaryI18nJSON = clientsourceappDescSummaryI18nJSON.Default.(string)
+	// clientsourceappDescDescriptionI18nJSON is the schema descriptor for description_i18n_json field.
+	clientsourceappDescDescriptionI18nJSON := clientsourceappFields[8].Descriptor()
+	// clientsourceapp.DefaultDescriptionI18nJSON holds the default value on creation for the description_i18n_json field.
+	clientsourceapp.DefaultDescriptionI18nJSON = clientsourceappDescDescriptionI18nJSON.Default.(string)
 	// clientsourceappDescCategory is the schema descriptor for category field.
-	clientsourceappDescCategory := clientsourceappFields[6].Descriptor()
+	clientsourceappDescCategory := clientsourceappFields[9].Descriptor()
 	// clientsourceapp.DefaultCategory holds the default value on creation for the category field.
 	clientsourceapp.DefaultCategory = clientsourceappDescCategory.Default.(string)
 	// clientsourceappDescCategoryI18nJSON is the schema descriptor for category_i18n_json field.
-	clientsourceappDescCategoryI18nJSON := clientsourceappFields[7].Descriptor()
+	clientsourceappDescCategoryI18nJSON := clientsourceappFields[10].Descriptor()
 	// clientsourceapp.DefaultCategoryI18nJSON holds the default value on creation for the category_i18n_json field.
 	clientsourceapp.DefaultCategoryI18nJSON = clientsourceappDescCategoryI18nJSON.Default.(string)
 	// clientsourceappDescIconURL is the schema descriptor for icon_url field.
-	clientsourceappDescIconURL := clientsourceappFields[8].Descriptor()
+	clientsourceappDescIconURL := clientsourceappFields[11].Descriptor()
 	// clientsourceapp.DefaultIconURL holds the default value on creation for the icon_url field.
 	clientsourceapp.DefaultIconURL = clientsourceappDescIconURL.Default.(string)
 	// clientsourceappDescInstallProtected is the schema descriptor for install_protected field.
-	clientsourceappDescInstallProtected := clientsourceappFields[9].Descriptor()
+	clientsourceappDescInstallProtected := clientsourceappFields[12].Descriptor()
 	// clientsourceapp.DefaultInstallProtected holds the default value on creation for the install_protected field.
 	clientsourceapp.DefaultInstallProtected = clientsourceappDescInstallProtected.Default.(bool)
 	// clientsourceappDescCommentsEnabled is the schema descriptor for comments_enabled field.
-	clientsourceappDescCommentsEnabled := clientsourceappFields[10].Descriptor()
+	clientsourceappDescCommentsEnabled := clientsourceappFields[13].Descriptor()
 	// clientsourceapp.DefaultCommentsEnabled holds the default value on creation for the comments_enabled field.
 	clientsourceapp.DefaultCommentsEnabled = clientsourceappDescCommentsEnabled.Default.(bool)
 	// clientsourceappDescOutdatedMarks is the schema descriptor for outdated_marks field.
-	clientsourceappDescOutdatedMarks := clientsourceappFields[11].Descriptor()
+	clientsourceappDescOutdatedMarks := clientsourceappFields[14].Descriptor()
 	// clientsourceapp.DefaultOutdatedMarks holds the default value on creation for the outdated_marks field.
 	clientsourceapp.DefaultOutdatedMarks = clientsourceappDescOutdatedMarks.Default.(int)
 	// clientsourceappDescScreenshotsJSON is the schema descriptor for screenshots_json field.
-	clientsourceappDescScreenshotsJSON := clientsourceappFields[12].Descriptor()
+	clientsourceappDescScreenshotsJSON := clientsourceappFields[15].Descriptor()
 	// clientsourceapp.DefaultScreenshotsJSON holds the default value on creation for the screenshots_json field.
 	clientsourceapp.DefaultScreenshotsJSON = clientsourceappDescScreenshotsJSON.Default.(string)
 	// clientsourceappDescLatestVersionJSON is the schema descriptor for latest_version_json field.
-	clientsourceappDescLatestVersionJSON := clientsourceappFields[13].Descriptor()
+	clientsourceappDescLatestVersionJSON := clientsourceappFields[16].Descriptor()
 	// clientsourceapp.DefaultLatestVersionJSON holds the default value on creation for the latest_version_json field.
 	clientsourceapp.DefaultLatestVersionJSON = clientsourceappDescLatestVersionJSON.Default.(string)
 	// clientsourceappDescVersionsJSON is the schema descriptor for versions_json field.
-	clientsourceappDescVersionsJSON := clientsourceappFields[14].Descriptor()
+	clientsourceappDescVersionsJSON := clientsourceappFields[17].Descriptor()
 	// clientsourceapp.DefaultVersionsJSON holds the default value on creation for the versions_json field.
 	clientsourceapp.DefaultVersionsJSON = clientsourceappDescVersionsJSON.Default.(string)
 	// clientsourceappDescCreatedAt is the schema descriptor for created_at field.
-	clientsourceappDescCreatedAt := clientsourceappFields[15].Descriptor()
+	clientsourceappDescCreatedAt := clientsourceappFields[18].Descriptor()
 	// clientsourceapp.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsourceapp.DefaultCreatedAt = clientsourceappDescCreatedAt.Default.(func() time.Time)
 	// clientsourceappDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsourceappDescUpdatedAt := clientsourceappFields[16].Descriptor()
+	clientsourceappDescUpdatedAt := clientsourceappFields[19].Descriptor()
 	// clientsourceapp.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsourceapp.DefaultUpdatedAt = clientsourceappDescUpdatedAt.Default.(func() time.Time)
 	// clientsourceapp.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

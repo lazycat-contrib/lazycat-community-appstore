@@ -53,6 +53,20 @@ func (_c *ClientSourceAppCreate) SetName(v string) *ClientSourceAppCreate {
 	return _c
 }
 
+// SetNameI18nJSON sets the "name_i18n_json" field.
+func (_c *ClientSourceAppCreate) SetNameI18nJSON(v string) *ClientSourceAppCreate {
+	_c.mutation.SetNameI18nJSON(v)
+	return _c
+}
+
+// SetNillableNameI18nJSON sets the "name_i18n_json" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableNameI18nJSON(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetNameI18nJSON(*v)
+	}
+	return _c
+}
+
 // SetSlug sets the "slug" field.
 func (_c *ClientSourceAppCreate) SetSlug(v string) *ClientSourceAppCreate {
 	_c.mutation.SetSlug(v)
@@ -69,6 +83,34 @@ func (_c *ClientSourceAppCreate) SetSummary(v string) *ClientSourceAppCreate {
 func (_c *ClientSourceAppCreate) SetNillableSummary(v *string) *ClientSourceAppCreate {
 	if v != nil {
 		_c.SetSummary(*v)
+	}
+	return _c
+}
+
+// SetSummaryI18nJSON sets the "summary_i18n_json" field.
+func (_c *ClientSourceAppCreate) SetSummaryI18nJSON(v string) *ClientSourceAppCreate {
+	_c.mutation.SetSummaryI18nJSON(v)
+	return _c
+}
+
+// SetNillableSummaryI18nJSON sets the "summary_i18n_json" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableSummaryI18nJSON(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetSummaryI18nJSON(*v)
+	}
+	return _c
+}
+
+// SetDescriptionI18nJSON sets the "description_i18n_json" field.
+func (_c *ClientSourceAppCreate) SetDescriptionI18nJSON(v string) *ClientSourceAppCreate {
+	_c.mutation.SetDescriptionI18nJSON(v)
+	return _c
+}
+
+// SetNillableDescriptionI18nJSON sets the "description_i18n_json" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableDescriptionI18nJSON(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetDescriptionI18nJSON(*v)
 	}
 	return _c
 }
@@ -271,9 +313,21 @@ func (_c *ClientSourceAppCreate) defaults() {
 		v := clientsourceapp.DefaultExternalID
 		_c.mutation.SetExternalID(v)
 	}
+	if _, ok := _c.mutation.NameI18nJSON(); !ok {
+		v := clientsourceapp.DefaultNameI18nJSON
+		_c.mutation.SetNameI18nJSON(v)
+	}
 	if _, ok := _c.mutation.Summary(); !ok {
 		v := clientsourceapp.DefaultSummary
 		_c.mutation.SetSummary(v)
+	}
+	if _, ok := _c.mutation.SummaryI18nJSON(); !ok {
+		v := clientsourceapp.DefaultSummaryI18nJSON
+		_c.mutation.SetSummaryI18nJSON(v)
+	}
+	if _, ok := _c.mutation.DescriptionI18nJSON(); !ok {
+		v := clientsourceapp.DefaultDescriptionI18nJSON
+		_c.mutation.SetDescriptionI18nJSON(v)
 	}
 	if _, ok := _c.mutation.Category(); !ok {
 		v := clientsourceapp.DefaultCategory
@@ -345,6 +399,9 @@ func (_c *ClientSourceAppCreate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.name": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.NameI18nJSON(); !ok {
+		return &ValidationError{Name: "name_i18n_json", err: errors.New(`ent: missing required field "ClientSourceApp.name_i18n_json"`)}
+	}
 	if _, ok := _c.mutation.Slug(); !ok {
 		return &ValidationError{Name: "slug", err: errors.New(`ent: missing required field "ClientSourceApp.slug"`)}
 	}
@@ -355,6 +412,12 @@ func (_c *ClientSourceAppCreate) check() error {
 	}
 	if _, ok := _c.mutation.Summary(); !ok {
 		return &ValidationError{Name: "summary", err: errors.New(`ent: missing required field "ClientSourceApp.summary"`)}
+	}
+	if _, ok := _c.mutation.SummaryI18nJSON(); !ok {
+		return &ValidationError{Name: "summary_i18n_json", err: errors.New(`ent: missing required field "ClientSourceApp.summary_i18n_json"`)}
+	}
+	if _, ok := _c.mutation.DescriptionI18nJSON(); !ok {
+		return &ValidationError{Name: "description_i18n_json", err: errors.New(`ent: missing required field "ClientSourceApp.description_i18n_json"`)}
 	}
 	if _, ok := _c.mutation.Category(); !ok {
 		return &ValidationError{Name: "category", err: errors.New(`ent: missing required field "ClientSourceApp.category"`)}
@@ -430,6 +493,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 		_spec.SetField(clientsourceapp.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
+	if value, ok := _c.mutation.NameI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldNameI18nJSON, field.TypeString, value)
+		_node.NameI18nJSON = value
+	}
 	if value, ok := _c.mutation.Slug(); ok {
 		_spec.SetField(clientsourceapp.FieldSlug, field.TypeString, value)
 		_node.Slug = value
@@ -437,6 +504,14 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 	if value, ok := _c.mutation.Summary(); ok {
 		_spec.SetField(clientsourceapp.FieldSummary, field.TypeString, value)
 		_node.Summary = value
+	}
+	if value, ok := _c.mutation.SummaryI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldSummaryI18nJSON, field.TypeString, value)
+		_node.SummaryI18nJSON = value
+	}
+	if value, ok := _c.mutation.DescriptionI18nJSON(); ok {
+		_spec.SetField(clientsourceapp.FieldDescriptionI18nJSON, field.TypeString, value)
+		_node.DescriptionI18nJSON = value
 	}
 	if value, ok := _c.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)

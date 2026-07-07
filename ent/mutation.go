@@ -751,9 +751,12 @@ type AppMutation struct {
 	addcategory_id              *int
 	package_id                  *string
 	name                        *string
+	name_i18n_json              *string
 	slug                        *string
 	summary                     *string
+	summary_i18n_json           *string
 	description                 *string
+	description_i18n_json       *string
 	icon_url                    *string
 	status                      *app.Status
 	allow_unreviewed_updates    *bool
@@ -1066,6 +1069,42 @@ func (m *AppMutation) ResetName() {
 	m.name = nil
 }
 
+// SetNameI18nJSON sets the "name_i18n_json" field.
+func (m *AppMutation) SetNameI18nJSON(s string) {
+	m.name_i18n_json = &s
+}
+
+// NameI18nJSON returns the value of the "name_i18n_json" field in the mutation.
+func (m *AppMutation) NameI18nJSON() (r string, exists bool) {
+	v := m.name_i18n_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNameI18nJSON returns the old "name_i18n_json" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldNameI18nJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNameI18nJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNameI18nJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNameI18nJSON: %w", err)
+	}
+	return oldValue.NameI18nJSON, nil
+}
+
+// ResetNameI18nJSON resets all changes to the "name_i18n_json" field.
+func (m *AppMutation) ResetNameI18nJSON() {
+	m.name_i18n_json = nil
+}
+
 // SetSlug sets the "slug" field.
 func (m *AppMutation) SetSlug(s string) {
 	m.slug = &s
@@ -1138,6 +1177,42 @@ func (m *AppMutation) ResetSummary() {
 	m.summary = nil
 }
 
+// SetSummaryI18nJSON sets the "summary_i18n_json" field.
+func (m *AppMutation) SetSummaryI18nJSON(s string) {
+	m.summary_i18n_json = &s
+}
+
+// SummaryI18nJSON returns the value of the "summary_i18n_json" field in the mutation.
+func (m *AppMutation) SummaryI18nJSON() (r string, exists bool) {
+	v := m.summary_i18n_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSummaryI18nJSON returns the old "summary_i18n_json" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldSummaryI18nJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSummaryI18nJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSummaryI18nJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSummaryI18nJSON: %w", err)
+	}
+	return oldValue.SummaryI18nJSON, nil
+}
+
+// ResetSummaryI18nJSON resets all changes to the "summary_i18n_json" field.
+func (m *AppMutation) ResetSummaryI18nJSON() {
+	m.summary_i18n_json = nil
+}
+
 // SetDescription sets the "description" field.
 func (m *AppMutation) SetDescription(s string) {
 	m.description = &s
@@ -1172,6 +1247,42 @@ func (m *AppMutation) OldDescription(ctx context.Context) (v string, err error) 
 // ResetDescription resets all changes to the "description" field.
 func (m *AppMutation) ResetDescription() {
 	m.description = nil
+}
+
+// SetDescriptionI18nJSON sets the "description_i18n_json" field.
+func (m *AppMutation) SetDescriptionI18nJSON(s string) {
+	m.description_i18n_json = &s
+}
+
+// DescriptionI18nJSON returns the value of the "description_i18n_json" field in the mutation.
+func (m *AppMutation) DescriptionI18nJSON() (r string, exists bool) {
+	v := m.description_i18n_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescriptionI18nJSON returns the old "description_i18n_json" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldDescriptionI18nJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescriptionI18nJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescriptionI18nJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescriptionI18nJSON: %w", err)
+	}
+	return oldValue.DescriptionI18nJSON, nil
+}
+
+// ResetDescriptionI18nJSON resets all changes to the "description_i18n_json" field.
+func (m *AppMutation) ResetDescriptionI18nJSON() {
+	m.description_i18n_json = nil
 }
 
 // SetIconURL sets the "icon_url" field.
@@ -1565,7 +1676,7 @@ func (m *AppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AppMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 19)
 	if m.owner_id != nil {
 		fields = append(fields, app.FieldOwnerID)
 	}
@@ -1578,14 +1689,23 @@ func (m *AppMutation) Fields() []string {
 	if m.name != nil {
 		fields = append(fields, app.FieldName)
 	}
+	if m.name_i18n_json != nil {
+		fields = append(fields, app.FieldNameI18nJSON)
+	}
 	if m.slug != nil {
 		fields = append(fields, app.FieldSlug)
 	}
 	if m.summary != nil {
 		fields = append(fields, app.FieldSummary)
 	}
+	if m.summary_i18n_json != nil {
+		fields = append(fields, app.FieldSummaryI18nJSON)
+	}
 	if m.description != nil {
 		fields = append(fields, app.FieldDescription)
+	}
+	if m.description_i18n_json != nil {
+		fields = append(fields, app.FieldDescriptionI18nJSON)
 	}
 	if m.icon_url != nil {
 		fields = append(fields, app.FieldIconURL)
@@ -1630,12 +1750,18 @@ func (m *AppMutation) Field(name string) (ent.Value, bool) {
 		return m.PackageID()
 	case app.FieldName:
 		return m.Name()
+	case app.FieldNameI18nJSON:
+		return m.NameI18nJSON()
 	case app.FieldSlug:
 		return m.Slug()
 	case app.FieldSummary:
 		return m.Summary()
+	case app.FieldSummaryI18nJSON:
+		return m.SummaryI18nJSON()
 	case app.FieldDescription:
 		return m.Description()
+	case app.FieldDescriptionI18nJSON:
+		return m.DescriptionI18nJSON()
 	case app.FieldIconURL:
 		return m.IconURL()
 	case app.FieldStatus:
@@ -1671,12 +1797,18 @@ func (m *AppMutation) OldField(ctx context.Context, name string) (ent.Value, err
 		return m.OldPackageID(ctx)
 	case app.FieldName:
 		return m.OldName(ctx)
+	case app.FieldNameI18nJSON:
+		return m.OldNameI18nJSON(ctx)
 	case app.FieldSlug:
 		return m.OldSlug(ctx)
 	case app.FieldSummary:
 		return m.OldSummary(ctx)
+	case app.FieldSummaryI18nJSON:
+		return m.OldSummaryI18nJSON(ctx)
 	case app.FieldDescription:
 		return m.OldDescription(ctx)
+	case app.FieldDescriptionI18nJSON:
+		return m.OldDescriptionI18nJSON(ctx)
 	case app.FieldIconURL:
 		return m.OldIconURL(ctx)
 	case app.FieldStatus:
@@ -1732,6 +1864,13 @@ func (m *AppMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetName(v)
 		return nil
+	case app.FieldNameI18nJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNameI18nJSON(v)
+		return nil
 	case app.FieldSlug:
 		v, ok := value.(string)
 		if !ok {
@@ -1746,12 +1885,26 @@ func (m *AppMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSummary(v)
 		return nil
+	case app.FieldSummaryI18nJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSummaryI18nJSON(v)
+		return nil
 	case app.FieldDescription:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescription(v)
+		return nil
+	case app.FieldDescriptionI18nJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescriptionI18nJSON(v)
 		return nil
 	case app.FieldIconURL:
 		v, ok := value.(string)
@@ -1931,14 +2084,23 @@ func (m *AppMutation) ResetField(name string) error {
 	case app.FieldName:
 		m.ResetName()
 		return nil
+	case app.FieldNameI18nJSON:
+		m.ResetNameI18nJSON()
+		return nil
 	case app.FieldSlug:
 		m.ResetSlug()
 		return nil
 	case app.FieldSummary:
 		m.ResetSummary()
 		return nil
+	case app.FieldSummaryI18nJSON:
+		m.ResetSummaryI18nJSON()
+		return nil
 	case app.FieldDescription:
 		m.ResetDescription()
+		return nil
+	case app.FieldDescriptionI18nJSON:
+		m.ResetDescriptionI18nJSON()
 		return nil
 	case app.FieldIconURL:
 		m.ResetIconURL()
@@ -8606,32 +8768,35 @@ func (m *ClientSourceMutation) ResetEdge(name string) error {
 // ClientSourceAppMutation represents an operation that mutates the ClientSourceApp nodes in the graph.
 type ClientSourceAppMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int
-	external_id         *string
-	package_id          *string
-	name                *string
-	slug                *string
-	summary             *string
-	category            *string
-	category_i18n_json  *string
-	icon_url            *string
-	install_protected   *bool
-	comments_enabled    *bool
-	outdated_marks      *int
-	addoutdated_marks   *int
-	screenshots_json    *string
-	latest_version_json *string
-	versions_json       *string
-	created_at          *time.Time
-	updated_at          *time.Time
-	clearedFields       map[string]struct{}
-	source              *int
-	clearedsource       bool
-	done                bool
-	oldValue            func(context.Context) (*ClientSourceApp, error)
-	predicates          []predicate.ClientSourceApp
+	op                    Op
+	typ                   string
+	id                    *int
+	external_id           *string
+	package_id            *string
+	name                  *string
+	name_i18n_json        *string
+	slug                  *string
+	summary               *string
+	summary_i18n_json     *string
+	description_i18n_json *string
+	category              *string
+	category_i18n_json    *string
+	icon_url              *string
+	install_protected     *bool
+	comments_enabled      *bool
+	outdated_marks        *int
+	addoutdated_marks     *int
+	screenshots_json      *string
+	latest_version_json   *string
+	versions_json         *string
+	created_at            *time.Time
+	updated_at            *time.Time
+	clearedFields         map[string]struct{}
+	source                *int
+	clearedsource         bool
+	done                  bool
+	oldValue              func(context.Context) (*ClientSourceApp, error)
+	predicates            []predicate.ClientSourceApp
 }
 
 var _ ent.Mutation = (*ClientSourceAppMutation)(nil)
@@ -8876,6 +9041,42 @@ func (m *ClientSourceAppMutation) ResetName() {
 	m.name = nil
 }
 
+// SetNameI18nJSON sets the "name_i18n_json" field.
+func (m *ClientSourceAppMutation) SetNameI18nJSON(s string) {
+	m.name_i18n_json = &s
+}
+
+// NameI18nJSON returns the value of the "name_i18n_json" field in the mutation.
+func (m *ClientSourceAppMutation) NameI18nJSON() (r string, exists bool) {
+	v := m.name_i18n_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNameI18nJSON returns the old "name_i18n_json" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldNameI18nJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNameI18nJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNameI18nJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNameI18nJSON: %w", err)
+	}
+	return oldValue.NameI18nJSON, nil
+}
+
+// ResetNameI18nJSON resets all changes to the "name_i18n_json" field.
+func (m *ClientSourceAppMutation) ResetNameI18nJSON() {
+	m.name_i18n_json = nil
+}
+
 // SetSlug sets the "slug" field.
 func (m *ClientSourceAppMutation) SetSlug(s string) {
 	m.slug = &s
@@ -8946,6 +9147,78 @@ func (m *ClientSourceAppMutation) OldSummary(ctx context.Context) (v string, err
 // ResetSummary resets all changes to the "summary" field.
 func (m *ClientSourceAppMutation) ResetSummary() {
 	m.summary = nil
+}
+
+// SetSummaryI18nJSON sets the "summary_i18n_json" field.
+func (m *ClientSourceAppMutation) SetSummaryI18nJSON(s string) {
+	m.summary_i18n_json = &s
+}
+
+// SummaryI18nJSON returns the value of the "summary_i18n_json" field in the mutation.
+func (m *ClientSourceAppMutation) SummaryI18nJSON() (r string, exists bool) {
+	v := m.summary_i18n_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSummaryI18nJSON returns the old "summary_i18n_json" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldSummaryI18nJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSummaryI18nJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSummaryI18nJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSummaryI18nJSON: %w", err)
+	}
+	return oldValue.SummaryI18nJSON, nil
+}
+
+// ResetSummaryI18nJSON resets all changes to the "summary_i18n_json" field.
+func (m *ClientSourceAppMutation) ResetSummaryI18nJSON() {
+	m.summary_i18n_json = nil
+}
+
+// SetDescriptionI18nJSON sets the "description_i18n_json" field.
+func (m *ClientSourceAppMutation) SetDescriptionI18nJSON(s string) {
+	m.description_i18n_json = &s
+}
+
+// DescriptionI18nJSON returns the value of the "description_i18n_json" field in the mutation.
+func (m *ClientSourceAppMutation) DescriptionI18nJSON() (r string, exists bool) {
+	v := m.description_i18n_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescriptionI18nJSON returns the old "description_i18n_json" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldDescriptionI18nJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescriptionI18nJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescriptionI18nJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescriptionI18nJSON: %w", err)
+	}
+	return oldValue.DescriptionI18nJSON, nil
+}
+
+// ResetDescriptionI18nJSON resets all changes to the "description_i18n_json" field.
+func (m *ClientSourceAppMutation) ResetDescriptionI18nJSON() {
+	m.description_i18n_json = nil
 }
 
 // SetCategory sets the "category" field.
@@ -9425,7 +9698,7 @@ func (m *ClientSourceAppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceAppMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 20)
 	if m.source != nil {
 		fields = append(fields, clientsourceapp.FieldSourceID)
 	}
@@ -9438,11 +9711,20 @@ func (m *ClientSourceAppMutation) Fields() []string {
 	if m.name != nil {
 		fields = append(fields, clientsourceapp.FieldName)
 	}
+	if m.name_i18n_json != nil {
+		fields = append(fields, clientsourceapp.FieldNameI18nJSON)
+	}
 	if m.slug != nil {
 		fields = append(fields, clientsourceapp.FieldSlug)
 	}
 	if m.summary != nil {
 		fields = append(fields, clientsourceapp.FieldSummary)
+	}
+	if m.summary_i18n_json != nil {
+		fields = append(fields, clientsourceapp.FieldSummaryI18nJSON)
+	}
+	if m.description_i18n_json != nil {
+		fields = append(fields, clientsourceapp.FieldDescriptionI18nJSON)
 	}
 	if m.category != nil {
 		fields = append(fields, clientsourceapp.FieldCategory)
@@ -9493,10 +9775,16 @@ func (m *ClientSourceAppMutation) Field(name string) (ent.Value, bool) {
 		return m.PackageID()
 	case clientsourceapp.FieldName:
 		return m.Name()
+	case clientsourceapp.FieldNameI18nJSON:
+		return m.NameI18nJSON()
 	case clientsourceapp.FieldSlug:
 		return m.Slug()
 	case clientsourceapp.FieldSummary:
 		return m.Summary()
+	case clientsourceapp.FieldSummaryI18nJSON:
+		return m.SummaryI18nJSON()
+	case clientsourceapp.FieldDescriptionI18nJSON:
+		return m.DescriptionI18nJSON()
 	case clientsourceapp.FieldCategory:
 		return m.Category()
 	case clientsourceapp.FieldCategoryI18nJSON:
@@ -9536,10 +9824,16 @@ func (m *ClientSourceAppMutation) OldField(ctx context.Context, name string) (en
 		return m.OldPackageID(ctx)
 	case clientsourceapp.FieldName:
 		return m.OldName(ctx)
+	case clientsourceapp.FieldNameI18nJSON:
+		return m.OldNameI18nJSON(ctx)
 	case clientsourceapp.FieldSlug:
 		return m.OldSlug(ctx)
 	case clientsourceapp.FieldSummary:
 		return m.OldSummary(ctx)
+	case clientsourceapp.FieldSummaryI18nJSON:
+		return m.OldSummaryI18nJSON(ctx)
+	case clientsourceapp.FieldDescriptionI18nJSON:
+		return m.OldDescriptionI18nJSON(ctx)
 	case clientsourceapp.FieldCategory:
 		return m.OldCategory(ctx)
 	case clientsourceapp.FieldCategoryI18nJSON:
@@ -9599,6 +9893,13 @@ func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetName(v)
 		return nil
+	case clientsourceapp.FieldNameI18nJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNameI18nJSON(v)
+		return nil
 	case clientsourceapp.FieldSlug:
 		v, ok := value.(string)
 		if !ok {
@@ -9612,6 +9913,20 @@ func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSummary(v)
+		return nil
+	case clientsourceapp.FieldSummaryI18nJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSummaryI18nJSON(v)
+		return nil
+	case clientsourceapp.FieldDescriptionI18nJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescriptionI18nJSON(v)
 		return nil
 	case clientsourceapp.FieldCategory:
 		v, ok := value.(string)
@@ -9766,11 +10081,20 @@ func (m *ClientSourceAppMutation) ResetField(name string) error {
 	case clientsourceapp.FieldName:
 		m.ResetName()
 		return nil
+	case clientsourceapp.FieldNameI18nJSON:
+		m.ResetNameI18nJSON()
+		return nil
 	case clientsourceapp.FieldSlug:
 		m.ResetSlug()
 		return nil
 	case clientsourceapp.FieldSummary:
 		m.ResetSummary()
+		return nil
+	case clientsourceapp.FieldSummaryI18nJSON:
+		m.ResetSummaryI18nJSON()
+		return nil
+	case clientsourceapp.FieldDescriptionI18nJSON:
+		m.ResetDescriptionI18nJSON()
 		return nil
 	case clientsourceapp.FieldCategory:
 		m.ResetCategory()

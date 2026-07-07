@@ -1,8 +1,10 @@
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
+import { localizedText } from '../../shared/utils';
 
 type CollectionAppOption = {
   id: number;
   name: string;
+  nameI18n?: Record<string, string>;
   slug: string;
   packageId?: string;
 };
@@ -42,7 +44,7 @@ export function CollectionAppPicker({
           {apps.map((app) => (
             <XCheckboxInput
               key={app.id}
-              label={app.name}
+              label={localizedText(app.nameI18n, app.name)}
               description={app.packageId || app.slug}
               value={appIds.includes(app.id)}
               onChange={(checked) => onChange(toggleAppSelection(appIds, app.id, checked))}

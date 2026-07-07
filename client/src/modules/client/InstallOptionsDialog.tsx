@@ -6,7 +6,7 @@ import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import type { SourceApp, SourceSubscription, SourceVersion, StoreApp, Version } from '../../shared/types';
-import { applicableMirrorsForVersion, defaultMirrorIDForVersion, githubMirrorKindForURL } from '../../shared/utils';
+import { applicableMirrorsForVersion, defaultMirrorIDForVersion, githubMirrorKindForURL, localizedAppName } from '../../shared/utils';
 
 export function InstallOptionsDialog({
   app,
@@ -30,6 +30,7 @@ export function InstallOptionsDialog({
   const requiresPassword = app.installProtected;
   const mirrorOptions = applicableMirrorsForVersion(source, version);
   const mirrorKind = githubMirrorKindForURL(version && 'upstreamDownloadUrl' in version ? version.upstreamDownloadUrl || version.downloadUrl : version?.downloadUrl);
+  const appName = localizedAppName(app);
 
   useEffect(() => {
     setMirrorId(defaultMirrorIDForVersion(source, version) || '');
@@ -77,8 +78,8 @@ export function InstallOptionsDialog({
             <h2 id={dialogTitleId}>{t(mirrorOptions.length > 0 ? 'installOptions.title' : 'installPassword.title')}</h2>
             <p id={dialogBodyId}>
               {requiresPassword
-                ? t('installPassword.body', { name: app.name })
-                : t('installOptions.body', { name: app.name })}
+                ? t('installPassword.body', { name: appName })
+                : t('installOptions.body', { name: appName })}
             </p>
           </div>
         </div>

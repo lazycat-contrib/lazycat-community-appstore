@@ -15,6 +15,8 @@ import (
 	"strings"
 
 	"go.yaml.in/yaml/v3"
+
+	"lazycat.community/appstore/internal/catalogmeta"
 )
 
 const packageYAML = "package.yml"
@@ -27,17 +29,19 @@ var (
 )
 
 type Metadata struct {
-	PackageID     string
-	Version       string
-	Name          string
-	Description   string
-	Author        string
-	License       string
-	Homepage      string
-	MinOSVersion  string
-	IconPath      string
-	IconMediaType string
-	IconData      []byte
+	PackageID       string
+	Version         string
+	Name            string
+	NameI18n        catalogmeta.LocalizedText
+	Description     string
+	DescriptionI18n catalogmeta.LocalizedText
+	Author          string
+	License         string
+	Homepage        string
+	MinOSVersion    string
+	IconPath        string
+	IconMediaType   string
+	IconData        []byte
 }
 
 type packageFile struct {
@@ -182,16 +186,28 @@ func parsePackageYAML(r io.Reader, icons map[string]iconFile) (Metadata, error) 
 }
 
 func normalize(pkg packageFile) Metadata {
+	nameI18n := catalogmeta.LocalizedText{}
+	descriptionI18n := catalogmeta.LocalizedText{}
+	for key, locale := range pkg.Locales {
+		if name := strings.TrimSpace(locale.Name); name != "" {
+			nameI18n[key] = name
+		}
+		if description := strings.TrimSpace(locale.Description); description != "" {
+			descriptionI18n[key] = description
+		}
+	}
 	meta := Metadata{
-		PackageID:    strings.TrimSpace(pkg.Package),
-		Version:      strings.TrimSpace(pkg.Version),
-		Name:         strings.TrimSpace(pkg.Name),
-		Description:  strings.TrimSpace(pkg.Description),
-		Author:       strings.TrimSpace(pkg.Author),
-		License:      strings.TrimSpace(pkg.License),
-		Homepage:     strings.TrimSpace(pkg.Homepage),
-		MinOSVersion: strings.TrimSpace(pkg.MinOSVersion),
-		IconPath:     cleanArchiveName(pkg.Icon),
+		PackageID:       strings.TrimSpace(pkg.Package),
+		Version:         strings.TrimSpace(pkg.Version),
+		Name:            strings.TrimSpace(pkg.Name),
+		NameI18n:        catalogmeta.CleanLocalizedText(nameI18n),
+		Description:     strings.TrimSpace(pkg.Description),
+		DescriptionI18n: catalogmeta.CleanLocalizedText(descriptionI18n),
+		Author:          strings.TrimSpace(pkg.Author),
+		License:         strings.TrimSpace(pkg.License),
+		Homepage:        strings.TrimSpace(pkg.Homepage),
+		MinOSVersion:    strings.TrimSpace(pkg.MinOSVersion),
+		IconPath:        cleanArchiveName(pkg.Icon),
 	}
 	if meta.Name == "" {
 		for _, key := range []string{"zh", "zh-CN", "zh_Hans", "en"} {

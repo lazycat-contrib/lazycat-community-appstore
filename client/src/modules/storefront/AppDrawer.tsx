@@ -41,7 +41,20 @@ import { AppIcon } from '../../components/AppIcon';
 import { CommentList } from '../../components/CommentList';
 import type { Category, CollaboratorRequest, Group, Review, StorageOption, StoreApp, Toast, User } from '../../shared/types';
 import { orderedScreenshots, screenshotDeviceLabel, usePreferredScreenshotDevice } from '../../shared/screenshotHelpers';
-import { cx, formatBytes, formatDate, githubMirrorKindForURL, hasInstallableVersion, localizedCategory, localizedName, runAction, shortSHA } from '../../shared/utils';
+import {
+  cx,
+  formatBytes,
+  formatDate,
+  githubMirrorKindForURL,
+  hasInstallableVersion,
+  localizedAppDescription,
+  localizedAppName,
+  localizedAppSummary,
+  localizedCategory,
+  localizedName,
+  runAction,
+  shortSHA,
+} from '../../shared/utils';
 import type { SubmissionProgress } from '../profile/AppSubmissionForm';
 
 export type AppDetailMode = 'detail' | 'manage';
@@ -114,6 +127,8 @@ export function AppDrawer({
   const versionFileInputRef = useRef<HTMLInputElement>(null);
   const drawerTitleId = `app-drawer-title-${app.id}`;
   const latestVersion = app.latestVersion;
+  const appName = localizedAppName(app);
+  const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
   const installable = hasInstallableVersion(app);
   const hasChecksum = Boolean(latestVersion?.sha256);
   const hasFileSize = Boolean(latestVersion && latestVersion.fileSize > 0);
@@ -368,7 +383,7 @@ export function AppDrawer({
   }
 
   async function unlistApp() {
-    if (!confirmDanger('unlist-app', t('drawer.confirmUnlist', { name: app.name }))) return;
+    if (!confirmDanger('unlist-app', t('drawer.confirmUnlist', { name: appName }))) return;
     await runAction(setToast, t('drawer.unlistFailed'), async () => {
       await api(`/api/v1/apps/${app.id}/unlist`, { method: 'POST' });
       setToast({ tone: 'neutral', message: t('drawer.unlisted') });
@@ -377,7 +392,7 @@ export function AppDrawer({
   }
 
   async function deleteApp() {
-    if (!confirmDanger('delete-app', t('drawer.confirmDeleteApp', { name: app.name }))) return;
+    if (!confirmDanger('delete-app', t('drawer.confirmDeleteApp', { name: appName }))) return;
     await runAction(setToast, t('drawer.deleteFailed'), async () => {
       await api(`/api/v1/apps/${app.id}`, { method: 'DELETE' });
       setToast({ tone: 'neutral', message: t('drawer.deleted') });
@@ -516,10 +531,10 @@ export function AppDrawer({
           onClick={isManageMode ? () => onModeChange('detail') : onClose}
         />
         <div className="detail-head">
-          <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={app.name} size={58} className="detail-avatar" />
+          <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={appName} size={58} className="detail-avatar" />
           <div>
-            <h2 id={drawerTitleId}>{isManageMode ? t('drawer.manageTitle', { name: app.name }) : app.name}</h2>
-            <p>{isManageMode ? t('drawer.manageBody') : app.summary || app.description}</p>
+            <h2 id={drawerTitleId}>{isManageMode ? t('drawer.manageTitle', { name: appName }) : appName}</h2>
+            <p>{isManageMode ? t('drawer.manageBody') : appSummary}</p>
             <div className="meta-line">
               <span>{app.owner}</span>
               <span>{localizedCategory(app, t('common.uncategorized'))}</span>
@@ -553,7 +568,7 @@ export function AppDrawer({
                 icon={<Download size={18} />}
                 isDisabled={!installable}
                 onClick={() => onInstall(app)}
-                aria-label={installable ? `${t('common.download')} ${app.name}` : t('app.installUnavailable', { name: app.name })}
+                aria-label={installable ? `${t('common.download')} ${appName}` : t('app.installUnavailable', { name: appName })}
               />
               {canOpenManagement && (
                 <XButton type="button" variant="secondary" label={t('drawer.manageApp')} icon={<Settings size={18} />} onClick={() => onModeChange('manage')} />
@@ -959,7 +974,7 @@ export function AppDrawer({
             <div className="screenshot-grid">
               {displayScreenshots.map((shot, index, shots) => (
                 <figure className="screenshot-item" key={shot.id}>
-                  <img src={shot.imageUrl} alt={shot.caption || app.name} />
+                  <img src={shot.imageUrl} alt={shot.caption || appName} />
                   {canEditScreenshots ? (
                     <figcaption className="screenshot-caption-editor">
                       <XTextInput
@@ -981,7 +996,7 @@ export function AppDrawer({
                     </figcaption>
                   ) : (
                     <figcaption>
-                      <span>{shot.caption || app.name}</span>
+                      <span>{shot.caption || appName}</span>
                       <small>{screenshotDeviceLabel(t, shot.deviceType)}</small>
                     </figcaption>
                   )}

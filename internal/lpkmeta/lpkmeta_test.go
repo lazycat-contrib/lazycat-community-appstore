@@ -106,6 +106,33 @@ locales:
 	}
 }
 
+func TestParseReaderAtPreservesLocaleMaps(t *testing.T) {
+	raw := tarLPK(t, `package: cloud.lazycat.app.lark
+version: 1.0.0
+name: Lark
+description: A music library and streaming application
+locales:
+  zh:
+    name: 云雀
+    description: 音乐媒体库和流媒体应用
+  en:
+    name: Lark
+    description: A music library and streaming application
+`)
+
+	meta, err := ParseReaderAt(bytes.NewReader(raw), int64(len(raw)))
+	if err != nil {
+		t.Fatalf("ParseReaderAt returned error: %v", err)
+	}
+
+	if meta.Name != "Lark" || meta.Description != "A music library and streaming application" {
+		t.Fatalf("top-level metadata was unexpectedly changed: %+v", meta)
+	}
+	if meta.NameI18n["zh"] != "云雀" || meta.DescriptionI18n["zh"] != "音乐媒体库和流媒体应用" {
+		t.Fatalf("localized metadata not preserved: %+v", meta)
+	}
+}
+
 func TestParseReaderAtRejectsMissingPackageYAML(t *testing.T) {
 	raw := tarArchive(t, map[string]string{"manifest.yml": "package: old\n"})
 
