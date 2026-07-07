@@ -100,6 +100,8 @@ type appSummary struct {
 	DownloadCount             int               `json:"downloadCount"`
 	Tags                      []string          `json:"tags"`
 	VisibleGroupIDs           []int             `json:"visibleGroupIds"`
+	AppFavorited              bool              `json:"appFavorited"`
+	SubmitterFavorited        bool              `json:"submitterFavorited"`
 	CanManageApp              bool              `json:"canManageApp"`
 	CanUploadVersion          bool              `json:"canUploadVersion"`
 	LatestVersion             *version          `json:"latestVersion,omitempty"`

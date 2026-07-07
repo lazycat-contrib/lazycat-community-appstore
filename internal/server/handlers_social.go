@@ -381,7 +381,12 @@ func (s *Server) toggleFavorite(w http.ResponseWriter, r *http.Request, u *entgo
 	existing, err := s.db.Favorite.Query().Where(favorite.UserIDEQ(u.ID), favorite.TargetTypeEQ(targetType), favorite.TargetIDEQ(targetID)).Only(r.Context())
 	if err == nil {
 		_ = s.db.Favorite.DeleteOneID(existing.ID).Exec(r.Context())
-		writeJSON(w, http.StatusOK, map[string]any{"favorited": false})
+		response := map[string]any{"favorited": false}
+		if targetType == favorite.TargetTypeAPP {
+			count, _ := s.db.Favorite.Query().Where(favorite.TargetTypeEQ(favorite.TargetTypeAPP), favorite.TargetIDEQ(targetID)).Count(r.Context())
+			response["favorites"] = count
+		}
+		writeJSON(w, http.StatusOK, response)
 		return
 	}
 	_, err = s.db.Favorite.Create().SetUserID(u.ID).SetTargetType(targetType).SetTargetID(targetID).Save(r.Context())
@@ -389,7 +394,12 @@ func (s *Server) toggleFavorite(w http.ResponseWriter, r *http.Request, u *entgo
 		writeError(w, http.StatusInternalServerError, "FAVORITE_FAILED", "Could not update favorite", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"favorited": true})
+	response := map[string]any{"favorited": true}
+	if targetType == favorite.TargetTypeAPP {
+		count, _ := s.db.Favorite.Query().Where(favorite.TargetTypeEQ(favorite.TargetTypeAPP), favorite.TargetIDEQ(targetID)).Count(r.Context())
+		response["favorites"] = count
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *Server) handleListFavorites(w http.ResponseWriter, r *http.Request, u *entgo.User) {

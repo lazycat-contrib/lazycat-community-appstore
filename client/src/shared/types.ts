@@ -46,6 +46,8 @@ export type StoreApp = {
   emailNotificationsEnabled: boolean;
   installProtected: boolean;
   downloadCount: number;
+  appFavorited?: boolean;
+  submitterFavorited?: boolean;
   latestVersion?: Version;
   versions?: Version[];
   screenshots?: Screenshot[];

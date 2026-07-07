@@ -137,6 +137,8 @@ export function AppDrawer({
     screenshots: (app.screenshots || []).length,
   });
   const hasOutdatedMarks = (app.outdatedMarks ?? 0) > 0;
+  const appFavorited = Boolean(app.appFavorited);
+  const submitterFavorited = Boolean(app.submitterFavorited);
   const commentsAllowed = app.commentsAllowed ?? app.commentsEnabled;
   const canComment = !!user && commentsAllowed;
   const versionNumberReady = Boolean(versionForm.version.trim());
@@ -486,16 +488,17 @@ export function AppDrawer({
 
   async function toggleAppFavorite() {
     await runAction(setToast, t('drawer.favoriteUpdateFailed'), async () => {
-      await api(`/api/v1/apps/${app.id}/favorites`, { method: 'POST' });
-      setToast({ tone: 'success', message: t('drawer.favoriteUpdated') });
+      const data = await api<{ favorited: boolean; favorites?: number }>(`/api/v1/apps/${app.id}/favorites`, { method: 'POST' });
+      setToast({ tone: 'success', message: data.favorited ? t('drawer.appFavoriteAdded') : t('drawer.appFavoriteRemoved') });
       await onRefresh();
     });
   }
 
   async function toggleSubmitterFavorite() {
     await runAction(setToast, t('drawer.submitterFavoriteUpdateFailed'), async () => {
-      await api(`/api/v1/submitters/${app.ownerId}/favorites`, { method: 'POST' });
-      setToast({ tone: 'success', message: t('drawer.submitterFavoriteUpdated') });
+      const data = await api<{ favorited: boolean }>(`/api/v1/submitters/${app.ownerId}/favorites`, { method: 'POST' });
+      setToast({ tone: 'success', message: data.favorited ? t('drawer.submitterFavoriteAdded') : t('drawer.submitterFavoriteRemoved') });
+      await onRefresh();
     });
   }
 
@@ -557,8 +560,20 @@ export function AppDrawer({
               )}
               {user && (
                 <>
-                  <XButton type="button" variant="secondary" label={t('drawer.favorite')} icon={<Heart size={18} />} onClick={() => void toggleAppFavorite()} />
-                  <XButton type="button" variant="secondary" label={t('drawer.submitter')} icon={<Star size={18} />} onClick={() => void toggleSubmitterFavorite()} />
+                  <XButton
+                    type="button"
+                    variant="secondary"
+                    label={appFavorited ? t('drawer.appFavorited') : t('drawer.favoriteApp')}
+                    icon={<Heart size={18} fill={appFavorited ? 'currentColor' : 'none'} />}
+                    onClick={() => void toggleAppFavorite()}
+                  />
+                  <XButton
+                    type="button"
+                    variant="secondary"
+                    label={submitterFavorited ? t('drawer.submitterFavorited') : t('drawer.favoriteSubmitter')}
+                    icon={<Star size={18} fill={submitterFavorited ? 'currentColor' : 'none'} />}
+                    onClick={() => void toggleSubmitterFavorite()}
+                  />
                 </>
               )}
               {user && user.id !== app.ownerId && (

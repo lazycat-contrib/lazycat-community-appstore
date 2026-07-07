@@ -1995,7 +1995,7 @@ components:
 
     AppSummary:
       type: object
-      required: [id, ownerId, owner, packageId, name, slug, status, allowUnreviewedUpdates, commentsEnabled, commentsAllowed, installProtected, downloadCount, tags, visibleGroupIds, createdAt, updatedAt]
+      required: [id, ownerId, owner, packageId, name, slug, status, allowUnreviewedUpdates, commentsEnabled, commentsAllowed, installProtected, downloadCount, tags, visibleGroupIds, appFavorited, submitterFavorited, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -2045,6 +2045,12 @@ components:
           type: array
           items:
             type: integer
+        appFavorited:
+          type: boolean
+          description: Whether the current authenticated user has favorited this app.
+        submitterFavorited:
+          type: boolean
+          description: Whether the current authenticated user has favorited this app submitter.
         latestVersion:
           $ref: "#/components/schemas/Version"
         createdAt:

@@ -651,10 +651,21 @@ body,
   overflow-wrap: anywhere;
 }
 
-.source-feed-card strong {
+.source-feed-code {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  color: var(--ink);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: clamp(16px, 1.8vw, 22px);
+  font-size: 15px;
   line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .source-feed-actions {
@@ -662,6 +673,27 @@ body,
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 4px;
+}
+
+.section-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.interactive-row {
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+.interactive-row:hover {
+  border-color: color-mix(in srgb, var(--green) 28%, var(--line));
 }
 
 .category-rail-panel {

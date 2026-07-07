@@ -854,6 +854,12 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 	if u != nil {
 		dto.CanManageApp = isAdmin(u) || record.OwnerID == u.ID
 		dto.CanUploadVersion = dto.CanManageApp || s.isCollaborator(r, record.ID, u.ID)
+		dto.AppFavorited, _ = s.db.Favorite.Query().
+			Where(favoritepkg.UserIDEQ(u.ID), favoritepkg.TargetTypeEQ(favoritepkg.TargetTypeAPP), favoritepkg.TargetIDEQ(record.ID)).
+			Exist(r.Context())
+		dto.SubmitterFavorited, _ = s.db.Favorite.Query().
+			Where(favoritepkg.UserIDEQ(u.ID), favoritepkg.TargetTypeEQ(favoritepkg.TargetTypeSUBMITTER), favoritepkg.TargetIDEQ(record.OwnerID)).
+			Exist(r.Context())
 	}
 	if record.CategoryID != nil {
 		if cat, err := s.db.Category.Get(r.Context(), *record.CategoryID); err == nil {

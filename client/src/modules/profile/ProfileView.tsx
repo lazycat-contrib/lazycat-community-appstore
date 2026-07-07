@@ -118,6 +118,7 @@ export function ProfileView({
   const [mobileScreenshotCaptions, setMobileScreenshotCaptions] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
+  const [favoriteTab, setFavoriteTab] = useState<'apps' | 'submitters'>('apps');
   const canUseManagementWorkspace = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const workspaceTabs = [
     { key: 'overview' as const, label: t('profile.tabs.overview'), icon: Gauge },
@@ -718,31 +719,45 @@ export function ProfileView({
       <section className="workspace-pane">
         <section className="panel">
           <SectionTitle icon={Heart} title={t('favorites.title')} />
-          <div className="review-list">
-            {favorites.apps.length === 0 && favorites.submitters.length === 0 ? (
-              <EmptyState icon={Heart} title={t('favorites.empty')} />
-            ) : (
-              <>
-                {favorites.apps.map((item) => (
-                  <div className="review-row" key={`app-${item.id}`}>
+          <div className="section-toolbar">
+            <XToggleButtonGroup value={favoriteTab} onChange={(value) => setFavoriteTab((value || 'apps') as 'apps' | 'submitters')} label={t('favorites.tabsLabel')} size="sm">
+              <XToggleButton value="apps" label={t('favorites.apps')} icon={<PackagePlus size={17} />} />
+              <XToggleButton value="submitters" label={t('favorites.submitters')} icon={<Users size={17} />} />
+            </XToggleButtonGroup>
+            <XButton type="button" variant="secondary" size="sm" label={t('favorites.refresh')} icon={<RefreshCw size={18} />} onClick={() => void loadFavorites()} />
+          </div>
+          {favoriteTab === 'apps' ? (
+            <div className="review-list">
+              {favorites.apps.length === 0 ? (
+                <EmptyState icon={Heart} title={t('favorites.emptyApps')} />
+              ) : (
+                favorites.apps.map((item) => (
+                  <button type="button" className="review-row interactive-row" key={`app-${item.id}`} onClick={() => void onOpen(item)}>
                     <div>
                       <strong>{item.name}</strong>
                       <span>{item.owner} · {item.latestVersion?.version || item.status}</span>
                     </div>
-                  </div>
-                ))}
-                {favorites.submitters.map((item) => (
+                    <ChevronRight size={17} aria-hidden="true" />
+                  </button>
+                ))
+              )}
+            </div>
+          ) : (
+            <div className="review-list">
+              {favorites.submitters.length === 0 ? (
+                <EmptyState icon={Users} title={t('favorites.emptySubmitters')} />
+              ) : (
+                favorites.submitters.map((item) => (
                   <div className="review-row" key={`submitter-${item.id}`}>
                     <div>
-                      <strong>{item.username}</strong>
+                      <strong>{displayUserName(item)}</strong>
                       <span>{item.email || t('favorites.submitter')}</span>
                     </div>
                   </div>
-                ))}
-              </>
-            )}
-          </div>
-          <XButton type="button" variant="secondary" label={t('favorites.refresh')} icon={<RefreshCw size={18} />} onClick={() => void loadFavorites()} />
+                ))
+              )}
+            </div>
+          )}
         </section>
       </section>
       )}

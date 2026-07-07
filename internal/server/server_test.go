@@ -534,6 +534,40 @@ func TestUserCanToggleSubmitterFavorite(t *testing.T) {
 	}
 }
 
+func TestAppDetailIncludesCurrentUserFavoriteState(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	submitter := app.server.db.User.Create().SetUsername("favorite-state-submitter").SetPasswordHash("x").SaveX(ctx)
+	viewer := app.server.db.User.Create().SetUsername("favorite-state-viewer").SetPasswordHash("x").SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(submitter.ID).
+		SetPackageID("cloud.lazycat.test.favorite-state").
+		SetName("Favorite State App").
+		SetSlug("favorite-state").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	app.cookies = []*http.Cookie{app.serverCookieFor(viewer.ID)}
+
+	rec := app.do(http.MethodGet, fmt.Sprintf("/api/v1/apps/%d", record.ID), nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"appFavorited":false`) || !strings.Contains(rec.Body.String(), `"submitterFavorited":false`) {
+		t.Fatalf("initial favorite state status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = app.do(http.MethodPost, fmt.Sprintf("/api/v1/apps/%d/favorites", record.ID), nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"favorited":true`) || !strings.Contains(rec.Body.String(), `"favorites":1`) {
+		t.Fatalf("favorite app status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	rec = app.do(http.MethodPost, fmt.Sprintf("/api/v1/submitters/%d/favorites", submitter.ID), nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"favorited":true`) {
+		t.Fatalf("favorite submitter status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = app.do(http.MethodGet, fmt.Sprintf("/api/v1/apps/%d", record.ID), nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"appFavorited":true`) || !strings.Contains(rec.Body.String(), `"submitterFavorited":true`) || !strings.Contains(rec.Body.String(), `"favorites":1`) {
+		t.Fatalf("updated favorite state status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestUserCanListFavorites(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()

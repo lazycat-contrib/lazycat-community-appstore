@@ -76,7 +76,7 @@ export function StorefrontHome({
         </div>
         <div className="metric-card source-feed-card">
           <span>{t('home.sourceUrl')}</span>
-          <strong>{sourceFeedURL}</strong>
+          <code className="source-feed-code" title={sourceFeedURL}>{sourceFeedURL}</code>
           <small>{t('home.openSourceFeed')}</small>
           <div className="source-feed-actions">
             <XButton type="button" variant="secondary" size="sm" label={t('home.copySourceFeed')} icon={<Copy size={16} />} onClick={() => void copySourceFeed()} />

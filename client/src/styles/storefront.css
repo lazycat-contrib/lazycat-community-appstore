@@ -40,7 +40,7 @@
     box-shadow 160ms ease;
 }
 
-.storefront-page .source-feed-card strong {
+.storefront-page .source-feed-code {
   display: block;
   max-width: 100%;
   white-space: nowrap;
