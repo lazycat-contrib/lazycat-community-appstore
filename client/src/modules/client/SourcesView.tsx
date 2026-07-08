@@ -17,7 +17,9 @@ import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
+import { SelectableCard as XSelectableCard } from '@astryxdesign/core/SelectableCard';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Skeleton as XSkeleton } from '@astryxdesign/core/Skeleton';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
@@ -45,7 +47,6 @@ import {
   hasInstallableVersion,
   isSourceStale,
   sourceMirrorOptions,
-  sourceMirrorSummary,
 } from '../../shared/utils';
 import { SourceAppGrid } from './SourceAppGrid';
 import {
@@ -63,6 +64,7 @@ const PAGE_SIZE_OPTIONS = [12, 24, 48];
 export function SourcesView({
   sources,
   sourceApps,
+  sourceAppsLoading = false,
   onAddSource,
   onUpdateSource,
   onDeleteSource,
@@ -76,6 +78,7 @@ export function SourcesView({
 }: {
   sources: SourceSubscription[];
   sourceApps: SourceApp[];
+  sourceAppsLoading?: boolean;
   onAddSource: (input: SourceInput) => Promise<void>;
   onUpdateSource: (source: SourceSubscription) => Promise<void>;
   onDeleteSource: (source: SourceSubscription) => Promise<void>;
@@ -93,6 +96,7 @@ export function SourcesView({
   const [syncingID, setSyncingID] = useState<SourceID | null>(null);
   const [confirmDeleteSource, setConfirmDeleteSource] = useState<SourceID | null>(null);
   const [sourceHealthFilter, setSourceHealthFilter] = useState<SourceHealthFilter>('all');
+  const [selectedSourceID, setSelectedSourceID] = useState<SourceID | null>(null);
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<SourceSubscription | null>(null);
   const [editDraft, setEditDraft] = useState<SourceInput>(emptyDraft);
@@ -424,64 +428,38 @@ export function SourcesView({
               const syncedAppCount = source.lastAppCount ?? sourceScopedApps.length;
               const installableAppCount = source.lastInstallableCount ?? sourceScopedApps.filter(hasInstallableVersion).length;
               const health = healthFor(source);
-              const healthHint =
-                health === 'auth'
-                  ? t('sources.healthHints.auth')
-                  : health === 'failed'
-                    ? t('sources.healthHints.failed')
-                    : health === 'stale'
-                      ? t('sources.healthHints.stale')
-                      : health === 'unsynced'
-                        ? t('sources.healthHints.unsynced')
-                        : health === 'syncing'
-                          ? t('sources.healthHints.syncing')
-                          : t('sources.healthHints.synced');
+              const issueMessage = source.lastError
+                || (health === 'auth' ? t('sources.healthHints.auth') : '')
+                || (health === 'failed' ? t('sources.healthHints.failed') : '')
+                || (source.lastInvalidGroupCodes?.length ? t('sources.invalidGroupCodesCleaned', { count: source.lastInvalidGroupCodes.length }) : '');
               return (
-                <div className="source-row" key={source.id}>
-                  <div>
+                <XSelectableCard
+                  key={source.id}
+                  className="source-row source-select-card"
+                  label={source.name}
+                  isSelected={selectedSourceID === source.id}
+                  onChange={(selected) => setSelectedSourceID(selected ? source.id : null)}
+                  padding={3}
+                  width="100%"
+                >
+                  <div className="source-card-main">
                     <div className="source-row-header">
                       <strong>{source.name}</strong>
                       <StatusBadge className="source-health-badge" tone={health} label={t(`sources.health.${health}`)} aria-live="polite" />
                     </div>
-                    <span className="source-url" title={source.url}>{source.url}</span>
                     <div className="source-facts">
                       <small>{source.lastSync ? t(health === 'stale' ? 'sources.lastSyncStale' : 'sources.lastSync', { time: formatDate(source.lastSync) }) : t('sources.neverSynced')}</small>
                       <small>{t('sources.syncedAppCount', { count: syncedAppCount })}</small>
                       <small>{t('sources.installableAppCount', { count: installableAppCount })}</small>
                     </div>
-                    {source.lastError && (
+                    {issueMessage && (
                       <p className={cx(health === 'auth' ? 'inline-warning' : 'inline-alert')}>
                         {health === 'auth' ? <KeyRound size={15} /> : <AlertCircle size={15} />}
-                        <span>{source.lastError}</span>
-                      </p>
-                    )}
-                    {(health === 'auth' || !source.lastError) && (
-                      <p className={cx(health === 'synced' ? 'inline-success' : 'inline-warning')}>
-                        {health === 'synced' ? <Check size={15} /> : health === 'auth' ? <KeyRound size={15} /> : <AlertCircle size={15} />}
-                        <span>{healthHint}</span>
-                      </p>
-                    )}
-                    <div className="source-facts source-config-facts">
-                      <small>{source.password ? t('sources.passwordConfigured') : t('sources.passwordNotConfigured')}</small>
-                      <small>{t('sources.downloadMirrorConfigured', { name: sourceMirrorSummary(source, 'download', t('sources.directMirror')) })}</small>
-                      <small>{t('sources.rawMirrorConfigured', { name: sourceMirrorSummary(source, 'raw', t('sources.directMirror')) })}</small>
-                      <small>{source.chatAvailable ? (source.chatEnabled === false ? t('sources.chatOff') : t('sources.chatOn')) : t('sources.chatUnavailable')}</small>
-                    </div>
-                    {(source.groups?.length || 0) > 0 && (
-                      <div className="source-group-chips" aria-label={t('sources.groups')}>
-                        {source.groups?.map((group) => (
-                          <StatusBadge key={`${source.id}-${group.name}-${group.code || ''}`} tone="synced" label={group.name} />
-                        ))}
-                      </div>
-                    )}
-                    {(source.lastInvalidGroupCodes?.length || 0) > 0 && (
-                      <p className="inline-warning">
-                        <AlertCircle size={15} />
-                        <span>{t('sources.invalidGroupCodesCleaned', { count: source.lastInvalidGroupCodes?.length || 0 })}</span>
+                        <span>{issueMessage}</span>
                       </p>
                     )}
                   </div>
-                  <div className="row-actions">
+                  <div className="row-actions source-card-actions">
                     <XIconButton label={t('sources.editTitle')} variant="ghost" icon={<Pencil size={17} />} onClick={() => openEditSource(source)} />
                     <XIconButton
                       label={t('sources.syncSource', { name: source.name })}
@@ -503,7 +481,7 @@ export function SourcesView({
                     />
                     <XIconButton label={t('sources.deleteSource', { name: source.name })} variant="destructive" icon={<X size={17} />} onClick={() => deleteSource(source)} />
                   </div>
-                </div>
+                </XSelectableCard>
               );
             })
           )}
@@ -537,16 +515,24 @@ export function SourcesView({
         {hasSyncedStructuredCategories && (
           <CategoryBrowser categories={syncedCategoryContext.categories} activeCategory={selectedSyncedCategory} onCategory={setSelectedSyncedCategory} />
         )}
-        <SourceAppGrid
-          apps={pagedSyncedSourceApps}
-          installedApps={installedApps}
-          onOpen={onOpenSource}
-          onInstall={onInstall}
-          onGoSources={() => setIsAddSourceOpen(true)}
-          showEmptyAction={sourceApps.length === 0}
-          emptyTitle={sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle')}
-          emptyBody={sourceApps.length === 0 ? t('search.noSyncedAppsBody') : t('search.noFilterResultsBody')}
-        />
+        {sourceAppsLoading ? (
+          <div className="source-app-loading" aria-label={t('common.loading')} aria-live="polite">
+            <XSkeleton height={88} radius={2} index={0} />
+            <XSkeleton height={88} radius={2} index={1} />
+            <XSkeleton height={88} radius={2} index={2} />
+          </div>
+        ) : (
+          <SourceAppGrid
+            apps={pagedSyncedSourceApps}
+            installedApps={installedApps}
+            onOpen={onOpenSource}
+            onInstall={onInstall}
+            onGoSources={() => setIsAddSourceOpen(true)}
+            showEmptyAction={sourceApps.length === 0}
+            emptyTitle={sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle')}
+            emptyBody={sourceApps.length === 0 ? t('search.noSyncedAppsBody') : t('search.noFilterResultsBody')}
+          />
+        )}
         {filteredSyncedSourceApps.length > syncedPageSize && (
           <XPagination
             className="list-pagination"

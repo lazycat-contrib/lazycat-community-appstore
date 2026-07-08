@@ -1,47 +1,27 @@
-import { Search } from 'lucide-react';
+import { Search, Tag, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
+import { PowerSearch, type PowerSearchConfig, type PowerSearchField, type PowerSearchFilter } from '@astryxdesign/core/PowerSearch';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
-import { Tokenizer as XTokenizer } from '@astryxdesign/core/Tokenizer';
-import { createStaticSource, TypeaheadItem as XTypeaheadItem, type SearchableItem } from '@astryxdesign/core/Typeahead';
 import { SectionTitle } from '../../shared/components/Feedback';
+import { categoryDescendantIds } from '../../shared/categoryTree';
 import type { Category, InstallOptions, SortMode, SourceApp, StoreApp } from '../../shared/types';
+import { localizedAppDescription, localizedAppName, localizedAppSummary } from '../../shared/utils';
+import { filterSignature, matchesChoiceFilter, matchesStringFilter, uniqueEnumOptions } from '../search/searchFilterHelpers';
 import { AppGrid } from './AppGrid';
 import { CategoryBrowser } from './CategoryBrowser';
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
-type TagFilterItem = SearchableItem;
-
-function tagFilterItem(tag: string): TagFilterItem {
-  return { id: tag.toLowerCase(), label: tag };
-}
-
-function uniqueTags(tags: string[]) {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  tags.forEach((tag) => {
-    const normalized = tag.trim();
-    const key = normalized.toLowerCase();
-    if (!normalized || seen.has(key)) return;
-    seen.add(key);
-    out.push(normalized);
-  });
-  return out;
-}
 
 export function StorefrontSearch({
   apps,
   categories,
   submitters,
   activeCategory,
-  activeSubmitter,
-  activeTags,
   tagOptions,
   sortMode,
   onCategory,
-  onSubmitter,
-  onTags,
   onSortMode,
   onOpen,
   onInstall,
@@ -51,34 +31,86 @@ export function StorefrontSearch({
   categories: Category[];
   submitters: string[];
   activeCategory: string;
-  activeSubmitter: string;
-  activeTags: string[];
   tagOptions: string[];
   sortMode: SortMode;
   onCategory: (category: string) => void;
-  onSubmitter: (submitter: string) => void;
-  onTags: (tags: string[]) => void;
   onSortMode: (mode: SortMode) => void;
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   defaultPageSize: number;
 }) {
   const { t } = useTranslation();
+  const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize || 24);
-  const totalPages = Math.max(1, Math.ceil(apps.length / pageSize));
+  const filterKey = filterSignature(filters);
+  const searchConfig = useMemo<PowerSearchConfig>(() => {
+    const fields: PowerSearchField[] = [
+      {
+        key: 'content',
+        label: t('search.catalogSearchKeyword'),
+        defaultOperator: 'contains',
+        operators: [
+          { key: 'contains', label: t('search.operators.contains'), value: { type: 'string' } },
+        ],
+        isValueMatchAllowed: false,
+      },
+    ];
+    if (submitters.length > 0) {
+      fields.push({
+        key: 'submitter',
+        label: t('search.submitter'),
+        icon: <UserRound size={15} />,
+        defaultOperator: 'is',
+        operators: [
+          { key: 'is', label: t('search.operators.is'), value: { type: 'enum', values: uniqueEnumOptions(submitters) } },
+          { key: 'is_not', label: t('search.operators.isNot'), value: { type: 'enum', values: uniqueEnumOptions(submitters) } },
+        ],
+      });
+    }
+    if (tagOptions.length > 0) {
+      fields.push({
+        key: 'tags',
+        label: t('search.catalogSearchTags'),
+        icon: <Tag size={15} />,
+        defaultOperator: 'is_any_of',
+        operators: [
+          { key: 'is_any_of', label: t('search.operators.isAnyOf'), value: { type: 'enum_list', values: uniqueEnumOptions(tagOptions) } },
+          { key: 'is_none_of', label: t('search.operators.isNoneOf'), value: { type: 'enum_list', values: uniqueEnumOptions(tagOptions) } },
+        ],
+      });
+    }
+    return { name: 'StorefrontSearch', contentSearchFieldKey: 'content', fields };
+  }, [submitters, tagOptions, t]);
+  const categoryFilteredApps = useMemo(() => {
+    const selectedCategoryID = Number(activeCategory);
+    const selectedCategoryIDs = new Set<number>();
+    if (activeCategory !== 'all' && Number.isFinite(selectedCategoryID) && selectedCategoryID > 0) {
+      selectedCategoryIDs.add(selectedCategoryID);
+      for (const childID of categoryDescendantIds(categories, selectedCategoryID)) {
+        selectedCategoryIDs.add(childID);
+      }
+    }
+    return apps.filter((app) => activeCategory === 'all' || (app.categoryId ? selectedCategoryIDs.has(app.categoryId) : false));
+  }, [activeCategory, apps, categories]);
+  const filteredApps = useMemo(() => {
+    const searched = categoryFilteredApps.filter((app) => matchesStoreAppFilters(app, filters));
+    return [...searched].sort((a, b) => {
+      if (sortMode === 'downloads') return b.downloadCount - a.downloadCount;
+      if (sortMode === 'name') return localizedAppName(a).localeCompare(localizedAppName(b));
+      return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+    });
+  }, [categoryFilteredApps, filterKey, filters, sortMode]);
+  const totalPages = Math.max(1, Math.ceil(filteredApps.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const tagItems = useMemo(() => uniqueTags([...tagOptions, ...activeTags]).map(tagFilterItem), [activeTags, tagOptions]);
-  const selectedTagItems = useMemo(() => uniqueTags(activeTags).map(tagFilterItem), [activeTags]);
-  const tagSearchSource = useMemo(() => createStaticSource(tagItems), [tagItems]);
   const pagedApps = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return apps.slice(start, start + pageSize);
-  }, [apps, currentPage, pageSize]);
+    return filteredApps.slice(start, start + pageSize);
+  }, [filteredApps, currentPage, pageSize]);
 
   useEffect(() => {
     setPage(1);
-  }, [apps]);
+  }, [activeCategory, filterKey, sortMode]);
 
   useEffect(() => {
     setPageSize(defaultPageSize || 24);
@@ -96,9 +128,23 @@ export function StorefrontSearch({
         {categories.length > 0 && (
           <CategoryBrowser categories={categories} activeCategory={activeCategory} onCategory={onCategory} />
         )}
-        <div className="filter-bar">
+        <div className="catalog-search-toolbar">
+          <PowerSearch
+            className="catalog-filter-search"
+            config={searchConfig}
+            filters={filters}
+            onChange={(nextFilters) => setFilters([...nextFilters])}
+            label={t('search.catalogSearchLabel')}
+            placeholder={t('search.catalogSearchPlaceholder')}
+            startIcon={<Search size={16} />}
+            resultCount={t('search.resultCount', { count: filteredApps.length })}
+            popoverSaveButtonLabel={t('common.apply')}
+            tokenOverflowBehavior="unfocusedInline"
+            hasClear
+          />
           <XSelector
             label={t('search.sort')}
+            isLabelHidden
             value={sortMode}
             options={[
               { value: 'recent', label: t('search.recent') },
@@ -106,31 +152,8 @@ export function StorefrontSearch({
               { value: 'name', label: t('search.name') },
             ]}
             onChange={(value) => onSortMode(value as SortMode)}
+            width="100%"
           />
-          <XSelector
-            label={t('search.submitter')}
-            value={activeSubmitter}
-            options={[
-              { value: 'all', label: t('search.allSubmitters') },
-              ...submitters.map((submitter) => ({ value: submitter, label: submitter })),
-            ]}
-            onChange={onSubmitter}
-          />
-          {(tagOptions.length > 0 || activeTags.length > 0) && (
-            <XTokenizer
-              label={t('search.tagFilter')}
-              searchSource={tagSearchSource}
-              value={selectedTagItems}
-              hasClear
-              hasEntriesOnFocus
-              placeholder={t('search.tagFilterPlaceholder')}
-              debounceMs={0}
-              width="100%"
-              tokenOverflowBehavior="unfocusedInline"
-              renderItem={(item) => <XTypeaheadItem item={item} />}
-              onChange={(items) => onTags(uniqueTags(items.map((item) => item.label)))}
-            />
-          )}
         </div>
         <AppGrid
           apps={pagedApps}
@@ -138,12 +161,12 @@ export function StorefrontSearch({
           onInstall={onInstall}
           empty={{ title: t('search.noResultsTitle'), body: t('search.noResultsBody') }}
         />
-        {apps.length > pageSize && (
+        {filteredApps.length > pageSize && (
           <XPagination
             className="list-pagination"
             page={currentPage}
             onChange={setPage}
-            totalItems={apps.length}
+            totalItems={filteredApps.length}
             pageSize={pageSize}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
             onPageSizeChange={setPageSize}
@@ -155,4 +178,25 @@ export function StorefrontSearch({
       </section>
     </section>
   );
+}
+
+function matchesStoreAppFilters(app: StoreApp, filters: PowerSearchFilter[]) {
+  const searchText = [
+    app.name,
+    localizedAppName(app),
+    app.summary,
+    localizedAppSummary(app),
+    localizedAppDescription(app),
+    app.owner,
+    app.packageId,
+    app.slug,
+    app.category,
+    app.tags.join(' '),
+  ].filter(Boolean).join(' ');
+  return filters.every((filter) => {
+    if (filter.field === 'content') return matchesStringFilter(searchText, filter);
+    if (filter.field === 'submitter') return matchesChoiceFilter(app.owner, filter);
+    if (filter.field === 'tags') return matchesChoiceFilter(app.tags, filter);
+    return true;
+  });
 }

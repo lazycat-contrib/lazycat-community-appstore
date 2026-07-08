@@ -290,6 +290,7 @@ export type ClientSettings = {
   autoSyncEnabled: boolean;
   autoSyncIntervalMinutes: number;
   syncOnStartup: boolean;
+  installSuccessDismissSeconds: number;
   lastAutoSyncAt?: string;
   lastAutoSyncStatus?: string;
   lastAutoSyncError?: string;

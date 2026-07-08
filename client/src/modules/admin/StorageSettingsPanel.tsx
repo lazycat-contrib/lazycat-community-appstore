@@ -3,6 +3,7 @@ import { Button as XButton } from '@astryxdesign/core/Button';
 import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { Check, Cloud, Copy, Database, Folder, Link, Plus, Save, Server, Star, Trash2, X } from 'lucide-react';
@@ -143,7 +144,7 @@ export function StorageSettingsPanel({
               <strong>{selectedStorage?.name || draft.name || draft.key}</strong>
               <span>{draft.key || selectedKey}</span>
             </div>
-            <div className="row-actions">
+            <div className="storage-editor-actions">
               <XButton type="button" variant="secondary" size="sm" label={t('admin.testStorage')} icon={<Check size={17} />} onClick={() => void onTestDraft()} />
               <XButton type="button" variant="primary" size="sm" label={t('admin.saveStorage')} icon={<Save size={17} />} onClick={() => void onSave()} />
             </div>
@@ -297,15 +298,13 @@ function StorageFields({ storage, onChange, mode }: { storage: StorageSettings; 
               value={storage.region || 'auto'}
               onChange={(value) => update('region', value)}
             />
-            <XSelector
+            <XSwitch
               label={t('admin.storageFields.pathStyle')}
               description={t('admin.storageHelp.pathStyle')}
-              value={String(Boolean(storage.pathStyle))}
-              options={[
-                { value: 'true', label: t('common.on') },
-                { value: 'false', label: t('common.off') },
-              ]}
-              onChange={(value) => update('pathStyle', value === 'true')}
+              value={Boolean(storage.pathStyle)}
+              labelSpacing="spread"
+              width="100%"
+              onChange={(checked) => update('pathStyle', checked)}
             />
             <XTextInput
               label={t('admin.storageFields.rootPrefix')}

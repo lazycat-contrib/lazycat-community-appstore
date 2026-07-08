@@ -226,7 +226,7 @@ func (s *Server) clientPolicy(ctx context.Context) siteClientPolicy {
 
 func defaultMinClientVersion() string {
 	if strings.TrimSpace(buildinfo.ClientVersion) == "" {
-		return "0.1.12"
+		return "0.1.13"
 	}
 	return strings.TrimSpace(buildinfo.ClientVersion)
 }

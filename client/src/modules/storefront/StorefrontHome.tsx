@@ -11,6 +11,7 @@ import { CategoryBrowser } from './CategoryBrowser';
 
 export function StorefrontHome({
   apps,
+  appCount,
   categories,
   collections,
   siteProfile,
@@ -23,6 +24,7 @@ export function StorefrontHome({
   isAuthenticated,
 }: {
   apps: StoreApp[];
+  appCount?: number;
   categories: Category[];
   collections: Collection[];
   siteProfile: SiteProfile;
@@ -36,7 +38,7 @@ export function StorefrontHome({
 }) {
   const { t } = useTranslation();
   const latest = [...apps].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).slice(0, 6);
-  const approvedCount = apps.filter((app) => app.status === 'APPROVED').length;
+  const approvedCount = appCount ?? apps.filter((app) => app.status === 'APPROVED').length;
   const sourceFeedURL = siteProfile.sourceUrl || `${API_BASE || window.location.origin}/source/v2/index.json`;
   const BackstageIcon = isAuthenticated ? PackagePlus : LogIn;
   const backstageLabel = isAuthenticated ? t('home.submitApp') : t('topbar.login');

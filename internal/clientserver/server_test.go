@@ -140,7 +140,7 @@ func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("settings save = %d %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"commentDisplayName":"Alice Cat"`) || !strings.Contains(rec.Body.String(), `"defaultPageSize":24`) || !strings.Contains(rec.Body.String(), `"autoSyncIntervalMinutes":5`) {
+	if !strings.Contains(rec.Body.String(), `"commentDisplayName":"Alice Cat"`) || !strings.Contains(rec.Body.String(), `"defaultPageSize":24`) || !strings.Contains(rec.Body.String(), `"autoSyncIntervalMinutes":5`) || !strings.Contains(rec.Body.String(), `"installSuccessDismissSeconds":3`) {
 		t.Fatalf("settings response not normalized: %s", rec.Body.String())
 	}
 	setting, err := app.server.db.ClientSyncSetting.Query().
@@ -152,8 +152,16 @@ func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
 	if !setting.AutoSyncEnabled || !setting.SyncOnStartup || setting.AutoSyncIntervalMinutes != 5 {
 		t.Fatalf("bad sync setting: %#v", setting)
 	}
-	if count, err := app.server.db.ClientSetting.Query().Count(context.Background()); err != nil || count != 2 {
+	if count, err := app.server.db.ClientSetting.Query().Count(context.Background()); err != nil || count != 3 {
 		t.Fatalf("client_settings count = %d, err = %v", count, err)
+	}
+	rec = app.request("PATCH", "/api/client/v1/settings", `{"installSuccessDismissSeconds":999}`, "alice")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"installSuccessDismissSeconds":60`) {
+		t.Fatalf("settings max clamp failed = %d %s", rec.Code, rec.Body.String())
+	}
+	rec = app.request("PATCH", "/api/client/v1/settings", `{"installSuccessDismissSeconds":0}`, "alice")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"installSuccessDismissSeconds":0`) {
+		t.Fatalf("settings zero disable failed = %d %s", rec.Code, rec.Body.String())
 	}
 }
 

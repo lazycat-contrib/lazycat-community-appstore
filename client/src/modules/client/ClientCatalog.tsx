@@ -1,10 +1,10 @@
-import { Cloud, Download, RefreshCw } from 'lucide-react';
+import { Cloud, Download, PackageCheck, RefreshCw, Search, Server } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
+import { PowerSearch, type PowerSearchConfig, type PowerSearchFilter } from '@astryxdesign/core/PowerSearch';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
-import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { SourceAppGrid } from './SourceAppGrid';
 import { CategoryBrowser } from '../storefront/CategoryBrowser';
 import type {
@@ -12,7 +12,6 @@ import type {
   InstallOptions,
   InstalledApplication,
   SourceApp,
-  SourceAppFilter,
   SourceSubscription,
   StoreApp,
 } from '../../shared/types';
@@ -29,21 +28,20 @@ import {
   selectedSourceVersion,
   sourceForApp,
 } from '../../shared/utils';
+import { enumOptionsFromEntries, filterSignature, matchesChoiceFilter, matchesStringFilter } from '../search/searchFilterHelpers';
 import {
   buildSourceCategoryFilterContext,
   matchesSourceAppCategory,
-  matchesSourceAppSource,
   sourceAppCategoryOptions,
   sourceAppSourceOptions,
-  sourceSubscriptionFilterKey,
 } from './sourceAppFilters';
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
+type ClientCatalogSortMode = 'default' | 'name' | 'source';
 
 export function ClientCatalog({
   sourceApps,
   sources,
-  query,
   sourceStats,
   installedApps,
   onOpenSource,
@@ -53,7 +51,6 @@ export function ClientCatalog({
 }: {
   sourceApps: SourceApp[];
   sources: SourceSubscription[];
-  query: string;
   sourceStats: ClientSourceStats;
   installedApps: InstalledApplication[];
   onOpenSource: (app: SourceApp) => void;
@@ -62,60 +59,78 @@ export function ClientCatalog({
   defaultPageSize: number;
 }) {
   const { t } = useTranslation();
-  const [sourceAppFilter, setSourceAppFilter] = useState<SourceAppFilter>('all');
-  const [selectedSourceFilter, setSelectedSourceFilter] = useState('all');
+  const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
+  const [sortMode, setSortMode] = useState<ClientCatalogSortMode>('default');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize || 24);
-  const sourceNeedle = query.trim().toLowerCase();
-  const searchableSourceApps = sourceApps.filter((app) => {
-    if (!sourceNeedle) return true;
-    return [
-      app.name,
-      localizedAppName(app),
-      app.summary,
-      localizedAppSummary(app),
-      localizedAppDescription(app),
-      app.category,
-      localizedCategory(app),
-      app.sourceName,
-    ].filter(Boolean).join(' ').toLowerCase().includes(sourceNeedle);
-  });
-  const sourceOptions = sourceAppSourceOptions(searchableSourceApps);
-  const sourceFilteredCategoryApps = searchableSourceApps.filter((app) => matchesSourceAppSource(app, selectedSourceFilter));
-  const categoryOptions = sourceAppCategoryOptions(sourceFilteredCategoryApps, t('common.uncategorized'));
-  const categoryContext = useMemo(() => {
-    const scopedSources = selectedSourceFilter === 'all'
-      ? sources
-      : sources.filter((source) => sourceSubscriptionFilterKey(source) === selectedSourceFilter);
-    return buildSourceCategoryFilterContext(scopedSources);
-  }, [selectedSourceFilter, sources]);
-  const hasStructuredCategories = categoryContext.categories.length > 0;
-  const updateSourceApps = searchableSourceApps.filter((app) => isSourceAppUpdateAvailable(app, installedApps));
-  const sourceAppFilterItems: Array<{ key: SourceAppFilter; label: string; count: number }> = [
-    { key: 'all', label: t('search.sourceFilters.all'), count: searchableSourceApps.length },
-    { key: 'updates', label: t('search.sourceFilters.updates'), count: updateSourceApps.length },
-    { key: 'installable', label: t('search.sourceFilters.installable'), count: searchableSourceApps.filter(hasInstallableVersion).length },
-    { key: 'installed', label: t('search.sourceFilters.installed'), count: searchableSourceApps.filter((app) => Boolean(findInstalledApplication(app, installedApps))).length },
+  const filterKey = filterSignature(filters);
+  const sourceOptions = sourceAppSourceOptions(sourceApps);
+  const sourceStatusItems = [
+    { key: 'updates', label: t('search.sourceFilters.updates'), count: sourceApps.filter((app) => isSourceAppUpdateAvailable(app, installedApps)).length },
+    { key: 'installable', label: t('search.sourceFilters.installable'), count: sourceApps.filter(hasInstallableVersion).length },
+    { key: 'installed', label: t('search.sourceFilters.installed'), count: sourceApps.filter((app) => Boolean(findInstalledApplication(app, installedApps))).length },
     {
       key: 'incomplete',
       label: t('search.sourceFilters.incomplete'),
-      count: searchableSourceApps.filter((app) => !hasInstallableVersion(app) || !app.latestVersion?.sha256 || !app.latestVersion?.size).length,
+      count: sourceApps.filter((app) => !hasInstallableVersion(app) || !app.latestVersion?.sha256 || !app.latestVersion?.size).length,
     },
   ];
-  const visibleSourceAppFilterItems = updateSourceApps.length > 0
-    ? sourceAppFilterItems
-    : sourceAppFilterItems.filter((item) => item.key !== 'updates');
-  const effectiveSourceAppFilter = updateSourceApps.length === 0 && sourceAppFilter === 'updates' ? 'all' : sourceAppFilter;
-  const filteredSourceApps = searchableSourceApps.filter((app) => {
-    if (!matchesSourceAppSource(app, selectedSourceFilter)) return false;
-    if (!matchesSourceAppCategory(app, selectedCategoryFilter, hasStructuredCategories ? categoryContext : undefined)) return false;
-    if (effectiveSourceAppFilter === 'updates') return isSourceAppUpdateAvailable(app, installedApps);
-    if (effectiveSourceAppFilter === 'installable') return hasInstallableVersion(app);
-    if (effectiveSourceAppFilter === 'installed') return Boolean(findInstalledApplication(app, installedApps));
-    if (effectiveSourceAppFilter === 'incomplete') return !hasInstallableVersion(app) || !app.latestVersion?.sha256 || !app.latestVersion?.size;
-    return true;
-  });
+  const searchConfig = useMemo<PowerSearchConfig>(() => ({
+    name: 'ClientCatalogSearch',
+    contentSearchFieldKey: 'content',
+    fields: [
+      {
+        key: 'content',
+        label: t('search.catalogSearchKeyword'),
+        defaultOperator: 'contains',
+        operators: [
+          { key: 'contains', label: t('search.operators.contains'), value: { type: 'string' } },
+        ],
+        isValueMatchAllowed: false,
+      },
+      {
+        key: 'source',
+        label: t('search.catalogSearchSource'),
+        icon: <Server size={15} />,
+        defaultOperator: 'is',
+        operators: [
+          { key: 'is', label: t('search.operators.is'), value: { type: 'enum', values: enumOptionsFromEntries(sourceOptions.map((option) => ({ value: option.key, label: option.label }))) } },
+          { key: 'is_not', label: t('search.operators.isNot'), value: { type: 'enum', values: enumOptionsFromEntries(sourceOptions.map((option) => ({ value: option.key, label: option.label }))) } },
+          { key: 'is_any_of', label: t('search.operators.isAnyOf'), value: { type: 'enum_list', values: enumOptionsFromEntries(sourceOptions.map((option) => ({ value: option.key, label: option.label }))) } },
+        ],
+      },
+      {
+        key: 'status',
+        label: t('search.catalogSearchStatus'),
+        icon: <PackageCheck size={15} />,
+        defaultOperator: 'is_any_of',
+        operators: [
+          { key: 'is_any_of', label: t('search.operators.isAnyOf'), value: { type: 'enum_list', values: enumOptionsFromEntries(sourceStatusItems.map((item) => ({ value: item.key, label: item.label }))) } },
+          { key: 'is_none_of', label: t('search.operators.isNoneOf'), value: { type: 'enum_list', values: enumOptionsFromEntries(sourceStatusItems.map((item) => ({ value: item.key, label: item.label }))) } },
+        ],
+      },
+    ],
+  }), [sourceOptions, sourceStatusItems, t]);
+  const searchedSourceApps = useMemo(() => sourceApps.filter((app) => matchesClientCatalogFilters(app, filters, installedApps)), [filterKey, filters, installedApps, sourceApps]);
+  const categoryOptions = sourceAppCategoryOptions(searchedSourceApps, t('common.uncategorized'));
+  const categoryContext = useMemo(() => buildSourceCategoryFilterContext(sources), [sources]);
+  const hasStructuredCategories = categoryContext.categories.length > 0;
+  const updateSourceApps = searchedSourceApps.filter((app) => isSourceAppUpdateAvailable(app, installedApps));
+  const filteredSourceApps = useMemo(() => {
+    const filtered = searchedSourceApps.filter((app) => {
+      if (!matchesSourceAppCategory(app, selectedCategoryFilter, hasStructuredCategories ? categoryContext : undefined)) return false;
+      return true;
+    });
+    return [...filtered].sort((a, b) => {
+      if (sortMode === 'name') return localizedAppName(a).localeCompare(localizedAppName(b));
+      if (sortMode === 'source') {
+        const sourceDelta = a.sourceName.localeCompare(b.sourceName);
+        return sourceDelta !== 0 ? sourceDelta : localizedAppName(a).localeCompare(localizedAppName(b));
+      }
+      return sourceApps.indexOf(a) - sourceApps.indexOf(b);
+    });
+  }, [categoryContext, hasStructuredCategories, searchedSourceApps, selectedCategoryFilter, sortMode, sourceApps]);
   const totalPages = Math.max(1, Math.ceil(filteredSourceApps.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedSourceApps = useMemo(() => {
@@ -125,11 +140,7 @@ export function ClientCatalog({
 
   useEffect(() => {
     setPage(1);
-  }, [sourceNeedle, selectedSourceFilter, selectedCategoryFilter, effectiveSourceAppFilter, sourceApps.length, installedApps.length]);
-
-  useEffect(() => {
-    setSelectedCategoryFilter('all');
-  }, [selectedSourceFilter]);
+  }, [filterKey, selectedCategoryFilter, sortMode, sourceApps.length, installedApps.length]);
 
   useEffect(() => {
     setPageSize(defaultPageSize || 24);
@@ -148,7 +159,7 @@ export function ClientCatalog({
   const sourceEmptyBody =
     sourceApps.length === 0
       ? t('search.noSyncedAppsBody')
-      : effectiveSourceAppFilter === 'all'
+      : filters.length === 0 && selectedCategoryFilter === 'all'
         ? t('search.noResultsBody')
         : t('search.noFilterResultsBody');
 
@@ -198,17 +209,35 @@ export function ClientCatalog({
             <XButton type="button" variant="primary" size="sm" label={t('search.updateAll')} icon={<RefreshCw size={17} />} onClick={() => void updateAllSourceApps()} />
           )}
         </div>
-        <div className="filter-bar">
-          <XSelector
-            label={t('search.sourceFilter')}
-            value={selectedSourceFilter}
-            options={[
-              { value: 'all', label: t('search.allSources') },
-              ...sourceOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
-            ]}
-            onChange={setSelectedSourceFilter}
+        <div className="catalog-search-toolbar">
+          <PowerSearch
+            className="catalog-filter-search"
+            config={searchConfig}
+            filters={filters}
+            onChange={(nextFilters) => setFilters([...nextFilters])}
+            label={t('search.catalogSearchLabel')}
+            placeholder={t('search.clientCatalogSearchPlaceholder')}
+            startIcon={<Search size={16} />}
+            resultCount={t('search.resultCount', { count: filteredSourceApps.length })}
+            popoverSaveButtonLabel={t('common.apply')}
+            tokenOverflowBehavior="unfocusedInline"
+            hasClear
           />
-          {!hasStructuredCategories && (
+          <XSelector
+            label={t('search.sort')}
+            isLabelHidden
+            value={sortMode}
+            options={[
+              { value: 'default', label: t('search.defaultOrder') },
+              { value: 'name', label: t('search.name') },
+              { value: 'source', label: t('search.sourceName') },
+            ]}
+            onChange={(value) => setSortMode(value as ClientCatalogSortMode)}
+            width="100%"
+          />
+        </div>
+        {!hasStructuredCategories && (
+          <div className="filter-bar">
             <XSelector
               label={t('search.categoryFilter')}
               value={selectedCategoryFilter}
@@ -218,20 +247,11 @@ export function ClientCatalog({
               ]}
               onChange={setSelectedCategoryFilter}
             />
-          )}
-        </div>
+          </div>
+        )}
         {hasStructuredCategories && (
           <CategoryBrowser categories={categoryContext.categories} activeCategory={selectedCategoryFilter} onCategory={setSelectedCategoryFilter} />
         )}
-        <XToggleButtonGroup value={effectiveSourceAppFilter} onChange={(value) => setSourceAppFilter((value || 'all') as SourceAppFilter)} label={t('search.sourceAppFilter')} size="sm">
-          {visibleSourceAppFilterItems.map((item) => (
-            <XToggleButton
-              key={item.key}
-              value={item.key}
-              label={`${item.label} ${item.count}`}
-            />
-          ))}
-        </XToggleButtonGroup>
         <SourceAppGrid
           apps={pagedSourceApps}
           installedApps={installedApps}
@@ -258,4 +278,36 @@ export function ClientCatalog({
       </section>
     </section>
   );
+}
+
+function matchesClientCatalogFilters(app: SourceApp, filters: PowerSearchFilter[], installedApps: InstalledApplication[]) {
+  const searchText = [
+    app.name,
+    localizedAppName(app),
+    app.summary,
+    localizedAppSummary(app),
+    localizedAppDescription(app),
+    app.category,
+    localizedCategory(app),
+    app.sourceName,
+    app.packageId,
+    app.slug,
+    app.latestVersion?.version,
+  ].filter(Boolean).join(' ');
+  const statuses = sourceAppStatusValues(app, installedApps);
+  return filters.every((filter) => {
+    if (filter.field === 'content') return matchesStringFilter(searchText, filter);
+    if (filter.field === 'source') return matchesChoiceFilter(app.sourceId !== undefined && app.sourceId !== null ? String(app.sourceId) : `name:${app.sourceName}`, filter);
+    if (filter.field === 'status') return matchesChoiceFilter(statuses, filter);
+    return true;
+  });
+}
+
+function sourceAppStatusValues(app: SourceApp, installedApps: InstalledApplication[]) {
+  const values: string[] = [];
+  if (isSourceAppUpdateAvailable(app, installedApps)) values.push('updates');
+  if (hasInstallableVersion(app)) values.push('installable');
+  if (findInstalledApplication(app, installedApps)) values.push('installed');
+  if (!hasInstallableVersion(app) || !app.latestVersion?.sha256 || !app.latestVersion?.size) values.push('incomplete');
+  return values;
 }

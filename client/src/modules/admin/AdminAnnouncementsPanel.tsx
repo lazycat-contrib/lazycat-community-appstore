@@ -6,6 +6,7 @@ import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
@@ -252,14 +253,12 @@ export function AdminAnnouncementsPanel({
             <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setEditing(null)} />
             <SectionTitle icon={editing.level === 'warning' ? Bell : MessageSquare} title={editing.id ? t('admin.editAnnouncement') : t('admin.createAnnouncement')} />
             <XFormLayout>
-              <XSelector
+              <XSwitch
                 label={t('admin.settings.announcementEnabled')}
-                value={draft.enabled ? 'true' : 'false'}
-                options={[
-                  { value: 'true', label: t('common.on') },
-                  { value: 'false', label: t('common.off') },
-                ]}
-                onChange={(value) => setDraft((current) => ({ ...current, enabled: value === 'true' }))}
+                value={draft.enabled}
+                labelSpacing="spread"
+                width="100%"
+                onChange={(checked) => setDraft((current) => ({ ...current, enabled: checked }))}
               />
               <XSelector
                 label={t('admin.settings.announcementLevel')}

@@ -14,14 +14,18 @@ import (
 )
 
 const (
-	settingCommentDisplayName = "comment_display_name"
-	settingDefaultPageSize    = "default_page_size"
+	settingCommentDisplayName           = "comment_display_name"
+	settingDefaultPageSize              = "default_page_size"
+	settingInstallSuccessDismissSeconds = "install_success_dismiss_seconds"
 )
 
 const (
 	defaultAutoSyncIntervalMinutes = 60
 	minAutoSyncIntervalMinutes     = 5
 	maxAutoSyncIntervalMinutes     = 24 * 60
+
+	defaultInstallSuccessDismissSeconds = 3
+	maxInstallSuccessDismissSeconds     = 60
 )
 
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +38,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
-	var input ClientSettingsDTO
+	var input ClientSettingsUpdateDTO
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON request body")
 		return
@@ -50,29 +54,39 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
 	}
+	installSuccessDismissSeconds := s.clientInstallSuccessDismissSeconds(r.Context(), userID)
+	if input.InstallSuccessDismissSeconds != nil {
+		installSuccessDismissSeconds = sanitizeInstallSuccessDismissSeconds(*input.InstallSuccessDismissSeconds)
+	}
+	if err := s.setClientSetting(r, settingInstallSuccessDismissSeconds, strconv.Itoa(installSuccessDismissSeconds)); err != nil {
+		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
+		return
+	}
 	syncSetting, err := s.setClientSyncSetting(r.Context(), userID, input)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettingsDTO(displayName, defaultPageSize, syncSetting)})
+	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettingsDTO(displayName, defaultPageSize, installSuccessDismissSeconds, syncSetting)})
 }
 
 func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSettingsDTO, error) {
 	commentDisplayName := strings.TrimSpace(s.clientSetting(ctx, userID, settingCommentDisplayName))
 	defaultPageSize := s.clientDefaultPageSize(ctx, userID, pagination.DefaultPageSize, 100)
+	installSuccessDismissSeconds := s.clientInstallSuccessDismissSeconds(ctx, userID)
 	syncSetting, err := s.clientSyncSetting(ctx, userID)
 	if err != nil {
 		return ClientSettingsDTO{}, err
 	}
-	return s.clientSettingsDTO(commentDisplayName, defaultPageSize, syncSetting), nil
+	return s.clientSettingsDTO(commentDisplayName, defaultPageSize, installSuccessDismissSeconds, syncSetting), nil
 }
 
-func (s *Server) clientSettingsDTO(commentDisplayName string, defaultPageSize int, syncSetting *ent.ClientSyncSetting) ClientSettingsDTO {
+func (s *Server) clientSettingsDTO(commentDisplayName string, defaultPageSize int, installSuccessDismissSeconds int, syncSetting *ent.ClientSyncSetting) ClientSettingsDTO {
 	dto := ClientSettingsDTO{
-		CommentDisplayName:      commentDisplayName,
-		DefaultPageSize:         pagination.ClampPageSize(defaultPageSize, pagination.DefaultPageSize, 100),
-		AutoSyncIntervalMinutes: defaultAutoSyncIntervalMinutes,
+		CommentDisplayName:           commentDisplayName,
+		DefaultPageSize:              pagination.ClampPageSize(defaultPageSize, pagination.DefaultPageSize, 100),
+		AutoSyncIntervalMinutes:      defaultAutoSyncIntervalMinutes,
+		InstallSuccessDismissSeconds: sanitizeInstallSuccessDismissSeconds(installSuccessDismissSeconds),
 	}
 	if syncSetting == nil {
 		return dto
@@ -88,6 +102,15 @@ func (s *Server) clientSettingsDTO(commentDisplayName string, defaultPageSize in
 		dto.LastAutoSyncError = *syncSetting.LastAutoSyncError
 	}
 	return dto
+}
+
+func (s *Server) clientInstallSuccessDismissSeconds(ctx context.Context, userID string) int {
+	raw := strings.TrimSpace(s.clientSetting(ctx, userID, settingInstallSuccessDismissSeconds))
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return defaultInstallSuccessDismissSeconds
+	}
+	return sanitizeInstallSuccessDismissSeconds(value)
 }
 
 func (s *Server) clientDefaultPageSize(ctx context.Context, userID string, fallback, maxPageSize int) int {
@@ -148,7 +171,7 @@ func (s *Server) clientSyncSetting(ctx context.Context, userID string) (*ent.Cli
 	return record, err
 }
 
-func (s *Server) setClientSyncSetting(ctx context.Context, userID string, input ClientSettingsDTO) (*ent.ClientSyncSetting, error) {
+func (s *Server) setClientSyncSetting(ctx context.Context, userID string, input ClientSettingsUpdateDTO) (*ent.ClientSyncSetting, error) {
 	interval := sanitizeAutoSyncInterval(input.AutoSyncIntervalMinutes)
 	record, err := s.db.ClientSyncSetting.Query().
 		Where(clientsyncsetting.UserIDEQ(userID)).
@@ -180,6 +203,16 @@ func sanitizeAutoSyncInterval(value int) int {
 	}
 	if value > maxAutoSyncIntervalMinutes {
 		return maxAutoSyncIntervalMinutes
+	}
+	return value
+}
+
+func sanitizeInstallSuccessDismissSeconds(value int) int {
+	if value < 0 {
+		return defaultInstallSuccessDismissSeconds
+	}
+	if value > maxInstallSuccessDismissSeconds {
+		return maxInstallSuccessDismissSeconds
 	}
 	return value
 }

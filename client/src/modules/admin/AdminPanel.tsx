@@ -8,6 +8,7 @@ import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
@@ -619,16 +620,14 @@ export function AdminPanel({
   }) {
     if (field.type === 'boolean') {
       return (
-        <XSelector
+        <XSwitch
           key={field.key}
           label={field.label}
           description={field.help}
-          value={settings[field.key] || 'false'}
-          options={[
-            { value: 'false', label: t('common.off') },
-            { value: 'true', label: t('common.on') },
-          ]}
-          onChange={(value) => updateSetting(field.key, value)}
+          value={settings[field.key] === 'true'}
+          labelSpacing="spread"
+          width="100%"
+          onChange={(checked) => updateSetting(field.key, checked ? 'true' : 'false')}
         />
       );
     }

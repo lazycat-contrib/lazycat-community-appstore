@@ -7,6 +7,7 @@ import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { UserAvatar } from '../../components/AppIcon';
@@ -151,23 +152,19 @@ export function AdminUsersPanel({
               <XTextInput type="email" label={t('common.email')} value={userDraft.email} onChange={(value) => setUserDraft({ ...userDraft, email: value })} />
               <XTextInput type="password" label={userDialogMode === 'create' ? t('common.password') : t('admin.newPasswordOptional')} value={userDraft.password} onChange={(value) => setUserDraft({ ...userDraft, password: value })} />
               <XSelector label={t('common.role')} value={userDraft.role} options={userRoleOptions} onChange={(value) => setUserDraft({ ...userDraft, role: value as User['role'] })} />
-              <XSelector
+              <XSwitch
                 label={t('admin.emailVerified')}
-                value={String(userDraft.emailVerified)}
-                options={[
-                  { value: 'true', label: t('common.on') },
-                  { value: 'false', label: t('common.off') },
-                ]}
-                onChange={(value) => setUserDraft({ ...userDraft, emailVerified: value === 'true' })}
+                value={userDraft.emailVerified}
+                labelSpacing="spread"
+                width="100%"
+                onChange={(checked) => setUserDraft({ ...userDraft, emailVerified: checked })}
               />
-              <XSelector
+              <XSwitch
                 label={t('admin.userDisabledField')}
-                value={String(userDraft.disabled)}
-                options={[
-                  { value: 'false', label: t('common.off') },
-                  { value: 'true', label: t('common.on') },
-                ]}
-                onChange={(value) => setUserDraft({ ...userDraft, disabled: value === 'true' })}
+                value={userDraft.disabled}
+                labelSpacing="spread"
+                width="100%"
+                onChange={(checked) => setUserDraft({ ...userDraft, disabled: checked })}
               />
             </XFormLayout>
             <div className="dialog-actions">

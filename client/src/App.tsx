@@ -1,12 +1,10 @@
 import {
   Archive,
   AlertTriangle,
-  Download,
   LogIn,
   LogOut,
   MessageSquare,
   RefreshCw,
-  Search,
   ShieldCheck,
   UserRound,
   X,
@@ -21,10 +19,9 @@ import { MobileNavToggle as XMobileNavToggle } from '@astryxdesign/core/MobileNa
 import { NavIcon as XNavIcon } from '@astryxdesign/core/NavIcon';
 import { SideNav as XSideNav, SideNavHeading as XSideNavHeading, SideNavItem as XSideNavItem } from '@astryxdesign/core/SideNav';
 import { Skeleton as XSkeleton } from '@astryxdesign/core/Skeleton';
-import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { Toast as XToast } from '@astryxdesign/core/Toast';
 import { TopNav as XTopNav } from '@astryxdesign/core/TopNav';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
 import { API_BASE, APP_VERSION, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
@@ -38,7 +35,6 @@ import {
 import { getAstryxTheme } from './shared/astryxThemes';
 import { AstryxThemeSelector, LanguageSelector, readAstryxThemeName, readSystemTheme, readThemeMode, ThemeToggle, type LanguageCode } from './shared/theme';
 import { displayUserName } from './shared/appHelpers';
-import { categoryDescendantIds } from './shared/categoryTree';
 import type {
   Category,
   ClientInstallResult,
@@ -81,9 +77,7 @@ import {
   findInstalledApplication,
   hasInstallableVersion,
   isSourceStale,
-  localizedAppDescription,
   localizedAppName,
-  localizedAppSummary,
   runAction,
   selectedSourceVersion,
   selectedStoreVersion,
@@ -95,29 +89,32 @@ import { AnnouncementBanner } from './components/AnnouncementBanner';
 import { UserAvatar } from './components/AppIcon';
 import { EmptyState, SectionTitle } from './shared/components/Feedback';
 import { ModalLayer } from './shared/components/ModalLayer';
-import { StatusBadge } from './shared/components/StatusBadge';
-import { ClientHistoryView } from './modules/client/ClientHistoryView';
-import { InstallOptionsDialog } from './modules/client/InstallOptionsDialog';
-import { ClientSettingsView } from './modules/client/ClientSettingsView';
-import { SourceAppDetailPage } from './modules/client/SourceAppDetailPage';
-import { SourcesView as ClientSourcesView } from './modules/client/SourcesView';
-import { ChatWorkspace } from './modules/chat/ChatWorkspace';
 import { useChatEntryActions } from './modules/chat/useChatEntryActions';
-import { AdminPanel } from './modules/admin/AdminPanel';
-import { LoginPage } from './modules/auth/LoginPage';
-import { SetupWizard } from './modules/auth/SetupWizard';
-import { ProfileSettingsDialog } from './modules/profile/ProfileSettingsDialog';
-import { ProfileView } from './modules/profile/ProfileView';
-import { SearchView } from './modules/search/SearchView';
-import { AppDrawer, type AppDetailMode } from './modules/storefront/AppDrawer';
+import type { AppDetailMode } from './modules/storefront/AppDrawer';
 import { StorefrontHome } from './modules/storefront/StorefrontHome';
 import { buildNavItems, type TabKey } from './modules/shell/navigation';
+
+const AdminPanel = lazy(() => import('./modules/admin/AdminPanel').then((module) => ({ default: module.AdminPanel })));
+const LoginPage = lazy(() => import('./modules/auth/LoginPage').then((module) => ({ default: module.LoginPage })));
+const SetupWizard = lazy(() => import('./modules/auth/SetupWizard').then((module) => ({ default: module.SetupWizard })));
+const ProfileSettingsDialog = lazy(() => import('./modules/profile/ProfileSettingsDialog').then((module) => ({ default: module.ProfileSettingsDialog })));
+const ProfileView = lazy(() => import('./modules/profile/ProfileView').then((module) => ({ default: module.ProfileView })));
+const SearchView = lazy(() => import('./modules/search/SearchView').then((module) => ({ default: module.SearchView })));
+const AppDrawer = lazy(() => import('./modules/storefront/AppDrawer').then((module) => ({ default: module.AppDrawer })));
+const ChatWorkspace = lazy(() => import('./modules/chat/ChatWorkspace').then((module) => ({ default: module.ChatWorkspace })));
+const ClientHistoryView = lazy(() => import('./modules/client/ClientHistoryView').then((module) => ({ default: module.ClientHistoryView })));
+const InstallActivityPanel = lazy(() => import('./modules/client/InstallActivityPanel').then((module) => ({ default: module.InstallActivityPanel })));
+const InstallOptionsDialog = lazy(() => import('./modules/client/InstallOptionsDialog').then((module) => ({ default: module.InstallOptionsDialog })));
+const ClientSettingsView = lazy(() => import('./modules/client/ClientSettingsView').then((module) => ({ default: module.ClientSettingsView })));
+const SourceAppDetailPage = lazy(() => import('./modules/client/SourceAppDetailPage').then((module) => ({ default: module.SourceAppDetailPage })));
+const ClientSourcesView = lazy(() => import('./modules/client/SourcesView').then((module) => ({ default: module.SourcesView })));
 
 type AuthMode = 'login' | 'register' | 'verify';
 
 const DEFAULT_REVIEW_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
 const DEFAULT_HISTORY_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
 const DEFAULT_CLIENT_PAGE_SIZE = 24;
+const DEFAULT_INSTALL_SUCCESS_DISMISS_SECONDS = 3;
 
 function isAnnouncementCurrentlyVisible(item: { enabled?: boolean; title?: string; body?: string; startsAt?: string; endsAt?: string }) {
   if (!item.enabled || (!item.title && !item.body)) return false;
@@ -184,9 +181,13 @@ export function App() {
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(readSystemTheme);
   const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() || collaborationInviteTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'sources'));
   const [apps, setApps] = useState<StoreApp[]>([]);
+  const [storeAppTotal, setStoreAppTotal] = useState(0);
+  const [storeAppsComplete, setStoreAppsComplete] = useState(false);
   const [managedApps, setManagedApps] = useState<StoreApp[]>([]);
   const [collaborationData, setCollaborationData] = useState<CollaborationData>({ owned: [], collaborating: [], outgoingRequests: [] });
   const [sourceApps, setSourceApps] = useState<SourceApp[]>([]);
+  const [sourceAppsLoaded, setSourceAppsLoaded] = useState(false);
+  const [sourceAppsLoading, setSourceAppsLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [catalogTags, setCatalogTags] = useState<TagRecord[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -195,10 +196,7 @@ export function App() {
   const [reviewPagination, setReviewPagination] = useState<PaginationMeta>(DEFAULT_REVIEW_PAGINATION);
   const [user, setUser] = useState<User | null>(null);
   const [storageOptions, setStorageOptions] = useState<StorageOption[]>([]);
-  const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [activeSubmitter, setActiveSubmitter] = useState<string>('all');
-  const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
   const [selectedAppMode, setSelectedAppMode] = useState<AppDetailMode>('detail');
@@ -210,6 +208,7 @@ export function App() {
     autoSyncEnabled: false,
     autoSyncIntervalMinutes: 60,
     syncOnStartup: false,
+    installSuccessDismissSeconds: DEFAULT_INSTALL_SUCCESS_DISMISS_SECONDS,
   });
   const [installedApps, setInstalledApps] = useState<InstalledApplication[]>([]);
   const [installHistory, setInstallHistory] = useState<InstallHistoryEntry[]>([]);
@@ -287,6 +286,18 @@ export function App() {
     onCloseSourceDetail: () => setSelectedSourceApp(null),
   });
 
+  useEffect(() => {
+    if (!installActivity || installActivity.status !== 'success') return;
+    const seconds = Number(clientSettings.installSuccessDismissSeconds ?? DEFAULT_INSTALL_SUCCESS_DISMISS_SECONDS);
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    const timer = window.setTimeout(() => {
+      setInstallActivity((current) => (
+        current?.status === 'success' && current.title === installActivity.title ? null : current
+      ));
+    }, seconds * 1000);
+    return () => window.clearTimeout(timer);
+  }, [clientSettings.installSuccessDismissSeconds, installActivity]);
+
   function navigateRoute(path: string) {
     window.history.pushState(null, '', path);
     setRouteLocation(currentRoute());
@@ -346,16 +357,19 @@ export function App() {
   }
 
   const sourceStats = useMemo<ClientSourceStats>(() => {
+    const cachedSourceAppCount = sources.reduce((sum, source) => sum + (source.lastAppCount || 0), 0);
+    const cachedInstallableSourceAppCount = sources.reduce((sum, source) => sum + (source.lastInstallableCount || 0), 0);
+    const liveInstallableCount = sourceApps.filter(hasInstallableVersion).length;
     return {
       sourceCount: sources.length,
       syncedSourceCount: sources.filter((source) => source.lastSync && !source.lastError && !isSourceStale(source)).length,
       staleSourceCount: sources.filter(isSourceStale).length,
       authSourceCount: sources.filter((source) => source.lastErrorCode === 'auth').length,
       failedSourceCount: sources.filter((source) => source.lastError && source.lastErrorCode !== 'auth').length,
-      sourceAppCount: sourceApps.length,
-      installableSourceAppCount: sourceApps.filter(hasInstallableVersion).length,
+      sourceAppCount: sourceAppsLoaded ? sourceApps.length : sourceApps.length || cachedSourceAppCount,
+      installableSourceAppCount: sourceAppsLoaded ? liveInstallableCount : liveInstallableCount || cachedInstallableSourceAppCount,
     };
-  }, [sources, sourceApps]);
+  }, [sourceApps, sourceAppsLoaded, sources]);
 
   useEffect(() => {
     const handlePopState = () => setRouteLocation(currentRoute());
@@ -440,6 +454,18 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (!HAS_API || setupRequired || isLoginRoute || storeAppsComplete) return;
+    if (tab !== 'search' && tab !== 'profile') return;
+    void runAction(setToast, t('toast.refreshFailed'), ensureFullStoreApps);
+  }, [isLoginRoute, setupRequired, storeAppsComplete, tab, t]);
+
+  useEffect(() => {
+    if (HAS_API || sourceAppsLoaded || sourceAppsLoading) return;
+    if (tab !== 'sources' && tab !== 'search' && tab !== 'history') return;
+    void loadClientApps();
+  }, [sourceAppsLoaded, sourceAppsLoading, tab]);
+
+  useEffect(() => {
     if (!HAS_API || isLoginRoute) return;
     const verifyToken = verificationTokenFromURL();
     if (verifyToken && window.location.pathname.includes('verify')) {
@@ -477,6 +503,8 @@ export function App() {
       setSetupRequired(setup.needsSetup);
       if (setup.needsSetup) {
         setApps([]);
+        setStoreAppTotal(0);
+        setStoreAppsComplete(true);
         setManagedApps([]);
         setCollaborationData({ owned: [], collaborating: [], outgoingRequests: [] });
         setCategories([]);
@@ -491,24 +519,32 @@ export function App() {
       const [siteData, me, appData, categoryData, tagData, collectionData] = await Promise.allSettled([
         api<{ site: SiteProfile }>('/api/v1/site/profile'),
         api<{ user: User }>('/api/v1/auth/me'),
-        fetchAllPaginated<StoreApp, 'apps'>(api, '/api/v1/apps', 'apps'),
+        api<PaginatedResponse<StoreApp, 'apps'>>('/api/v1/apps?page=1&pageSize=24&sort=recent'),
         api<{ categories: Category[] }>('/api/v1/categories'),
         api<{ tags: TagRecord[] }>('/api/v1/tags'),
         api<{ collections: Collection[] }>('/api/v1/collections'),
       ]);
       if (siteData.status === 'fulfilled') setSiteProfile(siteData.value.site);
       if (me.status === 'fulfilled') setUser(me.value.user);
-      if (appData.status === 'fulfilled') setApps(appData.value);
+      if (appData.status === 'fulfilled') {
+        setApps(appData.value.apps || []);
+        setStoreAppTotal(appData.value.pagination?.totalItems || appData.value.apps?.length || 0);
+        setStoreAppsComplete((appData.value.pagination?.totalPages || 1) <= 1);
+      }
       if (categoryData.status === 'fulfilled') setCategories(categoryData.value.categories);
       if (tagData.status === 'fulfilled') setCatalogTags(tagData.value.tags);
       if (collectionData.status === 'fulfilled') setCollections(collectionData.value.collections);
       if (me.status === 'fulfilled') {
-        await loadStorageOptions();
-        await loadGroups();
-        await loadCollaborationData();
+        void Promise.allSettled([
+          loadStorageOptions(),
+          loadGroups(),
+          loadCollaborationData(),
+        ]);
         if (me.value.user.role === 'SOFTWARE_ADMIN' || me.value.user.role === 'SITE_ADMIN') {
-          await loadManagedApps();
-          await loadReviews();
+          void Promise.allSettled([
+            loadManagedApps(),
+            loadReviews(),
+          ]);
         } else {
           setManagedApps([]);
         }
@@ -532,6 +568,14 @@ export function App() {
     if (categoryData.status === 'fulfilled') setCategories(categoryData.value.categories);
     if (tagData.status === 'fulfilled') setCatalogTags(tagData.value.tags);
     if (collectionData.status === 'fulfilled') setCollections(collectionData.value.collections);
+  }
+
+  async function ensureFullStoreApps() {
+    if (!HAS_API || storeAppsComplete) return;
+    const data = await fetchAllPaginated<StoreApp, 'apps'>(api, '/api/v1/apps', 'apps');
+    setApps(arrayOrEmpty(data));
+    setStoreAppTotal(data.length);
+    setStoreAppsComplete(true);
   }
 
   async function loadSiteProfile() {
@@ -601,10 +645,17 @@ export function App() {
   }
 
   async function loadClientApps() {
-    const data = await fetchAllPaginated<SourceApp, 'apps'>(clientApi, '/apps', 'apps');
-    const nextApps = arrayOrEmpty(data);
-    setSourceApps(nextApps);
-    return nextApps;
+    if (sourceAppsLoading) return sourceApps;
+    setSourceAppsLoading(true);
+    try {
+      const data = await fetchAllPaginated<SourceApp, 'apps'>(clientApi, '/apps', 'apps');
+      const nextApps = arrayOrEmpty(data);
+      setSourceApps(nextApps);
+      setSourceAppsLoaded(true);
+      return nextApps;
+    } finally {
+      setSourceAppsLoading(false);
+    }
   }
 
   async function loadClientSettings() {
@@ -615,6 +666,7 @@ export function App() {
       autoSyncEnabled: false,
       autoSyncIntervalMinutes: 60,
       syncOnStartup: false,
+      installSuccessDismissSeconds: DEFAULT_INSTALL_SUCCESS_DISMISS_SECONDS,
     };
     const nextSettings = { ...defaultSettings, ...(data.settings || {}) };
     setClientSettings(nextSettings);
@@ -641,8 +693,10 @@ export function App() {
     setGroups([]);
     setReviews([]);
     setUser(null);
+    setSourceAppsLoaded(false);
     try {
-      await Promise.all([loadClientSources(), loadClientApps(), loadClientSettings(), loadInstallHistory()]);
+      await Promise.all([loadClientSources(), loadClientSettings()]);
+      void loadInstallHistory();
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('toast.clientDataLoadFailed')) });
     } finally {
@@ -668,43 +722,11 @@ export function App() {
   }
 
   const storeApps = useMemo(() => apps.filter((app) => app.status === 'APPROVED'), [apps]);
+  const storeAppCount = storeAppsComplete ? storeApps.length : storeAppTotal || storeApps.length;
 
   const submitters = useMemo(() => {
     return Array.from(new Set(storeApps.map((app) => app.owner).filter(Boolean))).sort((a, b) => a.localeCompare(b));
   }, [storeApps]);
-
-  const filteredApps = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const selectedCategoryID = Number(activeCategory);
-    const selectedCategoryIDs = new Set<number>();
-    if (activeCategory !== 'all' && Number.isFinite(selectedCategoryID) && selectedCategoryID > 0) {
-      selectedCategoryIDs.add(selectedCategoryID);
-      for (const childID of categoryDescendantIds(categories, selectedCategoryID)) {
-        selectedCategoryIDs.add(childID);
-      }
-    }
-    const filtered = storeApps.filter((app) => {
-      const categoryMatch = activeCategory === 'all' || (app.categoryId ? selectedCategoryIDs.has(app.categoryId) : false);
-      const submitterMatch = activeSubmitter === 'all' || app.owner === activeSubmitter;
-      const appTagSet = new Set((app.tags || []).map((tag) => tag.toLowerCase()));
-      const tagMatch = activeTags.length === 0 || activeTags.some((tag) => appTagSet.has(tag.toLowerCase()));
-      const queryMatch =
-        needle === '' ||
-        app.name.toLowerCase().includes(needle) ||
-        localizedAppName(app).toLowerCase().includes(needle) ||
-        app.summary.toLowerCase().includes(needle) ||
-        localizedAppSummary(app).toLowerCase().includes(needle) ||
-        localizedAppDescription(app).toLowerCase().includes(needle) ||
-        app.owner.toLowerCase().includes(needle) ||
-        app.tags.join(' ').toLowerCase().includes(needle);
-      return categoryMatch && submitterMatch && tagMatch && queryMatch;
-    });
-    return [...filtered].sort((a, b) => {
-      if (sortMode === 'downloads') return b.downloadCount - a.downloadCount;
-      if (sortMode === 'name') return localizedAppName(a).localeCompare(localizedAppName(b));
-      return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
-    });
-  }, [storeApps, activeCategory, activeSubmitter, activeTags, categories, query, sortMode]);
 
   async function openApp(app: StoreApp, mode: AppDetailMode = 'detail') {
     await runAction(setToast, t('toast.loadAppDetailFailed'), async () => {
@@ -899,19 +921,21 @@ export function App() {
   if (HAS_API && setupRequired) {
     return (
       <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
-        <SetupWizard
-          onComplete={async (nextUser) => {
-            setUser(nextUser);
-            setSetupRequired(false);
-            navigateTo('profile');
-            await refreshAll();
-          }}
-          setToast={setToast}
-          themeMode={themeMode}
-          onThemeModeChange={setThemeMode}
-          astryxThemeName={astryxThemeName}
-          onAstryxThemeChange={setAstryxThemeName}
-        />
+        <Suspense fallback={<AppRouteFallback />}>
+          <SetupWizard
+            onComplete={async (nextUser) => {
+              setUser(nextUser);
+              setSetupRequired(false);
+              navigateTo('profile');
+              await refreshAll();
+            }}
+            setToast={setToast}
+            themeMode={themeMode}
+            onThemeModeChange={setThemeMode}
+            astryxThemeName={astryxThemeName}
+            onAstryxThemeChange={setAstryxThemeName}
+          />
+        </Suspense>
         <AppToast toast={toast} onDismiss={() => setToast(null)} />
       </Theme>
     );
@@ -920,24 +944,26 @@ export function App() {
   if (HAS_API && isLoginRoute) {
     return (
       <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
-        <LoginPage
-          siteTitle={siteTitle}
-          siteProfile={siteProfile}
-          currentLanguage={currentLanguage}
-          themeMode={themeMode}
-          astryxThemeName={astryxThemeName}
-          onLanguageChange={(language) => void i18n.changeLanguage(language)}
-          onThemeModeChange={setThemeMode}
-          onAstryxThemeChange={setAstryxThemeName}
-          onBrowse={() => {
-            navigateRoute('/');
-            setTab('home');
-          }}
-          onAuthenticated={completeLogin}
-          setUser={setUser}
-          refreshAll={refreshAll}
-          setToast={setToast}
-        />
+        <Suspense fallback={<AppRouteFallback />}>
+          <LoginPage
+            siteTitle={siteTitle}
+            siteProfile={siteProfile}
+            currentLanguage={currentLanguage}
+            themeMode={themeMode}
+            astryxThemeName={astryxThemeName}
+            onLanguageChange={(language) => void i18n.changeLanguage(language)}
+            onThemeModeChange={setThemeMode}
+            onAstryxThemeChange={setAstryxThemeName}
+            onBrowse={() => {
+              navigateRoute('/');
+              setTab('home');
+            }}
+            onAuthenticated={completeLogin}
+            setUser={setUser}
+            refreshAll={refreshAll}
+            setToast={setToast}
+          />
+        </Suspense>
         <AppToast toast={toast} onDismiss={() => setToast(null)} />
       </Theme>
     );
@@ -997,20 +1023,6 @@ export function App() {
               className="topbar"
               label={t('common.navigation')}
               heading={<XMobileNavToggle label={t('common.navigation')} />}
-              startContent={(
-                <div className="topbar-search">
-                  <XTextInput
-                    label={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
-                    isLabelHidden
-                    startIcon={<Search size={16} />}
-                    value={query}
-                    onChange={setQuery}
-                    placeholder={HAS_API ? t('topbar.searchStore') : t('topbar.searchSources')}
-                    hasClear
-                    width="100%"
-                  />
-                </div>
-              )}
               endContent={(
                 <div className="top-actions">
                   <LanguageSelector value={currentLanguage} onChange={(language) => void i18n.changeLanguage(language)} />
@@ -1075,17 +1087,19 @@ export function App() {
           <div className="main" id="main-content" tabIndex={-1}>
 
         {HAS_API && user && isProfileDialogOpen && (
-          <ProfileSettingsDialog
-            user={user}
-            storageOptions={storageOptions}
-            onClose={() => setIsProfileDialogOpen(false)}
-            onSaved={(nextUser) => {
-              setUser(nextUser);
-              setIsProfileDialogOpen(false);
-              void refreshAll({ silent: true });
-            }}
-            setToast={setToast}
-          />
+          <Suspense fallback={null}>
+            <ProfileSettingsDialog
+              user={user}
+              storageOptions={storageOptions}
+              onClose={() => setIsProfileDialogOpen(false)}
+              onSaved={(nextUser) => {
+                setUser(nextUser);
+                setIsProfileDialogOpen(false);
+                void refreshAll({ silent: true });
+              }}
+              setToast={setToast}
+            />
+          </Suspense>
         )}
 
         {loading ? (
@@ -1097,6 +1111,7 @@ export function App() {
             </div>
           </div>
         ) : (
+          <Suspense fallback={<AppRouteFallback />}>
           <>
             {showAnnouncement && (
               <AnnouncementBanner
@@ -1155,7 +1170,8 @@ export function App() {
             <>
             {tab === 'home' && (
               <StorefrontHome
-                apps={filteredApps}
+                apps={storeApps}
+                appCount={storeAppCount}
                 categories={categories}
                 collections={collections}
                 siteProfile={siteProfile}
@@ -1173,23 +1189,18 @@ export function App() {
             )}
             {tab === 'search' && (
               <SearchView
-                apps={filteredApps}
+                apps={storeApps}
                 sourceApps={sourceApps}
                 sources={sources}
                 categories={categories}
                 submitters={submitters}
                 activeCategory={activeCategory}
-                activeSubmitter={activeSubmitter}
-                activeTags={activeTags}
                 tagOptions={tagOptions}
                 sortMode={sortMode}
-                query={query}
                 mode={HAS_API ? 'server' : 'client'}
                 sourceStats={sourceStats}
                 installedApps={HAS_API ? [] : installedApps}
                 onCategory={setActiveCategory}
-                onSubmitter={setActiveSubmitter}
-                onTags={setActiveTags}
                 onSortMode={setSortMode}
                 onOpen={openApp}
                 onOpenSource={setSelectedSourceApp}
@@ -1211,6 +1222,7 @@ export function App() {
               <ClientSourcesView
                 sources={sources}
                 sourceApps={sourceApps}
+                sourceAppsLoading={sourceAppsLoading && sourceApps.length === 0}
                 onAddSource={addClientSource}
                 onUpdateSource={updateClientSource}
                 onDeleteSource={deleteClientSource}
@@ -1293,27 +1305,30 @@ export function App() {
             </>
             )}
           </>
+          </Suspense>
         )}
           </div>
         </XAppShell>
 
       {installPasswordRequest && (
-        <InstallOptionsDialog
-          app={installPasswordRequest.app}
-          source={'sourceName' in installPasswordRequest.app ? sourceForApp(installPasswordRequest.app, sources) : undefined}
-          version={
-            'sourceName' in installPasswordRequest.app
-              ? selectedSourceVersion(installPasswordRequest.app, installPasswordRequest.version)
-              : selectedStoreVersion(installPasswordRequest.app, installPasswordRequest.version)
-          }
-          onCancel={() => setInstallPasswordRequest(null)}
-          onSubmit={(options) => {
-            const target = installPasswordRequest.app;
-            const targetVersion = installPasswordRequest.version;
-            setInstallPasswordRequest(null);
-            void installApp(target, { ...options, version: targetVersion });
-          }}
-        />
+        <Suspense fallback={null}>
+          <InstallOptionsDialog
+            app={installPasswordRequest.app}
+            source={'sourceName' in installPasswordRequest.app ? sourceForApp(installPasswordRequest.app, sources) : undefined}
+            version={
+              'sourceName' in installPasswordRequest.app
+                ? selectedSourceVersion(installPasswordRequest.app, installPasswordRequest.version)
+                : selectedStoreVersion(installPasswordRequest.app, installPasswordRequest.version)
+            }
+            onCancel={() => setInstallPasswordRequest(null)}
+            onSubmit={(options) => {
+              const target = installPasswordRequest.app;
+              const targetVersion = installPasswordRequest.version;
+              setInstallPasswordRequest(null);
+              void installApp(target, { ...options, version: targetVersion });
+            }}
+          />
+        </Suspense>
       )}
 
       {showClientPolicyDialog && (
@@ -1339,36 +1354,26 @@ export function App() {
       )}
 
       {installActivity && (
-        <aside className={cx('install-panel', installActivity.status)} aria-live="polite" aria-label={t('installActivity.title')}>
-          <Download size={20} />
-          <div className="install-panel-body">
-            <div className="install-panel-head">
-              <strong>{installActivity.title}</strong>
-              <StatusBadge
-                tone={installActivity.status === 'running' ? 'syncing' : installActivity.status === 'success' ? 'approved' : 'failed'}
-                label={t(`installActivity.status.${installActivity.status}`)}
-              />
-            </div>
-            <span>{t(installActivity.stageKey)}</span>
-            <div className="progress">
-              <span style={{ width: `${installActivity.progress}%` }} />
-            </div>
-            <div className="install-panel-meta">
-              <small>{t('installActivity.source', { source: installActivity.source })}</small>
-              <small>{t('installActivity.checksum', { checksum: installActivity.checksum })}</small>
-              {installActivity.resultMode && (
-                <small>{t('installActivity.resultMode', { mode: t(`installActivity.modes.${installActivity.resultMode}`) })}</small>
-              )}
-            </div>
-            {installActivity.messageKey && <p>{t(installActivity.messageKey, installActivity.messageParams)}</p>}
-          </div>
-          <XIconButton type="button" variant="ghost" label={t('installActivity.dismiss')} icon={<X size={17} />} onClick={() => setInstallActivity(null)} />
-        </aside>
+        <Suspense fallback={null}>
+          <InstallActivityPanel activity={installActivity} onDismiss={() => setInstallActivity(null)} />
+        </Suspense>
       )}
 
       <AppToast toast={toast} onDismiss={() => setToast(null)} />
       </>
     </Theme>
+  );
+}
+
+function AppRouteFallback() {
+  return (
+    <div className="loading-state skeleton-state" aria-live="polite">
+      <div className="skeleton-list" aria-hidden="true">
+        <XSkeleton height={74} radius={2} index={0} />
+        <XSkeleton height={74} radius={2} index={1} />
+        <XSkeleton height={74} radius={2} index={2} />
+      </div>
+    </div>
   );
 }
 

@@ -182,12 +182,22 @@ type CommentInput struct {
 }
 
 type ClientSettingsDTO struct {
-	CommentDisplayName      string     `json:"commentDisplayName"`
-	DefaultPageSize         int        `json:"defaultPageSize"`
-	AutoSyncEnabled         bool       `json:"autoSyncEnabled"`
-	AutoSyncIntervalMinutes int        `json:"autoSyncIntervalMinutes"`
-	SyncOnStartup           bool       `json:"syncOnStartup"`
-	LastAutoSyncAt          *time.Time `json:"lastAutoSyncAt,omitempty"`
-	LastAutoSyncStatus      string     `json:"lastAutoSyncStatus,omitempty"`
-	LastAutoSyncError       string     `json:"lastAutoSyncError,omitempty"`
+	CommentDisplayName           string     `json:"commentDisplayName"`
+	DefaultPageSize              int        `json:"defaultPageSize"`
+	AutoSyncEnabled              bool       `json:"autoSyncEnabled"`
+	AutoSyncIntervalMinutes      int        `json:"autoSyncIntervalMinutes"`
+	SyncOnStartup                bool       `json:"syncOnStartup"`
+	InstallSuccessDismissSeconds int        `json:"installSuccessDismissSeconds"`
+	LastAutoSyncAt               *time.Time `json:"lastAutoSyncAt,omitempty"`
+	LastAutoSyncStatus           string     `json:"lastAutoSyncStatus,omitempty"`
+	LastAutoSyncError            string     `json:"lastAutoSyncError,omitempty"`
+}
+
+type ClientSettingsUpdateDTO struct {
+	CommentDisplayName           string `json:"commentDisplayName"`
+	DefaultPageSize              int    `json:"defaultPageSize"`
+	AutoSyncEnabled              bool   `json:"autoSyncEnabled"`
+	AutoSyncIntervalMinutes      int    `json:"autoSyncIntervalMinutes"`
+	SyncOnStartup                bool   `json:"syncOnStartup"`
+	InstallSuccessDismissSeconds *int   `json:"installSuccessDismissSeconds"`
 }

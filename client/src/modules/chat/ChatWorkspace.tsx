@@ -1,19 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MessageSquare, RefreshCw, Send, Trash2, UserPlus } from 'lucide-react';
+import { Avatar as XAvatar } from '@astryxdesign/core/Avatar';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
-import { ChatComposer, ChatMessage, ChatMessageBubble, ChatMessageList, ChatMessageMetadata } from '@astryxdesign/core/Chat';
+import {
+  ChatComposer,
+  ChatLayout,
+  ChatMessage,
+  ChatMessageBubble,
+  ChatMessageList,
+  ChatMessageMetadata,
+  ChatSendButton,
+  ChatSystemMessage,
+} from '@astryxdesign/core/Chat';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
 import { useTranslation } from 'react-i18next';
 import { API_BASE } from '../../config';
 import { api, CLIENT_API_BASE, clientApi } from '../../shared/api';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { ChatConversation, ChatMessage as ChatMessageRecord, SourceID, SourceSubscription, Toast, User } from '../../shared/types';
-import { arrayOrEmpty, cx, errorMessage, formatDate } from '../../shared/utils';
+import { arrayOrEmpty, errorMessage, formatDate } from '../../shared/utils';
 
 type ChatMode = 'server' | 'client';
+type ChatTab = 'threads' | 'start';
 
 export type ChatFocus = {
   id: number;
@@ -50,6 +63,7 @@ export function ChatWorkspace({ mode, sources = [], focus, onFocusConsumed, setT
   const [draft, setDraft] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUserID, setSelectedUserID] = useState('');
+  const [chatTab, setChatTab] = useState<ChatTab>('threads');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
@@ -61,6 +75,7 @@ export function ChatWorkspace({ mode, sources = [], focus, onFocusConsumed, setT
   const canUseChat = mode === 'server' || enabledSources.length > 0;
   const pageTitle = mode === 'server' ? t('chat.serverTitle') : t('chat.clientTitle');
   const pageBody = mode === 'server' ? t('chat.serverBody') : t('chat.clientBody');
+  const unreadTotal = conversations.reduce((sum, conversation) => sum + (conversation.unreadCount || 0), 0);
 
   const loadConversations = useCallback(async () => {
     if (!canUseChat) {
@@ -182,6 +197,7 @@ export function ChatWorkspace({ mode, sources = [], focus, onFocusConsumed, setT
       setSelectedUserID('');
       await loadConversations();
       setActiveKey(conversationKey(data.conversation));
+      setChatTab('threads');
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('chat.startFailed')) });
     } finally {
@@ -256,114 +272,151 @@ export function ChatWorkspace({ mode, sources = [], focus, onFocusConsumed, setT
         <XIconButton type="button" variant="ghost" label={t('common.refresh')} icon={<RefreshCw size={18} />} onClick={() => void refreshActiveChat()} />
       </div>
 
-      {mode === 'server' && (
-        <section className="panel chat-start-panel">
-          <SectionTitle icon={UserPlus} title={t('chat.startUserChat')} />
-          <div className="chat-start-controls">
-            <XSelector
-              label={t('chat.user')}
-              value={selectedUserID}
-              options={[
-                { value: '', label: t('chat.selectUser') },
-                ...users.map((item) => ({ value: String(item.id), label: item.nickname || item.username })),
-              ]}
-              onChange={setSelectedUserID}
+      <section className="chat-workspace-panel">
+        <div className="chat-workspace-tabs">
+          <XTabList value={chatTab} onChange={(value) => setChatTab(value as ChatTab)} size="md" hasDivider>
+            <XTab
+              value="threads"
+              label={t('chat.tabs.threads')}
+              icon={<MessageSquare size={16} />}
+              endContent={unreadTotal > 0 ? <XBadge variant="error" label={unreadTotal} /> : undefined}
             />
-            <XButton
-              type="button"
-              variant="primary"
-              label={t('chat.start')}
-              icon={<Send size={17} />}
-              isDisabled={!selectedUserID || isStarting}
-              onClick={() => void startUserConversation()}
-            />
-          </div>
-        </section>
-      )}
+            {mode === 'server' && <XTab value="start" label={t('chat.tabs.start')} icon={<UserPlus size={16} />} />}
+          </XTabList>
+        </div>
 
-      <section className="chat-shell">
-        <aside className="chat-conversation-list" aria-label={t('chat.conversationList')}>
-          {isLoading ? (
-            <div className="chat-list-loading">{t('common.loading')}</div>
-          ) : conversations.length === 0 ? (
-            <EmptyState icon={MessageSquare} title={t('chat.noConversations')} body={t('chat.noConversationsBody')} />
-          ) : (
-            conversations.map((conversation) => {
-              const key = conversationKey(conversation);
-              const peerName = conversation.peer?.displayName || conversation.topic || t('chat.unknownPeer');
-              const origin = conversation.sourceName || (mode === 'server' ? t('chat.siteOrigin') : conversation.origin || t('common.source'));
-              return (
-                <button
-                  type="button"
-                  key={key}
-                  className={cx('chat-conversation-item', activeKey === key && 'selected')}
-                  onClick={() => setActiveKey(key)}
-                >
-                  <span className="chat-conversation-title">
-                    <strong>{peerName}</strong>
-                    {(conversation.unreadCount || 0) > 0 && <XBadge variant="error" label={conversation.unreadCount} />}
-                  </span>
-                  <span className="chat-conversation-origin">{origin}</span>
-                  {conversation.appName && <span className="chat-conversation-app">{conversation.appName}</span>}
-                  <span className="chat-conversation-preview">{conversation.lastMessageBody || t('chat.noMessagesYet')}</span>
-                </button>
-              );
-            })
-          )}
-        </aside>
-
-        <article className="chat-thread" aria-label={activeConversation?.peer?.displayName || t('chat.thread')}>
-          {activeConversation ? (
-            <>
-              <header className="chat-thread-head">
-                <div>
-                  <strong>{activeConversation.peer?.displayName || activeConversation.topic || t('chat.unknownPeer')}</strong>
-                  <span>{activeConversation.sourceName || t('chat.siteOrigin')}{activeConversation.appName ? ` · ${activeConversation.appName}` : ''}</span>
-                </div>
-                <div className="row-actions">
-                  {(activeConversation.unreadCount || 0) > 0 && <StatusBadge tone="syncing" label={t('chat.unreadCount', { count: activeConversation.unreadCount })} />}
-                  <XIconButton type="button" variant="destructive" label={t('chat.clearConversation')} icon={<Trash2 size={17} />} onClick={() => void deleteConversation()} />
-                </div>
-              </header>
-              <div className="chat-message-area">
-                <ChatMessageList
-                  density="balanced"
-                  emptyState={<EmptyState icon={MessageSquare} title={t('chat.noMessagesYet')} body={t('chat.noMessagesYetBody')} />}
-                >
-                  {messages.map((message) => (
-                    <ChatMessage
-                      key={message.id}
-                      sender={message.isMine ? 'user' : 'assistant'}
-                      name={message.senderName}
-                    >
-                      <ChatMessageBubble
-                        metadata={(
-                          <ChatMessageMetadata
-                            timestamp={formatDate(message.createdAt)}
-                            footer={message.isMine ? t('chat.me') : message.senderName}
-                            status={message.isMine ? 'sent' : undefined}
-                          />
-                        )}
-                      >
-                        {message.body}
-                      </ChatMessageBubble>
-                    </ChatMessage>
-                  ))}
-                </ChatMessageList>
-              </div>
-              <ChatComposer
-                value={draft}
-                onChange={setDraft}
-                onSubmit={(value) => void sendMessage(value)}
-                placeholder={t('chat.composerPlaceholder')}
-                isDisabled={isSending}
-                density="compact"
+        {chatTab === 'start' && mode === 'server' ? (
+          <section className="chat-start-panel">
+            <SectionTitle icon={UserPlus} title={t('chat.startUserChat')} />
+            <p>{t('chat.startUserChatBody')}</p>
+            <div className="chat-start-controls">
+              <XSelector
+                label={t('chat.user')}
+                value={selectedUserID}
+                options={[
+                  { value: '', label: t('chat.selectUser') },
+                  ...users.map((item) => ({ value: String(item.id), label: item.nickname || item.username })),
+                ]}
+                onChange={setSelectedUserID}
               />
-            </>
-          ) : (
-            <EmptyState icon={MessageSquare} title={t('chat.selectConversation')} body={t('chat.selectConversationBody')} />
-          )}
-        </article>
+              <XButton
+                type="button"
+                variant="primary"
+                label={t('chat.start')}
+                icon={<Send size={17} />}
+                isDisabled={!selectedUserID || isStarting}
+                isLoading={isStarting}
+                onClick={() => void startUserConversation()}
+              />
+            </div>
+          </section>
+        ) : (
+          <section className="chat-shell">
+            <aside className="chat-conversation-list" aria-label={t('chat.conversationList')}>
+              {isLoading ? (
+                <div className="chat-list-loading">{t('common.loading')}</div>
+              ) : conversations.length === 0 ? (
+                <EmptyState icon={MessageSquare} title={t('chat.noConversations')} body={t('chat.noConversationsBody')} />
+              ) : (
+                <XList density="compact" hasDividers className="chat-conversation-list-control">
+                  {conversations.map((conversation) => {
+                    const key = conversationKey(conversation);
+                    const peerName = conversation.peer?.displayName || conversation.topic || t('chat.unknownPeer');
+                    const origin = conversation.sourceName || (mode === 'server' ? t('chat.siteOrigin') : conversation.origin || t('common.source'));
+                    const preview = conversation.lastMessageBody || t('chat.noMessagesYet');
+                    return (
+                      <XListItem
+                        key={key}
+                        label={(
+                          <span className="chat-conversation-label">
+                            <span>{peerName}</span>
+                            {(conversation.unreadCount || 0) > 0 && <XBadge variant="error" label={conversation.unreadCount} />}
+                          </span>
+                        )}
+                        description={(
+                          <span className="chat-conversation-description">
+                            <span>{origin}{conversation.appName ? ` · ${conversation.appName}` : ''}</span>
+                            <span>{preview}</span>
+                          </span>
+                        )}
+                        startContent={<XAvatar size="small" name={peerName} src={conversation.peer?.avatarUrl} />}
+                        endContent={conversation.lastMessageAt ? <span className="chat-conversation-time">{formatDate(conversation.lastMessageAt)}</span> : undefined}
+                        isSelected={activeKey === key}
+                        onClick={() => setActiveKey(key)}
+                      />
+                    );
+                  })}
+                </XList>
+              )}
+            </aside>
+
+            <article className="chat-thread" aria-label={activeConversation?.peer?.displayName || t('chat.thread')}>
+              {activeConversation ? (
+                <>
+                  <header className="chat-thread-head">
+                    <div>
+                      <strong>{activeConversation.peer?.displayName || activeConversation.topic || t('chat.unknownPeer')}</strong>
+                      <span>{activeConversation.sourceName || t('chat.siteOrigin')}{activeConversation.appName ? ` · ${activeConversation.appName}` : ''}</span>
+                    </div>
+                    <div className="row-actions">
+                      {(activeConversation.unreadCount || 0) > 0 && <StatusBadge tone="syncing" label={t('chat.unreadCount', { count: activeConversation.unreadCount })} />}
+                      <XIconButton type="button" variant="destructive" label={t('chat.clearConversation')} icon={<Trash2 size={17} />} onClick={() => void deleteConversation()} />
+                    </div>
+                  </header>
+                  <ChatLayout
+                    className="chat-thread-layout"
+                    density="balanced"
+                    emptyState={<EmptyState icon={MessageSquare} title={t('chat.noMessagesYet')} body={t('chat.noMessagesYetBody')} />}
+                    composer={(
+                      <ChatComposer
+                        value={draft}
+                        onChange={setDraft}
+                        onSubmit={(value) => void sendMessage(value)}
+                        placeholder={t('chat.composerPlaceholder')}
+                        isDisabled={isSending}
+                        density="balanced"
+                        sendButton={<ChatSendButton sendIcon={<Send size={17} />} />}
+                      />
+                    )}
+                  >
+                    {messages.length > 0 ? (
+                      <ChatMessageList density="balanced">
+                        <ChatSystemMessage icon={<MessageSquare size={14} />}>
+                          {activeConversation.sourceName || t('chat.siteOrigin')}{activeConversation.appName ? ` · ${activeConversation.appName}` : ''}
+                        </ChatSystemMessage>
+                        {messages.map((message) => {
+                          const senderName = message.isMine ? t('chat.me') : message.senderName;
+                          return (
+                            <ChatMessage
+                              key={message.id}
+                              sender={message.isMine ? 'user' : 'assistant'}
+                              avatar={!message.isMine ? <XAvatar size="small" name={message.senderName} src={message.senderAvatarUrl} /> : undefined}
+                            >
+                              <ChatMessageBubble
+                                name={!message.isMine ? message.senderName : undefined}
+                                metadata={(
+                                  <ChatMessageMetadata
+                                    timestamp={formatDate(message.createdAt)}
+                                    footer={senderName}
+                                    status={message.isMine ? 'sent' : undefined}
+                                  />
+                                )}
+                              >
+                                {message.body}
+                              </ChatMessageBubble>
+                            </ChatMessage>
+                          );
+                        })}
+                      </ChatMessageList>
+                    ) : null}
+                  </ChatLayout>
+                </>
+              ) : (
+                <EmptyState icon={MessageSquare} title={t('chat.selectConversation')} body={t('chat.selectConversationBody')} />
+              )}
+            </article>
+          </section>
+        )}
       </section>
     </section>
   );
