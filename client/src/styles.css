@@ -4142,7 +4142,11 @@ code {
   }
 
   .main {
-    padding: 12px 14px 14px;
+    padding:
+      calc(12px + env(safe-area-inset-top))
+      max(14px, env(safe-area-inset-right))
+      calc(14px + env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
   }
 
   .mobile-app-version {
@@ -4334,6 +4338,141 @@ code {
     grid-template-columns: 1fr;
   }
 
+  .workspace-pane {
+    max-width: none;
+  }
+
+  .settings-section-head > div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+  }
+
+  :is(.workspace-pane, .site-settings-panel) .action-list .astryx-list-item:has(> :last-child .row-actions),
+  .taxonomy-tree .astryx-tree-list-item:has(> :last-child .row-actions) {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px 10px;
+  }
+
+  :is(.workspace-pane, .site-settings-panel) .action-list .astryx-list-item > :has(.row-actions),
+  .taxonomy-tree .astryx-tree-list-item > :has(.row-actions) {
+    flex: 1 0 100%;
+    width: 100%;
+    min-width: 0;
+    margin-inline-start: 0 !important;
+    justify-content: flex-start;
+  }
+
+  :is(.workspace-pane, .site-settings-panel) .action-list .row-actions,
+  .taxonomy-tree .row-actions {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  :is(.workspace-pane, .site-settings-panel) .action-list .astryx-badge,
+  .taxonomy-tree .astryx-badge {
+    max-width: 100%;
+  }
+
+  .taxonomy-tree-label strong,
+  .taxonomy-tree-label small,
+  .taxonomy-summary strong,
+  .taxonomy-summary span,
+  .taxonomy-summary small {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .taxonomy-tree-label small,
+  .taxonomy-summary small {
+    line-height: 1.35;
+  }
+
+  .taxonomy-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .taxonomy-row .row-actions,
+  .collection-edit-row .row-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .modal-dialog-shell .modal-panel,
+  .modal-dialog-shell .install-password-dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+
+  .modal-panel,
+  .install-password-dialog {
+    padding: 16px;
+  }
+
+  .form-panel .dialog-actions,
+  .install-password-dialog .dialog-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    margin: 4px -16px -16px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    backdrop-filter: blur(12px);
+    justify-content: stretch;
+  }
+
+  .form-panel .dialog-actions > button,
+  .install-password-dialog .dialog-actions > button {
+    flex: 1 1 min(160px, 100%);
+    justify-content: center;
+  }
+
+  .announcement-dialog,
+  .user-dialog,
+  .invite-dialog,
+  .group-dialog,
+  .storage-dialog {
+    overflow: hidden;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .announcement-dialog > .astryx-form-layout,
+  .user-dialog > .astryx-form-layout,
+  .invite-dialog > .astryx-form-layout,
+  .group-dialog > .astryx-form-layout,
+  .storage-dialog > .storage-flow {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+    padding-bottom: 6px;
+  }
+
+  .announcement-dialog .dialog-actions,
+  .user-dialog .dialog-actions,
+  .invite-dialog .dialog-actions,
+  .group-dialog .dialog-actions,
+  .storage-dialog .dialog-actions {
+    position: static;
+    margin: 0 -16px -16px;
+  }
+
+  .site-settings-panel .settings-form-actions {
+    margin-top: 2px;
+    padding-bottom: env(safe-area-inset-bottom);
+    justify-content: stretch;
+  }
+
+  .site-settings-panel .settings-form-actions > button {
+    width: 100%;
+    justify-content: center;
+  }
+
 }
 
 @media (max-width: 360px) {
@@ -4401,9 +4540,11 @@ code {
   .source-row .row-actions,
   .review-row .row-actions,
   .version-row .row-actions,
-  .history-row .row-actions {
+  .history-row .row-actions,
+  .taxonomy-row .row-actions,
+  .collection-edit-row .row-actions {
     width: 100%;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 
   .source-row-header {
@@ -4491,6 +4632,13 @@ code {
 
   .storage-config-main {
     grid-template-columns: 36px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .storage-config-body strong,
+  .storage-config-body small {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .storage-config-meta {
@@ -4498,7 +4646,9 @@ code {
   }
 
   .storage-config-actions {
-    justify-content: flex-end;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
   .test-email-form {
@@ -4522,6 +4672,22 @@ code {
   .group-code-manager,
   .group-config-summary {
     justify-content: flex-start;
+  }
+
+  .section-title.with-action {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .section-title.with-action > .row-actions,
+  .settings-section-head.with-action > button,
+  .invite-manager .settings-section-head > button {
+    justify-self: start;
+  }
+
+  .section-title.with-action > .row-actions {
+    width: 100%;
   }
 
 }
