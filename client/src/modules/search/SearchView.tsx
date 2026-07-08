@@ -11,6 +11,8 @@ export function SearchView({
   submitters,
   activeCategory,
   activeSubmitter,
+  activeTags,
+  tagOptions,
   sortMode,
   query,
   mode,
@@ -18,6 +20,7 @@ export function SearchView({
   installedApps,
   onCategory,
   onSubmitter,
+  onTags,
   onSortMode,
   onOpen,
   onOpenSource,
@@ -32,6 +35,8 @@ export function SearchView({
   submitters: string[];
   activeCategory: string;
   activeSubmitter: string;
+  activeTags: string[];
+  tagOptions: string[];
   sortMode: SortMode;
   query: string;
   mode: 'server' | 'client';
@@ -39,6 +44,7 @@ export function SearchView({
   installedApps: InstalledApplication[];
   onCategory: (category: string) => void;
   onSubmitter: (submitter: string) => void;
+  onTags: (tags: string[]) => void;
   onSortMode: (mode: SortMode) => void;
   onOpen: (app: StoreApp, mode?: AppDetailMode) => void;
   onOpenSource: (app: SourceApp) => void;
@@ -70,9 +76,12 @@ export function SearchView({
       submitters={submitters}
       activeCategory={activeCategory}
       activeSubmitter={activeSubmitter}
+      activeTags={activeTags}
+      tagOptions={tagOptions}
       sortMode={sortMode}
       onCategory={onCategory}
       onSubmitter={onSubmitter}
+      onTags={onTags}
       onSortMode={onSortMode}
       onOpen={onOpen}
       onInstall={onInstall}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HelpCircle, KeyRound } from 'lucide-react';
+import { HelpCircle, KeyRound, Trash2, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
@@ -8,7 +8,8 @@ import { Text as XText } from '@astryxdesign/core/Text';
 import { useTranslation } from 'react-i18next';
 import { HAS_API } from '../../config';
 import { api } from '../../shared/api';
-import { EmptyState } from '../../shared/components/Feedback';
+import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
+import { ModalLayer } from '../../shared/components/ModalLayer';
 import { TokenHelpDialog, type TokenHelpExample } from '../../shared/components/TokenHelpDialog';
 import type { APITokenRecord, Toast, User } from '../../shared/types';
 import { formatDate, runAction } from '../../shared/utils';
@@ -18,6 +19,7 @@ export function APITokenWorkspace({ user, setToast }: { user: User; setToast: (t
   const [tokens, setTokens] = useState<APITokenRecord[]>([]);
   const [newToken, setNewToken] = useState('');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [tokenToDelete, setTokenToDelete] = useState<APITokenRecord | null>(null);
 
   useEffect(() => {
     if (!HAS_API || !user) return;
@@ -34,6 +36,15 @@ export function APITokenWorkspace({ user, setToast }: { user: User; setToast: (t
       });
       setTokens((current) => [data.record, ...current]);
       setNewToken(data.token);
+    });
+  }
+
+  async function deleteToken(token: APITokenRecord) {
+    await runAction(setToast, t('token.deleteFailed'), async () => {
+      await api(`/api/v1/me/tokens/${token.id}`, { method: 'DELETE' });
+      setTokens((current) => current.filter((item) => item.id !== token.id));
+      setTokenToDelete(null);
+      setToast({ tone: 'neutral', message: t('token.deleted') });
     });
   }
 
@@ -60,6 +71,16 @@ export function APITokenWorkspace({ user, setToast }: { user: User; setToast: (t
                     {token.prefix} · {formatDate(token.createdAt || token.created_at)}
                   </XText>
                 )}
+                endContent={(
+                  <XButton
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    label={t('token.revokeToken')}
+                    icon={<Trash2 size={17} />}
+                    onClick={() => setTokenToDelete(token)}
+                  />
+                )}
               />
             ))}
           </XList>
@@ -76,6 +97,19 @@ export function APITokenWorkspace({ user, setToast }: { user: User; setToast: (t
           examples={apiTokenHelpExamples(t)}
           onClose={() => setIsHelpOpen(false)}
         />
+      )}
+      {tokenToDelete && (
+        <ModalLayer onClose={() => setTokenToDelete(null)} purpose="required">
+          <div className="modal-panel form-panel confirm-dialog">
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setTokenToDelete(null)} />
+            <SectionTitle icon={Trash2} title={t('token.deleteToken')} />
+            <p className="inline-note">{t('token.deleteConfirm', { name: tokenToDelete.name || tokenToDelete.prefix })}</p>
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={() => setTokenToDelete(null)} />
+              <XButton type="button" variant="destructive" label={t('token.revokeToken')} icon={<Trash2 size={17} />} onClick={() => void deleteToken(tokenToDelete)} />
+            </div>
+          </div>
+        </ModalLayer>
       )}
     </section>
   );

@@ -2381,14 +2381,6 @@ body,
   padding: 10px 12px;
 }
 
-.mcp-code-action-row {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 36px;
-  gap: 10px;
-  align-items: center;
-}
-
 .mcp-endpoint-row .astryx-codeblock {
   min-width: 0;
 }
@@ -2399,6 +2391,10 @@ body,
 
 .mcp-token-dialog {
   width: min(430px, 100%);
+}
+
+.confirm-dialog {
+  width: min(460px, 100%);
 }
 
 .datetime-field {
@@ -3156,11 +3152,6 @@ body,
     box-shadow 160ms ease;
 }
 
-.taxonomy-row.editing {
-  grid-template-columns: 1fr;
-  align-items: stretch;
-}
-
 .taxonomy-summary {
   min-width: 0;
   display: grid;
@@ -3179,12 +3170,6 @@ body,
 .taxonomy-summary small {
   color: var(--muted);
   font-size: 13px;
-}
-
-.taxonomy-edit-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -3909,7 +3894,6 @@ code {
   .taxonomy-form-grid,
   .taxonomy-edit-row,
   .taxonomy-list-grid,
-  .taxonomy-edit-fields,
   .collection-edit-row {
     grid-template-columns: 1fr;
   }

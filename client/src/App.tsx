@@ -199,6 +199,7 @@ export function App() {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [activeSubmitter, setActiveSubmitter] = useState<string>('all');
+  const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
   const [selectedAppMode, setSelectedAppMode] = useState<AppDetailMode>('detail');
@@ -647,6 +648,8 @@ export function App() {
     const filtered = storeApps.filter((app) => {
       const categoryMatch = activeCategory === 'all' || String(app.categoryId || '') === activeCategory;
       const submitterMatch = activeSubmitter === 'all' || app.owner === activeSubmitter;
+      const appTagSet = new Set((app.tags || []).map((tag) => tag.toLowerCase()));
+      const tagMatch = activeTags.length === 0 || activeTags.some((tag) => appTagSet.has(tag.toLowerCase()));
       const queryMatch =
         needle === '' ||
         app.name.toLowerCase().includes(needle) ||
@@ -656,14 +659,14 @@ export function App() {
         localizedAppDescription(app).toLowerCase().includes(needle) ||
         app.owner.toLowerCase().includes(needle) ||
         app.tags.join(' ').toLowerCase().includes(needle);
-      return categoryMatch && submitterMatch && queryMatch;
+      return categoryMatch && submitterMatch && tagMatch && queryMatch;
     });
     return [...filtered].sort((a, b) => {
       if (sortMode === 'downloads') return b.downloadCount - a.downloadCount;
       if (sortMode === 'name') return localizedAppName(a).localeCompare(localizedAppName(b));
       return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
     });
-  }, [storeApps, activeCategory, activeSubmitter, query, sortMode]);
+  }, [storeApps, activeCategory, activeSubmitter, activeTags, query, sortMode]);
 
   async function openApp(app: StoreApp, mode: AppDetailMode = 'detail') {
     await runAction(setToast, t('toast.loadAppDetailFailed'), async () => {
@@ -1126,6 +1129,8 @@ export function App() {
                 submitters={submitters}
                 activeCategory={activeCategory}
                 activeSubmitter={activeSubmitter}
+                activeTags={activeTags}
+                tagOptions={tagOptions}
                 sortMode={sortMode}
                 query={query}
                 mode={HAS_API ? 'server' : 'client'}
@@ -1133,6 +1138,7 @@ export function App() {
                 installedApps={HAS_API ? [] : installedApps}
                 onCategory={setActiveCategory}
                 onSubmitter={setActiveSubmitter}
+                onTags={setActiveTags}
                 onSortMode={setSortMode}
                 onOpen={openApp}
                 onOpenSource={setSelectedSourceApp}

@@ -22,7 +22,7 @@ import { FilePicker } from '../../shared/components/FilePicker';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { RECOMMENDED_DOWNLOAD_MIRRORS, RECOMMENDED_RAW_MIRRORS, mirrorPresetText } from '../../shared/constants';
 import type { Category, Collection, CollectionDraft, PaginatedResponse, Pagination as PaginationMeta, RegistrationInvite, Review, SiteAnnouncement, SiteProfile, StorageOption, StoreApp, TagRecord, Toast, User } from '../../shared/types';
-import { cx, errorMessage, formatBytes, formatDate, localizedName, reviewKindKey, runAction, shortSHA, statusKey, stripTrailingSlash } from '../../shared/utils';
+import { errorMessage, formatBytes, formatDate, localizedName, reviewKindKey, runAction, shortSHA, statusKey, stripTrailingSlash } from '../../shared/utils';
 import { AdminUsersWorkspace } from './AdminUsersWorkspace';
 import { draftFromUser, emptyUserDraft, type ManagedUserDraft } from './AdminUsersPanel';
 import { StorageSettingsPanel, defaultStorageSettings, type StorageSettings } from './StorageSettingsPanel';
@@ -252,6 +252,10 @@ export function AdminPanel({
   const adminStorageOptions = useMemo(() => storageOptionsFromRecords(storageRecords, defaultStorageKey), [storageRecords, defaultStorageKey]);
   const adminStorageChoices = useMemo(() => storageSelectOptions(adminStorageOptions), [adminStorageOptions]);
   const categoryTree = useMemo(() => flattenCategoryTree(adminCategories), [adminCategories]);
+  const editingCategory = editingCategoryID === null ? null : adminCategories.find((item) => item.id === editingCategoryID) || null;
+  const editingCategoryDraft = editingCategory ? categoryDrafts[editingCategory.id] || taxonomyDraft(editingCategory) : null;
+  const editingTag = editingTagID === null ? null : adminTags.find((item) => item.id === editingTagID) || null;
+  const editingTagDraft = editingTag ? tagDrafts[editingTag.id] || taxonomyDraft(editingTag) : null;
   const announcementPreview: SiteAnnouncement = {
     enabled: settings.announcement_enabled === 'true',
     level: settings.announcement_level === 'warning' || settings.announcement_level === 'success' ? settings.announcement_level : 'info',
@@ -756,6 +760,36 @@ export function AdminPanel({
     return categoryTree.find((item) => item.category.id === category.id)?.path || localizedName(category);
   }
 
+  function openCategoryEditor(item: Category) {
+    setCategoryDrafts((current) => ({ ...current, [item.id]: current[item.id] || taxonomyDraft(item) }));
+    setEditingCategoryID(item.id);
+  }
+
+  function closeCategoryEditor() {
+    setCategoryDrafts((current) => {
+      if (editingCategoryID === null) return current;
+      const next = { ...current };
+      delete next[editingCategoryID];
+      return next;
+    });
+    setEditingCategoryID(null);
+  }
+
+  function openTagEditor(item: TagRecord) {
+    setTagDrafts((current) => ({ ...current, [item.id]: current[item.id] || taxonomyDraft(item) }));
+    setEditingTagID(item.id);
+  }
+
+  function closeTagEditor() {
+    setTagDrafts((current) => {
+      if (editingTagID === null) return current;
+      const next = { ...current };
+      delete next[editingTagID];
+      return next;
+    });
+    setEditingTagID(null);
+  }
+
   function categoryTreeItems(): TreeListItemData[] {
     const childrenByParent = new Map<number | null, Category[]>();
     for (const item of adminCategories) {
@@ -771,43 +805,25 @@ export function AdminPanel({
     }
 
     const build = (parentID: number | null): TreeListItemData[] => (childrenByParent.get(parentID) || []).map((item) => {
-      const draft = categoryDrafts[item.id] || taxonomyDraft(item);
-      const isEditing = editingCategoryID === item.id;
       return {
         id: String(item.id),
         isExpanded: true,
         startContent: <Tag size={16} />,
-        label: isEditing ? (
-          <XFormLayout className="taxonomy-edit-fields">
-            <XTextInput label={t('admin.categoryNameZhFor', { name: localizedName(item) })} value={draft.nameI18n['zh-CN'] || ''} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'zh-CN', value) }))} />
-            <XTextInput label={t('admin.categoryNameEnFor', { name: localizedName(item) })} value={draft.nameI18n.en || ''} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'en', value) }))} />
-            <XTextInput label={t('admin.categoryNameFor', { name: localizedName(item) })} value={draft.name} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, name: value } }))} />
-            <XTextInput label={t('admin.categorySlugFor', { name: item.name })} value={draft.slug} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: value } }))} />
-            <XSelector label={t('admin.categoryParentFor', { name: localizedName(item) })} value={draft.parentId || ''} options={categoryParentOptions(item.id)} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, parentId: value } }))} />
-            <XTextInput label={t('admin.categorySortOrderFor', { name: localizedName(item) })} value={draft.sortOrder || '0'} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, sortOrder: value } }))} />
-          </XFormLayout>
-        ) : (
+        label: (
           <span className="taxonomy-tree-label">
             <strong>{localizedName(item)}</strong>
             <small>{item.slug}</small>
           </span>
         ),
-        description: isEditing
-          ? undefined
-          : t('admin.categoryMeta', {
-              parent: item.parentId ? categoryPath(adminCategories.find((category) => category.id === item.parentId) || item) : t('admin.noParentCategory'),
-              sort: item.sortOrder || 0,
-              zh: item.nameI18n?.['zh-CN'] || item.nameI18n?.zh || item.name || '-',
-              en: item.nameI18n?.en || '-',
-            }),
-        endContent: isEditing ? (
+        description: t('admin.categoryMeta', {
+          parent: item.parentId ? categoryPath(adminCategories.find((category) => category.id === item.parentId) || item) : t('admin.noParentCategory'),
+          sort: item.sortOrder || 0,
+          zh: item.nameI18n?.['zh-CN'] || item.nameI18n?.zh || item.name || '-',
+          en: item.nameI18n?.en || '-',
+        }),
+        endContent: (
           <div className="row-actions">
-            <XButton type="button" variant="secondary" size="sm" label={t('common.cancel')} icon={<X size={16} />} onClick={() => setEditingCategoryID(null)} />
-            <XButton type="button" variant="primary" size="sm" label={t('admin.saveCategory')} icon={<Save size={16} />} onClick={() => void updateCategory(item)} />
-          </div>
-        ) : (
-          <div className="row-actions">
-            <XIconButton type="button" variant="ghost" label={t('admin.editCategoryNamed', { name: item.name })} icon={<Pencil size={16} />} onClick={() => setEditingCategoryID(item.id)} />
+            <XIconButton type="button" variant="ghost" label={t('admin.editCategoryNamed', { name: item.name })} icon={<Pencil size={16} />} onClick={() => openCategoryEditor(item)} />
             <XIconButton type="button" variant="destructive" label={t('admin.deleteCategoryNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteCategory(item)} />
           </div>
         ),
@@ -840,6 +856,11 @@ export function AdminPanel({
       await api(`/api/v1/admin/categories/${item.id}`, { method: 'PATCH', body: JSON.stringify(categoryPayload(draft)) });
       setToast({ tone: 'success', message: t('admin.categoryUpdated') });
       setEditingCategoryID(null);
+      setCategoryDrafts((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
       await refreshTaxonomyCatalog();
     });
   }
@@ -876,6 +897,11 @@ export function AdminPanel({
       await api(`/api/v1/admin/tags/${item.id}`, { method: 'PATCH', body: JSON.stringify(taxonomyTextPayload(draft)) });
       setToast({ tone: 'success', message: t('admin.tagUpdated') });
       setEditingTagID(null);
+      setTagDrafts((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
       await refreshTaxonomyCatalog();
     });
   }
@@ -1449,6 +1475,54 @@ export function AdminPanel({
             </form>
           </ModalLayer>
         )}
+        {editingCategory && editingCategoryDraft && (
+          <ModalLayer onClose={closeCategoryEditor} purpose="form">
+            <form
+              className="modal-panel form-panel taxonomy-dialog"
+              aria-label={t('admin.editCategoryNamed', { name: localizedName(editingCategory) })}
+              onSubmit={(event) => {
+                event.preventDefault();
+                void updateCategory(editingCategory);
+              }}
+            >
+              <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={closeCategoryEditor} />
+              <SectionTitle icon={Tag} title={t('admin.editCategoryNamed', { name: localizedName(editingCategory) })} />
+              <XTextInput label={t('admin.categoryNameZhFor', { name: localizedName(editingCategory) })} value={editingCategoryDraft.nameI18n['zh-CN'] || ''} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [editingCategory.id]: updateTaxonomyI18n(editingCategoryDraft, 'zh-CN', value) }))} />
+              <XTextInput label={t('admin.categoryNameEnFor', { name: localizedName(editingCategory) })} value={editingCategoryDraft.nameI18n.en || ''} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [editingCategory.id]: updateTaxonomyI18n(editingCategoryDraft, 'en', value) }))} />
+              <XTextInput label={t('admin.categoryNameFor', { name: localizedName(editingCategory) })} value={editingCategoryDraft.name} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [editingCategory.id]: { ...editingCategoryDraft, name: value } }))} />
+              <XTextInput label={t('admin.categorySlugFor', { name: editingCategory.name })} value={editingCategoryDraft.slug} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [editingCategory.id]: { ...editingCategoryDraft, slug: value } }))} />
+              <XSelector label={t('admin.categoryParentFor', { name: localizedName(editingCategory) })} value={editingCategoryDraft.parentId || ''} options={categoryParentOptions(editingCategory.id)} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [editingCategory.id]: { ...editingCategoryDraft, parentId: value } }))} />
+              <XTextInput label={t('admin.categorySortOrderFor', { name: localizedName(editingCategory) })} value={editingCategoryDraft.sortOrder || '0'} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [editingCategory.id]: { ...editingCategoryDraft, sortOrder: value } }))} />
+              <div className="dialog-actions">
+                <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={closeCategoryEditor} />
+                <XButton type="submit" variant="primary" label={t('admin.saveCategory')} icon={<Save size={18} />} />
+              </div>
+            </form>
+          </ModalLayer>
+        )}
+        {editingTag && editingTagDraft && (
+          <ModalLayer onClose={closeTagEditor} purpose="form">
+            <form
+              className="modal-panel form-panel taxonomy-dialog"
+              aria-label={t('admin.editTagNamed', { name: localizedName(editingTag) })}
+              onSubmit={(event) => {
+                event.preventDefault();
+                void updateTag(editingTag);
+              }}
+            >
+              <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={closeTagEditor} />
+              <SectionTitle icon={Tag} title={t('admin.editTagNamed', { name: localizedName(editingTag) })} />
+              <XTextInput label={t('admin.tagNameZhFor', { name: localizedName(editingTag) })} value={editingTagDraft.nameI18n['zh-CN'] || ''} onChange={(value) => setTagDrafts((current) => ({ ...current, [editingTag.id]: updateTaxonomyI18n(editingTagDraft, 'zh-CN', value) }))} />
+              <XTextInput label={t('admin.tagNameEnFor', { name: localizedName(editingTag) })} value={editingTagDraft.nameI18n.en || ''} onChange={(value) => setTagDrafts((current) => ({ ...current, [editingTag.id]: updateTaxonomyI18n(editingTagDraft, 'en', value) }))} />
+              <XTextInput label={t('admin.tagNameFor', { name: localizedName(editingTag) })} value={editingTagDraft.name} onChange={(value) => setTagDrafts((current) => ({ ...current, [editingTag.id]: { ...editingTagDraft, name: value } }))} />
+              <XTextInput label={t('admin.tagSlugFor', { name: editingTag.name })} value={editingTagDraft.slug} onChange={(value) => setTagDrafts((current) => ({ ...current, [editingTag.id]: { ...editingTagDraft, slug: value } }))} />
+              <div className="dialog-actions">
+                <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={closeTagEditor} />
+                <XButton type="submit" variant="primary" label={t('admin.saveTag')} icon={<Save size={18} />} />
+              </div>
+            </form>
+          </ModalLayer>
+        )}
 
         <section className="panel">
           <div className="section-title with-action">
@@ -1480,36 +1554,17 @@ export function AdminPanel({
               {adminTags.length === 0 ? (
                 <EmptyState icon={Tag} title={t('admin.noTags')} body={t('admin.noTagsBody')} />
               ) : adminTags.map((item) => {
-                const draft = tagDrafts[item.id] || taxonomyDraft(item);
-                const isEditing = editingTagID === item.id;
                 return (
-                  <div className={cx('taxonomy-row', isEditing && 'editing')} key={item.id}>
-                    {isEditing ? (
-                      <>
-                        <div className="taxonomy-edit-fields">
-                          <XTextInput label={t('admin.tagNameZhFor', { name: localizedName(item) })} value={draft.nameI18n['zh-CN'] || ''} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'zh-CN', value) }))} />
-                          <XTextInput label={t('admin.tagNameEnFor', { name: localizedName(item) })} value={draft.nameI18n.en || ''} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'en', value) }))} />
-                          <XTextInput label={t('admin.tagNameFor', { name: localizedName(item) })} value={draft.name} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, name: value } }))} />
-                          <XTextInput label={t('admin.tagSlugFor', { name: item.name })} value={draft.slug} onChange={(value) => setTagDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: value } }))} />
-                        </div>
-                        <div className="dialog-actions">
-                          <XButton type="button" variant="secondary" size="sm" label={t('common.cancel')} icon={<X size={16} />} onClick={() => setEditingTagID(null)} />
-                          <XButton type="button" variant="primary" size="sm" label={t('admin.saveTag')} icon={<Save size={16} />} onClick={() => void updateTag(item)} />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="taxonomy-summary">
-                          <strong>{localizedName(item)}</strong>
-                          <span>{item.slug}</span>
-                          <small>{t('admin.taxonomyLanguages', { zh: item.nameI18n?.['zh-CN'] || item.nameI18n?.zh || item.name || '-', en: item.nameI18n?.en || '-' })}</small>
-                        </div>
-                        <div className="row-actions">
-                          <XIconButton type="button" variant="ghost" label={t('admin.editTagNamed', { name: item.name })} icon={<Pencil size={16} />} onClick={() => setEditingTagID(item.id)} />
-                          <XIconButton type="button" variant="destructive" label={t('admin.deleteTagNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteTag(item)} />
-                        </div>
-                      </>
-                    )}
+                  <div className="taxonomy-row" key={item.id}>
+                    <div className="taxonomy-summary">
+                      <strong>{localizedName(item)}</strong>
+                      <span>{item.slug}</span>
+                      <small>{t('admin.taxonomyLanguages', { zh: item.nameI18n?.['zh-CN'] || item.nameI18n?.zh || item.name || '-', en: item.nameI18n?.en || '-' })}</small>
+                    </div>
+                    <div className="row-actions">
+                      <XIconButton type="button" variant="ghost" label={t('admin.editTagNamed', { name: item.name })} icon={<Pencil size={16} />} onClick={() => openTagEditor(item)} />
+                      <XIconButton type="button" variant="destructive" label={t('admin.deleteTagNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteTag(item)} />
+                    </div>
                   </div>
                 );
               })}

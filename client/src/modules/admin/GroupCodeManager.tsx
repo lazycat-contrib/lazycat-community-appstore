@@ -10,7 +10,7 @@ export function GroupCodeManager({
   setToast,
 }: {
   group: Group;
-  onRotate: (group: Group) => Promise<void>;
+  onRotate: (group: Group) => void | Promise<void>;
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();

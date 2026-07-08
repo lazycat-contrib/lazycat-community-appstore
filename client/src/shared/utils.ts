@@ -1,5 +1,6 @@
 import i18n from '../i18n';
 import { API_BASE } from '../config';
+import { ApiRequestError } from './api';
 import { SOURCE_STALE_MS } from './constants';
 import type {
   GitHubMirror,
@@ -14,6 +15,10 @@ import type {
 } from './types';
 
 export function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiRequestError && error.code) {
+    const localized = i18n.t(`errors.${error.code}`, { defaultValue: '' });
+    if (localized) return localized;
+  }
   return error instanceof Error && error.message ? error.message : fallback;
 }
 

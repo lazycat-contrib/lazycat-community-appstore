@@ -49,6 +49,7 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
   const [newMcpToken, setNewMcpToken] = useState('');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [tokenToDelete, setTokenToDelete] = useState<MCPTokenRecord | null>(null);
   const [draft, setDraft] = useState<MCPTokenDraft>(initialMCPTokenDraft);
   const endpoint = mcpEndpointFromSourceURL(mcpProfile?.sourceUrl || siteSourceUrl) || mcpProfile?.endpoint || `${window.location.origin}/mcp`;
   const canCreateAdminToken = Boolean(mcpProfile?.principalTypes.includes('ADMIN'));
@@ -132,10 +133,10 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
   }
 
   async function deleteToken(token: MCPTokenRecord) {
-    if (!window.confirm(t('mcp.deleteConfirm', { name: token.note || token.prefix }))) return;
     await runAction(setToast, t('mcp.deleteFailed'), async () => {
       await api(`/api/v1/me/mcp/tokens/${token.id}`, { method: 'DELETE' });
       setMcpTokens((current) => current.filter((item) => item.id !== token.id));
+      setTokenToDelete(null);
       setToast({ tone: 'neutral', message: t('mcp.deleted') });
     });
   }
@@ -156,19 +157,7 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
 
         <XMetadataList className="mcp-endpoint-row" columns="single" label={{ position: 'top' }}>
           <XMetadataListItem label={t('mcp.endpoint')}>
-            <div className="mcp-code-action-row">
-              <XCodeBlock code={endpoint} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" container="section" isWrapped />
-              <XIconButton
-                className="fixed-row-icon-button"
-                type="button"
-                variant="ghost"
-                size="sm"
-                label={t('mcp.copyEndpoint')}
-                tooltip={t('mcp.copyEndpoint')}
-                icon={<Copy size={17} />}
-                onClick={() => void copyText(endpoint, t('mcp.endpointCopied'))}
-              />
-            </div>
+            <XCodeBlock code={endpoint} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" container="section" isWrapped />
           </XMetadataListItem>
         </XMetadataList>
 
@@ -216,7 +205,7 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
                       size="sm"
                       label={t('mcp.revokeToken')}
                       icon={<Trash2 size={17} />}
-                      onClick={() => void deleteToken(token)}
+                      onClick={() => setTokenToDelete(token)}
                     />
                   </div>
                 )}
@@ -244,6 +233,19 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
           onSubmit={createToken}
           onClose={closeCreateTokenDialog}
         />
+      )}
+      {tokenToDelete && (
+        <ModalLayer onClose={() => setTokenToDelete(null)} purpose="required">
+          <div className="modal-panel form-panel confirm-dialog">
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setTokenToDelete(null)} />
+            <SectionTitle icon={Trash2} title={t('mcp.deleteToken')} />
+            <p className="inline-note">{t('mcp.deleteConfirm', { name: tokenToDelete.note || tokenToDelete.prefix })}</p>
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={() => setTokenToDelete(null)} />
+              <XButton type="button" variant="destructive" label={t('mcp.revokeToken')} icon={<Trash2 size={17} />} onClick={() => void deleteToken(tokenToDelete)} />
+            </div>
+          </div>
+        </ModalLayer>
       )}
     </section>
   );

@@ -11,7 +11,7 @@ import { AstryxThemeSelector, LanguageSelector, ThemeToggle, type LanguageCode }
 import { api, ApiRequestError } from '../../shared/api';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { SiteProfile, ThemeMode, Toast, User } from '../../shared/types';
-import { runAction } from '../../shared/utils';
+import { errorMessage, runAction } from '../../shared/utils';
 
 type AuthMode = 'login' | 'register' | 'verify';
 
@@ -200,7 +200,7 @@ function AuthGateway({
           setCaptchaRequired(true);
           setCaptchaVerified(false);
         }
-        setToast({ tone: 'error', message: error instanceof Error && error.message ? error.message : t('auth.loginFailed') });
+        setToast({ tone: 'error', message: errorMessage(error, t('auth.loginFailed')) });
       }
       return;
     }
@@ -259,7 +259,7 @@ function AuthGateway({
               />
               {mode === 'login' && captchaRequired && (
                 <div className="captcha-panel" role="group" aria-label={t('auth.captchaTitle')}>
-                  <ClawCaptcha title={t('auth.captchaTitle')} onVerify={() => setCaptchaVerified(true)} />
+                  {!captchaVerified && <ClawCaptcha title={t('auth.captchaTitle')} onVerify={() => setCaptchaVerified(true)} />}
                   <p className={captchaVerified ? 'inline-success' : 'inline-warning'}>
                     <ShieldCheck size={15} />
                     <span>{captchaVerified ? t('auth.captchaVerified') : t('auth.captchaBody', { count: failedAttempts })}</span>

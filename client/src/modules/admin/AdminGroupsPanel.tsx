@@ -31,6 +31,8 @@ export function AdminGroupsPanel({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [expandedGroupID, setExpandedGroupID] = useState<number | null>(null);
   const [selectedGroupIDs, setSelectedGroupIDs] = useState<number[]>([]);
+  const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
+  const [groupCodeToRotate, setGroupCodeToRotate] = useState<Group | null>(null);
   const [generatedConfig, setGeneratedConfig] = useState<{ encoded: string; config: { sourceUrl: string; groupCodes: string[]; groups: Array<{ name: string; code?: string }> } } | null>(null);
   const selectedGroups = useMemo(() => groups.filter((group) => selectedGroupIDs.includes(group.id)), [groups, selectedGroupIDs]);
 
@@ -59,15 +61,16 @@ export function AdminGroupsPanel({
   async function deleteGroup(group: Group) {
     await runAction(setToast, t('groups.deleteFailed'), async () => {
       await api(`/api/v1/groups/${group.id}`, { method: 'DELETE' });
+      setGroupToDelete(null);
       setToast({ tone: 'neutral', message: t('groups.deleted') });
       await loadGroups();
     });
   }
 
   async function rotateGroupCode(group: Group) {
-    if (!window.confirm(t('admin.groups.rotateConfirm', { name: group.name }))) return;
     await runAction(setToast, t('admin.groups.rotateFailed'), async () => {
       await api(`/api/v1/groups/${group.id}/code:rotate`, { method: 'POST' });
+      setGroupCodeToRotate(null);
       setToast({ tone: 'success', message: t('admin.groups.rotated') });
       await loadGroups();
     });
@@ -147,9 +150,9 @@ export function AdminGroupsPanel({
                   <div className="row-actions">
                     <XBadge label={t('admin.groups.memberCount', { count: group.memberCount || 0 })} variant="neutral" />
                     <XBadge label={t('admin.groups.appCount', { count: group.attachedAppCount || 0 })} variant={(group.attachedAppCount || 0) > 0 ? 'info' : 'neutral'} />
-                    <GroupCodeManager group={group} onRotate={rotateGroupCode} setToast={setToast} />
+                    <GroupCodeManager group={group} onRotate={setGroupCodeToRotate} setToast={setToast} />
                     <XIconButton type="button" variant="ghost" size="sm" label={expandedGroupID === group.id ? t('groups.hideManagement') : t('groups.manage')} icon={<Users size={16} />} onClick={() => setExpandedGroupID(expandedGroupID === group.id ? null : group.id)} />
-                    <XIconButton type="button" variant="destructive" size="sm" label={t('groups.deleteGroup')} icon={<Trash2 size={16} />} onClick={() => void deleteGroup(group)} />
+                    <XIconButton type="button" variant="destructive" size="sm" label={t('groups.deleteGroup')} icon={<Trash2 size={16} />} onClick={() => setGroupToDelete(group)} />
                   </div>
                 )}
               />
@@ -213,6 +216,34 @@ export function AdminGroupsPanel({
             <div className="dialog-actions">
               <XButton type="button" variant="secondary" label={t('common.close')} icon={<X size={17} />} onClick={() => setGeneratedConfig(null)} />
               <XButton type="button" variant="primary" label={t('admin.groups.copyConfig')} icon={<Copy size={17} />} onClick={() => void copyConfig()} />
+            </div>
+          </div>
+        </ModalLayer>
+      )}
+
+      {groupCodeToRotate && (
+        <ModalLayer onClose={() => setGroupCodeToRotate(null)} purpose="required">
+          <div className="modal-panel form-panel confirm-dialog">
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setGroupCodeToRotate(null)} />
+            <SectionTitle icon={RefreshCw} title={t('admin.groups.rotateCode')} />
+            <p className="inline-note">{t('admin.groups.rotateConfirm', { name: groupCodeToRotate.name })}</p>
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setGroupCodeToRotate(null)} />
+              <XButton type="button" variant="primary" label={t('admin.groups.rotateCode')} icon={<RefreshCw size={17} />} onClick={() => void rotateGroupCode(groupCodeToRotate)} />
+            </div>
+          </div>
+        </ModalLayer>
+      )}
+
+      {groupToDelete && (
+        <ModalLayer onClose={() => setGroupToDelete(null)} purpose="required">
+          <div className="modal-panel form-panel confirm-dialog">
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setGroupToDelete(null)} />
+            <SectionTitle icon={Trash2} title={t('groups.deleteGroup')} />
+            <p className="inline-note">{t('groups.deleteConfirm', { name: groupToDelete.name })}</p>
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setGroupToDelete(null)} />
+              <XButton type="button" variant="destructive" label={t('groups.deleteGroup')} icon={<Trash2 size={17} />} onClick={() => void deleteGroup(groupToDelete)} />
             </div>
           </div>
         </ModalLayer>

@@ -5,7 +5,8 @@ import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../shared/api';
-import { EmptyState } from '../../shared/components/Feedback';
+import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
+import { ModalLayer } from '../../shared/components/ModalLayer';
 import type { Group, Toast } from '../../shared/types';
 import { runAction } from '../../shared/utils';
 
@@ -23,6 +24,7 @@ export function GroupPanel({
   const [memberDrafts, setMemberDrafts] = useState<Record<number, string>>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [activeGroupID, setActiveGroupID] = useState<number | null>(null);
+  const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
 
   async function reload() {
     await runAction(setToast, t('groups.loadFailed'), async () => {
@@ -63,7 +65,6 @@ export function GroupPanel({
   }
 
   async function deleteGroup(group: Group) {
-    if (!window.confirm(t('groups.deleteConfirm', { name: group.name }))) return;
     await runAction(setToast, t('groups.deleteFailed'), async () => {
       await api(`/api/v1/groups/${group.id}`, { method: 'DELETE' });
       setGroups(groups.filter((item) => item.id !== group.id));
@@ -73,6 +74,7 @@ export function GroupPanel({
         return next;
       });
       if (activeGroupID === group.id) setActiveGroupID(null);
+      setGroupToDelete(null);
       setToast({ tone: 'neutral', message: t('groups.deleted') });
     });
   }
@@ -133,7 +135,7 @@ export function GroupPanel({
                     label={t('groups.deleteGroup')}
                     tooltip={t('groups.deleteGroup')}
                     icon={<Trash2 size={17} />}
-                    onClick={() => void deleteGroup(group)}
+                    onClick={() => setGroupToDelete(group)}
                   />
                 </div>
               </div>
@@ -160,6 +162,20 @@ export function GroupPanel({
             </article>
           ))}
         </div>
+      )}
+
+      {groupToDelete && (
+        <ModalLayer onClose={() => setGroupToDelete(null)} purpose="required">
+          <div className="modal-panel form-panel confirm-dialog">
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setGroupToDelete(null)} />
+            <SectionTitle icon={Trash2} title={t('groups.deleteGroup')} />
+            <p className="inline-note">{t('groups.deleteConfirm', { name: groupToDelete.name })}</p>
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setGroupToDelete(null)} />
+              <XButton type="button" variant="destructive" label={t('groups.deleteGroup')} icon={<Trash2 size={17} />} onClick={() => void deleteGroup(groupToDelete)} />
+            </div>
+          </div>
+        </ModalLayer>
       )}
     </section>
   );
