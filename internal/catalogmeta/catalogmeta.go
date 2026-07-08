@@ -35,6 +35,20 @@ func CleanLocalizedText(value LocalizedText) LocalizedText {
 	return out
 }
 
+func WithLocalizedDefaults(value LocalizedText, fallback string) LocalizedText {
+	out := CleanLocalizedText(value)
+	fallback = strings.TrimSpace(fallback)
+	if fallback == "" {
+		return out
+	}
+	for _, key := range []string{"zh-CN", "en"} {
+		if strings.TrimSpace(out[key]) == "" {
+			out[key] = fallback
+		}
+	}
+	return out
+}
+
 func (value LocalizedText) IsZero() bool {
 	return len(CleanLocalizedText(value)) == 0
 }

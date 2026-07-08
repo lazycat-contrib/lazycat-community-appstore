@@ -1,12 +1,14 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import { Archive, Check, Home, KeyRound, LogIn, PackagePlus, Plus, Search, ShieldCheck, Users } from 'lucide-react';
+import { ClawCaptcha } from 'playcaptcha';
+import 'playcaptcha/clawcaptcha.css';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { useTranslation } from 'react-i18next';
 import type { AstryxThemeName } from '../../shared/astryxThemes';
 import { AstryxThemeSelector, LanguageSelector, ThemeToggle, type LanguageCode } from '../../shared/theme';
-import { api } from '../../shared/api';
+import { api, ApiRequestError } from '../../shared/api';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { SiteProfile, ThemeMode, Toast, User } from '../../shared/types';
 import { runAction } from '../../shared/utils';
@@ -103,6 +105,9 @@ function AuthGateway({
   const [mode, setMode] = useState<AuthMode>(authModeFromURL);
   const [authForm, setAuthForm] = useState({ username: '', password: '', email: '', inviteCode: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
   const registrationMode = siteProfile.registration?.mode || 'open';
   const registrationOpen = registrationMode !== 'closed';
   const inviteRegistration = registrationMode === 'invite';
@@ -124,6 +129,14 @@ function AuthGateway({
   useEffect(() => {
     if (verifyToken) setMode('verify');
   }, [verifyToken]);
+
+  useEffect(() => {
+    if (mode !== 'login') {
+      setCaptchaRequired(false);
+      setCaptchaVerified(false);
+      setFailedAttempts(0);
+    }
+  }, [mode]);
 
   function formString(formData: FormData, key: string, fallback = '') {
     const value = formData.get(key);
@@ -150,24 +163,58 @@ function AuthGateway({
       await submitVerificationToken(formString(formData, 'token', verifyToken));
       return;
     }
-    await runAction(setToast, mode === 'login' ? t('auth.loginFailed') : t('auth.registerFailed'), async () => {
-      const submittedForm = {
-        username: formString(formData, 'username', authForm.username),
-        password: formString(formData, 'password', authForm.password),
-        email: formString(formData, 'email', authForm.email),
-        inviteCode: formString(formData, 'inviteCode', authForm.inviteCode),
-      };
-      const body = mode === 'login' ? { username: submittedForm.username, password: submittedForm.password } : submittedForm;
+    const submittedForm = {
+      username: formString(formData, 'username', authForm.username),
+      password: formString(formData, 'password', authForm.password),
+      email: formString(formData, 'email', authForm.email),
+      inviteCode: formString(formData, 'inviteCode', authForm.inviteCode),
+    };
+    if (mode === 'login') {
+      if (captchaRequired && !captchaVerified) {
+        setToast({ tone: 'neutral', message: t('auth.captchaRequired') });
+        return;
+      }
+      try {
+        const data = await api<{ user: User }>('/api/v1/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ username: submittedForm.username, password: submittedForm.password }),
+        });
+        setCaptchaRequired(false);
+        setCaptchaVerified(false);
+        setFailedAttempts(0);
+        setUser(data.user);
+        if (data.user.emailVerified === false) {
+          setMode('verify');
+          setToast({ tone: 'neutral', message: t('auth.completeEmailVerification') });
+        } else {
+          setToast({ tone: 'success', message: t('auth.loggedIn') });
+          onAuthenticated(data.user);
+        }
+        await refreshAll({ silent: true });
+      } catch (error) {
+        const details = error instanceof ApiRequestError && error.details && typeof error.details === 'object'
+          ? error.details as { failedAttempts?: number; captchaRequired?: boolean }
+          : null;
+        if (details?.failedAttempts) setFailedAttempts(details.failedAttempts);
+        if (details?.captchaRequired) {
+          setCaptchaRequired(true);
+          setCaptchaVerified(false);
+        }
+        setToast({ tone: 'error', message: error instanceof Error && error.message ? error.message : t('auth.loginFailed') });
+      }
+      return;
+    }
+    await runAction(setToast, t('auth.registerFailed'), async () => {
       const data = await api<{ user: User }>(`/api/v1/auth/${mode}`, {
         method: 'POST',
-        body: JSON.stringify(body),
+        body: JSON.stringify(submittedForm),
       });
       setUser(data.user);
       if (data.user.emailVerified === false) {
         setMode('verify');
         setToast({ tone: 'neutral', message: t('auth.completeEmailVerification') });
       } else {
-        setToast({ tone: 'success', message: mode === 'login' ? t('auth.loggedIn') : t('auth.registered') });
+        setToast({ tone: 'success', message: t('auth.registered') });
         onAuthenticated(data.user);
       }
       await refreshAll({ silent: true });
@@ -210,9 +257,18 @@ function AuthGateway({
                 isRequired
                 onChange={(value) => setAuthForm({ ...authForm, password: value })}
               />
+              {mode === 'login' && captchaRequired && (
+                <div className="captcha-panel" role="group" aria-label={t('auth.captchaTitle')}>
+                  <ClawCaptcha title={t('auth.captchaTitle')} onVerify={() => setCaptchaVerified(true)} />
+                  <p className={captchaVerified ? 'inline-success' : 'inline-warning'}>
+                    <ShieldCheck size={15} />
+                    <span>{captchaVerified ? t('auth.captchaVerified') : t('auth.captchaBody', { count: failedAttempts })}</span>
+                  </p>
+                </div>
+              )}
             </>
           )}
-          <XButton type="submit" variant="primary" label={authSubmitLabel} icon={<AuthSubmitIcon size={18} />} />
+          <XButton type="submit" variant="primary" label={authSubmitLabel} icon={<AuthSubmitIcon size={18} />} isDisabled={mode === 'login' && captchaRequired && !captchaVerified} />
         </form>
 
         <section className="panel auth-path-panel">

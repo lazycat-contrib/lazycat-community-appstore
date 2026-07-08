@@ -1,12 +1,12 @@
-import { Copy, Download, History, Layers3, LogIn, PackagePlus, Search, Tag } from 'lucide-react';
+import { History, Layers3, LogIn, PackagePlus, Search, Tag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
 import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { API_BASE } from '../../config';
+import { flattenCategoryTree } from '../../shared/categoryTree';
 import { SectionTitle } from '../../shared/components/Feedback';
-import type { Category, Collection, SiteProfile, StoreApp, Toast } from '../../shared/types';
-import { errorMessage, localizedName } from '../../shared/utils';
+import type { Category, Collection, SiteProfile, StoreApp } from '../../shared/types';
 import { AppGrid } from './AppGrid';
 
 export function StorefrontHome({
@@ -19,7 +19,6 @@ export function StorefrontHome({
   onNavigate,
   onSubmitApp,
   onCategory,
-  setToast,
   isAuthenticated,
 }: {
   apps: StoreApp[];
@@ -31,7 +30,6 @@ export function StorefrontHome({
   onNavigate: (tab: 'search' | 'profile') => void;
   onSubmitApp: () => void;
   onCategory: (category: string) => void;
-  setToast: (toast: Toast) => void;
   isAuthenticated: boolean;
 }) {
   const { t } = useTranslation();
@@ -40,16 +38,7 @@ export function StorefrontHome({
   const sourceFeedURL = siteProfile.sourceUrl || `${API_BASE || window.location.origin}/source/v1/index.json`;
   const BackstageIcon = isAuthenticated ? PackagePlus : LogIn;
   const backstageLabel = isAuthenticated ? t('home.submitApp') : t('topbar.login');
-
-  async function copySourceFeed() {
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error(t('home.copySourceUnsupported'));
-      await navigator.clipboard.writeText(sourceFeedURL);
-      setToast({ tone: 'success', message: t('home.sourceCopied') });
-    } catch (error) {
-      setToast({ tone: 'error', message: errorMessage(error, t('home.copySourceFailed')) });
-    }
-  }
+  const categoryTree = flattenCategoryTree(categories);
 
   return (
     <section className="page-grid storefront-page">
@@ -79,11 +68,6 @@ export function StorefrontHome({
         <XCard className="metric-card source-feed-card" padding={4}>
           <span>{t('home.sourceUrl')}</span>
           <XCodeBlock code={sourceFeedURL} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" />
-          <small>{t('home.openSourceFeed')}</small>
-          <div className="source-feed-actions">
-            <XButton type="button" variant="secondary" size="sm" label={t('home.copySourceFeed')} icon={<Copy size={16} />} onClick={() => void copySourceFeed()} />
-            <XButton type="button" variant="secondary" size="sm" label={t('home.browseInstallable')} icon={<Download size={16} />} onClick={() => onNavigate('search')} />
-          </div>
         </XCard>
       </section>
 
@@ -92,8 +76,8 @@ export function StorefrontHome({
           <SectionTitle icon={Tag} title={t('home.categories')} />
           <div className="category-rail" aria-label={t('home.categories')}>
             <XButton type="button" variant="secondary" size="sm" label={t('common.all')} icon={<Layers3 size={16} />} onClick={() => onCategory('all')} />
-            {categories.map((category) => (
-              <XButton type="button" variant="secondary" size="sm" key={category.id} label={localizedName(category)} icon={<Tag size={16} />} onClick={() => onCategory(String(category.id))} />
+            {categoryTree.map((item) => (
+              <XButton type="button" variant="secondary" size="sm" key={item.category.id} label={item.path} icon={<Tag size={16} />} onClick={() => onCategory(String(item.category.id))} />
             ))}
           </div>
         </section>

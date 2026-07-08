@@ -72,14 +72,34 @@ var (
 				Columns: []*schema.Column{AppsColumns[1]},
 			},
 			{
+				Name:    "app_owner_id_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{AppsColumns[1], AppsColumns[19]},
+			},
+			{
 				Name:    "app_category_id",
 				Unique:  false,
 				Columns: []*schema.Column{AppsColumns[2]},
 			},
 			{
+				Name:    "app_category_id_status_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{AppsColumns[2], AppsColumns[12], AppsColumns[19]},
+			},
+			{
 				Name:    "app_status",
 				Unique:  false,
 				Columns: []*schema.Column{AppsColumns[12]},
+			},
+			{
+				Name:    "app_status_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{AppsColumns[12], AppsColumns[19]},
+			},
+			{
+				Name:    "app_status_download_count_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{AppsColumns[12], AppsColumns[17], AppsColumns[19]},
 			},
 		},
 	}
@@ -172,6 +192,11 @@ var (
 				Name:    "appversion_app_id_status",
 				Unique:  false,
 				Columns: []*schema.Column{AppVersionsColumns[1], AppVersionsColumns[5]},
+			},
+			{
+				Name:    "appversion_app_id_status_published_at_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AppVersionsColumns[1], AppVersionsColumns[5], AppVersionsColumns[12], AppVersionsColumns[13]},
 			},
 			{
 				Name:    "appversion_uploader_id",
@@ -299,6 +324,9 @@ var (
 		{Name: "password", Type: field.TypeString, Default: ""},
 		{Name: "default_download_mirror_id", Type: field.TypeString, Default: ""},
 		{Name: "default_raw_mirror_id", Type: field.TypeString, Default: ""},
+		{Name: "group_codes_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "group_names_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "last_invalid_group_codes_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "mirrors_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "last_sync", Type: field.TypeTime, Nullable: true},
 		{Name: "last_error", Type: field.TypeString, Nullable: true},
@@ -322,7 +350,7 @@ var (
 			{
 				Name:    "clientsource_user_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[14]},
+				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[17]},
 			},
 		},
 	}
@@ -373,6 +401,16 @@ var (
 				Name:    "clientsourceapp_source_id_slug",
 				Unique:  false,
 				Columns: []*schema.Column{ClientSourceAppsColumns[20], ClientSourceAppsColumns[5]},
+			},
+			{
+				Name:    "clientsourceapp_package_id",
+				Unique:  false,
+				Columns: []*schema.Column{ClientSourceAppsColumns[2]},
+			},
+			{
+				Name:    "clientsourceapp_category",
+				Unique:  false,
+				Columns: []*schema.Column{ClientSourceAppsColumns[9]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_updated_at",
@@ -595,6 +633,11 @@ var (
 				Columns: []*schema.Column{CommentsColumns[1], CommentsColumns[8]},
 			},
 			{
+				Name:    "comment_app_id_deleted_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CommentsColumns[1], CommentsColumns[8], CommentsColumns[9]},
+			},
+			{
 				Name:    "comment_app_id_parent_id_deleted",
 				Unique:  false,
 				Columns: []*schema.Column{CommentsColumns[1], CommentsColumns[3], CommentsColumns[8]},
@@ -664,6 +707,11 @@ var (
 				Name:    "favorite_user_id_target_type_target_id",
 				Unique:  true,
 				Columns: []*schema.Column{FavoritesColumns[1], FavoritesColumns[2], FavoritesColumns[3]},
+			},
+			{
+				Name:    "favorite_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{FavoritesColumns[1], FavoritesColumns[4]},
 			},
 			{
 				Name:    "favorite_target_type_target_id",
@@ -822,6 +870,11 @@ var (
 				Columns: []*schema.Column{ReviewRequestsColumns[2]},
 			},
 			{
+				Name:    "reviewrequest_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ReviewRequestsColumns[2], ReviewRequestsColumns[10]},
+			},
+			{
 				Name:    "reviewrequest_app_id",
 				Unique:  false,
 				Columns: []*schema.Column{ReviewRequestsColumns[3]},
@@ -931,6 +984,8 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "slug", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "code", Type: field.TypeString, Default: ""},
+		{Name: "code_updated_at", Type: field.TypeTime},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

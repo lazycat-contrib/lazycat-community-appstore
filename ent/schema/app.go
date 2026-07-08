@@ -39,7 +39,11 @@ func (App) Fields() []ent.Field {
 func (App) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("owner_id"),
+		index.Fields("owner_id", "updated_at"),
 		index.Fields("category_id"),
+		index.Fields("category_id", "status", "updated_at"),
 		index.Fields("status"),
+		index.Fields("status", "updated_at"),
+		index.Fields("status", "download_count", "updated_at"),
 	}
 }

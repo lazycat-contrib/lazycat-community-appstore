@@ -29,6 +29,12 @@ type ClientSource struct {
 	DefaultDownloadMirrorID string `json:"default_download_mirror_id,omitempty"`
 	// DefaultRawMirrorID holds the value of the "default_raw_mirror_id" field.
 	DefaultRawMirrorID string `json:"default_raw_mirror_id,omitempty"`
+	// GroupCodesJSON holds the value of the "group_codes_json" field.
+	GroupCodesJSON string `json:"group_codes_json,omitempty"`
+	// GroupNamesJSON holds the value of the "group_names_json" field.
+	GroupNamesJSON string `json:"group_names_json,omitempty"`
+	// LastInvalidGroupCodesJSON holds the value of the "last_invalid_group_codes_json" field.
+	LastInvalidGroupCodesJSON string `json:"last_invalid_group_codes_json,omitempty"`
 	// MirrorsJSON holds the value of the "mirrors_json" field.
 	MirrorsJSON string `json:"mirrors_json,omitempty"`
 	// LastSync holds the value of the "last_sync" field.
@@ -76,7 +82,7 @@ func (*ClientSource) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case clientsource.FieldID, clientsource.FieldLastAppCount, clientsource.FieldLastInstallableCount:
 			values[i] = new(sql.NullInt64)
-		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldMirrorsJSON, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
+		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldGroupCodesJSON, clientsource.FieldGroupNamesJSON, clientsource.FieldLastInvalidGroupCodesJSON, clientsource.FieldMirrorsJSON, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
 			values[i] = new(sql.NullString)
 		case clientsource.FieldLastSync, clientsource.FieldCreatedAt, clientsource.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -136,6 +142,24 @@ func (_m *ClientSource) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field default_raw_mirror_id", values[i])
 			} else if value.Valid {
 				_m.DefaultRawMirrorID = value.String
+			}
+		case clientsource.FieldGroupCodesJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field group_codes_json", values[i])
+			} else if value.Valid {
+				_m.GroupCodesJSON = value.String
+			}
+		case clientsource.FieldGroupNamesJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field group_names_json", values[i])
+			} else if value.Valid {
+				_m.GroupNamesJSON = value.String
+			}
+		case clientsource.FieldLastInvalidGroupCodesJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field last_invalid_group_codes_json", values[i])
+			} else if value.Valid {
+				_m.LastInvalidGroupCodesJSON = value.String
 			}
 		case clientsource.FieldMirrorsJSON:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -246,6 +270,15 @@ func (_m *ClientSource) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("default_raw_mirror_id=")
 	builder.WriteString(_m.DefaultRawMirrorID)
+	builder.WriteString(", ")
+	builder.WriteString("group_codes_json=")
+	builder.WriteString(_m.GroupCodesJSON)
+	builder.WriteString(", ")
+	builder.WriteString("group_names_json=")
+	builder.WriteString(_m.GroupNamesJSON)
+	builder.WriteString(", ")
+	builder.WriteString("last_invalid_group_codes_json=")
+	builder.WriteString(_m.LastInvalidGroupCodesJSON)
 	builder.WriteString(", ")
 	builder.WriteString("mirrors_json=")
 	builder.WriteString(_m.MirrorsJSON)

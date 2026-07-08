@@ -30,6 +30,7 @@ func (Comment) Fields() []ent.Field {
 func (Comment) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("app_id", "deleted"),
+		index.Fields("app_id", "deleted", "created_at"),
 		index.Fields("app_id", "parent_id", "deleted"),
 		index.Fields("user_id"),
 		index.Fields("client_user_id"),

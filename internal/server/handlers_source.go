@@ -33,6 +33,12 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	groupAccess, err := s.resolveGroupCodeAccess(r.Context(), groupCodesFromRequest(r))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "SOURCE_BUILD_FAILED", "Could not validate group codes", nil)
+		return
+	}
+
 	apps, err := s.db.App.Query().
 		Where(app.StatusEQ(app.StatusAPPROVED)).
 		Order(entgo.Desc(app.FieldUpdatedAt)).
@@ -63,8 +69,12 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 		},
 		Apps: make([]feed.AppInput, 0, len(apps)),
 	}
+	for _, group := range groupAccess.validGroups {
+		input.Groups = append(input.Groups, feed.GroupMeta{ID: group.ID, Name: group.Name, Code: group.Code})
+	}
+	input.InvalidGroupCodes = groupAccess.invalidGroupCodes
 	siteCommentsEnabled := s.commentsEnabled(r.Context())
-	preload, err := s.sourceIndexPreload(r.Context(), apps)
+	preload, err := s.sourceIndexPreload(r.Context(), apps, groupAccess.validGroupIDs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SOURCE_BUILD_FAILED", "Could not build source index", nil)
 		return
@@ -110,6 +120,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 
 type sourceIndexPreload struct {
 	publicAppIDs  map[int]struct{}
+	privateAppIDs map[int]struct{}
 	submitters    map[int]string
 	categories    map[int]*entgo.Category
 	tags          map[int][]string
@@ -118,9 +129,10 @@ type sourceIndexPreload struct {
 	outdatedMarks map[int]int
 }
 
-func (s *Server) sourceIndexPreload(ctx context.Context, apps []*entgo.App) (sourceIndexPreload, error) {
+func (s *Server) sourceIndexPreload(ctx context.Context, apps []*entgo.App, groupIDs []int) (sourceIndexPreload, error) {
 	data := sourceIndexPreload{
 		publicAppIDs:  make(map[int]struct{}, len(apps)),
+		privateAppIDs: map[int]struct{}{},
 		submitters:    map[int]string{},
 		categories:    map[int]*entgo.Category{},
 		tags:          map[int][]string{},
@@ -143,8 +155,16 @@ func (s *Server) sourceIndexPreload(ctx context.Context, apps []*entgo.App) (sou
 		return data, err
 	}
 	privateAppIDs := make(map[int]struct{}, len(visibilityRecords))
+	validGroupIDs := make(map[int]struct{}, len(groupIDs))
+	for _, id := range groupIDs {
+		validGroupIDs[id] = struct{}{}
+	}
 	for _, record := range visibilityRecords {
 		privateAppIDs[record.AppID] = struct{}{}
+		data.privateAppIDs[record.AppID] = struct{}{}
+		if _, ok := validGroupIDs[record.GroupID]; ok {
+			data.publicAppIDs[record.AppID] = struct{}{}
+		}
 	}
 
 	publicAppIDs := make([]int, 0, len(apps))
@@ -152,9 +172,12 @@ func (s *Server) sourceIndexPreload(ctx context.Context, apps []*entgo.App) (sou
 	categoryIDs := map[int]struct{}{}
 	for _, record := range apps {
 		if _, private := privateAppIDs[record.ID]; private {
-			continue
+			if _, allowed := data.publicAppIDs[record.ID]; !allowed {
+				continue
+			}
+		} else {
+			data.publicAppIDs[record.ID] = struct{}{}
 		}
-		data.publicAppIDs[record.ID] = struct{}{}
 		publicAppIDs = append(publicAppIDs, record.ID)
 		ownerIDs[record.OwnerID] = struct{}{}
 		if record.CategoryID != nil {
@@ -177,7 +200,7 @@ func (s *Server) sourceIndexPreload(ctx context.Context, apps []*entgo.App) (sou
 	if err := s.loadSourceIndexScreenshots(ctx, publicAppIDs, data.screenshots); err != nil {
 		return data, err
 	}
-	if err := s.loadSourceIndexVersions(ctx, publicAppIDs, data.versions); err != nil {
+	if err := s.loadSourceIndexVersions(ctx, publicAppIDs, data.privateAppIDs, data.versions); err != nil {
 		return data, err
 	}
 	if err := s.loadSourceIndexOutdatedMarks(ctx, publicAppIDs, data.outdatedMarks); err != nil {
@@ -266,7 +289,7 @@ func (s *Server) loadSourceIndexScreenshots(ctx context.Context, appIDs []int, o
 	return nil
 }
 
-func (s *Server) loadSourceIndexVersions(ctx context.Context, appIDs []int, out map[int][]feed.VersionInput) error {
+func (s *Server) loadSourceIndexVersions(ctx context.Context, appIDs []int, privateAppIDs map[int]struct{}, out map[int][]feed.VersionInput) error {
 	records, err := s.db.AppVersion.Query().
 		Where(appversion.AppIDIn(appIDs...), appversion.StatusEQ(appversion.StatusAPPROVED)).
 		Order(entgo.Asc(appversion.FieldAppID), entgo.Desc(appversion.FieldPublishedAt), entgo.Desc(appversion.FieldCreatedAt)).
@@ -275,13 +298,17 @@ func (s *Server) loadSourceIndexVersions(ctx context.Context, appIDs []int, out 
 		return err
 	}
 	for _, record := range records {
+		upstreamDownloadURL := record.DownloadURL
+		if _, private := privateAppIDs[record.AppID]; private {
+			upstreamDownloadURL = ""
+		}
 		out[record.AppID] = append(out[record.AppID], feed.VersionInput{
 			Version:             record.Version,
 			Status:              string(record.Status),
 			Changelog:           record.Changelog,
 			SourceType:          string(record.SourceType),
 			DownloadURL:         s.absoluteURL(ctx, fmt.Sprintf("/api/v1/apps/%d/versions/%d/download", record.AppID, record.ID)),
-			UpstreamDownloadURL: record.DownloadURL,
+			UpstreamDownloadURL: upstreamDownloadURL,
 			SHA256:              record.Sha256,
 			Size:                record.FileSize,
 			PublishedAt:         valueTime(record.PublishedAt),

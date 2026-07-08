@@ -9,12 +9,14 @@ import (
 )
 
 type Input struct {
-	BaseURL       string             `json:"baseUrl"`
-	GitHubMirrors []mirrorutil.Entry `json:"githubMirrors,omitempty"`
-	GeneratedAt   time.Time          `json:"generatedAt"`
-	Site          SiteMeta           `json:"site"`
-	Announcement  AnnouncementMeta   `json:"announcement"`
-	Apps          []AppInput         `json:"apps"`
+	BaseURL           string             `json:"baseUrl"`
+	GitHubMirrors     []mirrorutil.Entry `json:"githubMirrors,omitempty"`
+	GeneratedAt       time.Time          `json:"generatedAt"`
+	Site              SiteMeta           `json:"site"`
+	Announcement      AnnouncementMeta   `json:"announcement"`
+	Groups            []GroupMeta        `json:"groups,omitempty"`
+	InvalidGroupCodes []string           `json:"invalidGroupCodes,omitempty"`
+	Apps              []AppInput         `json:"apps"`
 }
 
 type SiteMeta struct {
@@ -32,6 +34,12 @@ type AnnouncementMeta struct {
 	LinkLabel string `json:"linkLabel,omitempty"`
 	LinkURL   string `json:"linkUrl,omitempty"`
 	UpdatedAt string `json:"updatedAt,omitempty"`
+}
+
+type GroupMeta struct {
+	ID   int    `json:"id,omitempty"`
+	Name string `json:"name"`
+	Code string `json:"code,omitempty"`
 }
 
 type AppInput struct {
@@ -70,13 +78,15 @@ type VersionInput struct {
 }
 
 type Index struct {
-	Schema        string             `json:"schema"`
-	BaseURL       string             `json:"baseUrl"`
-	GitHubMirrors []mirrorutil.Entry `json:"githubMirrors,omitempty"`
-	GeneratedAt   time.Time          `json:"generatedAt"`
-	Site          SiteMeta           `json:"site"`
-	Announcement  AnnouncementMeta   `json:"announcement"`
-	Apps          []App              `json:"apps"`
+	Schema            string             `json:"schema"`
+	BaseURL           string             `json:"baseUrl"`
+	GitHubMirrors     []mirrorutil.Entry `json:"githubMirrors,omitempty"`
+	GeneratedAt       time.Time          `json:"generatedAt"`
+	Site              SiteMeta           `json:"site"`
+	Announcement      AnnouncementMeta   `json:"announcement"`
+	Groups            []GroupMeta        `json:"groups,omitempty"`
+	InvalidGroupCodes []string           `json:"invalidGroupCodes,omitempty"`
+	Apps              []App              `json:"apps"`
 }
 
 type App struct {
@@ -121,13 +131,15 @@ func BuildIndex(input Input) Index {
 	}
 
 	index := Index{
-		Schema:        "lazycat.appstore.source.v1",
-		BaseURL:       strings.TrimRight(input.BaseURL, "/"),
-		GitHubMirrors: input.GitHubMirrors,
-		GeneratedAt:   generatedAt,
-		Site:          input.Site,
-		Announcement:  input.Announcement,
-		Apps:          make([]App, 0, len(input.Apps)),
+		Schema:            "lazycat.appstore.source.v1",
+		BaseURL:           strings.TrimRight(input.BaseURL, "/"),
+		GitHubMirrors:     input.GitHubMirrors,
+		GeneratedAt:       generatedAt,
+		Site:              input.Site,
+		Announcement:      input.Announcement,
+		Groups:            input.Groups,
+		InvalidGroupCodes: input.InvalidGroupCodes,
+		Apps:              make([]App, 0, len(input.Apps)),
 	}
 	if index.Site.PublicURL == "" {
 		index.Site.PublicURL = index.BaseURL

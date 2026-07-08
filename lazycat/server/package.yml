@@ -1,5 +1,5 @@
 package: community.lazycat.app-store-server
-version: 0.1.11
+version: 0.1.12
 name: 懒猫私有商店服务端
 description: 带嵌入式 Web 控制台的自托管 LazyCat LPK 应用商店服务端。
 author: Lazycat Community

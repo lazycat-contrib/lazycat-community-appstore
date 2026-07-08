@@ -18,6 +18,8 @@ func (UserGroup) Fields() []ent.Field {
 		field.String("name").NotEmpty(),
 		field.String("slug").NotEmpty(),
 		field.Text("description").Default(""),
+		field.String("code").Default(""),
+		field.Time("code_updated_at").Default(time.Now),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}

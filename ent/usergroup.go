@@ -25,6 +25,10 @@ type UserGroup struct {
 	Slug string `json:"slug,omitempty"`
 	// Description holds the value of the "description" field.
 	Description string `json:"description,omitempty"`
+	// Code holds the value of the "code" field.
+	Code string `json:"code,omitempty"`
+	// CodeUpdatedAt holds the value of the "code_updated_at" field.
+	CodeUpdatedAt time.Time `json:"code_updated_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -39,9 +43,9 @@ func (*UserGroup) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case usergroup.FieldID, usergroup.FieldOwnerID:
 			values[i] = new(sql.NullInt64)
-		case usergroup.FieldName, usergroup.FieldSlug, usergroup.FieldDescription:
+		case usergroup.FieldName, usergroup.FieldSlug, usergroup.FieldDescription, usergroup.FieldCode:
 			values[i] = new(sql.NullString)
-		case usergroup.FieldCreatedAt, usergroup.FieldUpdatedAt:
+		case usergroup.FieldCodeUpdatedAt, usergroup.FieldCreatedAt, usergroup.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -87,6 +91,18 @@ func (_m *UserGroup) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field description", values[i])
 			} else if value.Valid {
 				_m.Description = value.String
+			}
+		case usergroup.FieldCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field code", values[i])
+			} else if value.Valid {
+				_m.Code = value.String
+			}
+		case usergroup.FieldCodeUpdatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field code_updated_at", values[i])
+			} else if value.Valid {
+				_m.CodeUpdatedAt = value.Time
 			}
 		case usergroup.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -147,6 +163,12 @@ func (_m *UserGroup) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("description=")
 	builder.WriteString(_m.Description)
+	builder.WriteString(", ")
+	builder.WriteString("code=")
+	builder.WriteString(_m.Code)
+	builder.WriteString(", ")
+	builder.WriteString("code_updated_at=")
+	builder.WriteString(_m.CodeUpdatedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

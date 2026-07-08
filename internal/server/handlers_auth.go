@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ import (
 var errInvalidRegistrationInvite = errors.New("invalid registration invite")
 
 const emailVerificationSettingPrefix = "email_verify:"
+const adminCaptchaFailedAttempts = 3
 
 type registerRequest struct {
 	Username   string `json:"username"`
@@ -243,15 +245,33 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
+type loginFailureDetails struct {
+	FailedAttempts  int  `json:"failedAttempts"`
+	CaptchaRequired bool `json:"captchaRequired"`
+}
+
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var input loginRequest
 	if err := decodeJSON(r, &input); err != nil {
 		badRequest(w, err)
 		return
 	}
-	u, err := s.db.User.Query().Where(user.UsernameEQ(strings.TrimSpace(input.Username))).Only(r.Context())
-	if err != nil || !auth.CheckPassword(u.PasswordHash, input.Password) {
+	username := strings.TrimSpace(input.Username)
+	u, err := s.db.User.Query().Where(user.UsernameEQ(username)).Only(r.Context())
+	if err != nil {
 		writeError(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Invalid username or password", nil)
+		return
+	}
+	if !auth.CheckPassword(u.PasswordHash, input.Password) {
+		var details any
+		if isAdmin(u) {
+			attempts := s.recordAdminLoginFailure(r, username)
+			details = loginFailureDetails{
+				FailedAttempts:  attempts,
+				CaptchaRequired: attempts >= adminCaptchaFailedAttempts,
+			}
+		}
+		writeError(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Invalid username or password", details)
 		return
 	}
 	if u.Disabled {
@@ -262,8 +282,37 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "EMAIL_NOT_VERIFIED", "Email verification is required before login", nil)
 		return
 	}
+	if isAdmin(u) {
+		s.clearAdminLoginFailures(r, username)
+	}
 	s.setSession(w, u.ID)
 	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(u)})
+}
+
+func (s *Server) recordAdminLoginFailure(r *http.Request, username string) int {
+	key := adminLoginFailureKey(r, username)
+	s.adminLoginFailuresMu.Lock()
+	defer s.adminLoginFailuresMu.Unlock()
+	if s.adminLoginFailures == nil {
+		s.adminLoginFailures = map[string]int{}
+	}
+	s.adminLoginFailures[key]++
+	return s.adminLoginFailures[key]
+}
+
+func (s *Server) clearAdminLoginFailures(r *http.Request, username string) {
+	key := adminLoginFailureKey(r, username)
+	s.adminLoginFailuresMu.Lock()
+	defer s.adminLoginFailuresMu.Unlock()
+	delete(s.adminLoginFailures, key)
+}
+
+func adminLoginFailureKey(r *http.Request, username string) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil || host == "" {
+		host = r.RemoteAddr
+	}
+	return strings.ToLower(strings.TrimSpace(username)) + "|" + host
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {

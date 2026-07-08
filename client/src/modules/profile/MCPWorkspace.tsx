@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
-import { Copy, HelpCircle, KeyRound, Server, Trash2, X } from 'lucide-react';
+import { CalendarClock, Copy, HelpCircle, KeyRound, Server, Trash2, X } from 'lucide-react';
 import { Banner as XBanner } from '@astryxdesign/core/Banner';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
@@ -34,6 +34,13 @@ const initialMCPTokenDraft: MCPTokenDraft = {
   neverExpires: true,
   expiresAt: '',
 };
+
+const mcpExpiryPresets = [
+  { days: 7, labelKey: 'mcp.expiresPreset7d' },
+  { days: 30, labelKey: 'mcp.expiresPreset30d' },
+  { days: 90, labelKey: 'mcp.expiresPreset90d' },
+  { days: 365, labelKey: 'mcp.expiresPreset1y' },
+] as const;
 
 export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; siteSourceUrl?: string; setToast: (toast: Toast) => void }) {
   const { t } = useTranslation();
@@ -84,10 +91,30 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
     });
   }
 
+  function openCreateTokenDialog() {
+    setDraft(initialMCPTokenDraft);
+    setIsCreateOpen(true);
+  }
+
+  function closeCreateTokenDialog() {
+    setIsCreateOpen(false);
+    setDraft(initialMCPTokenDraft);
+  }
+
   async function createToken(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await runAction(setToast, t('mcp.createFailed'), async () => {
-      const expiresAt = draft.neverExpires || !draft.expiresAt ? undefined : new Date(draft.expiresAt).toISOString();
+      let expiresAt: string | undefined;
+      if (!draft.neverExpires) {
+        const expiresAtDate = new Date(draft.expiresAt);
+        if (!draft.expiresAt || Number.isNaN(expiresAtDate.getTime())) {
+          throw new Error(t('mcp.expiresAtInvalid'));
+        }
+        if (expiresAtDate.getTime() <= Date.now()) {
+          throw new Error(t('mcp.expiresAtPast'));
+        }
+        expiresAt = expiresAtDate.toISOString();
+      }
       const data = await api<{ token: string; record: MCPTokenRecord }>('/api/v1/me/mcp/tokens', {
         method: 'POST',
         body: JSON.stringify({
@@ -100,14 +127,15 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
       setMcpTokens((current) => [data.record, ...current]);
       setNewMcpToken(data.token);
       setDraft(initialMCPTokenDraft);
-      setIsCreateOpen(false);
+      closeCreateTokenDialog();
     });
   }
 
-  async function deleteToken(tokenID: number) {
+  async function deleteToken(token: MCPTokenRecord) {
+    if (!window.confirm(t('mcp.deleteConfirm', { name: token.note || token.prefix }))) return;
     await runAction(setToast, t('mcp.deleteFailed'), async () => {
-      await api(`/api/v1/me/mcp/tokens/${tokenID}`, { method: 'DELETE' });
-      setMcpTokens((current) => current.filter((token) => token.id !== tokenID));
+      await api(`/api/v1/me/mcp/tokens/${token.id}`, { method: 'DELETE' });
+      setMcpTokens((current) => current.filter((item) => item.id !== token.id));
       setToast({ tone: 'neutral', message: t('mcp.deleted') });
     });
   }
@@ -122,7 +150,7 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
           </div>
           <div className="row-actions">
             <XIconButton className="fixed-row-icon-button" type="button" variant="ghost" size="sm" label={t('mcp.help')} tooltip={t('mcp.help')} icon={<HelpCircle size={17} />} onClick={() => setIsHelpOpen(true)} />
-            <XButton type="button" variant="primary" size="sm" label={t('mcp.createToken')} icon={<KeyRound size={17} />} onClick={() => setIsCreateOpen(true)} />
+            <XButton type="button" variant="primary" size="sm" label={t('mcp.createToken')} icon={<KeyRound size={17} />} onClick={openCreateTokenDialog} />
           </div>
         </div>
 
@@ -182,15 +210,13 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
                       tone={mcpTokenExpired(token) ? 'failed' : token.principalType === 'ADMIN' ? 'approved' : 'synced'}
                       label={mcpTokenExpired(token) ? t('mcp.expired') : t(`mcp.principal.${token.principalType.toLowerCase()}`)}
                     />
-                    <XIconButton
-                      className="fixed-row-icon-button"
+                    <XButton
                       type="button"
                       variant="destructive"
                       size="sm"
-                      label={t('mcp.deleteToken')}
-                      tooltip={t('mcp.deleteToken')}
+                      label={t('mcp.revokeToken')}
                       icon={<Trash2 size={17} />}
-                      onClick={() => void deleteToken(token.id)}
+                      onClick={() => void deleteToken(token)}
                     />
                   </div>
                 )}
@@ -216,7 +242,7 @@ export function MCPWorkspace({ user, siteSourceUrl, setToast }: { user: User; si
           canCreateAdmin={canCreateAdminToken}
           onDraftChange={setDraft}
           onSubmit={createToken}
-          onClose={() => setIsCreateOpen(false)}
+          onClose={closeCreateTokenDialog}
         />
       )}
     </section>
@@ -247,6 +273,18 @@ function mcpEndpointFromSourceURL(sourceURL?: string) {
 function mcpExpiryLabel(token: MCPTokenRecord, t: (key: string, options?: any) => string) {
   if (!token.expiresAt) return t('mcp.neverExpires');
   return mcpTokenExpired(token) ? t('mcp.expiredAt', { date: formatDate(token.expiresAt) }) : t('mcp.expiresAt', { date: formatDate(token.expiresAt) });
+}
+
+function toDatetimeLocalValue(date: Date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
+
+function expiryPresetValue(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  date.setMinutes(0, 0, 0);
+  return toDatetimeLocalValue(date);
 }
 
 function mcpClientConfigExample(endpoint: string) {
@@ -304,6 +342,15 @@ function MCPTokenDialog({
 }) {
   const { t } = useTranslation();
   const titleId = 'mcp-token-dialog-title';
+  const minimumExpiry = toDatetimeLocalValue(new Date(Date.now() + 60_000));
+
+  function setNeverExpires(neverExpires: boolean) {
+    onDraftChange({
+      ...draft,
+      neverExpires,
+      expiresAt: neverExpires ? '' : draft.expiresAt || expiryPresetValue(30),
+    });
+  }
 
   return (
     <ModalLayer onClose={onClose} purpose="form" width="min(430px, calc(100vw - 36px))" maxHeight="min(86vh, 780px)">
@@ -328,14 +375,35 @@ function MCPTokenDialog({
           <XCheckboxInput
             label={t('mcp.neverExpires')}
             value={draft.neverExpires}
-            onChange={(neverExpires) => onDraftChange({ ...draft, neverExpires })}
+            onChange={setNeverExpires}
           />
           {!draft.neverExpires && (
-            <XTextInput
-              label={t('mcp.expiresAtInput')}
-              value={draft.expiresAt}
-              onChange={(expiresAt) => onDraftChange({ ...draft, expiresAt })}
-            />
+            <div className="datetime-field">
+              <label htmlFor="mcp-token-expires-at">
+                <CalendarClock size={16} aria-hidden="true" />
+                <span>{t('mcp.expiresAtInput')}</span>
+              </label>
+              <input
+                id="mcp-token-expires-at"
+                type="datetime-local"
+                value={draft.expiresAt}
+                min={minimumExpiry}
+                onChange={(event) => onDraftChange({ ...draft, expiresAt: event.target.value })}
+              />
+              <small>{t('mcp.expiresAtHelp')}</small>
+              <div className="preset-row" aria-label={t('mcp.expiresPresetLabel')}>
+                {mcpExpiryPresets.map((preset) => (
+                  <XButton
+                    key={preset.days}
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    label={t(preset.labelKey)}
+                    onClick={() => onDraftChange({ ...draft, expiresAt: expiryPresetValue(preset.days) })}
+                  />
+                ))}
+              </div>
+            </div>
           )}
         </XFormLayout>
         <div className="dialog-actions">

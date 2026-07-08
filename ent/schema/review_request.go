@@ -31,6 +31,7 @@ func (ReviewRequest) Fields() []ent.Field {
 func (ReviewRequest) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("status"),
+		index.Fields("status", "created_at"),
 		index.Fields("app_id"),
 		index.Fields("version_id"),
 		index.Fields("requester_id"),

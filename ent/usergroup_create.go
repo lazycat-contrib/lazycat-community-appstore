@@ -52,6 +52,34 @@ func (_c *UserGroupCreate) SetNillableDescription(v *string) *UserGroupCreate {
 	return _c
 }
 
+// SetCode sets the "code" field.
+func (_c *UserGroupCreate) SetCode(v string) *UserGroupCreate {
+	_c.mutation.SetCode(v)
+	return _c
+}
+
+// SetNillableCode sets the "code" field if the given value is not nil.
+func (_c *UserGroupCreate) SetNillableCode(v *string) *UserGroupCreate {
+	if v != nil {
+		_c.SetCode(*v)
+	}
+	return _c
+}
+
+// SetCodeUpdatedAt sets the "code_updated_at" field.
+func (_c *UserGroupCreate) SetCodeUpdatedAt(v time.Time) *UserGroupCreate {
+	_c.mutation.SetCodeUpdatedAt(v)
+	return _c
+}
+
+// SetNillableCodeUpdatedAt sets the "code_updated_at" field if the given value is not nil.
+func (_c *UserGroupCreate) SetNillableCodeUpdatedAt(v *time.Time) *UserGroupCreate {
+	if v != nil {
+		_c.SetCodeUpdatedAt(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *UserGroupCreate) SetCreatedAt(v time.Time) *UserGroupCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -119,6 +147,14 @@ func (_c *UserGroupCreate) defaults() {
 		v := usergroup.DefaultDescription
 		_c.mutation.SetDescription(v)
 	}
+	if _, ok := _c.mutation.Code(); !ok {
+		v := usergroup.DefaultCode
+		_c.mutation.SetCode(v)
+	}
+	if _, ok := _c.mutation.CodeUpdatedAt(); !ok {
+		v := usergroup.DefaultCodeUpdatedAt()
+		_c.mutation.SetCodeUpdatedAt(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := usergroup.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -152,6 +188,12 @@ func (_c *UserGroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.Description(); !ok {
 		return &ValidationError{Name: "description", err: errors.New(`ent: missing required field "UserGroup.description"`)}
+	}
+	if _, ok := _c.mutation.Code(); !ok {
+		return &ValidationError{Name: "code", err: errors.New(`ent: missing required field "UserGroup.code"`)}
+	}
+	if _, ok := _c.mutation.CodeUpdatedAt(); !ok {
+		return &ValidationError{Name: "code_updated_at", err: errors.New(`ent: missing required field "UserGroup.code_updated_at"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "UserGroup.created_at"`)}
@@ -200,6 +242,14 @@ func (_c *UserGroupCreate) createSpec() (*UserGroup, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Description(); ok {
 		_spec.SetField(usergroup.FieldDescription, field.TypeString, value)
 		_node.Description = value
+	}
+	if value, ok := _c.mutation.Code(); ok {
+		_spec.SetField(usergroup.FieldCode, field.TypeString, value)
+		_node.Code = value
+	}
+	if value, ok := _c.mutation.CodeUpdatedAt(); ok {
+		_spec.SetField(usergroup.FieldCodeUpdatedAt, field.TypeTime, value)
+		_node.CodeUpdatedAt = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(usergroup.FieldCreatedAt, field.TypeTime, value)

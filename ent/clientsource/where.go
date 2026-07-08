@@ -85,6 +85,21 @@ func DefaultRawMirrorID(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldDefaultRawMirrorID, v))
 }
 
+// GroupCodesJSON applies equality check predicate on the "group_codes_json" field. It's identical to GroupCodesJSONEQ.
+func GroupCodesJSON(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldGroupCodesJSON, v))
+}
+
+// GroupNamesJSON applies equality check predicate on the "group_names_json" field. It's identical to GroupNamesJSONEQ.
+func GroupNamesJSON(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldGroupNamesJSON, v))
+}
+
+// LastInvalidGroupCodesJSON applies equality check predicate on the "last_invalid_group_codes_json" field. It's identical to LastInvalidGroupCodesJSONEQ.
+func LastInvalidGroupCodesJSON(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldLastInvalidGroupCodesJSON, v))
+}
+
 // MirrorsJSON applies equality check predicate on the "mirrors_json" field. It's identical to MirrorsJSONEQ.
 func MirrorsJSON(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldMirrorsJSON, v))
@@ -508,6 +523,201 @@ func DefaultRawMirrorIDEqualFold(v string) predicate.ClientSource {
 // DefaultRawMirrorIDContainsFold applies the ContainsFold predicate on the "default_raw_mirror_id" field.
 func DefaultRawMirrorIDContainsFold(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldContainsFold(FieldDefaultRawMirrorID, v))
+}
+
+// GroupCodesJSONEQ applies the EQ predicate on the "group_codes_json" field.
+func GroupCodesJSONEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldGroupCodesJSON, v))
+}
+
+// GroupCodesJSONNEQ applies the NEQ predicate on the "group_codes_json" field.
+func GroupCodesJSONNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldGroupCodesJSON, v))
+}
+
+// GroupCodesJSONIn applies the In predicate on the "group_codes_json" field.
+func GroupCodesJSONIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldGroupCodesJSON, vs...))
+}
+
+// GroupCodesJSONNotIn applies the NotIn predicate on the "group_codes_json" field.
+func GroupCodesJSONNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldGroupCodesJSON, vs...))
+}
+
+// GroupCodesJSONGT applies the GT predicate on the "group_codes_json" field.
+func GroupCodesJSONGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldGroupCodesJSON, v))
+}
+
+// GroupCodesJSONGTE applies the GTE predicate on the "group_codes_json" field.
+func GroupCodesJSONGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldGroupCodesJSON, v))
+}
+
+// GroupCodesJSONLT applies the LT predicate on the "group_codes_json" field.
+func GroupCodesJSONLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldGroupCodesJSON, v))
+}
+
+// GroupCodesJSONLTE applies the LTE predicate on the "group_codes_json" field.
+func GroupCodesJSONLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldGroupCodesJSON, v))
+}
+
+// GroupCodesJSONContains applies the Contains predicate on the "group_codes_json" field.
+func GroupCodesJSONContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldGroupCodesJSON, v))
+}
+
+// GroupCodesJSONHasPrefix applies the HasPrefix predicate on the "group_codes_json" field.
+func GroupCodesJSONHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldGroupCodesJSON, v))
+}
+
+// GroupCodesJSONHasSuffix applies the HasSuffix predicate on the "group_codes_json" field.
+func GroupCodesJSONHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldGroupCodesJSON, v))
+}
+
+// GroupCodesJSONEqualFold applies the EqualFold predicate on the "group_codes_json" field.
+func GroupCodesJSONEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldGroupCodesJSON, v))
+}
+
+// GroupCodesJSONContainsFold applies the ContainsFold predicate on the "group_codes_json" field.
+func GroupCodesJSONContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldGroupCodesJSON, v))
+}
+
+// GroupNamesJSONEQ applies the EQ predicate on the "group_names_json" field.
+func GroupNamesJSONEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldGroupNamesJSON, v))
+}
+
+// GroupNamesJSONNEQ applies the NEQ predicate on the "group_names_json" field.
+func GroupNamesJSONNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldGroupNamesJSON, v))
+}
+
+// GroupNamesJSONIn applies the In predicate on the "group_names_json" field.
+func GroupNamesJSONIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldGroupNamesJSON, vs...))
+}
+
+// GroupNamesJSONNotIn applies the NotIn predicate on the "group_names_json" field.
+func GroupNamesJSONNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldGroupNamesJSON, vs...))
+}
+
+// GroupNamesJSONGT applies the GT predicate on the "group_names_json" field.
+func GroupNamesJSONGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldGroupNamesJSON, v))
+}
+
+// GroupNamesJSONGTE applies the GTE predicate on the "group_names_json" field.
+func GroupNamesJSONGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldGroupNamesJSON, v))
+}
+
+// GroupNamesJSONLT applies the LT predicate on the "group_names_json" field.
+func GroupNamesJSONLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldGroupNamesJSON, v))
+}
+
+// GroupNamesJSONLTE applies the LTE predicate on the "group_names_json" field.
+func GroupNamesJSONLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldGroupNamesJSON, v))
+}
+
+// GroupNamesJSONContains applies the Contains predicate on the "group_names_json" field.
+func GroupNamesJSONContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldGroupNamesJSON, v))
+}
+
+// GroupNamesJSONHasPrefix applies the HasPrefix predicate on the "group_names_json" field.
+func GroupNamesJSONHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldGroupNamesJSON, v))
+}
+
+// GroupNamesJSONHasSuffix applies the HasSuffix predicate on the "group_names_json" field.
+func GroupNamesJSONHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldGroupNamesJSON, v))
+}
+
+// GroupNamesJSONEqualFold applies the EqualFold predicate on the "group_names_json" field.
+func GroupNamesJSONEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldGroupNamesJSON, v))
+}
+
+// GroupNamesJSONContainsFold applies the ContainsFold predicate on the "group_names_json" field.
+func GroupNamesJSONContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldGroupNamesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONEQ applies the EQ predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldLastInvalidGroupCodesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONNEQ applies the NEQ predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldLastInvalidGroupCodesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONIn applies the In predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldLastInvalidGroupCodesJSON, vs...))
+}
+
+// LastInvalidGroupCodesJSONNotIn applies the NotIn predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldLastInvalidGroupCodesJSON, vs...))
+}
+
+// LastInvalidGroupCodesJSONGT applies the GT predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldLastInvalidGroupCodesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONGTE applies the GTE predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldLastInvalidGroupCodesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONLT applies the LT predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldLastInvalidGroupCodesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONLTE applies the LTE predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldLastInvalidGroupCodesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONContains applies the Contains predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldLastInvalidGroupCodesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONHasPrefix applies the HasPrefix predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldLastInvalidGroupCodesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONHasSuffix applies the HasSuffix predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldLastInvalidGroupCodesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONEqualFold applies the EqualFold predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldLastInvalidGroupCodesJSON, v))
+}
+
+// LastInvalidGroupCodesJSONContainsFold applies the ContainsFold predicate on the "last_invalid_group_codes_json" field.
+func LastInvalidGroupCodesJSONContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldLastInvalidGroupCodesJSON, v))
 }
 
 // MirrorsJSONEQ applies the EQ predicate on the "mirrors_json" field.

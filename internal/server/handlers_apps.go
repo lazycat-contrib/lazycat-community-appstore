@@ -71,6 +71,9 @@ func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	if search := strings.TrimSpace(r.URL.Query().Get("q")); search != "" {
 		q.Where(app.Or(app.PackageIDContainsFold(search), app.NameContainsFold(search), app.SummaryContainsFold(search), app.DescriptionContainsFold(search)))
 	}
+	if ids := parsePositiveIDList(r.URL.Query().Get("ids")); len(ids) > 0 {
+		q.Where(app.IDIn(ids...))
+	}
 	if status := strings.TrimSpace(r.URL.Query().Get("status")); status != "" && isAdmin(u) {
 		q.Where(app.StatusEQ(app.Status(status)))
 	}
@@ -1014,8 +1017,15 @@ func (s *Server) handleDownloadVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.userCanSeeApp(r, record, s.optionalUser(r)) {
-		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
-		return
+		allowed, err := s.requestHasGroupCodeForApp(r, record.ID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "GROUP_CODE_CHECK_FAILED", "Could not validate group code", nil)
+			return
+		}
+		if !allowed {
+			writeError(w, http.StatusForbidden, "GROUP_CODE_REQUIRED", "A valid group code is required for this app", nil)
+			return
+		}
 	}
 	versionRecord, err := s.db.AppVersion.Get(r.Context(), versionID)
 	if err != nil || versionRecord.AppID != appID || versionRecord.Status != appversion.StatusAPPROVED {
@@ -1047,6 +1057,27 @@ func (s *Server) handleDownloadVersion(w http.ResponseWriter, r *http.Request) {
 		downloadURL = mirror.RewriteGitHub(downloadURL, entry)
 	}
 	http.Redirect(w, r, downloadURL, http.StatusFound)
+}
+
+func (s *Server) requestHasGroupCodeForApp(r *http.Request, appID int) (bool, error) {
+	appGroupIDs := s.visibleGroupIDs(r.Context(), appID)
+	if len(appGroupIDs) == 0 {
+		return true, nil
+	}
+	access, err := s.resolveGroupCodeAccess(r.Context(), groupCodesFromRequest(r))
+	if err != nil {
+		return false, err
+	}
+	valid := map[int]struct{}{}
+	for _, groupID := range access.validGroupIDs {
+		valid[groupID] = struct{}{}
+	}
+	for _, groupID := range appGroupIDs {
+		if _, ok := valid[groupID]; ok {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func hashInstallPassword(password string) (string, error) {
@@ -1298,9 +1329,20 @@ func (s *Server) syncTags(r *http.Request, appID int, tagNames []string) error {
 		slug := slugify(name)
 		tagRecord, err := s.db.Tag.Query().Where(tag.SlugEQ(slug)).Only(r.Context())
 		if err != nil {
-			tagRecord, err = s.db.Tag.Create().SetName(name).SetSlug(slug).Save(r.Context())
+			tagRecord, err = s.db.Tag.Create().
+				SetName(name).
+				SetNameI18n(catalogmeta.EncodeLocalizedText(catalogmeta.WithLocalizedDefaults(nil, name))).
+				SetSlug(slug).
+				Save(r.Context())
 			if err != nil {
 				return err
+			}
+		} else if catalogmeta.DecodeLocalizedText(tagRecord.NameI18n).IsZero() {
+			updated, err := s.db.Tag.UpdateOneID(tagRecord.ID).
+				SetNameI18n(catalogmeta.EncodeLocalizedText(catalogmeta.WithLocalizedDefaults(nil, tagRecord.Name))).
+				Save(r.Context())
+			if err == nil {
+				tagRecord = updated
 			}
 		}
 		_, _ = s.db.AppTag.Create().SetAppID(appID).SetTagID(tagRecord.ID).Save(r.Context())
@@ -1418,6 +1460,26 @@ func splitCSV(value string) []string {
 		if part = strings.TrimSpace(part); part != "" {
 			out = append(out, part)
 		}
+	}
+	return out
+}
+
+func parsePositiveIDList(value string) []int {
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\n' || r == '\t'
+	})
+	seen := map[int]struct{}{}
+	out := make([]int, 0, len(parts))
+	for _, part := range parts {
+		id, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil || id <= 0 {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
 	}
 	return out
 }

@@ -113,6 +113,48 @@ func (_u *ClientSourceUpdate) SetNillableDefaultRawMirrorID(v *string) *ClientSo
 	return _u
 }
 
+// SetGroupCodesJSON sets the "group_codes_json" field.
+func (_u *ClientSourceUpdate) SetGroupCodesJSON(v string) *ClientSourceUpdate {
+	_u.mutation.SetGroupCodesJSON(v)
+	return _u
+}
+
+// SetNillableGroupCodesJSON sets the "group_codes_json" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableGroupCodesJSON(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetGroupCodesJSON(*v)
+	}
+	return _u
+}
+
+// SetGroupNamesJSON sets the "group_names_json" field.
+func (_u *ClientSourceUpdate) SetGroupNamesJSON(v string) *ClientSourceUpdate {
+	_u.mutation.SetGroupNamesJSON(v)
+	return _u
+}
+
+// SetNillableGroupNamesJSON sets the "group_names_json" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableGroupNamesJSON(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetGroupNamesJSON(*v)
+	}
+	return _u
+}
+
+// SetLastInvalidGroupCodesJSON sets the "last_invalid_group_codes_json" field.
+func (_u *ClientSourceUpdate) SetLastInvalidGroupCodesJSON(v string) *ClientSourceUpdate {
+	_u.mutation.SetLastInvalidGroupCodesJSON(v)
+	return _u
+}
+
+// SetNillableLastInvalidGroupCodesJSON sets the "last_invalid_group_codes_json" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableLastInvalidGroupCodesJSON(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetLastInvalidGroupCodesJSON(*v)
+	}
+	return _u
+}
+
 // SetMirrorsJSON sets the "mirrors_json" field.
 func (_u *ClientSourceUpdate) SetMirrorsJSON(v string) *ClientSourceUpdate {
 	_u.mutation.SetMirrorsJSON(v)
@@ -381,6 +423,15 @@ func (_u *ClientSourceUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.DefaultRawMirrorID(); ok {
 		_spec.SetField(clientsource.FieldDefaultRawMirrorID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.GroupCodesJSON(); ok {
+		_spec.SetField(clientsource.FieldGroupCodesJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.GroupNamesJSON(); ok {
+		_spec.SetField(clientsource.FieldGroupNamesJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.LastInvalidGroupCodesJSON(); ok {
+		_spec.SetField(clientsource.FieldLastInvalidGroupCodesJSON, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.MirrorsJSON(); ok {
 		_spec.SetField(clientsource.FieldMirrorsJSON, field.TypeString, value)
 	}
@@ -565,6 +616,48 @@ func (_u *ClientSourceUpdateOne) SetDefaultRawMirrorID(v string) *ClientSourceUp
 func (_u *ClientSourceUpdateOne) SetNillableDefaultRawMirrorID(v *string) *ClientSourceUpdateOne {
 	if v != nil {
 		_u.SetDefaultRawMirrorID(*v)
+	}
+	return _u
+}
+
+// SetGroupCodesJSON sets the "group_codes_json" field.
+func (_u *ClientSourceUpdateOne) SetGroupCodesJSON(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetGroupCodesJSON(v)
+	return _u
+}
+
+// SetNillableGroupCodesJSON sets the "group_codes_json" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableGroupCodesJSON(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetGroupCodesJSON(*v)
+	}
+	return _u
+}
+
+// SetGroupNamesJSON sets the "group_names_json" field.
+func (_u *ClientSourceUpdateOne) SetGroupNamesJSON(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetGroupNamesJSON(v)
+	return _u
+}
+
+// SetNillableGroupNamesJSON sets the "group_names_json" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableGroupNamesJSON(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetGroupNamesJSON(*v)
+	}
+	return _u
+}
+
+// SetLastInvalidGroupCodesJSON sets the "last_invalid_group_codes_json" field.
+func (_u *ClientSourceUpdateOne) SetLastInvalidGroupCodesJSON(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetLastInvalidGroupCodesJSON(v)
+	return _u
+}
+
+// SetNillableLastInvalidGroupCodesJSON sets the "last_invalid_group_codes_json" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableLastInvalidGroupCodesJSON(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetLastInvalidGroupCodesJSON(*v)
 	}
 	return _u
 }
@@ -866,6 +959,15 @@ func (_u *ClientSourceUpdateOne) sqlSave(ctx context.Context) (_node *ClientSour
 	}
 	if value, ok := _u.mutation.DefaultRawMirrorID(); ok {
 		_spec.SetField(clientsource.FieldDefaultRawMirrorID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.GroupCodesJSON(); ok {
+		_spec.SetField(clientsource.FieldGroupCodesJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.GroupNamesJSON(); ok {
+		_spec.SetField(clientsource.FieldGroupNamesJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.LastInvalidGroupCodesJSON(); ok {
+		_spec.SetField(clientsource.FieldLastInvalidGroupCodesJSON, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.MirrorsJSON(); ok {
 		_spec.SetField(clientsource.FieldMirrorsJSON, field.TypeString, value)

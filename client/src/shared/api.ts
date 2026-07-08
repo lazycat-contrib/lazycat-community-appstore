@@ -4,6 +4,20 @@ import type { PaginatedResponse } from './types';
 
 export const CLIENT_API_BASE = '/api/client/v1';
 
+export class ApiRequestError extends Error {
+  status: number;
+  code?: string;
+  details?: unknown;
+
+  constructor(message: string, status: number, code?: string, details?: unknown) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
+
 export async function readResponseJSON(response: Response): Promise<any> {
   const text = await response.text();
   if (!text.trim()) return {};
@@ -26,7 +40,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   });
   const data = await readResponseJSON(response);
   if (!response.ok) {
-    throw new Error(data?.error?.message || `HTTP ${response.status}`);
+    throw new ApiRequestError(data?.error?.message || `HTTP ${response.status}`, response.status, data?.error?.code, data?.error?.details);
   }
   return data as T;
 }
@@ -64,7 +78,7 @@ export function apiWithUploadProgress<T>(
         }
       }
       if (xhr.status < 200 || xhr.status >= 300) {
-        reject(new Error(data?.error?.message || `HTTP ${xhr.status}`));
+        reject(new ApiRequestError(data?.error?.message || `HTTP ${xhr.status}`, xhr.status, data?.error?.code, data?.error?.details));
         return;
       }
       resolve(data as T);
@@ -82,7 +96,7 @@ export async function clientApi<T>(path: string, options: RequestInit = {}): Pro
   });
   const data = await readResponseJSON(response);
   if (!response.ok) {
-    throw new Error(data?.error?.message || `HTTP ${response.status}`);
+    throw new ApiRequestError(data?.error?.message || `HTTP ${response.status}`, response.status, data?.error?.code, data?.error?.details);
   }
   return data as T;
 }

@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
+import { flattenCategoryTree } from '../../shared/categoryTree';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { Category, InstallOptions, SortMode, SourceApp, StoreApp } from '../../shared/types';
-import { localizedName } from '../../shared/utils';
 import { AppGrid } from './AppGrid';
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
@@ -47,6 +47,7 @@ export function StorefrontSearch({
     const start = (currentPage - 1) * pageSize;
     return apps.slice(start, start + pageSize);
   }, [apps, currentPage, pageSize]);
+  const categoryTree = useMemo(() => flattenCategoryTree(categories), [categories]);
 
   useEffect(() => {
     setPage(1);
@@ -68,8 +69,8 @@ export function StorefrontSearch({
         {categories.length > 0 && (
           <XToggleButtonGroup value={activeCategory} onChange={(value) => onCategory(value || 'all')} label={t('search.categoryFilter')} size="sm">
             <XToggleButton value="all" label={t('common.all')} />
-            {categories.map((category) => (
-              <XToggleButton key={category.id} value={String(category.id)} label={localizedName(category)} />
+            {categoryTree.map((item) => (
+              <XToggleButton key={item.category.id} value={String(item.category.id)} label={item.path} />
             ))}
           </XToggleButtonGroup>
         )}

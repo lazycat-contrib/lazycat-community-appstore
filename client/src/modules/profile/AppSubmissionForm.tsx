@@ -7,11 +7,12 @@ import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { ArtifactModeOption } from '../../shared/components/ArtifactModeOption';
+import { flattenCategoryTree } from '../../shared/categoryTree';
 import { FilePicker } from '../../shared/components/FilePicker';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import { TagTokenizer } from '../../shared/components/TagTokenizer';
 import type { Category } from '../../shared/types';
-import { cx, formatBytes, githubMirrorKindForURL, localizedName } from '../../shared/utils';
+import { cx, formatBytes, githubMirrorKindForURL } from '../../shared/utils';
 
 export type AppSubmissionDraft = {
   name: string;
@@ -108,6 +109,7 @@ export function AppSubmissionForm({
       : githubMirrorKind === 'download'
         ? t('submitApp.mirrorDownloadReleaseHelp')
         : t('submitApp.mirrorDownloadHelp');
+  const categoryOptions = flattenCategoryTree(categories).map((item) => ({ value: String(item.category.id), label: item.path }));
   const screenshotFileKey = (screenshot: File) => `${screenshot.name}:${screenshot.size}:${screenshot.lastModified}`;
   const renderScreenshotCaptionList = (
     files: File[],
@@ -304,7 +306,7 @@ export function AppSubmissionForm({
           value={draft.categoryId}
           options={[
             { value: '', label: t('common.uncategorized') },
-            ...categories.map((category) => ({ value: String(category.id), label: localizedName(category) })),
+            ...categoryOptions,
           ]}
           onChange={(value) => onDraftChange({ ...draft, categoryId: value })}
         />

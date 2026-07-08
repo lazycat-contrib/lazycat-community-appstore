@@ -117,6 +117,7 @@ export type Category = {
   name: string;
   nameI18n?: Record<string, string>;
   slug: string;
+  parentId?: number;
   sortOrder?: number;
 };
 
@@ -194,6 +195,10 @@ export type Group = {
   name: string;
   slug: string;
   description: string;
+  code?: string;
+  codeUpdatedAt?: string;
+  memberCount?: number;
+  attachedAppCount?: number;
 };
 
 export type APITokenRecord = {
@@ -258,6 +263,9 @@ export type SourceSubscription = {
   password: string;
   defaultDownloadMirrorId: string;
   defaultRawMirrorId: string;
+  groupCodes?: string[];
+  groups?: Array<{ name: string; code?: string }>;
+  lastInvalidGroupCodes?: string[];
   githubMirrors: GitHubMirror[];
   lastSync?: string;
   lastError?: string;
@@ -268,7 +276,7 @@ export type SourceSubscription = {
 
 export type SourceInput = Pick<
   SourceSubscription,
-  'name' | 'url' | 'password' | 'defaultDownloadMirrorId' | 'defaultRawMirrorId'
+  'name' | 'url' | 'password' | 'defaultDownloadMirrorId' | 'defaultRawMirrorId' | 'groupCodes'
 >;
 
 export type ClientSettings = {

@@ -21,6 +21,10 @@ const (
 	FieldSlug = "slug"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
+	// FieldCode holds the string denoting the code field in the database.
+	FieldCode = "code"
+	// FieldCodeUpdatedAt holds the string denoting the code_updated_at field in the database.
+	FieldCodeUpdatedAt = "code_updated_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -36,6 +40,8 @@ var Columns = []string{
 	FieldName,
 	FieldSlug,
 	FieldDescription,
+	FieldCode,
+	FieldCodeUpdatedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -57,6 +63,10 @@ var (
 	SlugValidator func(string) error
 	// DefaultDescription holds the default value on creation for the "description" field.
 	DefaultDescription string
+	// DefaultCode holds the default value on creation for the "code" field.
+	DefaultCode string
+	// DefaultCodeUpdatedAt holds the default value on creation for the "code_updated_at" field.
+	DefaultCodeUpdatedAt func() time.Time
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -91,6 +101,16 @@ func BySlug(opts ...sql.OrderTermOption) OrderOption {
 // ByDescription orders the results by the description field.
 func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescription, opts...).ToFunc()
+}
+
+// ByCode orders the results by the code field.
+func ByCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCode, opts...).ToFunc()
+}
+
+// ByCodeUpdatedAt orders the results by the code_updated_at field.
+func ByCodeUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCodeUpdatedAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

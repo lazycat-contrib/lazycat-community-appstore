@@ -92,6 +92,48 @@ func TestSourceDuplicateURLForUserFails(t *testing.T) {
 	}
 }
 
+func TestClientSourceStoresDecodedGroupCodes(t *testing.T) {
+	app := testServer(t)
+	rec := app.request("POST", "/api/client/v1/sources", `{"name":"Private","url":"https://store.example/source/v1/index.json","groupCodes":["abc123","ABC123","old999"]}`, "alice")
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create source = %d %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"groupCodes":["ABC123","OLD999"]`) {
+		t.Fatalf("group codes not normalized/deduped: %s", rec.Body.String())
+	}
+}
+
+func TestSyncRemovesInvalidGroupCodesAndKeepsSource(t *testing.T) {
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("X-Group-Codes"); got != "ABC123,OLD999" {
+			t.Fatalf("group code header = %q", got)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"groups":            []map[string]string{{"name": "Private", "code": "ABC123"}},
+			"invalidGroupCodes": []string{"OLD999"},
+			"apps":              []map[string]any{},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	create := app.request("POST", "/api/client/v1/sources", `{"name":"Feed","url":"`+feed.URL+`","groupCodes":["ABC123","OLD999"]}`, "alice")
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create = %d %s", create.Code, create.Body.String())
+	}
+	rec := app.request("POST", "/api/client/v1/sources/1/sync", ``, "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("sync = %d %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, `"groupCodes":["ABC123","OLD999"]`) || strings.Contains(body, `"groupCodes":["OLD999"]`) {
+		t.Fatalf("invalid code still present in groupCodes: %s", body)
+	}
+	if !strings.Contains(body, `"groupCodes":["ABC123"]`) || !strings.Contains(body, `"groups":[{"name":"Private"`) || !strings.Contains(body, `"lastInvalidGroupCodes":["OLD999"]`) {
+		t.Fatalf("group metadata/cleanup missing: %s", body)
+	}
+}
+
 func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
 	app := testServer(t)
 	rec := app.request("PATCH", "/api/client/v1/settings", `{"commentDisplayName":"  Alice  Cat  ","autoSyncEnabled":true,"autoSyncIntervalMinutes":1,"syncOnStartup":true}`, "alice")

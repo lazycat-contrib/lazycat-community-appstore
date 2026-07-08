@@ -1,11 +1,11 @@
 import { type FormEvent, useState } from 'react';
-import { Plus, Trash2, Users } from 'lucide-react';
+import { Plus, Trash2, UserPlus, Users, X } from 'lucide-react';
+import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
-import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../shared/api';
-import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
+import { EmptyState } from '../../shared/components/Feedback';
 import type { Group, Toast } from '../../shared/types';
 import { runAction } from '../../shared/utils';
 
@@ -21,6 +21,8 @@ export function GroupPanel({
   const { t } = useTranslation();
   const [draft, setDraft] = useState({ name: '', description: '' });
   const [memberDrafts, setMemberDrafts] = useState<Record<number, string>>({});
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [activeGroupID, setActiveGroupID] = useState<number | null>(null);
 
   async function reload() {
     await runAction(setToast, t('groups.loadFailed'), async () => {
@@ -34,6 +36,7 @@ export function GroupPanel({
     await runAction(setToast, t('groups.createFailed'), async () => {
       await api('/api/v1/groups', { method: 'POST', body: JSON.stringify(draft) });
       setDraft({ name: '', description: '' });
+      setIsCreateOpen(false);
       setToast({ tone: 'success', message: t('groups.created') });
       await reload();
     });
@@ -59,38 +62,104 @@ export function GroupPanel({
     });
   }
 
+  async function deleteGroup(group: Group) {
+    if (!window.confirm(t('groups.deleteConfirm', { name: group.name }))) return;
+    await runAction(setToast, t('groups.deleteFailed'), async () => {
+      await api(`/api/v1/groups/${group.id}`, { method: 'DELETE' });
+      setGroups(groups.filter((item) => item.id !== group.id));
+      setMemberDrafts((current) => {
+        const next = { ...current };
+        delete next[group.id];
+        return next;
+      });
+      if (activeGroupID === group.id) setActiveGroupID(null);
+      setToast({ tone: 'neutral', message: t('groups.deleted') });
+    });
+  }
+
   return (
-    <section className="panel form-panel">
-      <SectionTitle icon={Users} title={t('groups.title')} />
-      <form className="inline-form" onSubmit={createGroup}>
-        <XTextInput label={t('groups.name')} isLabelHidden placeholder={t('groups.name')} value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-        <XIconButton type="submit" variant="secondary" label={t('groups.create')} icon={<Plus size={17} />} />
-      </form>
+    <section className="panel form-panel group-panel">
+      <div className="section-title with-action">
+        <div>
+          <Users size={19} />
+          <h2>{t('groups.title')}</h2>
+        </div>
+        <XButton
+          type="button"
+          variant={isCreateOpen ? 'secondary' : 'primary'}
+          size="sm"
+          label={isCreateOpen ? t('groups.cancelCreate') : t('groups.newGroup')}
+          icon={isCreateOpen ? <X size={17} /> : <Plus size={17} />}
+          onClick={() => setIsCreateOpen((value) => !value)}
+        />
+      </div>
+
+      {isCreateOpen && (
+        <form className="group-create-card" onSubmit={createGroup}>
+          <XTextInput label={t('groups.name')} value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
+          <XTextInput label={t('groups.description')} value={draft.description} onChange={(value) => setDraft({ ...draft, description: value })} />
+          <div className="dialog-actions">
+            <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setIsCreateOpen(false)} />
+            <XButton type="submit" variant="primary" label={t('groups.create')} icon={<Plus size={17} />} />
+          </div>
+        </form>
+      )}
+
       {groups.length === 0 ? (
-        <EmptyState icon={Users} title={t('groups.empty')} />
+        <EmptyState icon={Users} title={t('groups.empty')} body={t('groups.emptyBody')} action={{ label: t('groups.newGroup'), icon: Plus, onClick: () => setIsCreateOpen(true) }} />
       ) : (
-        <XList className="action-list" density="compact" hasDividers>
+        <div className="group-list" role="list" aria-label={t('groups.title')}>
           {groups.map((group) => (
-            <XListItem
-              key={group.id}
-              label={group.name}
-              description={group.slug}
-              endContent={(
-                <div className="inline-form compact-line group-member-actions">
-                  <XTextInput
-                    label={t('groups.userId')}
-                    isLabelHidden
-                    placeholder={t('groups.userId')}
-                    value={memberDrafts[group.id] || ''}
-                    onChange={(value) => setMemberDrafts((current) => ({ ...current, [group.id]: value }))}
+            <article key={group.id} className="group-row" role="listitem">
+              <div className="group-row-main">
+                <div className="group-row-title">
+                  <strong>{group.name}</strong>
+                  <span>{group.description || group.slug}</span>
+                </div>
+                <div className="row-actions">
+                  <XButton
+                    type="button"
+                    variant={activeGroupID === group.id ? 'primary' : 'secondary'}
+                    size="sm"
+                    label={activeGroupID === group.id ? t('groups.hideManagement') : t('groups.manage')}
+                    icon={<Users size={17} />}
+                    onClick={() => setActiveGroupID((current) => (current === group.id ? null : group.id))}
                   />
-                  <XIconButton type="button" variant="secondary" label={t('groups.addMember')} icon={<Plus size={17} />} onClick={() => void addMember(group.id)} />
-                  <XIconButton type="button" variant="destructive" label={t('groups.removeMember')} icon={<Trash2 size={17} />} onClick={() => void removeMember(group.id)} />
+                  <XIconButton
+                    className="fixed-row-icon-button"
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    label={t('groups.deleteGroup')}
+                    tooltip={t('groups.deleteGroup')}
+                    icon={<Trash2 size={17} />}
+                    onClick={() => void deleteGroup(group)}
+                  />
+                </div>
+              </div>
+              {activeGroupID === group.id && (
+                <div className="group-member-panel">
+                  <div className="group-member-copy">
+                    <strong>{t('groups.memberManagement')}</strong>
+                    <span>{t('groups.memberManagementBody')}</span>
+                  </div>
+                  <div className="group-member-form">
+                    <XTextInput
+                      label={t('groups.userId')}
+                      placeholder={t('groups.userId')}
+                      value={memberDrafts[group.id] || ''}
+                      onChange={(value) => setMemberDrafts((current) => ({ ...current, [group.id]: value }))}
+                    />
+                    <div className="row-actions group-member-buttons">
+                      <XButton type="button" variant="secondary" size="sm" label={t('groups.addMember')} icon={<UserPlus size={17} />} onClick={() => void addMember(group.id)} />
+                      <XButton type="button" variant="destructive" size="sm" label={t('groups.removeMember')} icon={<Trash2 size={17} />} onClick={() => void removeMember(group.id)} />
+                    </div>
+                  </div>
                 </div>
               )}
-            />
+            </article>
           ))}
-        </XList>
+        </div>
       )}
     </section>
   );

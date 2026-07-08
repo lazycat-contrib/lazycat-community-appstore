@@ -150,11 +150,26 @@ func (s *Server) decideReview(w http.ResponseWriter, r *http.Request, u *entgo.U
 }
 
 type taxonomyRequest struct {
-	Name      string                    `json:"name"`
-	NameI18n  catalogmeta.LocalizedText `json:"nameI18n"`
-	Slug      string                    `json:"slug"`
-	ParentID  *int                      `json:"parentId"`
-	SortOrder *int                      `json:"sortOrder"`
+	Name        string                    `json:"name"`
+	NameI18n    catalogmeta.LocalizedText `json:"nameI18n"`
+	Slug        string                    `json:"slug"`
+	ParentID    *int                      `json:"parentId"`
+	ParentIDSet bool                      `json:"-"`
+	SortOrder   *int                      `json:"sortOrder"`
+}
+
+func (input *taxonomyRequest) UnmarshalJSON(data []byte) error {
+	type taxonomyRequestAlias taxonomyRequest
+	var alias taxonomyRequestAlias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*input = taxonomyRequest(alias)
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err == nil {
+		_, input.ParentIDSet = fields["parentId"]
+	}
+	return nil
 }
 
 func (s *Server) handleListCategories(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -192,6 +207,10 @@ func (s *Server) handleCreateCategory(w http.ResponseWriter, r *http.Request, u 
 	slug := strings.TrimSpace(input.Slug)
 	if slug == "" {
 		slug = slugify(name)
+	}
+	if err := s.validateCategoryParent(r.Context(), 0, input.ParentID); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "CATEGORY_PARENT_INVALID", err.Error(), nil)
+		return
 	}
 	create := s.db.Category.Create().SetName(name).SetNameI18n(catalogmeta.EncodeLocalizedText(input.NameI18n)).SetSlug(slug)
 	if input.ParentID != nil {
@@ -234,8 +253,16 @@ func (s *Server) handleUpdateCategory(w http.ResponseWriter, r *http.Request, u 
 	if slug := strings.TrimSpace(input.Slug); slug != "" {
 		update.SetSlug(slug)
 	}
-	if input.ParentID != nil {
-		update.SetParentID(*input.ParentID)
+	if input.ParentIDSet {
+		if err := s.validateCategoryParent(r.Context(), id, input.ParentID); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "CATEGORY_PARENT_INVALID", err.Error(), nil)
+			return
+		}
+		if input.ParentID == nil {
+			update.ClearParentID()
+		} else {
+			update.SetParentID(*input.ParentID)
+		}
 	}
 	if input.SortOrder != nil {
 		update.SetSortOrder(*input.SortOrder)
@@ -254,12 +281,70 @@ func (s *Server) handleDeleteCategory(w http.ResponseWriter, r *http.Request, u 
 		badRequest(w, err)
 		return
 	}
-	_, _ = s.db.App.Update().Where(app.CategoryIDEQ(id)).ClearCategoryID().Save(r.Context())
-	if err := s.db.Category.DeleteOneID(id).Exec(r.Context()); err != nil {
+	children, err := s.db.Category.Query().Where(category.ParentIDEQ(id)).Count(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "CATEGORY_DELETE_FAILED", "Could not inspect category children", nil)
+		return
+	}
+	if children > 0 {
+		writeError(w, http.StatusConflict, "CATEGORY_HAS_CHILDREN", "Category has child categories", map[string]any{"children": children})
+		return
+	}
+	tx, err := s.db.Tx(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "CATEGORY_DELETE_FAILED", "Could not start category delete", nil)
+		return
+	}
+	if _, err := tx.App.Update().Where(app.CategoryIDEQ(id)).ClearCategoryID().Save(r.Context()); err != nil {
+		_ = tx.Rollback()
+		writeError(w, http.StatusInternalServerError, "CATEGORY_DELETE_FAILED", "Could not detach category from apps", nil)
+		return
+	}
+	if err := tx.Category.DeleteOneID(id).Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
 		writeError(w, http.StatusInternalServerError, "CATEGORY_DELETE_FAILED", "Could not delete category", nil)
 		return
 	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "CATEGORY_DELETE_FAILED", "Could not commit category delete", nil)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) validateCategoryParent(ctx context.Context, categoryID int, parentID *int) error {
+	if parentID == nil {
+		return nil
+	}
+	if *parentID <= 0 {
+		return fmt.Errorf("Parent category is invalid")
+	}
+	if categoryID > 0 && *parentID == categoryID {
+		return fmt.Errorf("Category cannot be its own parent")
+	}
+	currentID := *parentID
+	seen := map[int]struct{}{}
+	if categoryID > 0 {
+		seen[categoryID] = struct{}{}
+	}
+	for currentID > 0 {
+		if _, exists := seen[currentID]; exists {
+			return fmt.Errorf("Category parent would create a cycle")
+		}
+		seen[currentID] = struct{}{}
+		record, err := s.db.Category.Query().Where(category.IDEQ(currentID)).Only(ctx)
+		if entgo.IsNotFound(err) {
+			return fmt.Errorf("Parent category does not exist")
+		}
+		if err != nil {
+			return err
+		}
+		if record.ParentID == nil {
+			return nil
+		}
+		currentID = *record.ParentID
+	}
+	return nil
 }
 
 func (s *Server) handleListTags(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -298,6 +383,7 @@ func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request, u *entg
 	if slug == "" {
 		slug = slugify(name)
 	}
+	input.NameI18n = catalogmeta.WithLocalizedDefaults(input.NameI18n, name)
 	record, err := s.db.Tag.Create().SetName(name).SetNameI18n(catalogmeta.EncodeLocalizedText(input.NameI18n)).SetSlug(slug).Save(r.Context())
 	if err != nil {
 		writeError(w, http.StatusConflict, "TAG_CREATE_FAILED", "Could not create tag", nil)

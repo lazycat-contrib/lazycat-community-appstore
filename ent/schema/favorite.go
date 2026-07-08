@@ -24,6 +24,7 @@ func (Favorite) Fields() []ent.Field {
 func (Favorite) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("user_id", "target_type", "target_id").Unique(),
+		index.Fields("user_id", "created_at"),
 		index.Fields("target_type", "target_id"),
 	}
 }

@@ -74,6 +74,16 @@ func Description(v string) predicate.UserGroup {
 	return predicate.UserGroup(sql.FieldEQ(FieldDescription, v))
 }
 
+// Code applies equality check predicate on the "code" field. It's identical to CodeEQ.
+func Code(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldEQ(FieldCode, v))
+}
+
+// CodeUpdatedAt applies equality check predicate on the "code_updated_at" field. It's identical to CodeUpdatedAtEQ.
+func CodeUpdatedAt(v time.Time) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldEQ(FieldCodeUpdatedAt, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.UserGroup {
 	return predicate.UserGroup(sql.FieldEQ(FieldCreatedAt, v))
@@ -317,6 +327,111 @@ func DescriptionEqualFold(v string) predicate.UserGroup {
 // DescriptionContainsFold applies the ContainsFold predicate on the "description" field.
 func DescriptionContainsFold(v string) predicate.UserGroup {
 	return predicate.UserGroup(sql.FieldContainsFold(FieldDescription, v))
+}
+
+// CodeEQ applies the EQ predicate on the "code" field.
+func CodeEQ(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldEQ(FieldCode, v))
+}
+
+// CodeNEQ applies the NEQ predicate on the "code" field.
+func CodeNEQ(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldNEQ(FieldCode, v))
+}
+
+// CodeIn applies the In predicate on the "code" field.
+func CodeIn(vs ...string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldIn(FieldCode, vs...))
+}
+
+// CodeNotIn applies the NotIn predicate on the "code" field.
+func CodeNotIn(vs ...string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldNotIn(FieldCode, vs...))
+}
+
+// CodeGT applies the GT predicate on the "code" field.
+func CodeGT(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldGT(FieldCode, v))
+}
+
+// CodeGTE applies the GTE predicate on the "code" field.
+func CodeGTE(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldGTE(FieldCode, v))
+}
+
+// CodeLT applies the LT predicate on the "code" field.
+func CodeLT(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldLT(FieldCode, v))
+}
+
+// CodeLTE applies the LTE predicate on the "code" field.
+func CodeLTE(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldLTE(FieldCode, v))
+}
+
+// CodeContains applies the Contains predicate on the "code" field.
+func CodeContains(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldContains(FieldCode, v))
+}
+
+// CodeHasPrefix applies the HasPrefix predicate on the "code" field.
+func CodeHasPrefix(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldHasPrefix(FieldCode, v))
+}
+
+// CodeHasSuffix applies the HasSuffix predicate on the "code" field.
+func CodeHasSuffix(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldHasSuffix(FieldCode, v))
+}
+
+// CodeEqualFold applies the EqualFold predicate on the "code" field.
+func CodeEqualFold(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldEqualFold(FieldCode, v))
+}
+
+// CodeContainsFold applies the ContainsFold predicate on the "code" field.
+func CodeContainsFold(v string) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldContainsFold(FieldCode, v))
+}
+
+// CodeUpdatedAtEQ applies the EQ predicate on the "code_updated_at" field.
+func CodeUpdatedAtEQ(v time.Time) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldEQ(FieldCodeUpdatedAt, v))
+}
+
+// CodeUpdatedAtNEQ applies the NEQ predicate on the "code_updated_at" field.
+func CodeUpdatedAtNEQ(v time.Time) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldNEQ(FieldCodeUpdatedAt, v))
+}
+
+// CodeUpdatedAtIn applies the In predicate on the "code_updated_at" field.
+func CodeUpdatedAtIn(vs ...time.Time) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldIn(FieldCodeUpdatedAt, vs...))
+}
+
+// CodeUpdatedAtNotIn applies the NotIn predicate on the "code_updated_at" field.
+func CodeUpdatedAtNotIn(vs ...time.Time) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldNotIn(FieldCodeUpdatedAt, vs...))
+}
+
+// CodeUpdatedAtGT applies the GT predicate on the "code_updated_at" field.
+func CodeUpdatedAtGT(v time.Time) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldGT(FieldCodeUpdatedAt, v))
+}
+
+// CodeUpdatedAtGTE applies the GTE predicate on the "code_updated_at" field.
+func CodeUpdatedAtGTE(v time.Time) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldGTE(FieldCodeUpdatedAt, v))
+}
+
+// CodeUpdatedAtLT applies the LT predicate on the "code_updated_at" field.
+func CodeUpdatedAtLT(v time.Time) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldLT(FieldCodeUpdatedAt, v))
+}
+
+// CodeUpdatedAtLTE applies the LTE predicate on the "code_updated_at" field.
+func CodeUpdatedAtLTE(v time.Time) predicate.UserGroup {
+	return predicate.UserGroup(sql.FieldLTE(FieldCodeUpdatedAt, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

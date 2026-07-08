@@ -114,7 +114,7 @@ export function StorageSettingsPanel({
         <div className="storage-config-list" role="list" aria-label={t('admin.storageConfigs')}>
           {storages.map((storage) => (
             <div key={storage.key} className={cx('storage-config-row', storage.key === selectedKey && 'selected')} role="listitem">
-              <XButton type="button" variant="ghost" label={storage.name || storage.key} className="storage-config-main" onClick={() => onSelect(storage.key)}>
+              <button type="button" className="storage-config-main" onClick={() => onSelect(storage.key)}>
                 <span className="storage-config-icon">{providerIcon(storage.provider)}</span>
                 <span className="storage-config-body">
                   <strong>{storage.name || storage.key}</strong>
@@ -123,7 +123,7 @@ export function StorageSettingsPanel({
                 <span className="storage-config-meta">
                   {storage.key === defaultKey && <XBadge label={t('admin.defaultStorage')} variant="success" />}
                 </span>
-              </XButton>
+              </button>
               <span className="storage-config-actions">
                 {storage.key !== defaultKey && (
                   <XIconButton type="button" variant="ghost" size="sm" label={t('admin.setDefaultStorage')} icon={<Star size={16} />} onClick={() => void onSetDefault(storage)} />

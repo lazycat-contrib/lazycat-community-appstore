@@ -33,7 +33,10 @@ import (
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/registrationinvite"
 	"lazycat.community/appstore/ent/reviewrequest"
+	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/ent/user"
+	"lazycat.community/appstore/ent/usergroup"
+	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/config"
 	"lazycat.community/appstore/internal/mirror"
 )
@@ -102,6 +105,22 @@ func TestEnvBootstrapStillCreatesDefaultAdmin(t *testing.T) {
 		t.Fatalf("setup status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	app.login("admin", "changeme")
+}
+
+func TestAdminLoginRequiresCaptchaAfterThreeFailures(t *testing.T) {
+	app := newTestApp(t)
+	for i := 1; i <= 3; i++ {
+		rec := app.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "admin", "password": "wrong-password"})
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("failed login %d status = %d body = %s", i, rec.Code, rec.Body.String())
+		}
+		if i < 3 && strings.Contains(rec.Body.String(), `"captchaRequired":true`) {
+			t.Fatalf("captcha required too early on attempt %d: %s", i, rec.Body.String())
+		}
+		if i == 3 && !strings.Contains(rec.Body.String(), `"captchaRequired":true`) {
+			t.Fatalf("captcha missing after third failure: %s", rec.Body.String())
+		}
+	}
 }
 
 func TestEmbeddedAppConfigUsesSameOriginAPI(t *testing.T) {
@@ -1111,9 +1130,37 @@ func TestAdminCanUpdateAndDeleteTaxonomy(t *testing.T) {
 		t.Fatalf("create category status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	createdCategory := app.server.db.Category.Query().Where(category.SlugEQ("tools")).OnlyX(t.Context())
+	rec = app.do(http.MethodPost, "/api/v1/admin/categories", map[string]any{"name": "下载工具", "slug": "download-tools", "parentId": createdCategory.ID})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create child category status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	childCategory := app.server.db.Category.Query().Where(category.SlugEQ("download-tools")).OnlyX(t.Context())
+	if childCategory.ParentID == nil || *childCategory.ParentID != createdCategory.ID {
+		t.Fatalf("child parent = %v, want %d", childCategory.ParentID, createdCategory.ID)
+	}
+	rec = app.do(http.MethodPatch, fmt.Sprintf("/api/v1/admin/categories/%d", createdCategory.ID), map[string]any{"parentId": childCategory.ID})
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("cycle update status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/categories/%d", createdCategory.ID), nil)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("delete parent category status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	rec = app.do(http.MethodPatch, fmt.Sprintf("/api/v1/admin/categories/%d", childCategory.ID), map[string]any{"parentId": nil})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("clear child parent status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	childCategory = app.server.db.Category.Query().Where(category.IDEQ(childCategory.ID)).OnlyX(t.Context())
+	if childCategory.ParentID != nil {
+		t.Fatalf("child parent after clear = %v, want nil", childCategory.ParentID)
+	}
 	rec = app.do(http.MethodPatch, fmt.Sprintf("/api/v1/admin/categories/%d", createdCategory.ID), map[string]string{"name": "效率工具", "slug": "efficiency-tools"})
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "效率工具") {
 		t.Fatalf("update category status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/categories/%d", childCategory.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete child category status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/categories/%d", createdCategory.ID), nil)
 	if rec.Code != http.StatusOK {
@@ -1124,6 +1171,11 @@ func TestAdminCanUpdateAndDeleteTaxonomy(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create tag status = %d, body = %s", rec.Code, rec.Body.String())
 	}
+	createdTag := app.server.db.Tag.Query().Where(tag.SlugEQ("nas")).OnlyX(t.Context())
+	tagI18n := catalogmeta.DecodeLocalizedText(createdTag.NameI18n)
+	if tagI18n["zh-CN"] != "NAS" || tagI18n["en"] != "NAS" {
+		t.Fatalf("created tag i18n = %#v, want zh-CN/en NAS", tagI18n)
+	}
 	rec = app.do(http.MethodPatch, "/api/v1/admin/tags/nas", map[string]string{"name": "Home NAS", "slug": "home-nas"})
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Home NAS") {
 		t.Fatalf("update tag status = %d, body = %s", rec.Code, rec.Body.String())
@@ -1131,6 +1183,71 @@ func TestAdminCanUpdateAndDeleteTaxonomy(t *testing.T) {
 	rec = app.do(http.MethodDelete, "/api/v1/admin/tags/home-nas", nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete tag status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAppCreatedTagsDefaultLocalizedNames(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodPost, "/api/v1/apps", map[string]any{
+		"packageId": "cloud.lazycat.test.localized-tag",
+		"name":      "Localized Tag App",
+		"tags":      []string{"影音", "Media"},
+	})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create app status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	for _, want := range []string{"影音", "Media"} {
+		record := app.server.db.Tag.Query().Where(tag.SlugEQ(slugify(want))).OnlyX(t.Context())
+		got := catalogmeta.DecodeLocalizedText(record.NameI18n)
+		if got["zh-CN"] != want || got["en"] != want {
+			t.Fatalf("tag %q i18n = %#v, want zh-CN/en %q", want, got, want)
+		}
+	}
+
+	stale := app.server.db.Tag.Create().SetName("Legacy").SetSlug("legacy").SaveX(t.Context())
+	if got := catalogmeta.DecodeLocalizedText(stale.NameI18n); !got.IsZero() {
+		t.Fatalf("new stale tag i18n = %#v, want empty", got)
+	}
+	rec = app.do(http.MethodPatch, "/api/v1/apps/1", map[string]any{"tags": []string{"Legacy"}})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update app tags status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	stale = app.server.db.Tag.Query().Where(tag.SlugEQ("legacy")).OnlyX(t.Context())
+	got := catalogmeta.DecodeLocalizedText(stale.NameI18n)
+	if got["zh-CN"] != "Legacy" || got["en"] != "Legacy" {
+		t.Fatalf("backfilled tag i18n = %#v, want zh-CN/en old tag", got)
+	}
+}
+
+func TestListAppsCanFilterByIDs(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	app.login("admin", "changeme")
+	first := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.ids-first").
+		SetName("IDs First").
+		SetSlug("ids-first").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	second := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.ids-second").
+		SetName("IDs Second").
+		SetSlug("ids-second").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	_ = second
+
+	rec := app.do(http.MethodGet, fmt.Sprintf("/api/v1/apps?managed=1&ids=%d,999999", first.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list by ids status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "IDs First") || strings.Contains(rec.Body.String(), "IDs Second") {
+		t.Fatalf("list by ids body = %s", rec.Body.String())
 	}
 }
 
@@ -2091,6 +2208,77 @@ func TestPrivateAppVisibilityUsesGroupsAndSourceFeedStaysPublic(t *testing.T) {
 	}
 }
 
+func TestSourceFeedIncludesGroupAppsOnlyWithValidCode(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	group := app.server.db.UserGroup.Create().SetOwnerID(admin.ID).SetName("Private Group").SetSlug("private-group").SetCode("ABC123").SaveX(ctx)
+	privateApp := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.private-code").
+		SetName("Private Code").
+		SetSlug("private-code").
+		SetSummary("Private").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	app.server.db.AppVisibility.Create().SetAppID(privateApp.ID).SetGroupID(group.ID).SaveX(ctx)
+	app.server.db.AppVersion.Create().
+		SetAppID(privateApp.ID).
+		SetUploaderID(admin.ID).
+		SetVersion("1.0.0").
+		SetStatus(appversion.StatusAPPROVED).
+		SetSourceType(appversion.SourceTypeGITHUB).
+		SetDownloadURL("https://github.com/acme/private/releases/download/v1/app.lpk").
+		SaveX(ctx)
+
+	rec := app.do(http.MethodGet, "/source/v1/index.json", nil)
+	if strings.Contains(rec.Body.String(), "Private Code") {
+		t.Fatalf("public feed leaked group app: %s", rec.Body.String())
+	}
+	rec = app.do(http.MethodGet, "/source/v1/index.json?groupCodes=ABC123,OLD999", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("group feed status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{`"Private Code"`, `"groups"`, `"name":"Private Group"`, `"invalidGroupCodes":["OLD999"]`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("group feed missing %q: %s", want, body)
+		}
+	}
+}
+
+func TestGroupBoundDownloadRequiresValidGroupCode(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	group := app.server.db.UserGroup.Create().SetOwnerID(admin.ID).SetName("Private Download").SetSlug("private-download").SetCode("XYZ789").SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.private-download").
+		SetName("Private Download").
+		SetSlug("private-download").
+		SetSummary("Private").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	version := app.server.db.AppVersion.Create().
+		SetAppID(record.ID).
+		SetUploaderID(admin.ID).
+		SetVersion("1.0.0").
+		SetStatus(appversion.StatusAPPROVED).
+		SetSourceType(appversion.SourceTypeGITHUB).
+		SetDownloadURL("https://github.com/acme/private/releases/download/v1/app.lpk").
+		SaveX(ctx)
+	app.server.db.AppVisibility.Create().SetAppID(record.ID).SetGroupID(group.ID).SaveX(ctx)
+
+	path := fmt.Sprintf("/api/v1/apps/%d/versions/%d/download", record.ID, version.ID)
+	if rec := app.do(http.MethodGet, path, nil); rec.Code != http.StatusForbidden {
+		t.Fatalf("download without group code = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if rec := app.do(http.MethodGet, path+"?groupCodes=XYZ789", nil); rec.Code != http.StatusFound {
+		t.Fatalf("download with group code = %d body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestGroupMembershipAndVisibilityRejectInvalidAssignments(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()
@@ -2123,6 +2311,91 @@ func TestGroupMembershipAndVisibilityRejectInvalidAssignments(t *testing.T) {
 	ids := app.server.visibleGroupIDs(ctx, record.ID)
 	if len(ids) != 1 || ids[0] != ownedGroup.ID {
 		t.Fatalf("visibility changed after rejected request: %#v", ids)
+	}
+}
+
+func TestGroupCreateRotateAndClientConfig(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodPost, "/api/v1/groups", map[string]any{"name": "Design Team"})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create group status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	var created struct {
+		Group struct {
+			ID   int    `json:"id"`
+			Code string `json:"code"`
+		} `json:"group"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode group: %v", err)
+	}
+	if len(created.Group.Code) != 6 || strings.ToUpper(created.Group.Code) != created.Group.Code {
+		t.Fatalf("generated code = %q", created.Group.Code)
+	}
+
+	rec = app.do(http.MethodPost, fmt.Sprintf("/api/v1/groups/%d/code:rotate", created.Group.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("rotate group status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), created.Group.Code) {
+		t.Fatalf("rotated response still contains old code: %s", rec.Body.String())
+	}
+
+	rec = app.do(http.MethodPost, "/api/v1/groups/client-config", map[string]any{
+		"sourceUrl": "https://store.example.com/source/v1/index.json",
+		"groupIds":  []int{created.Group.ID},
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("client config status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"encoded"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"https://store.example.com/source/v1/index.json"`) {
+		t.Fatalf("client config response missing fields: %s", rec.Body.String())
+	}
+}
+
+func TestDeleteGroupWithVisibilityIsRejected(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	owner := app.server.db.User.Create().SetUsername("group-owner").SetPasswordHash("x").SaveX(ctx)
+	member := app.server.db.User.Create().SetUsername("group-member").SetPasswordHash("x").SaveX(ctx)
+	group := app.server.db.UserGroup.Create().SetOwnerID(owner.ID).SetName("Delete Me").SetSlug("delete-me").SetCode("ABC123").SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.group-delete").
+		SetName("Group Delete").
+		SetSlug("group-delete").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	app.server.db.GroupMember.Create().SetGroupID(group.ID).SetUserID(member.ID).SaveX(ctx)
+	app.server.db.AppVisibility.Create().SetAppID(record.ID).SetGroupID(group.ID).SaveX(ctx)
+	app.cookies = []*http.Cookie{app.serverCookieFor(owner.ID)}
+
+	rec := app.do(http.MethodDelete, fmt.Sprintf("/api/v1/groups/%d", group.ID), nil)
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("delete bound group status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if exists := app.server.db.UserGroup.Query().Where(usergroup.IDEQ(group.ID)).ExistX(ctx); !exists {
+		t.Fatal("bound group was deleted")
+	}
+	if exists := app.server.db.GroupMember.Query().Where(groupmember.GroupIDEQ(group.ID)).ExistX(ctx); !exists {
+		t.Fatal("bound group membership was deleted")
+	}
+	if exists := app.server.db.AppVisibility.Query().Where(appvisibility.GroupIDEQ(group.ID)).ExistX(ctx); !exists {
+		t.Fatal("bound app visibility was deleted")
+	}
+
+	_, _ = app.server.db.AppVisibility.Delete().Where(appvisibility.GroupIDEQ(group.ID)).Exec(ctx)
+	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/groups/%d", group.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete group status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if exists := app.server.db.UserGroup.Query().Where(usergroup.IDEQ(group.ID)).ExistX(ctx); exists {
+		t.Fatal("group still exists after delete")
+	}
+	if exists := app.server.db.GroupMember.Query().Where(groupmember.GroupIDEQ(group.ID)).ExistX(ctx); exists {
+		t.Fatal("group memberships still exist after delete")
 	}
 }
 

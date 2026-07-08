@@ -1,8 +1,9 @@
 import { Tokenizer as XTokenizer } from '@astryxdesign/core/Tokenizer';
-import { createStaticSource, type SearchableItem } from '@astryxdesign/core/Typeahead';
+import { createStaticSource, TypeaheadItem as XTypeaheadItem, type SearchableItem } from '@astryxdesign/core/Typeahead';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
-type TagItem = SearchableItem;
+type TagItem = SearchableItem<{ __createdValue?: string }>;
 
 function splitTags(value: string) {
   return value
@@ -39,6 +40,7 @@ export function TagTokenizer({
   knownTags: string[];
   onChange: (value: string) => void;
 }) {
+  const { t } = useTranslation();
   const selectedTags = useMemo(() => uniqueTags(splitTags(value)), [value]);
   const sourceItems = useMemo(() => uniqueTags([...knownTags, ...selectedTags]).map(tagItem), [knownTags, selectedTags]);
   const selectedItems = useMemo(() => selectedTags.map(tagItem), [selectedTags]);
@@ -52,8 +54,15 @@ export function TagTokenizer({
       hasCreate
       hasClear
       hasEntriesOnFocus
+      placeholder={t('common.tagSearchPlaceholder')}
+      emptySearchResultsText={t('common.tagCreateHint')}
       debounceMs={0}
       width="100%"
+      renderItem={(item) => {
+        const createdValue = item.auxiliaryData?.__createdValue;
+        if (!createdValue) return <XTypeaheadItem item={item} />;
+        return <XTypeaheadItem item={{ ...item, label: t('common.createTagNamed', { tag: createdValue }) }} />;
+      }}
       onChange={(items) => onChange(uniqueTags(items.map((item) => item.label)).join(', '))}
     />
   );

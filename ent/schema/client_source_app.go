@@ -52,6 +52,8 @@ func (ClientSourceApp) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("source_id", "package_id").Unique(),
 		index.Fields("source_id", "slug"),
+		index.Fields("package_id"),
+		index.Fields("category"),
 		index.Fields("source_id", "updated_at"),
 	}
 }

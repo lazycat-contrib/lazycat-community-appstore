@@ -15,7 +15,6 @@ import {
   X,
 } from 'lucide-react';
 import { AppShell as XAppShell } from '@astryxdesign/core/AppShell';
-import { Avatar as XAvatar } from '@astryxdesign/core/Avatar';
 import { Theme } from '@astryxdesign/core/theme';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { DropdownMenu as XDropdownMenu } from '@astryxdesign/core/DropdownMenu';
@@ -67,6 +66,7 @@ import type {
   SourceSubscription,
   StorageOption,
   StoreApp,
+  TagRecord,
   ThemeMode,
   Toast,
   User,
@@ -92,6 +92,7 @@ import {
   withInstallPassword,
 } from './shared/utils';
 import { AnnouncementBanner } from './components/AnnouncementBanner';
+import { UserAvatar } from './components/AppIcon';
 import { EmptyState } from './shared/components/Feedback';
 import { StatusBadge } from './shared/components/StatusBadge';
 import { ClientHistoryView } from './modules/client/ClientHistoryView';
@@ -154,9 +155,16 @@ function returnToFromURL() {
   return value;
 }
 
-function knownAppTags(apps: StoreApp[]) {
+function knownAppTags(apps: StoreApp[], catalogTags: TagRecord[] = []) {
   const seen = new Set<string>();
   const out: string[] = [];
+  catalogTags.forEach((tag) => {
+    const normalized = tag.name.trim();
+    const key = normalized.toLowerCase();
+    if (!normalized || seen.has(key)) return;
+    seen.add(key);
+    out.push(normalized);
+  });
   apps.forEach((app) => {
     (app.tags || []).forEach((tag) => {
       const normalized = tag.trim();
@@ -181,6 +189,7 @@ export function App() {
   const [collaborationData, setCollaborationData] = useState<CollaborationData>({ owned: [], collaborating: [], outgoingRequests: [] });
   const [sourceApps, setSourceApps] = useState<SourceApp[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [catalogTags, setCatalogTags] = useState<TagRecord[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -235,7 +244,7 @@ export function App() {
   const isLoginRoute = HAS_API && routeURL.pathname === '/login';
   const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
   const selectedAstryxTheme = useMemo(() => getAstryxTheme(astryxThemeName), [astryxThemeName]);
-  const tagOptions = useMemo(() => knownAppTags(apps), [apps]);
+  const tagOptions = useMemo(() => knownAppTags(apps, catalogTags), [apps, catalogTags]);
   const announcementKey =
     siteProfile.announcement.updatedAt ||
     `${siteProfile.announcement.level}:${siteProfile.announcement.title || ''}:${siteProfile.announcement.body || ''}`;
@@ -440,6 +449,7 @@ export function App() {
         setManagedApps([]);
         setCollaborationData({ owned: [], collaborating: [], outgoingRequests: [] });
         setCategories([]);
+        setCatalogTags([]);
         setCollections([]);
         setGroups([]);
         setReviews([]);
@@ -447,17 +457,19 @@ export function App() {
         setStorageOptions([]);
         return;
       }
-      const [siteData, me, appData, categoryData, collectionData] = await Promise.allSettled([
+      const [siteData, me, appData, categoryData, tagData, collectionData] = await Promise.allSettled([
         api<{ site: SiteProfile }>('/api/v1/site/profile'),
         api<{ user: User }>('/api/v1/auth/me'),
         fetchAllPaginated<StoreApp, 'apps'>(api, '/api/v1/apps', 'apps'),
         api<{ categories: Category[] }>('/api/v1/categories'),
+        api<{ tags: TagRecord[] }>('/api/v1/tags'),
         api<{ collections: Collection[] }>('/api/v1/collections'),
       ]);
       if (siteData.status === 'fulfilled') setSiteProfile(siteData.value.site);
       if (me.status === 'fulfilled') setUser(me.value.user);
       if (appData.status === 'fulfilled') setApps(appData.value);
       if (categoryData.status === 'fulfilled') setCategories(categoryData.value.categories);
+      if (tagData.status === 'fulfilled') setCatalogTags(tagData.value.tags);
       if (collectionData.status === 'fulfilled') setCollections(collectionData.value.collections);
       if (me.status === 'fulfilled') {
         await loadStorageOptions();
@@ -477,6 +489,18 @@ export function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function refreshCatalogMetadata() {
+    if (!HAS_API) return;
+    const [categoryData, tagData, collectionData] = await Promise.allSettled([
+      api<{ categories: Category[] }>('/api/v1/categories'),
+      api<{ tags: TagRecord[] }>('/api/v1/tags'),
+      api<{ collections: Collection[] }>('/api/v1/collections'),
+    ]);
+    if (categoryData.status === 'fulfilled') setCategories(categoryData.value.categories);
+    if (tagData.status === 'fulfilled') setCatalogTags(tagData.value.tags);
+    if (collectionData.status === 'fulfilled') setCollections(collectionData.value.collections);
   }
 
   async function loadSiteProfile() {
@@ -810,6 +834,7 @@ export function App() {
         password: source.password,
         defaultDownloadMirrorId: source.defaultDownloadMirrorId || '',
         defaultRawMirrorId: source.defaultRawMirrorId || '',
+        groupCodes: source.groupCodes || [],
       }),
     });
     await refreshClientData({ silent: true });
@@ -963,7 +988,12 @@ export function App() {
                           label: displayUserName(user),
                           variant: 'secondary',
                           className: 'account-trigger',
-                          icon: <XAvatar src={user.avatarUrl} alt="" aria-hidden="true" size={32} />,
+                          children: (
+                            <span className="account-trigger-content">
+                              <UserAvatar user={user} size={32} className="account-avatar" />
+                              <span className="account-trigger-name">{displayUserName(user)}</span>
+                            </span>
+                          ),
                         }}
                         menuWidth={192}
                         items={[
@@ -1084,7 +1114,6 @@ export function App() {
                   setActiveCategory(category);
                   navigateTo('search');
                 }}
-                setToast={setToast}
                 isAuthenticated={Boolean(user)}
               />
             )}
@@ -1134,8 +1163,6 @@ export function App() {
                 setUser={setUser}
                 apps={apps}
                 managedApps={managedApps}
-                groups={groups}
-                setGroups={setGroups}
                 categories={categories}
                 tagOptions={tagOptions}
                 sourceApps={sourceApps}
@@ -1184,6 +1211,7 @@ export function App() {
                   onReviewPageChange={loadReviews}
                   onApprove={approveReview}
                   onSiteProfileSaved={applySiteProfile}
+                  onCatalogMetadataChanged={refreshCatalogMetadata}
                   onStorageOptionsChanged={loadStorageOptions}
                   setToast={setToast}
                 />

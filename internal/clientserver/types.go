@@ -9,26 +9,30 @@ import (
 )
 
 type SourceDTO struct {
-	ID                      int            `json:"id"`
-	Name                    string         `json:"name"`
-	URL                     string         `json:"url"`
-	Password                string         `json:"password"`
-	DefaultDownloadMirrorID string         `json:"defaultDownloadMirrorId"`
-	DefaultRawMirrorID      string         `json:"defaultRawMirrorId"`
-	GitHubMirrors           []mirror.Entry `json:"githubMirrors"`
-	LastSync                *time.Time     `json:"lastSync,omitempty"`
-	LastError               string         `json:"lastError,omitempty"`
-	LastErrorCode           string         `json:"lastErrorCode,omitempty"`
-	LastAppCount            int            `json:"lastAppCount"`
-	LastInstallableCount    int            `json:"lastInstallableCount"`
+	ID                      int              `json:"id"`
+	Name                    string           `json:"name"`
+	URL                     string           `json:"url"`
+	Password                string           `json:"password"`
+	DefaultDownloadMirrorID string           `json:"defaultDownloadMirrorId"`
+	DefaultRawMirrorID      string           `json:"defaultRawMirrorId"`
+	GroupCodes              []string         `json:"groupCodes,omitempty"`
+	Groups                  []SourceGroupDTO `json:"groups,omitempty"`
+	LastInvalidGroupCodes   []string         `json:"lastInvalidGroupCodes,omitempty"`
+	GitHubMirrors           []mirror.Entry   `json:"githubMirrors"`
+	LastSync                *time.Time       `json:"lastSync,omitempty"`
+	LastError               string           `json:"lastError,omitempty"`
+	LastErrorCode           string           `json:"lastErrorCode,omitempty"`
+	LastAppCount            int              `json:"lastAppCount"`
+	LastInstallableCount    int              `json:"lastInstallableCount"`
 }
 
 type SourceInput struct {
-	Name                    string `json:"name"`
-	URL                     string `json:"url"`
-	Password                string `json:"password"`
-	DefaultDownloadMirrorID string `json:"defaultDownloadMirrorId"`
-	DefaultRawMirrorID      string `json:"defaultRawMirrorId"`
+	Name                    string   `json:"name"`
+	URL                     string   `json:"url"`
+	Password                string   `json:"password"`
+	DefaultDownloadMirrorID string   `json:"defaultDownloadMirrorId"`
+	DefaultRawMirrorID      string   `json:"defaultRawMirrorId"`
+	GroupCodes              []string `json:"groupCodes"`
 }
 
 type ErrorResponse struct {

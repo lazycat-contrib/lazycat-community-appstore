@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"entgo.io/ent/dialect"
 
@@ -33,6 +34,8 @@ type Server struct {
 	mux                     *http.ServeMux
 	web                     http.Handler
 	allowPrivateLPKURLHosts bool
+	adminLoginFailuresMu    sync.Mutex
+	adminLoginFailures      map[string]int
 }
 
 func New(cfg config.Config) (*Server, error) {
@@ -55,11 +58,12 @@ func New(cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 	s := &Server{
-		cfg:     cfg,
-		db:      client,
-		storage: backend,
-		mailer:  newSMTPMailer(cfg),
-		mux:     http.NewServeMux(),
+		cfg:                cfg,
+		db:                 client,
+		storage:            backend,
+		mailer:             newSMTPMailer(cfg),
+		mux:                http.NewServeMux(),
+		adminLoginFailures: map[string]int{},
 	}
 	s.web = embeddedWebHandler(cfg)
 	if err := s.bootstrap(context.Background()); err != nil {
@@ -234,6 +238,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/visibility", s.withAuth(s.handleSetAppVisibility))
 	s.mux.HandleFunc("GET /api/v1/groups", s.withAuth(s.handleListGroups))
 	s.mux.HandleFunc("POST /api/v1/groups", s.withAuth(s.handleCreateGroup))
+	s.mux.HandleFunc("POST /api/v1/groups/client-config", s.withAuth(s.handleGroupClientConfig))
+	s.mux.HandleFunc("POST /api/v1/groups/{id}/code:rotate", s.withAuth(s.handleRotateGroupCode))
+	s.mux.HandleFunc("DELETE /api/v1/groups/{id}", s.withAuth(s.handleDeleteGroup))
 	s.mux.HandleFunc("POST /api/v1/groups/{id}/members/{userId}", s.withAuth(s.handleAddGroupMember))
 	s.mux.HandleFunc("DELETE /api/v1/groups/{id}/members/{userId}", s.withAuth(s.handleRemoveGroupMember))
 	s.mux.HandleFunc("GET /api/v1/categories", s.handlePublicListCategories)

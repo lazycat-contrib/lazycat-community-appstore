@@ -318,24 +318,36 @@ func init() {
 	clientsourceDescDefaultRawMirrorID := clientsourceFields[5].Descriptor()
 	// clientsource.DefaultDefaultRawMirrorID holds the default value on creation for the default_raw_mirror_id field.
 	clientsource.DefaultDefaultRawMirrorID = clientsourceDescDefaultRawMirrorID.Default.(string)
+	// clientsourceDescGroupCodesJSON is the schema descriptor for group_codes_json field.
+	clientsourceDescGroupCodesJSON := clientsourceFields[6].Descriptor()
+	// clientsource.DefaultGroupCodesJSON holds the default value on creation for the group_codes_json field.
+	clientsource.DefaultGroupCodesJSON = clientsourceDescGroupCodesJSON.Default.(string)
+	// clientsourceDescGroupNamesJSON is the schema descriptor for group_names_json field.
+	clientsourceDescGroupNamesJSON := clientsourceFields[7].Descriptor()
+	// clientsource.DefaultGroupNamesJSON holds the default value on creation for the group_names_json field.
+	clientsource.DefaultGroupNamesJSON = clientsourceDescGroupNamesJSON.Default.(string)
+	// clientsourceDescLastInvalidGroupCodesJSON is the schema descriptor for last_invalid_group_codes_json field.
+	clientsourceDescLastInvalidGroupCodesJSON := clientsourceFields[8].Descriptor()
+	// clientsource.DefaultLastInvalidGroupCodesJSON holds the default value on creation for the last_invalid_group_codes_json field.
+	clientsource.DefaultLastInvalidGroupCodesJSON = clientsourceDescLastInvalidGroupCodesJSON.Default.(string)
 	// clientsourceDescMirrorsJSON is the schema descriptor for mirrors_json field.
-	clientsourceDescMirrorsJSON := clientsourceFields[6].Descriptor()
+	clientsourceDescMirrorsJSON := clientsourceFields[9].Descriptor()
 	// clientsource.DefaultMirrorsJSON holds the default value on creation for the mirrors_json field.
 	clientsource.DefaultMirrorsJSON = clientsourceDescMirrorsJSON.Default.(string)
 	// clientsourceDescLastAppCount is the schema descriptor for last_app_count field.
-	clientsourceDescLastAppCount := clientsourceFields[10].Descriptor()
+	clientsourceDescLastAppCount := clientsourceFields[13].Descriptor()
 	// clientsource.DefaultLastAppCount holds the default value on creation for the last_app_count field.
 	clientsource.DefaultLastAppCount = clientsourceDescLastAppCount.Default.(int)
 	// clientsourceDescLastInstallableCount is the schema descriptor for last_installable_count field.
-	clientsourceDescLastInstallableCount := clientsourceFields[11].Descriptor()
+	clientsourceDescLastInstallableCount := clientsourceFields[14].Descriptor()
 	// clientsource.DefaultLastInstallableCount holds the default value on creation for the last_installable_count field.
 	clientsource.DefaultLastInstallableCount = clientsourceDescLastInstallableCount.Default.(int)
 	// clientsourceDescCreatedAt is the schema descriptor for created_at field.
-	clientsourceDescCreatedAt := clientsourceFields[12].Descriptor()
+	clientsourceDescCreatedAt := clientsourceFields[15].Descriptor()
 	// clientsource.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsource.DefaultCreatedAt = clientsourceDescCreatedAt.Default.(func() time.Time)
 	// clientsourceDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsourceDescUpdatedAt := clientsourceFields[13].Descriptor()
+	clientsourceDescUpdatedAt := clientsourceFields[16].Descriptor()
 	// clientsource.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsource.DefaultUpdatedAt = clientsourceDescUpdatedAt.Default.(func() time.Time)
 	// clientsource.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -850,12 +862,20 @@ func init() {
 	usergroupDescDescription := usergroupFields[3].Descriptor()
 	// usergroup.DefaultDescription holds the default value on creation for the description field.
 	usergroup.DefaultDescription = usergroupDescDescription.Default.(string)
+	// usergroupDescCode is the schema descriptor for code field.
+	usergroupDescCode := usergroupFields[4].Descriptor()
+	// usergroup.DefaultCode holds the default value on creation for the code field.
+	usergroup.DefaultCode = usergroupDescCode.Default.(string)
+	// usergroupDescCodeUpdatedAt is the schema descriptor for code_updated_at field.
+	usergroupDescCodeUpdatedAt := usergroupFields[5].Descriptor()
+	// usergroup.DefaultCodeUpdatedAt holds the default value on creation for the code_updated_at field.
+	usergroup.DefaultCodeUpdatedAt = usergroupDescCodeUpdatedAt.Default.(func() time.Time)
 	// usergroupDescCreatedAt is the schema descriptor for created_at field.
-	usergroupDescCreatedAt := usergroupFields[4].Descriptor()
+	usergroupDescCreatedAt := usergroupFields[6].Descriptor()
 	// usergroup.DefaultCreatedAt holds the default value on creation for the created_at field.
 	usergroup.DefaultCreatedAt = usergroupDescCreatedAt.Default.(func() time.Time)
 	// usergroupDescUpdatedAt is the schema descriptor for updated_at field.
-	usergroupDescUpdatedAt := usergroupFields[5].Descriptor()
+	usergroupDescUpdatedAt := usergroupFields[7].Descriptor()
 	// usergroup.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	usergroup.DefaultUpdatedAt = usergroupDescUpdatedAt.Default.(func() time.Time)
 	// usergroup.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -7518,32 +7518,35 @@ func (m *ClientSettingMutation) ResetEdge(name string) error {
 // ClientSourceMutation represents an operation that mutates the ClientSource nodes in the graph.
 type ClientSourceMutation struct {
 	config
-	op                         Op
-	typ                        string
-	id                         *int
-	user_id                    *string
-	name                       *string
-	url                        *string
-	password                   *string
-	default_download_mirror_id *string
-	default_raw_mirror_id      *string
-	mirrors_json               *string
-	last_sync                  *time.Time
-	last_error                 *string
-	last_error_code            *clientsource.LastErrorCode
-	last_app_count             *int
-	addlast_app_count          *int
-	last_installable_count     *int
-	addlast_installable_count  *int
-	created_at                 *time.Time
-	updated_at                 *time.Time
-	clearedFields              map[string]struct{}
-	apps                       map[int]struct{}
-	removedapps                map[int]struct{}
-	clearedapps                bool
-	done                       bool
-	oldValue                   func(context.Context) (*ClientSource, error)
-	predicates                 []predicate.ClientSource
+	op                            Op
+	typ                           string
+	id                            *int
+	user_id                       *string
+	name                          *string
+	url                           *string
+	password                      *string
+	default_download_mirror_id    *string
+	default_raw_mirror_id         *string
+	group_codes_json              *string
+	group_names_json              *string
+	last_invalid_group_codes_json *string
+	mirrors_json                  *string
+	last_sync                     *time.Time
+	last_error                    *string
+	last_error_code               *clientsource.LastErrorCode
+	last_app_count                *int
+	addlast_app_count             *int
+	last_installable_count        *int
+	addlast_installable_count     *int
+	created_at                    *time.Time
+	updated_at                    *time.Time
+	clearedFields                 map[string]struct{}
+	apps                          map[int]struct{}
+	removedapps                   map[int]struct{}
+	clearedapps                   bool
+	done                          bool
+	oldValue                      func(context.Context) (*ClientSource, error)
+	predicates                    []predicate.ClientSource
 }
 
 var _ ent.Mutation = (*ClientSourceMutation)(nil)
@@ -7858,6 +7861,114 @@ func (m *ClientSourceMutation) OldDefaultRawMirrorID(ctx context.Context) (v str
 // ResetDefaultRawMirrorID resets all changes to the "default_raw_mirror_id" field.
 func (m *ClientSourceMutation) ResetDefaultRawMirrorID() {
 	m.default_raw_mirror_id = nil
+}
+
+// SetGroupCodesJSON sets the "group_codes_json" field.
+func (m *ClientSourceMutation) SetGroupCodesJSON(s string) {
+	m.group_codes_json = &s
+}
+
+// GroupCodesJSON returns the value of the "group_codes_json" field in the mutation.
+func (m *ClientSourceMutation) GroupCodesJSON() (r string, exists bool) {
+	v := m.group_codes_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupCodesJSON returns the old "group_codes_json" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldGroupCodesJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupCodesJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupCodesJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupCodesJSON: %w", err)
+	}
+	return oldValue.GroupCodesJSON, nil
+}
+
+// ResetGroupCodesJSON resets all changes to the "group_codes_json" field.
+func (m *ClientSourceMutation) ResetGroupCodesJSON() {
+	m.group_codes_json = nil
+}
+
+// SetGroupNamesJSON sets the "group_names_json" field.
+func (m *ClientSourceMutation) SetGroupNamesJSON(s string) {
+	m.group_names_json = &s
+}
+
+// GroupNamesJSON returns the value of the "group_names_json" field in the mutation.
+func (m *ClientSourceMutation) GroupNamesJSON() (r string, exists bool) {
+	v := m.group_names_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupNamesJSON returns the old "group_names_json" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldGroupNamesJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupNamesJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupNamesJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupNamesJSON: %w", err)
+	}
+	return oldValue.GroupNamesJSON, nil
+}
+
+// ResetGroupNamesJSON resets all changes to the "group_names_json" field.
+func (m *ClientSourceMutation) ResetGroupNamesJSON() {
+	m.group_names_json = nil
+}
+
+// SetLastInvalidGroupCodesJSON sets the "last_invalid_group_codes_json" field.
+func (m *ClientSourceMutation) SetLastInvalidGroupCodesJSON(s string) {
+	m.last_invalid_group_codes_json = &s
+}
+
+// LastInvalidGroupCodesJSON returns the value of the "last_invalid_group_codes_json" field in the mutation.
+func (m *ClientSourceMutation) LastInvalidGroupCodesJSON() (r string, exists bool) {
+	v := m.last_invalid_group_codes_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastInvalidGroupCodesJSON returns the old "last_invalid_group_codes_json" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldLastInvalidGroupCodesJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastInvalidGroupCodesJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastInvalidGroupCodesJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastInvalidGroupCodesJSON: %w", err)
+	}
+	return oldValue.LastInvalidGroupCodesJSON, nil
+}
+
+// ResetLastInvalidGroupCodesJSON resets all changes to the "last_invalid_group_codes_json" field.
+func (m *ClientSourceMutation) ResetLastInvalidGroupCodesJSON() {
+	m.last_invalid_group_codes_json = nil
 }
 
 // SetMirrorsJSON sets the "mirrors_json" field.
@@ -8315,7 +8426,7 @@ func (m *ClientSourceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 17)
 	if m.user_id != nil {
 		fields = append(fields, clientsource.FieldUserID)
 	}
@@ -8333,6 +8444,15 @@ func (m *ClientSourceMutation) Fields() []string {
 	}
 	if m.default_raw_mirror_id != nil {
 		fields = append(fields, clientsource.FieldDefaultRawMirrorID)
+	}
+	if m.group_codes_json != nil {
+		fields = append(fields, clientsource.FieldGroupCodesJSON)
+	}
+	if m.group_names_json != nil {
+		fields = append(fields, clientsource.FieldGroupNamesJSON)
+	}
+	if m.last_invalid_group_codes_json != nil {
+		fields = append(fields, clientsource.FieldLastInvalidGroupCodesJSON)
 	}
 	if m.mirrors_json != nil {
 		fields = append(fields, clientsource.FieldMirrorsJSON)
@@ -8378,6 +8498,12 @@ func (m *ClientSourceMutation) Field(name string) (ent.Value, bool) {
 		return m.DefaultDownloadMirrorID()
 	case clientsource.FieldDefaultRawMirrorID:
 		return m.DefaultRawMirrorID()
+	case clientsource.FieldGroupCodesJSON:
+		return m.GroupCodesJSON()
+	case clientsource.FieldGroupNamesJSON:
+		return m.GroupNamesJSON()
+	case clientsource.FieldLastInvalidGroupCodesJSON:
+		return m.LastInvalidGroupCodesJSON()
 	case clientsource.FieldMirrorsJSON:
 		return m.MirrorsJSON()
 	case clientsource.FieldLastSync:
@@ -8415,6 +8541,12 @@ func (m *ClientSourceMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldDefaultDownloadMirrorID(ctx)
 	case clientsource.FieldDefaultRawMirrorID:
 		return m.OldDefaultRawMirrorID(ctx)
+	case clientsource.FieldGroupCodesJSON:
+		return m.OldGroupCodesJSON(ctx)
+	case clientsource.FieldGroupNamesJSON:
+		return m.OldGroupNamesJSON(ctx)
+	case clientsource.FieldLastInvalidGroupCodesJSON:
+		return m.OldLastInvalidGroupCodesJSON(ctx)
 	case clientsource.FieldMirrorsJSON:
 		return m.OldMirrorsJSON(ctx)
 	case clientsource.FieldLastSync:
@@ -8481,6 +8613,27 @@ func (m *ClientSourceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDefaultRawMirrorID(v)
+		return nil
+	case clientsource.FieldGroupCodesJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupCodesJSON(v)
+		return nil
+	case clientsource.FieldGroupNamesJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupNamesJSON(v)
+		return nil
+	case clientsource.FieldLastInvalidGroupCodesJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastInvalidGroupCodesJSON(v)
 		return nil
 	case clientsource.FieldMirrorsJSON:
 		v, ok := value.(string)
@@ -8652,6 +8805,15 @@ func (m *ClientSourceMutation) ResetField(name string) error {
 		return nil
 	case clientsource.FieldDefaultRawMirrorID:
 		m.ResetDefaultRawMirrorID()
+		return nil
+	case clientsource.FieldGroupCodesJSON:
+		m.ResetGroupCodesJSON()
+		return nil
+	case clientsource.FieldGroupNamesJSON:
+		m.ResetGroupNamesJSON()
+		return nil
+	case clientsource.FieldLastInvalidGroupCodesJSON:
+		m.ResetLastInvalidGroupCodesJSON()
 		return nil
 	case clientsource.FieldMirrorsJSON:
 		m.ResetMirrorsJSON()
@@ -24000,20 +24162,22 @@ func (m *UserMutation) ResetEdge(name string) error {
 // UserGroupMutation represents an operation that mutates the UserGroup nodes in the graph.
 type UserGroupMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	owner_id      *int
-	addowner_id   *int
-	name          *string
-	slug          *string
-	description   *string
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*UserGroup, error)
-	predicates    []predicate.UserGroup
+	op              Op
+	typ             string
+	id              *int
+	owner_id        *int
+	addowner_id     *int
+	name            *string
+	slug            *string
+	description     *string
+	code            *string
+	code_updated_at *time.Time
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*UserGroup, error)
+	predicates      []predicate.UserGroup
 }
 
 var _ ent.Mutation = (*UserGroupMutation)(nil)
@@ -24278,6 +24442,78 @@ func (m *UserGroupMutation) ResetDescription() {
 	m.description = nil
 }
 
+// SetCode sets the "code" field.
+func (m *UserGroupMutation) SetCode(s string) {
+	m.code = &s
+}
+
+// Code returns the value of the "code" field in the mutation.
+func (m *UserGroupMutation) Code() (r string, exists bool) {
+	v := m.code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCode returns the old "code" field's value of the UserGroup entity.
+// If the UserGroup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGroupMutation) OldCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCode: %w", err)
+	}
+	return oldValue.Code, nil
+}
+
+// ResetCode resets all changes to the "code" field.
+func (m *UserGroupMutation) ResetCode() {
+	m.code = nil
+}
+
+// SetCodeUpdatedAt sets the "code_updated_at" field.
+func (m *UserGroupMutation) SetCodeUpdatedAt(t time.Time) {
+	m.code_updated_at = &t
+}
+
+// CodeUpdatedAt returns the value of the "code_updated_at" field in the mutation.
+func (m *UserGroupMutation) CodeUpdatedAt() (r time.Time, exists bool) {
+	v := m.code_updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCodeUpdatedAt returns the old "code_updated_at" field's value of the UserGroup entity.
+// If the UserGroup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserGroupMutation) OldCodeUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCodeUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCodeUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCodeUpdatedAt: %w", err)
+	}
+	return oldValue.CodeUpdatedAt, nil
+}
+
+// ResetCodeUpdatedAt resets all changes to the "code_updated_at" field.
+func (m *UserGroupMutation) ResetCodeUpdatedAt() {
+	m.code_updated_at = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *UserGroupMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -24384,7 +24620,7 @@ func (m *UserGroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserGroupMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 8)
 	if m.owner_id != nil {
 		fields = append(fields, usergroup.FieldOwnerID)
 	}
@@ -24396,6 +24632,12 @@ func (m *UserGroupMutation) Fields() []string {
 	}
 	if m.description != nil {
 		fields = append(fields, usergroup.FieldDescription)
+	}
+	if m.code != nil {
+		fields = append(fields, usergroup.FieldCode)
+	}
+	if m.code_updated_at != nil {
+		fields = append(fields, usergroup.FieldCodeUpdatedAt)
 	}
 	if m.created_at != nil {
 		fields = append(fields, usergroup.FieldCreatedAt)
@@ -24419,6 +24661,10 @@ func (m *UserGroupMutation) Field(name string) (ent.Value, bool) {
 		return m.Slug()
 	case usergroup.FieldDescription:
 		return m.Description()
+	case usergroup.FieldCode:
+		return m.Code()
+	case usergroup.FieldCodeUpdatedAt:
+		return m.CodeUpdatedAt()
 	case usergroup.FieldCreatedAt:
 		return m.CreatedAt()
 	case usergroup.FieldUpdatedAt:
@@ -24440,6 +24686,10 @@ func (m *UserGroupMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldSlug(ctx)
 	case usergroup.FieldDescription:
 		return m.OldDescription(ctx)
+	case usergroup.FieldCode:
+		return m.OldCode(ctx)
+	case usergroup.FieldCodeUpdatedAt:
+		return m.OldCodeUpdatedAt(ctx)
 	case usergroup.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case usergroup.FieldUpdatedAt:
@@ -24480,6 +24730,20 @@ func (m *UserGroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescription(v)
+		return nil
+	case usergroup.FieldCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCode(v)
+		return nil
+	case usergroup.FieldCodeUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCodeUpdatedAt(v)
 		return nil
 	case usergroup.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -24570,6 +24834,12 @@ func (m *UserGroupMutation) ResetField(name string) error {
 		return nil
 	case usergroup.FieldDescription:
 		m.ResetDescription()
+		return nil
+	case usergroup.FieldCode:
+		m.ResetCode()
+		return nil
+	case usergroup.FieldCodeUpdatedAt:
+		m.ResetCodeUpdatedAt()
 		return nil
 	case usergroup.FieldCreatedAt:
 		m.ResetCreatedAt()

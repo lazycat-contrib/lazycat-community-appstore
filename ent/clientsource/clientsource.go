@@ -27,6 +27,12 @@ const (
 	FieldDefaultDownloadMirrorID = "default_download_mirror_id"
 	// FieldDefaultRawMirrorID holds the string denoting the default_raw_mirror_id field in the database.
 	FieldDefaultRawMirrorID = "default_raw_mirror_id"
+	// FieldGroupCodesJSON holds the string denoting the group_codes_json field in the database.
+	FieldGroupCodesJSON = "group_codes_json"
+	// FieldGroupNamesJSON holds the string denoting the group_names_json field in the database.
+	FieldGroupNamesJSON = "group_names_json"
+	// FieldLastInvalidGroupCodesJSON holds the string denoting the last_invalid_group_codes_json field in the database.
+	FieldLastInvalidGroupCodesJSON = "last_invalid_group_codes_json"
 	// FieldMirrorsJSON holds the string denoting the mirrors_json field in the database.
 	FieldMirrorsJSON = "mirrors_json"
 	// FieldLastSync holds the string denoting the last_sync field in the database.
@@ -65,6 +71,9 @@ var Columns = []string{
 	FieldPassword,
 	FieldDefaultDownloadMirrorID,
 	FieldDefaultRawMirrorID,
+	FieldGroupCodesJSON,
+	FieldGroupNamesJSON,
+	FieldLastInvalidGroupCodesJSON,
 	FieldMirrorsJSON,
 	FieldLastSync,
 	FieldLastError,
@@ -98,6 +107,12 @@ var (
 	DefaultDefaultDownloadMirrorID string
 	// DefaultDefaultRawMirrorID holds the default value on creation for the "default_raw_mirror_id" field.
 	DefaultDefaultRawMirrorID string
+	// DefaultGroupCodesJSON holds the default value on creation for the "group_codes_json" field.
+	DefaultGroupCodesJSON string
+	// DefaultGroupNamesJSON holds the default value on creation for the "group_names_json" field.
+	DefaultGroupNamesJSON string
+	// DefaultLastInvalidGroupCodesJSON holds the default value on creation for the "last_invalid_group_codes_json" field.
+	DefaultLastInvalidGroupCodesJSON string
 	// DefaultMirrorsJSON holds the default value on creation for the "mirrors_json" field.
 	DefaultMirrorsJSON string
 	// DefaultLastAppCount holds the default value on creation for the "last_app_count" field.
@@ -173,6 +188,21 @@ func ByDefaultDownloadMirrorID(opts ...sql.OrderTermOption) OrderOption {
 // ByDefaultRawMirrorID orders the results by the default_raw_mirror_id field.
 func ByDefaultRawMirrorID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDefaultRawMirrorID, opts...).ToFunc()
+}
+
+// ByGroupCodesJSON orders the results by the group_codes_json field.
+func ByGroupCodesJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGroupCodesJSON, opts...).ToFunc()
+}
+
+// ByGroupNamesJSON orders the results by the group_names_json field.
+func ByGroupNamesJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGroupNamesJSON, opts...).ToFunc()
+}
+
+// ByLastInvalidGroupCodesJSON orders the results by the last_invalid_group_codes_json field.
+func ByLastInvalidGroupCodesJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastInvalidGroupCodesJSON, opts...).ToFunc()
 }
 
 // ByMirrorsJSON orders the results by the mirrors_json field.

@@ -91,6 +91,34 @@ func (_u *UserGroupUpdate) SetNillableDescription(v *string) *UserGroupUpdate {
 	return _u
 }
 
+// SetCode sets the "code" field.
+func (_u *UserGroupUpdate) SetCode(v string) *UserGroupUpdate {
+	_u.mutation.SetCode(v)
+	return _u
+}
+
+// SetNillableCode sets the "code" field if the given value is not nil.
+func (_u *UserGroupUpdate) SetNillableCode(v *string) *UserGroupUpdate {
+	if v != nil {
+		_u.SetCode(*v)
+	}
+	return _u
+}
+
+// SetCodeUpdatedAt sets the "code_updated_at" field.
+func (_u *UserGroupUpdate) SetCodeUpdatedAt(v time.Time) *UserGroupUpdate {
+	_u.mutation.SetCodeUpdatedAt(v)
+	return _u
+}
+
+// SetNillableCodeUpdatedAt sets the "code_updated_at" field if the given value is not nil.
+func (_u *UserGroupUpdate) SetNillableCodeUpdatedAt(v *time.Time) *UserGroupUpdate {
+	if v != nil {
+		_u.SetCodeUpdatedAt(*v)
+	}
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *UserGroupUpdate) SetCreatedAt(v time.Time) *UserGroupUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -194,6 +222,12 @@ func (_u *UserGroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Description(); ok {
 		_spec.SetField(usergroup.FieldDescription, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Code(); ok {
+		_spec.SetField(usergroup.FieldCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CodeUpdatedAt(); ok {
+		_spec.SetField(usergroup.FieldCodeUpdatedAt, field.TypeTime, value)
+	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(usergroup.FieldCreatedAt, field.TypeTime, value)
 	}
@@ -279,6 +313,34 @@ func (_u *UserGroupUpdateOne) SetDescription(v string) *UserGroupUpdateOne {
 func (_u *UserGroupUpdateOne) SetNillableDescription(v *string) *UserGroupUpdateOne {
 	if v != nil {
 		_u.SetDescription(*v)
+	}
+	return _u
+}
+
+// SetCode sets the "code" field.
+func (_u *UserGroupUpdateOne) SetCode(v string) *UserGroupUpdateOne {
+	_u.mutation.SetCode(v)
+	return _u
+}
+
+// SetNillableCode sets the "code" field if the given value is not nil.
+func (_u *UserGroupUpdateOne) SetNillableCode(v *string) *UserGroupUpdateOne {
+	if v != nil {
+		_u.SetCode(*v)
+	}
+	return _u
+}
+
+// SetCodeUpdatedAt sets the "code_updated_at" field.
+func (_u *UserGroupUpdateOne) SetCodeUpdatedAt(v time.Time) *UserGroupUpdateOne {
+	_u.mutation.SetCodeUpdatedAt(v)
+	return _u
+}
+
+// SetNillableCodeUpdatedAt sets the "code_updated_at" field if the given value is not nil.
+func (_u *UserGroupUpdateOne) SetNillableCodeUpdatedAt(v *time.Time) *UserGroupUpdateOne {
+	if v != nil {
+		_u.SetCodeUpdatedAt(*v)
 	}
 	return _u
 }
@@ -415,6 +477,12 @@ func (_u *UserGroupUpdateOne) sqlSave(ctx context.Context) (_node *UserGroup, er
 	}
 	if value, ok := _u.mutation.Description(); ok {
 		_spec.SetField(usergroup.FieldDescription, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Code(); ok {
+		_spec.SetField(usergroup.FieldCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CodeUpdatedAt(); ok {
+		_spec.SetField(usergroup.FieldCodeUpdatedAt, field.TypeTime, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(usergroup.FieldCreatedAt, field.TypeTime, value)

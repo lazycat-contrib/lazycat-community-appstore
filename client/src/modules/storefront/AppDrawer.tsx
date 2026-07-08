@@ -47,6 +47,7 @@ import { VersionHistoryTable } from '../../shared/components/VersionHistoryTable
 import { AppIcon } from '../../components/AppIcon';
 import { CommentList } from '../../components/CommentList';
 import type { Category, CollaboratorRequest, Group, Review, StorageOption, StoreApp, Toast, User } from '../../shared/types';
+import { flattenCategoryTree } from '../../shared/categoryTree';
 import { orderedScreenshots, screenshotDeviceLabel, usePreferredScreenshotDevice } from '../../shared/screenshotHelpers';
 import {
   cx,
@@ -58,7 +59,6 @@ import {
   localizedAppName,
   localizedAppSummary,
   localizedCategory,
-  localizedName,
   runAction,
   shortSHA,
 } from '../../shared/utils';
@@ -143,6 +143,7 @@ export function AppDrawer({
   const hasFileSize = Boolean(latestVersion && latestVersion.fileSize > 0);
   const trustState: 'ready' | 'caution' | 'blocked' = !installable ? 'blocked' : hasChecksum && hasFileSize ? 'ready' : 'caution';
   const trustCardVariant: CardVariant = trustState === 'ready' ? 'green' : trustState === 'caution' ? 'yellow' : 'red';
+  const categoryOptions = flattenCategoryTree(categories).map((item) => ({ value: String(item.category.id), label: item.path }));
   const TrustIcon = trustState === 'ready' ? ShieldCheck : trustState === 'caution' ? Gauge : AlertCircle;
   const trustTitle = trustState === 'ready' ? t('drawer.trustReadyTitle') : trustState === 'caution' ? t('drawer.trustCautionTitle') : t('drawer.trustBlockedTitle');
   const trustBody = trustState === 'ready' ? t('drawer.trustReadyBody') : trustState === 'caution' ? t('drawer.trustCautionBody') : t('drawer.trustBlockedBody');
@@ -678,7 +679,7 @@ export function AppDrawer({
                 value={appForm.categoryId}
                 options={[
                   { value: '', label: t('common.uncategorized') },
-                  ...categories.map((category) => ({ value: String(category.id), label: localizedName(category) })),
+                  ...categoryOptions,
                 ]}
                 onChange={(categoryId) => setAppForm((current) => ({ ...current, categoryId }))}
               />
@@ -1138,7 +1139,7 @@ export function AppDrawer({
                   icon={<Upload size={19} />}
                   title={t('drawer.publishVersion')}
                   body={t('drawer.publishVersionActionBody')}
-                  action={<XButton type="button" variant="primary" size="sm" label={t('drawer.publishVersion')} icon={<Upload size={17} />} onClick={() => setManagementDialog('publish-version')} />}
+                  action={<XButton type="button" variant="secondary" size="sm" label={t('drawer.publishVersion')} icon={<Upload size={17} />} onClick={() => setManagementDialog('publish-version')} />}
                 />
               )}
               {canMaintain && (
@@ -1246,7 +1247,7 @@ function ManagementActionCard({
         <span className="management-action-card-icon" aria-hidden="true">
           {icon}
         </span>
-        <div>
+        <div className="management-action-card-copy">
           <strong>{title}</strong>
           <span>{body}</span>
         </div>

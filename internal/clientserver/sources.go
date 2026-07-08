@@ -43,6 +43,7 @@ func (s *Server) handleCreateSource(w http.ResponseWriter, r *http.Request) {
 		SetName(input.Name).
 		SetURL(input.URL).
 		SetPassword(input.Password).
+		SetGroupCodesJSON(encodeStringSlice(input.GroupCodes)).
 		Save(r.Context())
 	if err != nil {
 		if ent.IsConstraintError(err) {
@@ -87,6 +88,9 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 		SetName(input.Name).
 		SetURL(input.URL).
 		SetPassword(input.Password).
+		SetGroupCodesJSON(encodeStringSlice(input.GroupCodes)).
+		SetGroupNamesJSON("").
+		SetLastInvalidGroupCodesJSON("").
 		SetDefaultDownloadMirrorID(input.DefaultDownloadMirrorID).
 		SetDefaultRawMirrorID(input.DefaultRawMirrorID).
 		Save(r.Context())
@@ -139,6 +143,7 @@ func readSourceInput(w http.ResponseWriter, r *http.Request) (SourceInput, bool)
 	input.Password = strings.TrimSpace(input.Password)
 	input.DefaultDownloadMirrorID = strings.TrimSpace(input.DefaultDownloadMirrorID)
 	input.DefaultRawMirrorID = strings.TrimSpace(input.DefaultRawMirrorID)
+	input.GroupCodes = normalizeGroupCodes(input.GroupCodes)
 	if input.Name == "" {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Source name is required")
 		return SourceInput{}, false
@@ -181,6 +186,9 @@ func sourceDTO(source *ent.ClientSource) SourceDTO {
 		Password:                source.Password,
 		DefaultDownloadMirrorID: source.DefaultDownloadMirrorID,
 		DefaultRawMirrorID:      source.DefaultRawMirrorID,
+		GroupCodes:              decodeStringSlice(source.GroupCodesJSON),
+		Groups:                  decodeSourceGroups(source.GroupNamesJSON),
+		LastInvalidGroupCodes:   decodeStringSlice(source.LastInvalidGroupCodesJSON),
 		GitHubMirrors:           mirrors,
 		LastSync:                source.LastSync,
 		LastAppCount:            source.LastAppCount,

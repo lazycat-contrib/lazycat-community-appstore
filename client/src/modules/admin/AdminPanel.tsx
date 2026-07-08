@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Archive, Check, Copy, Download, Gauge, KeyRound, Layers3, MessageSquare, Pencil, Plus, Save, Server, Settings, ShieldCheck, Tag, Trash2, Upload, UserPlus, UserRound, Users, X } from 'lucide-react';
+import { Archive, Check, Copy, Download, Gauge, KeyRound, Layers3, MessageSquare, Pencil, Plus, Save, Server, Settings, ShieldCheck, Tag, Trash2, Upload, Users, X } from 'lucide-react';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
@@ -11,10 +11,11 @@ import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
+import { TreeList as XTreeList, type TreeListItemData } from '@astryxdesign/core/TreeList';
 import { useTranslation } from 'react-i18next';
 import { AnnouncementBanner } from '../../components/AnnouncementBanner';
-import { UserAvatar } from '../../components/AppIcon';
 import { api, fetchAllPaginated } from '../../shared/api';
+import { categoryDescendantIds, flattenCategoryTree } from '../../shared/categoryTree';
 import { CollectionAppPicker } from './CollectionAppPicker';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { FilePicker } from '../../shared/components/FilePicker';
@@ -22,19 +23,11 @@ import { ModalLayer } from '../../shared/components/ModalLayer';
 import { RECOMMENDED_DOWNLOAD_MIRRORS, RECOMMENDED_RAW_MIRRORS, mirrorPresetText } from '../../shared/constants';
 import type { Category, Collection, CollectionDraft, PaginatedResponse, Pagination as PaginationMeta, RegistrationInvite, Review, SiteAnnouncement, SiteProfile, StorageOption, StoreApp, TagRecord, Toast, User } from '../../shared/types';
 import { cx, errorMessage, formatBytes, formatDate, localizedName, reviewKindKey, runAction, shortSHA, statusKey, stripTrailingSlash } from '../../shared/utils';
+import { AdminUsersWorkspace } from './AdminUsersWorkspace';
+import { draftFromUser, emptyUserDraft, type ManagedUserDraft } from './AdminUsersPanel';
 import { StorageSettingsPanel, defaultStorageSettings, type StorageSettings } from './StorageSettingsPanel';
 
-type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string };
-type ManagedUserDraft = {
-  id?: number;
-  username: string;
-  nickname: string;
-  email: string;
-  password: string;
-  role: User['role'];
-  emailVerified: boolean;
-  disabled: boolean;
-};
+type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string; parentId?: string; sortOrder?: string };
 
 const DEFAULT_LIST_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
 const ADMIN_PAGE_SIZE_OPTIONS = [12, 24, 48, 50, 96, 100, 200];
@@ -87,31 +80,6 @@ function displayUserName(user: User | null | undefined) {
   return user?.nickname?.trim() || user?.username || '';
 }
 
-function emptyUserDraft(): ManagedUserDraft {
-  return {
-    username: '',
-    nickname: '',
-    email: '',
-    password: '',
-    role: 'USER',
-    emailVerified: true,
-    disabled: false,
-  };
-}
-
-function draftFromUser(user: User): ManagedUserDraft {
-  return {
-    id: user.id,
-    username: user.username,
-    nickname: user.nickname || '',
-    email: user.email || '',
-    password: '',
-    role: user.role,
-    emailVerified: user.emailVerified !== false,
-    disabled: Boolean(user.disabled),
-  };
-}
-
 export function AdminPanel({
   user,
   reviews,
@@ -119,6 +87,7 @@ export function AdminPanel({
   onReviewPageChange,
   onApprove,
   onSiteProfileSaved,
+  onCatalogMetadataChanged,
   onStorageOptionsChanged,
   setToast,
 }: {
@@ -128,6 +97,7 @@ export function AdminPanel({
   onReviewPageChange: (page: number, pageSize?: number) => Promise<void>;
   onApprove: (review: Review, approve: boolean) => void;
   onSiteProfileSaved: (site?: SiteProfile) => Promise<void>;
+  onCatalogMetadataChanged: () => Promise<void>;
   onStorageOptionsChanged: () => Promise<void>;
   setToast: (toast: Toast) => void;
 }) {
@@ -136,6 +106,7 @@ export function AdminPanel({
   const [users, setUsers] = useState<User[]>([]);
   const [userPagination, setUserPagination] = useState<PaginationMeta>(DEFAULT_LIST_PAGINATION);
   const [apps, setApps] = useState<StoreApp[]>([]);
+  const [approvedAppCount, setApprovedAppCount] = useState(0);
   const [reviewApps, setReviewApps] = useState<StoreApp[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [registrationInvites, setRegistrationInvites] = useState<RegistrationInvite[]>([]);
@@ -154,7 +125,7 @@ export function AdminPanel({
   const [adminCategories, setAdminCategories] = useState<Category[]>([]);
   const [adminTags, setAdminTags] = useState<TagRecord[]>([]);
   const [adminCollections, setAdminCollections] = useState<Collection[]>([]);
-  const [categoryForm, setCategoryForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' });
+  const [categoryForm, setCategoryForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '', parentId: '', sortOrder: '0' });
   const [tagForm, setTagForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' });
   const [collectionForm, setCollectionForm] = useState<{ name: string; kind: string; appIds: number[] }>({ name: '', kind: 'MANUAL', appIds: [] });
   const [siteSettingsTab, setSiteSettingsTab] = useState<'identity' | 'announcement' | 'registration' | 'policy' | 'storage' | 'mail'>('identity');
@@ -260,17 +231,17 @@ export function AdminPanel({
     };
   }, [reviews, reviewPagination.totalItems]);
   const reviewAppByID = useMemo(() => new Map(reviewApps.map((item) => [item.id, item])), [reviewApps]);
-  const catalogReady = apps.length > 0 && adminCategories.length > 0;
+  const catalogReady = approvedAppCount > 0 && adminCategories.length > 0;
   const sourceProtected = isSiteAdmin ? Boolean(settings.source_password?.trim()) : true;
   const reviewOpsBody = reviewSummary.total === 0
     ? t('admin.opsReviewClear')
     : t('admin.opsReviewPending', { count: reviewSummary.total });
   const catalogOpsBody =
-    apps.length === 0
+    approvedAppCount === 0
       ? t('admin.opsCatalogNeedsApps')
       : adminCategories.length === 0
-        ? t('admin.opsCatalogNeedsCategories', { apps: apps.length })
-        : t('admin.opsCatalogReady', { apps: apps.length, categories: adminCategories.length, collections: adminCollections.length });
+        ? t('admin.opsCatalogNeedsCategories', { apps: approvedAppCount })
+        : t('admin.opsCatalogReady', { apps: approvedAppCount, categories: adminCategories.length, collections: adminCollections.length });
   const sourceOpsBody = !isSiteAdmin
     ? t('admin.opsSourceDelegated')
     : sourceProtected
@@ -280,6 +251,7 @@ export function AdminPanel({
   const adminSourceURL = adminPublicURL ? `${adminPublicURL}/source/v1/index.json` : '';
   const adminStorageOptions = useMemo(() => storageOptionsFromRecords(storageRecords, defaultStorageKey), [storageRecords, defaultStorageKey]);
   const adminStorageChoices = useMemo(() => storageSelectOptions(adminStorageOptions), [adminStorageOptions]);
+  const categoryTree = useMemo(() => flattenCategoryTree(adminCategories), [adminCategories]);
   const announcementPreview: SiteAnnouncement = {
     enabled: settings.announcement_enabled === 'true',
     level: settings.announcement_level === 'warning' || settings.announcement_level === 'success' ? settings.announcement_level : 'info',
@@ -302,6 +274,16 @@ export function AdminPanel({
   useEffect(() => {
     setSiteIconStorageKey((current) => (adminStorageOptions.some((storage) => storage.key === current) ? current : defaultUploadStorageKey(adminStorageOptions)));
   }, [adminStorageOptions]);
+
+  useEffect(() => {
+    void loadReviewAppsForReviews();
+  }, [reviews]);
+
+  useEffect(() => {
+    if (adminTab === 'collections') {
+      void loadCollectionApps();
+    }
+  }, [adminTab]);
 
   function setLoadedStorageRecords(storages: StorageSettings[], defaultKey: string) {
     const normalized = (storages.length > 0 ? storages : [defaultStorageSettings]).map(normalizeStorageRecord);
@@ -341,19 +323,40 @@ export function AdminPanel({
     });
   }
 
+  async function loadReviewAppsForReviews() {
+    const ids = Array.from(new Set(reviews.map((review) => review.appId).filter((id): id is number => Boolean(id))));
+    if (ids.length === 0) {
+      setReviewApps([]);
+      return;
+    }
+    try {
+      const data = await fetchAllPaginated<StoreApp, 'apps'>(api, `/api/v1/apps?managed=1&ids=${encodeURIComponent(ids.join(','))}`, 'apps');
+      setReviewApps(data);
+    } catch {
+      setReviewApps([]);
+    }
+  }
+
+  async function loadCollectionApps() {
+    await runAction(setToast, t('admin.loadFailed'), async () => {
+      const data = await fetchAllPaginated<StoreApp, 'apps'>(api, '/api/v1/apps?managed=1&status=APPROVED', 'apps');
+      setApps(data);
+      setApprovedAppCount(data.length);
+    });
+  }
+
   async function reload() {
     await runAction(setToast, t('admin.loadFailed'), async () => {
-      const [categoryData, tagData, collectionData, appData] = await Promise.all([
+      const [categoryData, tagData, collectionData, appCountData] = await Promise.all([
         api<{ categories: Category[] }>('/api/v1/admin/categories'),
         api<{ tags: TagRecord[] }>('/api/v1/admin/tags'),
         api<{ collections: Collection[] }>('/api/v1/admin/collections'),
-        fetchAllPaginated<StoreApp, 'apps'>(api, '/api/v1/apps', 'apps'),
+        api<PaginatedResponse<StoreApp, 'apps'>>('/api/v1/apps?managed=1&status=APPROVED&pageSize=1'),
       ]);
       setAdminCategories(categoryData.categories);
       setAdminTags(tagData.tags);
       setAdminCollections(collectionData.collections);
-      setReviewApps(appData);
-      setApps(appData.filter((item) => item.status === 'APPROVED'));
+      setApprovedAppCount(appCountData.pagination?.totalItems || appCountData.apps?.length || 0);
       setCategoryDrafts({});
       setTagDrafts({});
       setCollectionDrafts({});
@@ -702,7 +705,7 @@ export function AdminPanel({
   }
 
   function emptyTaxonomyDraft(): TaxonomyDraft {
-    return { name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' };
+    return { name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '', parentId: '', sortOrder: '0' };
   }
 
   function taxonomyDraft(item: Category | TagRecord): TaxonomyDraft {
@@ -713,6 +716,8 @@ export function AdminPanel({
         en: item.nameI18n?.en || '',
       },
       slug: item.slug,
+      parentId: 'parentId' in item && item.parentId ? String(item.parentId) : '',
+      sortOrder: 'sortOrder' in item ? String(item.sortOrder || 0) : '0',
     };
   }
 
@@ -720,24 +725,122 @@ export function AdminPanel({
     return { ...draft, nameI18n: { ...draft.nameI18n, [language]: value } };
   }
 
+  function taxonomyTextPayload(draft: TaxonomyDraft) {
+    return {
+      name: draft.name,
+      nameI18n: draft.nameI18n,
+      slug: draft.slug,
+    };
+  }
+
+  function categoryPayload(draft: TaxonomyDraft) {
+    const sortOrder = Number.parseInt(draft.sortOrder || '0', 10);
+    return {
+      ...taxonomyTextPayload(draft),
+      parentId: draft.parentId ? Number(draft.parentId) : null,
+      sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+    };
+  }
+
+  function categoryParentOptions(excludeID?: number) {
+    const descendantIDs = excludeID ? categoryDescendantIds(adminCategories, excludeID) : new Set<number>();
+    return [
+      { value: '', label: t('admin.noParentCategory') },
+      ...categoryTree
+        .filter((item) => item.category.id !== excludeID && !descendantIDs.has(item.category.id))
+        .map((item) => ({ value: String(item.category.id), label: item.path })),
+    ];
+  }
+
+  function categoryPath(category: Category) {
+    return categoryTree.find((item) => item.category.id === category.id)?.path || localizedName(category);
+  }
+
+  function categoryTreeItems(): TreeListItemData[] {
+    const childrenByParent = new Map<number | null, Category[]>();
+    for (const item of adminCategories) {
+      const parentID = item.parentId && adminCategories.some((category) => category.id === item.parentId) ? item.parentId : null;
+      childrenByParent.set(parentID, [...(childrenByParent.get(parentID) || []), item]);
+    }
+    for (const [parentID, children] of childrenByParent.entries()) {
+      childrenByParent.set(parentID, [...children].sort((left, right) => {
+        const sortDelta = (left.sortOrder || 0) - (right.sortOrder || 0);
+        if (sortDelta !== 0) return sortDelta;
+        return localizedName(left).localeCompare(localizedName(right), undefined, { numeric: true, sensitivity: 'base' });
+      }));
+    }
+
+    const build = (parentID: number | null): TreeListItemData[] => (childrenByParent.get(parentID) || []).map((item) => {
+      const draft = categoryDrafts[item.id] || taxonomyDraft(item);
+      const isEditing = editingCategoryID === item.id;
+      return {
+        id: String(item.id),
+        isExpanded: true,
+        startContent: <Tag size={16} />,
+        label: isEditing ? (
+          <XFormLayout className="taxonomy-edit-fields">
+            <XTextInput label={t('admin.categoryNameZhFor', { name: localizedName(item) })} value={draft.nameI18n['zh-CN'] || ''} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'zh-CN', value) }))} />
+            <XTextInput label={t('admin.categoryNameEnFor', { name: localizedName(item) })} value={draft.nameI18n.en || ''} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'en', value) }))} />
+            <XTextInput label={t('admin.categoryNameFor', { name: localizedName(item) })} value={draft.name} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, name: value } }))} />
+            <XTextInput label={t('admin.categorySlugFor', { name: item.name })} value={draft.slug} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: value } }))} />
+            <XSelector label={t('admin.categoryParentFor', { name: localizedName(item) })} value={draft.parentId || ''} options={categoryParentOptions(item.id)} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, parentId: value } }))} />
+            <XTextInput label={t('admin.categorySortOrderFor', { name: localizedName(item) })} value={draft.sortOrder || '0'} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, sortOrder: value } }))} />
+          </XFormLayout>
+        ) : (
+          <span className="taxonomy-tree-label">
+            <strong>{localizedName(item)}</strong>
+            <small>{item.slug}</small>
+          </span>
+        ),
+        description: isEditing
+          ? undefined
+          : t('admin.categoryMeta', {
+              parent: item.parentId ? categoryPath(adminCategories.find((category) => category.id === item.parentId) || item) : t('admin.noParentCategory'),
+              sort: item.sortOrder || 0,
+              zh: item.nameI18n?.['zh-CN'] || item.nameI18n?.zh || item.name || '-',
+              en: item.nameI18n?.en || '-',
+            }),
+        endContent: isEditing ? (
+          <div className="row-actions">
+            <XButton type="button" variant="secondary" size="sm" label={t('common.cancel')} icon={<X size={16} />} onClick={() => setEditingCategoryID(null)} />
+            <XButton type="button" variant="primary" size="sm" label={t('admin.saveCategory')} icon={<Save size={16} />} onClick={() => void updateCategory(item)} />
+          </div>
+        ) : (
+          <div className="row-actions">
+            <XIconButton type="button" variant="ghost" label={t('admin.editCategoryNamed', { name: item.name })} icon={<Pencil size={16} />} onClick={() => setEditingCategoryID(item.id)} />
+            <XIconButton type="button" variant="destructive" label={t('admin.deleteCategoryNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteCategory(item)} />
+          </div>
+        ),
+        children: build(item.id),
+      };
+    });
+
+    return build(null);
+  }
+
+  async function refreshTaxonomyCatalog() {
+    await reload();
+    await onCatalogMetadataChanged();
+  }
+
   async function createCategory(event: FormEvent) {
     event.preventDefault();
     await runAction(setToast, t('admin.categoryCreateFailed'), async () => {
-      await api('/api/v1/admin/categories', { method: 'POST', body: JSON.stringify(categoryForm) });
+      await api('/api/v1/admin/categories', { method: 'POST', body: JSON.stringify(categoryPayload(categoryForm)) });
       setCategoryForm(emptyTaxonomyDraft());
       setTaxonomyCreateMode(null);
       setToast({ tone: 'success', message: t('admin.categoryCreated') });
-      await reload();
+      await refreshTaxonomyCatalog();
     });
   }
 
   async function updateCategory(item: Category) {
     const draft = categoryDrafts[item.id] || taxonomyDraft(item);
     await runAction(setToast, t('admin.categoryUpdateFailed'), async () => {
-      await api(`/api/v1/admin/categories/${item.id}`, { method: 'PATCH', body: JSON.stringify(draft) });
+      await api(`/api/v1/admin/categories/${item.id}`, { method: 'PATCH', body: JSON.stringify(categoryPayload(draft)) });
       setToast({ tone: 'success', message: t('admin.categoryUpdated') });
       setEditingCategoryID(null);
-      await reload();
+      await refreshTaxonomyCatalog();
     });
   }
 
@@ -752,28 +855,28 @@ export function AdminPanel({
       await api(`/api/v1/admin/categories/${item.id}`, { method: 'DELETE' });
       setToast({ tone: 'neutral', message: t('admin.categoryDeleted') });
       setConfirmDelete(null);
-      await reload();
+      await refreshTaxonomyCatalog();
     });
   }
 
   async function createTag(event: FormEvent) {
     event.preventDefault();
     await runAction(setToast, t('admin.tagCreateFailed'), async () => {
-      await api('/api/v1/admin/tags', { method: 'POST', body: JSON.stringify(tagForm) });
+      await api('/api/v1/admin/tags', { method: 'POST', body: JSON.stringify(taxonomyTextPayload(tagForm)) });
       setTagForm(emptyTaxonomyDraft());
       setTaxonomyCreateMode(null);
       setToast({ tone: 'success', message: t('admin.tagCreated') });
-      await reload();
+      await refreshTaxonomyCatalog();
     });
   }
 
   async function updateTag(item: TagRecord) {
     const draft = tagDrafts[item.id] || taxonomyDraft(item);
     await runAction(setToast, t('admin.tagUpdateFailed'), async () => {
-      await api(`/api/v1/admin/tags/${item.id}`, { method: 'PATCH', body: JSON.stringify(draft) });
+      await api(`/api/v1/admin/tags/${item.id}`, { method: 'PATCH', body: JSON.stringify(taxonomyTextPayload(draft)) });
       setToast({ tone: 'success', message: t('admin.tagUpdated') });
       setEditingTagID(null);
-      await reload();
+      await refreshTaxonomyCatalog();
     });
   }
 
@@ -788,7 +891,7 @@ export function AdminPanel({
       await api(`/api/v1/admin/tags/${item.id}`, { method: 'DELETE' });
       setToast({ tone: 'neutral', message: t('admin.tagDeleted') });
       setConfirmDelete(null);
-      await reload();
+      await refreshTaxonomyCatalog();
     });
   }
 
@@ -910,7 +1013,7 @@ export function AdminPanel({
           })}
           {renderAdminMetric({
             label: t('admin.opsCatalogTitle'),
-            value: apps.length,
+            value: approvedAppCount,
             body: catalogOpsBody,
             status: catalogReady ? t('admin.opsReady') : t('admin.opsNeedsAction'),
             variant: catalogReady ? 'success' : 'warning',
@@ -1292,96 +1395,24 @@ export function AdminPanel({
         </section>
       )}
       {isSiteAdmin && adminTab === 'users' && (
-        <section className="workspace-pane">
-          <section className="panel">
-            <div className="section-title with-action">
-              <div>
-                <Users size={19} />
-                <h2>{t('admin.userManagement')}</h2>
-              </div>
-              <XButton type="button" variant="primary" size="sm" label={t('admin.createUser')} icon={<UserPlus size={17} />} onClick={openCreateUserDialog} />
-            </div>
-            {users.length === 0 ? (
-              <EmptyState icon={Users} title={t('admin.noUsers')} />
-            ) : (
-              <XList className="action-list user-management-list" density="compact" hasDividers>
-                {users.map((item) => (
-                  <XListItem
-                    className="user-row"
-                    key={item.id}
-                    startContent={<UserAvatar user={item} size={42} />}
-                    label={displayUserName(item)}
-                    description={`${item.username} · ${item.email || t('admin.noEmail')}`}
-                    endContent={(
-                      <div className="row-actions">
-                        <XBadge label={t(`admin.roles.${item.role === 'SITE_ADMIN' ? 'siteAdmin' : item.role === 'SOFTWARE_ADMIN' ? 'softwareAdmin' : 'user'}`)} variant={item.role === 'SITE_ADMIN' ? 'info' : item.role === 'SOFTWARE_ADMIN' ? 'success' : 'neutral'} />
-                        {item.disabled && <XBadge label={t('admin.userDisabledBadge')} variant="error" />}
-                        <XIconButton type="button" variant="ghost" size="sm" label={t('admin.editUserNamed', { name: displayUserName(item) })} icon={<Pencil size={16} />} onClick={() => openEditUserDialog(item)} />
-                        <XIconButton type="button" variant="ghost" size="sm" label={item.disabled ? t('admin.enableUserNamed', { name: displayUserName(item) }) : t('admin.disableUserNamed', { name: displayUserName(item) })} icon={<UserRound size={16} />} onClick={() => void toggleUserDisabled(item)} />
-                        <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteUserNamed', { name: displayUserName(item) })} icon={<Trash2 size={16} />} onClick={() => void deleteManagedUser(item)} />
-                      </div>
-                    )}
-                  />
-                ))}
-              </XList>
-            )}
-            {userPagination.pageSize > 0 && userPagination.totalItems > userPagination.pageSize && (
-              <XPagination
-                className="list-pagination"
-                page={userPagination.page}
-                onChange={(page) => void loadUsersPage(page, userPagination.pageSize)}
-                totalItems={userPagination.totalItems}
-                pageSize={userPagination.pageSize}
-                pageSizeOptions={ADMIN_PAGE_SIZE_OPTIONS}
-                onPageSizeChange={(pageSize) => void loadUsersPage(1, pageSize)}
-                variant="pages"
-                size="sm"
-                label={t('pagination.label')}
-              />
-            )}
-          </section>
-          {userDialogMode && (
-            <ModalLayer onClose={() => setUserDialogMode(null)} purpose="form">
-              <form
-                className="modal-panel form-panel user-dialog"
-                aria-label={userDialogMode === 'create' ? t('admin.createUser') : t('admin.editUser')}
-                onSubmit={saveManagedUser}
-              >
-                <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setUserDialogMode(null)} />
-                <SectionTitle icon={userDialogMode === 'create' ? UserPlus : UserRound} title={userDialogMode === 'create' ? t('admin.createUser') : t('admin.editUser')} />
-                <XFormLayout>
-                  <XTextInput label={t('common.username')} value={userDraft.username} onChange={(value) => setUserDraft({ ...userDraft, username: value })} />
-                  <XTextInput label={t('profile.nickname')} value={userDraft.nickname} onChange={(value) => setUserDraft({ ...userDraft, nickname: value })} />
-                  <XTextInput type="email" label={t('common.email')} value={userDraft.email} onChange={(value) => setUserDraft({ ...userDraft, email: value })} />
-                  <XTextInput type="password" label={userDialogMode === 'create' ? t('common.password') : t('admin.newPasswordOptional')} value={userDraft.password} onChange={(value) => setUserDraft({ ...userDraft, password: value })} />
-                  <XSelector label={t('common.role')} value={userDraft.role} options={userRoleOptions} onChange={(value) => setUserDraft({ ...userDraft, role: value as User['role'] })} />
-                  <XSelector
-                    label={t('admin.emailVerified')}
-                    value={String(userDraft.emailVerified)}
-                    options={[
-                      { value: 'true', label: t('common.on') },
-                      { value: 'false', label: t('common.off') },
-                    ]}
-                    onChange={(value) => setUserDraft({ ...userDraft, emailVerified: value === 'true' })}
-                  />
-                  <XSelector
-                    label={t('admin.userDisabledField')}
-                    value={String(userDraft.disabled)}
-                    options={[
-                      { value: 'false', label: t('common.off') },
-                      { value: 'true', label: t('common.on') },
-                    ]}
-                    onChange={(value) => setUserDraft({ ...userDraft, disabled: value === 'true' })}
-                  />
-                </XFormLayout>
-                <div className="dialog-actions">
-                  <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setUserDialogMode(null)} />
-                  <XButton type="submit" variant="primary" label={userDialogMode === 'create' ? t('admin.createUser') : t('common.save')} icon={<Save size={17} />} />
-                </div>
-              </form>
-            </ModalLayer>
-          )}
-        </section>
+        <AdminUsersWorkspace
+          users={users}
+          userPagination={userPagination}
+          pageSizeOptions={ADMIN_PAGE_SIZE_OPTIONS}
+          userDraft={userDraft}
+          userDialogMode={userDialogMode}
+          userRoleOptions={userRoleOptions}
+          sourceURL={adminSourceURL}
+          setUserDraft={setUserDraft}
+          setUserDialogMode={setUserDialogMode}
+          openCreateUserDialog={openCreateUserDialog}
+          openEditUserDialog={openEditUserDialog}
+          saveManagedUser={saveManagedUser}
+          toggleUserDisabled={toggleUserDisabled}
+          deleteManagedUser={deleteManagedUser}
+          loadUsersPage={loadUsersPage}
+          setToast={setToast}
+        />
       )}
       {adminTab === 'taxonomy' && (
       <section className="workspace-pane taxonomy-workspace">
@@ -1400,6 +1431,8 @@ export function AdminPanel({
                   <XTextInput label={t('admin.categoryNameEn')} value={categoryForm.nameI18n.en || ''} onChange={(value) => setCategoryForm(updateTaxonomyI18n(categoryForm, 'en', value))} />
                   <XTextInput label={t('admin.categoryName')} value={categoryForm.name} onChange={(value) => setCategoryForm({ ...categoryForm, name: value })} />
                   <XTextInput label={t('admin.categorySlug')} value={categoryForm.slug} onChange={(value) => setCategoryForm({ ...categoryForm, slug: value })} />
+                  <XSelector label={t('admin.categoryParent')} value={categoryForm.parentId || ''} options={categoryParentOptions()} onChange={(value) => setCategoryForm({ ...categoryForm, parentId: value })} />
+                  <XTextInput label={t('admin.categorySortOrder')} value={categoryForm.sortOrder || '0'} onChange={(value) => setCategoryForm({ ...categoryForm, sortOrder: value })} />
                 </>
               ) : (
                 <>
@@ -1434,44 +1467,11 @@ export function AdminPanel({
         <div className="taxonomy-list-grid">
           <section className="panel">
             <SectionTitle icon={Layers3} title={t('admin.categoryList')} />
-            <div className="review-list">
-              {adminCategories.length === 0 ? (
-                <EmptyState icon={Layers3} title={t('admin.noCategories')} body={t('admin.noCategoriesBody')} />
-              ) : adminCategories.map((item) => {
-                const draft = categoryDrafts[item.id] || taxonomyDraft(item);
-                const isEditing = editingCategoryID === item.id;
-                return (
-                  <div className={cx('taxonomy-row', isEditing && 'editing')} key={item.id}>
-                    {isEditing ? (
-                      <>
-                        <div className="taxonomy-edit-fields">
-                          <XTextInput label={t('admin.categoryNameZhFor', { name: localizedName(item) })} value={draft.nameI18n['zh-CN'] || ''} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'zh-CN', value) }))} />
-                          <XTextInput label={t('admin.categoryNameEnFor', { name: localizedName(item) })} value={draft.nameI18n.en || ''} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: updateTaxonomyI18n(draft, 'en', value) }))} />
-                          <XTextInput label={t('admin.categoryNameFor', { name: localizedName(item) })} value={draft.name} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, name: value } }))} />
-                          <XTextInput label={t('admin.categorySlugFor', { name: item.name })} value={draft.slug} onChange={(value) => setCategoryDrafts((current) => ({ ...current, [item.id]: { ...draft, slug: value } }))} />
-                        </div>
-                        <div className="dialog-actions">
-                          <XButton type="button" variant="secondary" size="sm" label={t('common.cancel')} icon={<X size={16} />} onClick={() => setEditingCategoryID(null)} />
-                          <XButton type="button" variant="primary" size="sm" label={t('admin.saveCategory')} icon={<Save size={16} />} onClick={() => void updateCategory(item)} />
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="taxonomy-summary">
-                          <strong>{localizedName(item)}</strong>
-                          <span>{item.slug}</span>
-                          <small>{t('admin.taxonomyLanguages', { zh: item.nameI18n?.['zh-CN'] || item.nameI18n?.zh || item.name || '-', en: item.nameI18n?.en || '-' })}</small>
-                        </div>
-                        <div className="row-actions">
-                          <XIconButton type="button" variant="ghost" label={t('admin.editCategoryNamed', { name: item.name })} icon={<Pencil size={16} />} onClick={() => setEditingCategoryID(item.id)} />
-                          <XIconButton type="button" variant="destructive" label={t('admin.deleteCategoryNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteCategory(item)} />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            {adminCategories.length === 0 ? (
+              <EmptyState icon={Layers3} title={t('admin.noCategories')} body={t('admin.noCategoriesBody')} />
+            ) : (
+              <XTreeList className="taxonomy-tree" density="compact" items={categoryTreeItems()} />
+            )}
           </section>
 
           <section className="panel">

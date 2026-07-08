@@ -14,17 +14,16 @@ import { canUserManageApp, canUserUploadVersion, defaultUploadStorageKey, displa
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { Category, ClientSourceStats, CollaborationData, FavoriteData, Group, InstalledApplication, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, StorageOption, StoreApp, Toast, User } from '../../shared/types';
+import type { Category, ClientSourceStats, CollaborationData, FavoriteData, InstalledApplication, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, StorageOption, StoreApp, Toast, User } from '../../shared/types';
 import { cx, formatDate, hasInstallableVersion, runAction, statusKey } from '../../shared/utils';
 import { InstalledAppsView } from '../client/InstalledAppsView';
 import type { AppDetailMode } from '../storefront/AppDrawer';
 import { APITokenWorkspace } from './APITokenWorkspace';
 import { AppSubmissionForm, type SubmissionArtifactMode, type SubmissionProgress } from './AppSubmissionForm';
 import { CollaborationPanel } from './CollaborationPanel';
-import { GroupPanel } from './GroupPanel';
 import { MCPWorkspace } from './MCPWorkspace';
 
-type ProfileWorkspaceTab = 'overview' | 'apps' | 'collaboration' | 'manage' | 'mcp' | 'tokens' | 'groups' | 'favorites';
+type ProfileWorkspaceTab = 'overview' | 'apps' | 'collaboration' | 'manage' | 'mcp' | 'tokens' | 'favorites';
 type ProfileNavigationTarget = 'sources' | 'search';
 
 const DEFAULT_FAVORITE_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
@@ -47,8 +46,6 @@ export function ProfileView({
   setUser,
   apps,
   managedApps,
-  groups,
-  setGroups,
   categories,
   sourceApps,
   sourceStats,
@@ -73,8 +70,6 @@ export function ProfileView({
   setUser: (user: User | null) => void;
   apps: StoreApp[];
   managedApps: StoreApp[];
-  groups: Group[];
-  setGroups: (groups: Group[]) => void;
   categories: Category[];
   sourceApps: SourceApp[];
   sourceStats: ClientSourceStats;
@@ -126,6 +121,7 @@ export function ProfileView({
   const [desktopScreenshotCaptions, setDesktopScreenshotCaptions] = useState<Record<string, string>>({});
   const [mobileScreenshotCaptions, setMobileScreenshotCaptions] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const handledOpenSubmitSignalRef = useRef(0);
   const [favorites, setFavorites] = useState<FavoriteData>({ apps: [], submitters: [] });
   const [favoriteTab, setFavoriteTab] = useState<'apps' | 'submitters'>('apps');
   const [favoritePagination, setFavoritePagination] = useState<{ apps: PaginationMeta; submitters: PaginationMeta }>({
@@ -140,7 +136,6 @@ export function ProfileView({
     ...(canUseManagementWorkspace ? [{ key: 'manage' as const, label: t('profile.tabs.manage'), icon: Settings }] : []),
     { key: 'mcp' as const, label: t('profile.tabs.mcp'), icon: Server },
     { key: 'tokens' as const, label: t('profile.tabs.tokens'), icon: KeyRound },
-    { key: 'groups' as const, label: t('profile.tabs.groups'), icon: Users },
     { key: 'favorites' as const, label: t('profile.tabs.favorites'), icon: Heart },
   ];
   const ownedApps = useMemo(() => {
@@ -226,7 +221,8 @@ export function ProfileView({
   }, [storageOptions]);
 
   useEffect(() => {
-    if (!user || openSubmitSignal === 0) return;
+    if (!user || openSubmitSignal === 0 || handledOpenSubmitSignalRef.current === openSubmitSignal) return;
+    handledOpenSubmitSignalRef.current = openSubmitSignal;
     setWorkspaceTab('apps');
     setIsSubmitOpen(true);
   }, [openSubmitSignal, user]);
@@ -760,11 +756,6 @@ export function ProfileView({
         <APITokenWorkspace user={user} setToast={setToast} />
       )}
 
-      {workspaceTab === 'groups' && (
-      <section className="workspace-pane">
-        <GroupPanel groups={groups} setGroups={setGroups} setToast={setToast} />
-      </section>
-      )}
       {workspaceTab === 'favorites' && (
       <section className="workspace-pane">
         <section className="panel">

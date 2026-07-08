@@ -51,6 +51,7 @@ import {
   sourceAppCategoryOptions,
   sourceAppSourceOptions,
 } from './sourceAppFilters';
+import { normalizeGroupCodes, normalizeSourceURL, parseSourceConfigInput } from './sourceConfig';
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
@@ -82,7 +83,7 @@ export function SourcesView({
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
-  const emptyDraft: SourceInput = { name: '', url: DEFAULT_SOURCE_URL, password: '', defaultDownloadMirrorId: '', defaultRawMirrorId: '' };
+  const emptyDraft: SourceInput = { name: '', url: DEFAULT_SOURCE_URL, password: '', defaultDownloadMirrorId: '', defaultRawMirrorId: '', groupCodes: [] };
   const [draft, setDraft] = useState(emptyDraft);
   const [syncingID, setSyncingID] = useState<SourceID | null>(null);
   const [confirmDeleteSource, setConfirmDeleteSource] = useState<SourceID | null>(null);
@@ -95,17 +96,9 @@ export function SourcesView({
   const [syncedPage, setSyncedPage] = useState(1);
   const [syncedPageSize, setSyncedPageSize] = useState(24);
 
-  function normalizedSourceURL(rawURL: string) {
-    try {
-      const parsed = new URL(rawURL.trim());
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
-      return parsed.toString();
-    } catch {
-      return '';
-    }
-  }
-
-  const normalizedDraftURL = normalizedSourceURL(draft.url);
+  const parsedDraftConfig = parseSourceConfigInput(draft.url, DEFAULT_SOURCE_URL);
+  const normalizedDraftURL = parsedDraftConfig?.url || '';
+  const draftGroupCodes = parsedDraftConfig?.groupCodes || [];
   const sourceNameReady = Boolean(draft.name.trim());
   const sourceURLReady = Boolean(normalizedDraftURL);
   const sourcePasswordReady = Boolean(draft.password.trim());
@@ -123,12 +116,27 @@ export function SourcesView({
       setToast({ tone: 'error', message: t('sources.invalid') });
       return;
     }
-    if (sources.some((source) => normalizedSourceURL(source.url) === url)) {
-      setToast({ tone: 'neutral', message: t('sources.duplicate') });
+    const existingSource = sources.find((source) => normalizeSourceURL(source.url) === url);
+    if (existingSource) {
+      if (draftGroupCodes.length === 0) {
+        setToast({ tone: 'neutral', message: t('sources.duplicate') });
+        return;
+      }
+      try {
+        await onUpdateSource({
+          ...existingSource,
+          groupCodes: normalizeGroupCodes([...(existingSource.groupCodes || []), ...draftGroupCodes]),
+        });
+        setDraft(emptyDraft);
+        setIsAddSourceOpen(false);
+        setToast({ tone: 'success', message: t('sources.groupCodesMerged') });
+      } catch (error) {
+        setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSaveFailed')) });
+      }
       return;
     }
     try {
-      await onAddSource({ name, url, password: draft.password, defaultDownloadMirrorId: '', defaultRawMirrorId: '' });
+      await onAddSource({ name, url, password: draft.password, defaultDownloadMirrorId: '', defaultRawMirrorId: '', groupCodes: draftGroupCodes });
       setDraft(emptyDraft);
       setIsAddSourceOpen(false);
       setToast({ tone: 'success', message: t('sources.addedNext') });
@@ -145,6 +153,7 @@ export function SourcesView({
       password: source.password,
       defaultDownloadMirrorId: source.defaultDownloadMirrorId || '',
       defaultRawMirrorId: source.defaultRawMirrorId || '',
+      groupCodes: source.groupCodes || [],
     });
   }
 
@@ -152,7 +161,7 @@ export function SourcesView({
     event.preventDefault();
     if (!editingSource) return;
     const name = editDraft.name.trim();
-    const url = normalizedSourceURL(editDraft.url);
+    const url = normalizeSourceURL(editDraft.url);
     if (!name) {
       setToast({ tone: 'error', message: t('sources.nameRequired') });
       return;
@@ -169,6 +178,7 @@ export function SourcesView({
         password: editDraft.password,
         defaultDownloadMirrorId: editDraft.defaultDownloadMirrorId || '',
         defaultRawMirrorId: editDraft.defaultRawMirrorId || '',
+        groupCodes: normalizeGroupCodes(editDraft.groupCodes || []),
       });
       setEditingSource(null);
       setToast({ tone: 'success', message: t('sources.updated') });
@@ -303,7 +313,13 @@ export function SourcesView({
               </div>
             </div>
             <XTextInput label={t('common.name')} value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-            <XTextInput label={t('sources.url')} value={draft.url} onChange={(value) => setDraft({ ...draft, url: value })} />
+            <XTextInput label={t('sources.urlOrConfig')} value={draft.url} onChange={(value) => setDraft({ ...draft, url: value })} />
+            {draftGroupCodes.length > 0 && (
+              <div className="source-group-preview" aria-label={t('sources.groupCodesDetected')}>
+                <StatusBadge tone="synced" label={t('sources.groupCodesDetected')} />
+                <span>{t('sources.groupCodesDetectedCount', { count: draftGroupCodes.length })}</span>
+              </div>
+            )}
             <XTextInput type="password" label={t('sources.password')} value={draft.password} onChange={(value) => setDraft({ ...draft, password: value })} />
             {!canAddSource && <p className="field-help">{t('sources.addBlocked')}</p>}
             <div className="dialog-actions">
@@ -326,6 +342,11 @@ export function SourcesView({
             <SectionTitle icon={Pencil} title={t('sources.editTitle')} />
             <XTextInput label={t('common.name')} value={editDraft.name} onChange={(value) => setEditDraft({ ...editDraft, name: value })} />
             <XTextInput label={t('sources.url')} value={editDraft.url} onChange={(value) => setEditDraft({ ...editDraft, url: value })} />
+            <XTextInput
+              label={t('sources.groupCodes')}
+              value={(editDraft.groupCodes || []).join(', ')}
+              onChange={(value) => setEditDraft({ ...editDraft, groupCodes: value.split(/[,\s;]+/) })}
+            />
             <XTextInput type="password" label={t('sources.password')} value={editDraft.password} onChange={(value) => setEditDraft({ ...editDraft, password: value })} />
             <XSelector
               label={t('sources.defaultDownloadMirror')}
@@ -388,7 +409,7 @@ export function SourcesView({
                   <div>
                     <div className="source-row-header">
                       <strong>{source.name}</strong>
-                      <StatusBadge tone={health} label={t(`sources.health.${health}`)} aria-live="polite" />
+                      <StatusBadge className="source-health-badge" tone={health} label={t(`sources.health.${health}`)} aria-live="polite" />
                     </div>
                     <span className="source-url" title={source.url}>{source.url}</span>
                     <div className="source-facts">
@@ -413,6 +434,19 @@ export function SourcesView({
                       <small>{t('sources.downloadMirrorConfigured', { name: sourceMirrorSummary(source, 'download', t('sources.directMirror')) })}</small>
                       <small>{t('sources.rawMirrorConfigured', { name: sourceMirrorSummary(source, 'raw', t('sources.directMirror')) })}</small>
                     </div>
+                    {(source.groups?.length || 0) > 0 && (
+                      <div className="source-group-chips" aria-label={t('sources.groups')}>
+                        {source.groups?.map((group) => (
+                          <StatusBadge key={`${source.id}-${group.name}-${group.code || ''}`} tone="synced" label={group.name} />
+                        ))}
+                      </div>
+                    )}
+                    {(source.lastInvalidGroupCodes?.length || 0) > 0 && (
+                      <p className="inline-warning">
+                        <AlertCircle size={15} />
+                        <span>{t('sources.invalidGroupCodesCleaned', { count: source.lastInvalidGroupCodes?.length || 0 })}</span>
+                      </p>
+                    )}
                   </div>
                   <div className="row-actions">
                     <XIconButton label={t('sources.editTitle')} variant="ghost" icon={<Pencil size={17} />} onClick={() => openEditSource(source)} />

@@ -35,6 +35,7 @@ func (AppVersion) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("app_id", "version").Unique(),
 		index.Fields("app_id", "status"),
+		index.Fields("app_id", "status", "published_at", "created_at"),
 		index.Fields("uploader_id"),
 	}
 }

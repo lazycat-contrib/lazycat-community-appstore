@@ -82,13 +82,13 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) installDownloadURL(app *ent.ClientSourceApp, version *VersionDTO, input InstallRequestDTO) (string, error) {
-	mirrorID := strings.TrimSpace(input.MirrorID)
-	if mirrorID == "" {
-		return version.DownloadURL, nil
-	}
 	source, err := app.Edges.SourceOrErr()
 	if err != nil {
 		return "", errors.New("Source was not loaded")
+	}
+	mirrorID := strings.TrimSpace(input.MirrorID)
+	if mirrorID == "" {
+		return withGroupCodes(version.DownloadURL, decodeStringSlice(source.GroupCodesJSON)), nil
 	}
 	upstream := strings.TrimSpace(version.UpstreamDownloadURL)
 	if upstream == "" {
@@ -101,7 +101,7 @@ func (s *Server) installDownloadURL(app *ent.ClientSourceApp, version *VersionDT
 	if !ok {
 		return "", errors.New("Selected mirror is not available for this download")
 	}
-	return mirror.RewriteGitHub(upstream, entry), nil
+	return withGroupCodes(mirror.RewriteGitHub(upstream, entry), decodeStringSlice(source.GroupCodesJSON)), nil
 }
 
 func selectInstallVersion(app SourceAppDTO, wanted string) (*VersionDTO, error) {

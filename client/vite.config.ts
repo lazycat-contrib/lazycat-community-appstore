@@ -11,6 +11,8 @@ export default defineConfig({
       '@humation/core': fileURLToPath(new URL('./node_modules/@humation/core/dist/index.js', import.meta.url)),
       '@humation/react': fileURLToPath(new URL('./node_modules/@humation/react/dist/index.js', import.meta.url)),
       'html-parse-stringify': fileURLToPath(new URL('./node_modules/html-parse-stringify/dist/html-parse-stringify.module.js', import.meta.url)),
+      'playcaptcha/clawcaptcha.css': fileURLToPath(new URL('./node_modules/playcaptcha/dist/clawcaptcha.css', import.meta.url)),
+      'playcaptcha': fileURLToPath(new URL('./node_modules/playcaptcha/dist/index.js', import.meta.url)),
       'void-elements': fileURLToPath(new URL('./node_modules/void-elements/index.js', import.meta.url)),
     },
   },
