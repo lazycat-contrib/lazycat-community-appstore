@@ -268,6 +268,7 @@ export function App() {
   }, [siteProfile.announcement, siteProfile.announcements, sources]);
   const announcementKey = visibleAnnouncements.map(announcementStorageKey).join('|');
   const showAnnouncement = visibleAnnouncements.length > 0 && announcementKey !== dismissedAnnouncement;
+  const showGlobalAnnouncement = showAnnouncement && !(HAS_API && tab === 'admin');
   const incompatibleClientPolicies = useMemo(() => {
     if (HAS_API || !APP_VERSION || APP_VERSION === 'dev') return [];
     return sources
@@ -414,7 +415,7 @@ export function App() {
   }, [siteProfile.iconUrl]);
 
   useEffect(() => {
-    if (!showAnnouncement || !announcementKey) return;
+    if (!showGlobalAnnouncement || !announcementKey) return;
     try {
       if (localStorage.getItem(ANNOUNCEMENT_NOTIFY_STORAGE_KEY) === announcementKey) return;
       localStorage.setItem(ANNOUNCEMENT_NOTIFY_STORAGE_KEY, announcementKey);
@@ -422,7 +423,7 @@ export function App() {
       // Notification still works for this session when storage is blocked.
     }
     setToast({ tone: 'neutral', message: announcementToastMessage(visibleAnnouncements[0], t('site.newAnnouncement')) });
-  }, [announcementKey, showAnnouncement, t, visibleAnnouncements]);
+  }, [announcementKey, showGlobalAnnouncement, t, visibleAnnouncements]);
 
   useEffect(() => {
     try {
@@ -1146,7 +1147,7 @@ export function App() {
         ) : (
           <Suspense fallback={<AppRouteFallback />}>
           <>
-            {showAnnouncement && (
+            {showGlobalAnnouncement && (
               <AnnouncementBanner
                 announcements={visibleAnnouncements}
                 onDismiss={() => {
