@@ -3933,6 +3933,11 @@ body,
   pointer-events: auto;
 }
 
+.toast-message {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
 code {
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 12px;

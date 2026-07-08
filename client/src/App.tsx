@@ -129,6 +129,13 @@ function announcementStorageKey(item: { id?: number; level?: string; title?: str
   return `${item.sourceName || 'site'}:${identity}:${item.updatedAt || ''}`;
 }
 
+function announcementToastMessage(item: { title?: string; body?: string } | undefined, fallback: string) {
+  const title = item?.title?.trim() || '';
+  const body = item?.body?.trim() || '';
+  if (title && body) return `${title}\n${body}`;
+  return title || body || fallback;
+}
+
 function verificationTokenFromURL() {
   const params = new URLSearchParams(window.location.search);
   if (window.location.pathname.includes('verify')) return params.get('token') || '';
@@ -414,7 +421,7 @@ export function App() {
     } catch {
       // Notification still works for this session when storage is blocked.
     }
-    setToast({ tone: 'neutral', message: visibleAnnouncements[0]?.title || t('site.newAnnouncement') });
+    setToast({ tone: 'neutral', message: announcementToastMessage(visibleAnnouncements[0], t('site.newAnnouncement')) });
   }, [announcementKey, showAnnouncement, t, visibleAnnouncements]);
 
   useEffect(() => {
@@ -1409,7 +1416,7 @@ function AppToast({ toast, onDismiss }: { toast: Toast | null; onDismiss: () => 
   return (
     <div className="toast-host">
       <XToast
-        body={toast.message}
+        body={<span className="toast-message">{toast.message}</span>}
         type={toast.tone === 'error' ? 'error' : 'info'}
         isAutoHide={toast.tone !== 'error'}
         autoHideDuration={3200}

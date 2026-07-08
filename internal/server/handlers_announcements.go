@@ -10,6 +10,7 @@ import (
 
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/announcement"
+	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/internal/pagination"
 )
 
@@ -37,7 +38,21 @@ type announcementDraft struct {
 	SortOrder int
 }
 
+var legacyAnnouncementSettingKeys = []string{
+	settingAnnouncementEnabled,
+	settingAnnouncementLevel,
+	settingAnnouncementTitle,
+	settingAnnouncementBody,
+	settingAnnouncementLinkLabel,
+	settingAnnouncementLinkURL,
+	settingAnnouncementUpdatedAt,
+}
+
 func (s *Server) handleListAnnouncements(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	if err := s.migrateLegacyAnnouncement(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "ANNOUNCEMENT_LIST_FAILED", "Could not list announcements", nil)
+		return
+	}
 	page := pagination.FromRequest(r, s.effectiveDefaultPageSize(r.Context(), 50, 200), 200)
 	q := s.db.Announcement.Query()
 	total, err := q.Clone().Count(r.Context())
@@ -249,12 +264,15 @@ func parseAnnouncementTime(value string) (*time.Time, error) {
 }
 
 func (s *Server) activeSiteAnnouncements(ctx context.Context) []siteAnnouncement {
-	total, err := s.db.Announcement.Query().Count(ctx)
-	if err != nil || total == 0 {
+	if err := s.migrateLegacyAnnouncement(ctx); err != nil {
 		legacy := s.legacySiteAnnouncement(ctx)
 		if legacy.Enabled && (legacy.Title != "" || legacy.Body != "") {
 			return []siteAnnouncement{legacy}
 		}
+		return nil
+	}
+	total, err := s.db.Announcement.Query().Count(ctx)
+	if err != nil || total == 0 {
 		return nil
 	}
 	now := time.Now().UTC()
@@ -278,6 +296,65 @@ func (s *Server) activeSiteAnnouncements(ctx context.Context) []siteAnnouncement
 		out = append(out, item)
 	}
 	return out
+}
+
+func (s *Server) migrateLegacyAnnouncement(ctx context.Context) error {
+	hasLegacyRows, err := s.db.SiteSetting.Query().Where(sitesetting.KeyIn(legacyAnnouncementSettingKeys...)).Exist(ctx)
+	if err != nil || !hasLegacyRows {
+		return err
+	}
+	legacy := s.legacySiteAnnouncement(ctx)
+	hasContent := legacy.Title != "" || legacy.Body != ""
+
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if hasContent {
+		exists, err := tx.Announcement.Query().Where(
+			announcement.LevelEQ(announcement.Level(legacy.Level)),
+			announcement.TitleEQ(legacy.Title),
+			announcement.BodyEQ(legacy.Body),
+			announcement.LinkLabelEQ(legacy.LinkLabel),
+			announcement.LinkURLEQ(legacy.LinkURL),
+		).Exist(ctx)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			createdAt := time.Now().UTC()
+			if parsed, err := time.Parse(time.RFC3339, legacy.UpdatedAt); err == nil {
+				createdAt = parsed.UTC()
+			}
+			if _, err := tx.Announcement.Create().
+				SetEnabled(legacy.Enabled).
+				SetLevel(announcement.Level(legacy.Level)).
+				SetTitle(legacy.Title).
+				SetBody(legacy.Body).
+				SetLinkLabel(legacy.LinkLabel).
+				SetLinkURL(legacy.LinkURL).
+				SetCreatedAt(createdAt).
+				SetUpdatedAt(createdAt).
+				Save(ctx); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := tx.SiteSetting.Delete().Where(sitesetting.KeyIn(legacyAnnouncementSettingKeys...)).Exec(ctx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 func toSiteAnnouncement(record *entgo.Announcement) siteAnnouncement {

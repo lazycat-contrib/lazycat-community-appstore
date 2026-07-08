@@ -33,6 +33,7 @@ import (
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/registrationinvite"
 	"lazycat.community/appstore/ent/reviewrequest"
+	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/ent/usergroup"
@@ -338,6 +339,66 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	}
 	if profile.Site.Announcement.UpdatedAt != firstAnnouncementUpdate {
 		t.Fatalf("announcement timestamp changed on policy save: got %q want %q", profile.Site.Announcement.UpdatedAt, firstAnnouncementUpdate)
+	}
+}
+
+func TestAnnouncementListMigratesLegacySettings(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	updatedAt := time.Date(2026, 7, 8, 9, 30, 0, 0, time.UTC).Format(time.RFC3339)
+	for key, value := range map[string]string{
+		settingAnnouncementEnabled:   "true",
+		settingAnnouncementLevel:     "warning",
+		settingAnnouncementTitle:     "Legacy Notice",
+		settingAnnouncementBody:      "Created before announcement management.",
+		settingAnnouncementLinkLabel: "Details",
+		settingAnnouncementLinkURL:   "https://status.example.com",
+		settingAnnouncementUpdatedAt: updatedAt,
+	} {
+		if err := app.server.setSetting(ctx, key, value); err != nil {
+			t.Fatalf("set %s: %v", key, err)
+		}
+	}
+
+	app.login("admin", "changeme")
+	rec := app.do(http.MethodGet, "/api/v1/admin/announcements?pageSize=20", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("announcement list status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var list struct {
+		Announcements []siteAnnouncement `json:"announcements"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode announcements: %v", err)
+	}
+	if len(list.Announcements) != 1 {
+		t.Fatalf("announcements = %d, body = %s", len(list.Announcements), rec.Body.String())
+	}
+	migrated := list.Announcements[0]
+	if migrated.ID == 0 || !migrated.Enabled || migrated.Level != "warning" || migrated.Title != "Legacy Notice" || migrated.Body != "Created before announcement management." || migrated.LinkURL != "https://status.example.com" {
+		t.Fatalf("legacy announcement was not migrated correctly: %#v", migrated)
+	}
+	if exists := app.server.db.SiteSetting.Query().Where(sitesetting.KeyIn(legacyAnnouncementSettingKeys...)).ExistX(ctx); exists {
+		t.Fatal("legacy announcement settings were not cleared after migration")
+	}
+
+	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/announcements/%d", migrated.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("announcement delete status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	app.cookies = nil
+	rec = app.do(http.MethodGet, "/api/v1/site/profile", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("site profile status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var profile struct {
+		Site siteProfile `json:"site"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &profile); err != nil {
+		t.Fatalf("decode profile: %v", err)
+	}
+	if profile.Site.Announcement.Enabled || len(profile.Site.Announcements) != 0 {
+		t.Fatalf("deleted migrated announcement still appears in profile: %#v", profile.Site)
 	}
 }
 
@@ -2199,19 +2260,19 @@ func TestSourceFeedIncludesSiteProfileMetadata(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("source status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	body := rec.Body.String()
-	for _, want := range []string{
-		`"baseUrl":"https://source.example.com"`,
-		`"site":{"title":"Source Brand"`,
-		`"publicUrl":"https://source.example.com"`,
-		`"sourceUrl":"https://source.example.com/source/v1/index.json"`,
-		`"announcement":{"enabled":true`,
-		`"title":"Welcome"`,
-		`"body":"New apps land every Friday."`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("source feed missing %q, body = %s", want, body)
-		}
+	var source struct {
+		BaseURL      string           `json:"baseUrl"`
+		Site         siteProfile      `json:"site"`
+		Announcement siteAnnouncement `json:"announcement"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &source); err != nil {
+		t.Fatalf("decode source feed: %v", err)
+	}
+	if source.BaseURL != "https://source.example.com" || source.Site.Title != "Source Brand" || source.Site.PublicURL != "https://source.example.com" || source.Site.SourceURL != "https://source.example.com/source/v1/index.json" {
+		t.Fatalf("source feed site metadata mismatch: %#v", source)
+	}
+	if !source.Announcement.Enabled || source.Announcement.Title != "Welcome" || source.Announcement.Body != "New apps land every Friday." {
+		t.Fatalf("source feed announcement mismatch: %#v", source.Announcement)
 	}
 }
 
