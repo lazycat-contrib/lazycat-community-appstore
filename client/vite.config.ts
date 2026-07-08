@@ -13,6 +13,7 @@ export default defineConfig({
       'html-parse-stringify': fileURLToPath(new URL('./node_modules/html-parse-stringify/dist/html-parse-stringify.module.js', import.meta.url)),
       'playcaptcha/clawcaptcha.css': fileURLToPath(new URL('./node_modules/playcaptcha/dist/clawcaptcha.css', import.meta.url)),
       'playcaptcha': fileURLToPath(new URL('./node_modules/playcaptcha/dist/index.js', import.meta.url)),
+      'use-sync-external-store/shim': fileURLToPath(new URL('./node_modules/use-sync-external-store/shim/index.js', import.meta.url)),
       'void-elements': fileURLToPath(new URL('./node_modules/void-elements/index.js', import.meta.url)),
     },
   },

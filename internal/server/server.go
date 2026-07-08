@@ -38,6 +38,8 @@ type Server struct {
 	allowPrivateLPKURLHosts bool
 	adminLoginFailuresMu    sync.Mutex
 	adminLoginFailures      map[string]int
+	restartAfterImportOnce  sync.Once
+	restartAfterImport      func()
 }
 
 func New(cfg config.Config) (*Server, error) {
@@ -113,6 +115,10 @@ func (s *Server) Close() error {
 
 func (s *Server) Handler() http.Handler {
 	return securityHeaders(s.cors(s.mux))
+}
+
+func (s *Server) SetRestartAfterImport(fn func()) {
+	s.restartAfterImport = fn
 }
 
 func openEnt(cfg config.Config) (*ent.Client, error) {
@@ -298,6 +304,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/admin/storage/{key}/default", s.withRole(userRoleSiteAdmin)(s.handleSetDefaultStorageConfig))
 	s.mux.HandleFunc("POST /api/v1/admin/storage/{key}/test", s.withRole(userRoleSiteAdmin)(s.handleTestSavedStorageConfig))
 	s.mux.HandleFunc("POST /api/v1/admin/storage/test", s.withRole(userRoleSiteAdmin)(s.handleTestStorageConfig))
+	s.mux.HandleFunc("POST /api/v1/admin/migration/export", s.withRole(userRoleSiteAdmin)(s.handleMigrationExport))
+	s.mux.HandleFunc("POST /api/v1/admin/migration/import/preview", s.withRole(userRoleSiteAdmin)(s.handleMigrationImportPreview))
+	s.mux.HandleFunc("POST /api/v1/admin/migration/import", s.withRole(userRoleSiteAdmin)(s.handleMigrationImport))
 
 	s.mux.HandleFunc("GET /source/v1/index.json", s.handleSourceIndexV1)
 	s.mux.HandleFunc("GET /source/v2/index.json", s.handleSourceIndexV2)

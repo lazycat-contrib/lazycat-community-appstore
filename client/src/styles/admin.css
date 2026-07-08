@@ -1,1 +1,123 @@
 /* Backstage/admin-specific styles live here as pages are split out of App.tsx. */
+
+.migration-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.migration-panel-intro {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.migration-panel-grid,
+.migration-card,
+.migration-preview-summary {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.migration-card-head,
+.migration-preview-head,
+.migration-result-line,
+.migration-sensitive-warning,
+.migration-confirm-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.migration-card-head > div,
+.migration-preview-head > div,
+.migration-confirm-head > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.migration-card-head strong,
+.migration-preview-head strong,
+.migration-confirm-head strong {
+  line-height: 1.25;
+}
+
+.migration-card-head span,
+.migration-preview-head span,
+.migration-confirm-head span,
+.migration-sensitive-warning span,
+.migration-result-line span,
+.migration-import-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.migration-import-note {
+  margin: -4px 0 0;
+}
+
+.migration-module-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.migration-module-list.compact {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.migration-module-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 58px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.migration-import-grid,
+.migration-import-options {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.migration-import-actions {
+  align-items: center;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.migration-module-badges,
+.migration-warning-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.migration-warning-list p {
+  flex-basis: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.migration-confirm-dialog {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 720px) {
+  .migration-card-head,
+  .migration-preview-head,
+  .migration-result-line,
+  .migration-sensitive-warning {
+    display: grid;
+  }
+}

@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Archive, Check, Copy, Download, Gauge, KeyRound, Layers3, MessageSquare, Pencil, Plus, Save, Server, Settings, ShieldCheck, Tag, Trash2, Upload, Users, X } from 'lucide-react';
+import { Archive, Check, Copy, DatabaseBackup, Download, Gauge, KeyRound, Layers3, MessageSquare, Pencil, Plus, Save, Server, Settings, ShieldCheck, Tag, Trash2, Upload, Users, X } from 'lucide-react';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
@@ -28,6 +28,7 @@ import { AdminUsersWorkspace } from './AdminUsersWorkspace';
 import { draftFromUser, emptyUserDraft, type ManagedUserDraft } from './AdminUsersPanel';
 import { AdminAnnouncementsPanel } from './AdminAnnouncementsPanel';
 import { StorageSettingsPanel, defaultStorageSettings, type StorageSettings } from './StorageSettingsPanel';
+import { AdminMigrationPanel } from './migration/AdminMigrationPanel';
 
 type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string; parentId?: string; sortOrder?: string };
 
@@ -131,7 +132,7 @@ export function AdminPanel({
   const [categoryForm, setCategoryForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '', parentId: '', sortOrder: '0' });
   const [tagForm, setTagForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' });
   const [collectionForm, setCollectionForm] = useState<{ name: string; kind: string; appIds: number[] }>({ name: '', kind: 'MANUAL', appIds: [] });
-  const [siteSettingsTab, setSiteSettingsTab] = useState<'identity' | 'announcement' | 'registration' | 'policy' | 'storage' | 'mail'>('identity');
+  const [siteSettingsTab, setSiteSettingsTab] = useState<'identity' | 'announcement' | 'registration' | 'policy' | 'storage' | 'mail' | 'migration'>('identity');
   const [userDialogMode, setUserDialogMode] = useState<'create' | 'edit' | null>(null);
   const [userDraft, setUserDraft] = useState<ManagedUserDraft>(emptyUserDraft);
   const [isCollectionCreateOpen, setIsCollectionCreateOpen] = useState(false);
@@ -168,6 +169,7 @@ export function AdminPanel({
     { key: 'policy', label: t('admin.siteSettingTabs.policy'), icon: ShieldCheck },
     { key: 'storage', label: t('admin.siteSettingTabs.storage'), icon: Server },
     { key: 'mail', label: t('admin.siteSettingTabs.mail'), icon: MessageSquare },
+    { key: 'migration', label: t('admin.siteSettingTabs.migration'), icon: DatabaseBackup },
   ] as const;
   const siteIdentityFields = [
     { key: 'site_title', label: t('admin.settings.siteTitle'), help: t('admin.settingsHelp.siteTitle') },
@@ -1167,7 +1169,11 @@ export function AdminPanel({
               </XTabList>
             </div>
 
-            {siteSettingsTab !== 'storage' && siteSettingsTab !== 'announcement' ? (
+            {siteSettingsTab === 'migration' ? (
+              <div className="settings-tab-panel">
+                <AdminMigrationPanel api={api} setToast={setToast} />
+              </div>
+            ) : siteSettingsTab !== 'storage' && siteSettingsTab !== 'announcement' ? (
               <form className="settings-tab-panel" onSubmit={saveSettings}>
                 {siteSettingsTab === 'identity' && (
                   <div className="settings-section">

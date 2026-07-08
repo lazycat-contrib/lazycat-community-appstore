@@ -36,6 +36,7 @@ import (
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/ent/usergroup"
+	appauth "lazycat.community/appstore/internal/auth"
 	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/config"
 	"lazycat.community/appstore/internal/mirror"
@@ -142,6 +143,67 @@ func TestEmbeddedAppConfigUsesSameOriginAPI(t *testing.T) {
 	}
 	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+}
+
+func TestMigrationEndpointsRequireSiteAdmin(t *testing.T) {
+	app := newTestApp(t)
+
+	rec := app.do(http.MethodPost, "/api/v1/admin/migration/export", map[string]any{"includeSite": true})
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous export status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	hash, err := appauth.HashPassword("password123")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	app.server.db.User.Create().
+		SetUsername("software").
+		SetPasswordHash(hash).
+		SetRole(user.RoleSOFTWARE_ADMIN).
+		SetEmailVerified(true).
+		SaveX(t.Context())
+	app.login("software", "password123")
+	rec = app.do(http.MethodPost, "/api/v1/admin/migration/export", map[string]any{"includeSite": true})
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("software admin export status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestMigrationExportHTTPReturnsZip(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodPost, "/api/v1/admin/migration/export", map[string]any{"includeSite": true, "includePeople": true, "includeApps": true})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("migration export status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "application/zip" {
+		t.Fatalf("Content-Type = %q, want application/zip", got)
+	}
+	if !strings.Contains(rec.Header().Get("Content-Disposition"), "lazycat-appstore-migration-") {
+		t.Fatalf("Content-Disposition = %q", rec.Header().Get("Content-Disposition"))
+	}
+	if rec.Body.Len() == 0 {
+		t.Fatal("empty migration export body")
+	}
+}
+
+func TestMigrationImportPreviewHTTPReturnsCounts(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	exportRec := app.do(http.MethodPost, "/api/v1/admin/migration/export", map[string]any{"includeSite": true, "includePeople": true})
+	if exportRec.Code != http.StatusOK {
+		t.Fatalf("migration export status = %d, body = %s", exportRec.Code, exportRec.Body.String())
+	}
+	previewRec := app.doMultipart(http.MethodPost, "/api/v1/admin/migration/import/preview", "file", "migration.zip", exportRec.Body.Bytes(), nil)
+	if previewRec.Code != http.StatusOK {
+		t.Fatalf("migration preview status = %d, body = %s", previewRec.Code, previewRec.Body.String())
+	}
+	if !strings.Contains(previewRec.Body.String(), `"users"`) || !strings.Contains(previewRec.Body.String(), `"siteSettings"`) {
+		t.Fatalf("migration preview missing counts: %s", previewRec.Body.String())
 	}
 }
 
@@ -1856,6 +1918,35 @@ func (a *testApp) do(method, path string, body any) *httptest.ResponseRecorder {
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	for _, cookie := range a.cookies {
+		req.AddCookie(cookie)
+	}
+	rec := httptest.NewRecorder()
+	a.handler.ServeHTTP(rec, req)
+	return rec
+}
+
+func (a *testApp) doMultipart(method, path, fieldName, filename string, fileData []byte, fields map[string]string) *httptest.ResponseRecorder {
+	a.t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile(fieldName, filename)
+	if err != nil {
+		a.t.Fatalf("create multipart file: %v", err)
+	}
+	if _, err := part.Write(fileData); err != nil {
+		a.t.Fatalf("write multipart file: %v", err)
+	}
+	for key, value := range fields {
+		if err := writer.WriteField(key, value); err != nil {
+			a.t.Fatalf("write multipart field: %v", err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		a.t.Fatalf("close multipart writer: %v", err)
+	}
+	req := httptest.NewRequest(method, path, &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
 	for _, cookie := range a.cookies {
 		req.AddCookie(cookie)
 	}
