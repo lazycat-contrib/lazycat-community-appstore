@@ -525,7 +525,11 @@ export function App() {
         api<{ collections: Collection[] }>('/api/v1/collections'),
       ]);
       if (siteData.status === 'fulfilled') setSiteProfile(siteData.value.site);
-      if (me.status === 'fulfilled') setUser(me.value.user);
+      if (me.status === 'fulfilled') {
+        setUser(me.value.user);
+      } else {
+        setUser(null);
+      }
       if (appData.status === 'fulfilled') {
         setApps(appData.value.apps || []);
         setStoreAppTotal(appData.value.pagination?.totalItems || appData.value.apps?.length || 0);
@@ -556,6 +560,25 @@ export function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function clearAuthenticatedState() {
+    setUser(null);
+    setStorageOptions([]);
+    setManagedApps([]);
+    setCollaborationData({ owned: [], collaborating: [], outgoingRequests: [] });
+    setGroups([]);
+    setReviews([]);
+    setReviewPagination(DEFAULT_REVIEW_PAGINATION);
+    setSelectedApp(null);
+    setSelectedAppMode('detail');
+    setIsProfileDialogOpen(false);
+  }
+
+  async function logoutCurrentUser() {
+    await api('/api/v1/auth/logout', { method: 'POST' });
+    clearAuthenticatedState();
+    await refreshAll({ silent: true });
   }
 
   async function refreshCatalogMetadata() {
@@ -721,8 +744,13 @@ export function App() {
     });
   }
 
-  const storeApps = useMemo(() => apps.filter((app) => app.status === 'APPROVED'), [apps]);
-  const storeAppCount = storeAppsComplete ? storeApps.length : storeAppTotal || storeApps.length;
+  const approvedStoreApps = useMemo(() => apps.filter((app) => app.status === 'APPROVED'), [apps]);
+  const storeApps = useMemo(() => {
+    if (user) return approvedStoreApps;
+    return approvedStoreApps.filter((app) => (app.visibleGroupIds || []).length === 0);
+  }, [approvedStoreApps, user]);
+  const hasClientHiddenStoreApps = storeApps.length !== approvedStoreApps.length;
+  const storeAppCount = storeAppsComplete || hasClientHiddenStoreApps ? storeApps.length : storeAppTotal || storeApps.length;
 
   const submitters = useMemo(() => {
     return Array.from(new Set(storeApps.map((app) => app.owner).filter(Boolean))).sort((a, b) => a.localeCompare(b));
@@ -1068,9 +1096,7 @@ export function App() {
                             icon: <LogOut size={16} />,
                             onClick: () =>
                               void runAction(setToast, t('toast.logoutFailed'), async () => {
-                                await api('/api/v1/auth/logout', { method: 'POST' });
-                                setUser(null);
-                                setStorageOptions([]);
+                                await logoutCurrentUser();
                               }),
                           },
                         ]}
@@ -1250,6 +1276,7 @@ export function App() {
                 installedError={installedError}
                 onLoadInstalled={loadInstalledApps}
                 onOpen={openApp}
+                onLogout={logoutCurrentUser}
                 refreshAll={refreshAll}
                 setToast={setToast}
                 hasAPI={HAS_API}

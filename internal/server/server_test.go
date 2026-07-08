@@ -2321,6 +2321,14 @@ func TestPrivateAppVisibilityUsesGroupsAndSourceFeedStaysPublic(t *testing.T) {
 		t.Fatalf("private app leaked into source feed: %s", rec.Body.String())
 	}
 
+	rec = app.do(http.MethodGet, "/api/v1/apps", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("anonymous list status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "Private App") {
+		t.Fatalf("anonymous list leaked private app: %s", rec.Body.String())
+	}
+
 	app.cookies = []*http.Cookie{app.serverCookieFor(alice.ID)}
 	rec = app.do(http.MethodGet, "/api/v1/apps", nil)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Private App") {

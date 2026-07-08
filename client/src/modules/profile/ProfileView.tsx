@@ -54,6 +54,7 @@ export function ProfileView({
   installedError,
   onLoadInstalled,
   onOpen,
+  onLogout,
   refreshAll,
   setToast,
   hasAPI,
@@ -78,6 +79,7 @@ export function ProfileView({
   installedError: string;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
   onOpen: (app: StoreApp, mode?: AppDetailMode) => void;
+  onLogout: () => Promise<void>;
   refreshAll: (options?: { silent?: boolean }) => Promise<void>;
   setToast: (toast: Toast) => void;
   hasAPI: boolean;
@@ -518,8 +520,7 @@ export function ProfileView({
               icon={<LogOut size={18} />}
               onClick={() =>
                 void runAction(setToast, t('toast.logoutFailed'), async () => {
-                  await api('/api/v1/auth/logout', { method: 'POST' });
-                  setUser(null);
+                  await onLogout();
                 })
               }
             />
@@ -570,8 +571,7 @@ export function ProfileView({
             icon={<LogOut size={18} />}
             onClick={() =>
               void runAction(setToast, t('toast.logoutFailed'), async () => {
-                await api('/api/v1/auth/logout', { method: 'POST' });
-                setUser(null);
+                await onLogout();
               })
             }
           />

@@ -2342,17 +2342,17 @@ body,
   color: var(--color-icon-accent);
 }
 
-.auth-path-row strong,
-.auth-path-row span {
+.auth-path-row > div > strong,
+.auth-path-row > div > span {
   overflow-wrap: anywhere;
 }
 
-.auth-path-row strong {
+.auth-path-row > div > strong {
   display: block;
   line-height: 1.25;
 }
 
-.auth-path-row span {
+.auth-path-row > div > span {
   display: block;
   margin-top: 4px;
   color: var(--ink);
@@ -2362,8 +2362,23 @@ body,
 
 .auth-path-action {
   justify-self: end;
-  min-width: 118px;
+  min-width: 136px;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.auth-path-action svg {
+  flex: 0 0 auto;
+}
+
+.auth-path-action span {
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .profile-card {
@@ -4211,6 +4226,8 @@ code {
   .auth-path-action {
     grid-column: 2;
     justify-self: start;
+    width: max-content;
+    max-width: 100%;
   }
 
   .hero-band {
