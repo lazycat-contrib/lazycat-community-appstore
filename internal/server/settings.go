@@ -47,6 +47,7 @@ const (
 	settingSMTPUser                 = "smtp_user"
 	settingSMTPPass                 = "smtp_pass"
 	settingSMTPFrom                 = "smtp_from"
+	settingSMTPFromName             = "smtp_from_name"
 )
 
 const (

@@ -538,6 +538,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingSMTPUser:                 s.cfg.SMTPUser,
 		settingSMTPPass:                 s.cfg.SMTPPass,
 		settingSMTPFrom:                 s.cfg.SMTPFrom,
+		settingSMTPFromName:             s.cfg.SMTPFromName,
 	}
 	for _, record := range records {
 		if isPublicSetting(record.Key) {
@@ -667,7 +668,7 @@ func (s *Server) smtpConfigFromSettings(ctx context.Context, settings map[string
 	if len(settings) == 0 {
 		return cfg, nil
 	}
-	for _, key := range []string{settingSMTPHost, settingSMTPPort, settingSMTPUser, settingSMTPPass, settingSMTPFrom} {
+	for _, key := range []string{settingSMTPHost, settingSMTPPort, settingSMTPUser, settingSMTPPass, settingSMTPFrom, settingSMTPFromName} {
 		value, ok := settings[key]
 		if !ok {
 			continue
@@ -691,6 +692,8 @@ func (s *Server) smtpConfigFromSettings(ctx context.Context, settings map[string
 			cfg.Pass = value
 		case settingSMTPFrom:
 			cfg.From = value
+		case settingSMTPFromName:
+			cfg.FromName = value
 		}
 	}
 	return cfg, nil
@@ -777,6 +780,13 @@ func validateSetting(key, value string) error {
 		if _, err := time.Parse(time.RFC3339, value); err != nil {
 			return fmt.Errorf("%s must be an RFC3339 timestamp", key)
 		}
+	case settingSMTPFromName:
+		if len([]rune(value)) > 80 {
+			return fmt.Errorf("%s must be 80 characters or fewer", key)
+		}
+		if strings.ContainsAny(value, "\r\n") {
+			return fmt.Errorf("%s cannot contain line breaks", key)
+		}
 	case settingSourcePassword, settingSMTPHost, settingSMTPUser, settingSMTPPass, settingSMTPFrom:
 		return nil
 	}
@@ -816,7 +826,8 @@ func isPublicSetting(key string) bool {
 		settingSMTPPort,
 		settingSMTPUser,
 		settingSMTPPass,
-		settingSMTPFrom:
+		settingSMTPFrom,
+		settingSMTPFromName:
 		return true
 	default:
 		return false

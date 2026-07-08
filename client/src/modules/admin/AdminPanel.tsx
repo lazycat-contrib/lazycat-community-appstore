@@ -212,6 +212,7 @@ export function AdminPanel({
     { key: 'smtp_port', label: t('admin.settings.smtpPort'), help: t('admin.settingsHelp.smtpPort') },
     { key: 'smtp_user', label: t('admin.settings.smtpUser'), help: t('admin.settingsHelp.smtpUser') },
     { key: 'smtp_pass', label: t('admin.settings.smtpPass'), help: t('admin.settingsHelp.smtpPass'), type: 'password' },
+    { key: 'smtp_from_name', label: t('admin.settings.smtpFromName'), help: t('admin.settingsHelp.smtpFromName') },
     { key: 'smtp_from', label: t('admin.settings.smtpFrom'), help: t('admin.settingsHelp.smtpFrom') },
   ];
   const reviewSummary = useMemo(() => {
@@ -1345,7 +1346,7 @@ export function AdminPanel({
                         value={testEmailTo}
                         onChange={setTestEmailTo}
                       />
-                      <XButton type="button" variant="secondary" size="sm" label={t('admin.sendTestEmail')} icon={<MessageSquare size={17} />} onClick={() => void sendTestEmail()} />
+                      <XButton className="test-email-action" type="button" variant="secondary" size="sm" label={t('admin.sendTestEmail')} icon={<MessageSquare size={17} />} onClick={() => void sendTestEmail()} />
                     </div>
                   </div>
                 )}

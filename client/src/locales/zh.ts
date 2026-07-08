@@ -1291,6 +1291,7 @@ const zh = {
           smtpUser: 'SMTP 用户名',
           smtpPass: 'SMTP 密码',
           smtpFrom: '发件地址',
+          smtpFromName: '发件人名称',
         },
         settingsHelp: {
           siteTitle: '建议使用站点或组织名称，最多 80 个字符。',
@@ -1324,6 +1325,7 @@ const zh = {
           smtpUser: '用于登录 SMTP 服务器的账号。',
           smtpPass: '用于 SMTP 登录的密码或应用专用 Token。',
           smtpFrom: '商店通知邮件展示的发件人地址。',
+          smtpFromName: '显示在通知邮件中的发件人名称；留空时只显示发件地址。',
         },
         smtpSettings: '邮件通知',
         smtpSettingsBody: '配置 SMTP 后，审核、过期和评论通知可以通过邮件发送给维护者。',

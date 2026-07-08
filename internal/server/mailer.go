@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"net/mail"
 	"net/smtp"
 	"strings"
 
@@ -18,11 +19,12 @@ type smtpMailer struct {
 }
 
 type smtpConfig struct {
-	Host string
-	Port int
-	User string
-	Pass string
-	From string
+	Host     string
+	Port     int
+	User     string
+	Pass     string
+	From     string
+	FromName string
 }
 
 func newSMTPMailer(cfg config.Config) Mailer {
@@ -31,11 +33,12 @@ func newSMTPMailer(cfg config.Config) Mailer {
 
 func (m smtpMailer) Send(ctx context.Context, to, subject, body string) error {
 	return m.SendWithConfig(ctx, smtpConfig{
-		Host: m.cfg.SMTPHost,
-		Port: m.cfg.SMTPPort,
-		User: m.cfg.SMTPUser,
-		Pass: m.cfg.SMTPPass,
-		From: m.cfg.SMTPFrom,
+		Host:     m.cfg.SMTPHost,
+		Port:     m.cfg.SMTPPort,
+		User:     m.cfg.SMTPUser,
+		Pass:     m.cfg.SMTPPass,
+		From:     m.cfg.SMTPFrom,
+		FromName: m.cfg.SMTPFromName,
 	}, to, subject, body)
 }
 
@@ -57,7 +60,7 @@ func (m smtpMailer) SendWithConfig(ctx context.Context, cfg smtpConfig, to, subj
 		auth = smtp.PlainAuth("", cfg.User, cfg.Pass, cfg.Host)
 	}
 	message := []byte(strings.Join([]string{
-		"From: " + cfg.From,
+		"From: " + smtpFromHeader(cfg),
 		"To: " + to,
 		"Subject: " + subject,
 		"MIME-Version: 1.0",
@@ -70,12 +73,22 @@ func (m smtpMailer) SendWithConfig(ctx context.Context, cfg smtpConfig, to, subj
 
 func (s *Server) smtpSettings(ctx context.Context) smtpConfig {
 	return smtpConfig{
-		Host: strings.TrimSpace(s.setting(ctx, settingSMTPHost, s.cfg.SMTPHost)),
-		Port: s.settingInt(ctx, settingSMTPPort, s.cfg.SMTPPort),
-		User: strings.TrimSpace(s.setting(ctx, settingSMTPUser, s.cfg.SMTPUser)),
-		Pass: s.setting(ctx, settingSMTPPass, s.cfg.SMTPPass),
-		From: strings.TrimSpace(s.setting(ctx, settingSMTPFrom, s.cfg.SMTPFrom)),
+		Host:     strings.TrimSpace(s.setting(ctx, settingSMTPHost, s.cfg.SMTPHost)),
+		Port:     s.settingInt(ctx, settingSMTPPort, s.cfg.SMTPPort),
+		User:     strings.TrimSpace(s.setting(ctx, settingSMTPUser, s.cfg.SMTPUser)),
+		Pass:     s.setting(ctx, settingSMTPPass, s.cfg.SMTPPass),
+		From:     strings.TrimSpace(s.setting(ctx, settingSMTPFrom, s.cfg.SMTPFrom)),
+		FromName: strings.TrimSpace(s.setting(ctx, settingSMTPFromName, s.cfg.SMTPFromName)),
 	}
+}
+
+func smtpFromHeader(cfg smtpConfig) string {
+	address := strings.TrimSpace(cfg.From)
+	name := strings.TrimSpace(cfg.FromName)
+	if name == "" {
+		return address
+	}
+	return (&mail.Address{Name: name, Address: address}).String()
 }
 
 func (s *Server) emailDeliveryConfigured(ctx context.Context) bool {

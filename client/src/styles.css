@@ -818,6 +818,18 @@ body,
   line-height: 1.45;
 }
 
+.test-email-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding-top: 4px;
+}
+
+.test-email-action {
+  margin-bottom: 1px;
+}
+
 .settings-tab-panel {
   display: grid;
   gap: 14px;
@@ -4487,6 +4499,15 @@ code {
 
   .storage-config-actions {
     justify-content: flex-end;
+  }
+
+  .test-email-form {
+    grid-template-columns: 1fr;
+  }
+
+  .test-email-action {
+    width: fit-content;
+    margin-bottom: 0;
   }
 
   .storage-editor-actions {

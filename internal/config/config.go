@@ -40,6 +40,7 @@ type Config struct {
 	SMTPUser                   string
 	SMTPPass                   string
 	SMTPFrom                   string
+	SMTPFromName               string
 	TrustLazyCatClientComments bool
 	TrustLazyCatClientChat     bool
 	SitePublicURL              string
@@ -83,6 +84,7 @@ func Load() Config {
 		SMTPUser:                   os.Getenv("SMTP_USER"),
 		SMTPPass:                   os.Getenv("SMTP_PASS"),
 		SMTPFrom:                   os.Getenv("SMTP_FROM"),
+		SMTPFromName:               os.Getenv("SMTP_FROM_NAME"),
 		TrustLazyCatClientComments: envBool("TRUST_LAZYCAT_CLIENT_COMMENTS", false),
 		TrustLazyCatClientChat:     envBool("TRUST_LAZYCAT_CLIENT_CHAT", envBool("TRUST_LAZYCAT_CLIENT_COMMENTS", false)),
 		SitePublicURL:              strings.TrimRight(env("SITE_PUBLIC_URL", env("BASE_URL", "http://localhost:8080")), "/"),

@@ -1292,6 +1292,7 @@ const en = {
           smtpUser: 'SMTP username',
           smtpPass: 'SMTP password',
           smtpFrom: 'Sender address',
+          smtpFromName: 'Sender name',
         },
         settingsHelp: {
           siteTitle: 'Use the site or organization name. Maximum 80 characters.',
@@ -1325,6 +1326,7 @@ const en = {
           smtpUser: 'Account used to authenticate with the SMTP server.',
           smtpPass: 'Password or app-specific token for SMTP authentication.',
           smtpFrom: 'Email address shown as the sender for store notifications.',
+          smtpFromName: 'Display name shown on notification emails. Leave empty to show only the sender address.',
         },
         smtpSettings: 'Email notifications',
         smtpSettingsBody: 'Configure SMTP so review, expiration, and comment notifications can reach maintainers.',
