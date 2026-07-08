@@ -17,6 +17,7 @@ import (
 	"entgo.io/ent/dialect"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/internal/buildinfo"
 	"lazycat.community/appstore/internal/config"
 	"lazycat.community/appstore/internal/storage"
 	"lazycat.community/appstore/web"
@@ -33,6 +34,7 @@ type Server struct {
 	mailer                  Mailer
 	mux                     *http.ServeMux
 	web                     http.Handler
+	chatHub                 *chatHub
 	allowPrivateLPKURLHosts bool
 	adminLoginFailuresMu    sync.Mutex
 	adminLoginFailures      map[string]int
@@ -63,6 +65,7 @@ func New(cfg config.Config) (*Server, error) {
 		storage:            backend,
 		mailer:             newSMTPMailer(cfg),
 		mux:                http.NewServeMux(),
+		chatHub:            newChatHub(),
 		adminLoginFailures: map[string]int{},
 	}
 	s.web = embeddedWebHandler(cfg)
@@ -223,6 +226,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/apps/{id}/comments", s.handleListComments)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/comments", s.handleCreateComment)
 	s.mux.HandleFunc("DELETE /api/v1/comments/{id}", s.handleDeleteComment)
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/chat", s.handleCreateAppChatConversation)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/favorites", s.withAuth(s.handleToggleFavorite))
 	s.mux.HandleFunc("POST /api/v1/submitters/{id}/favorites", s.withAuth(s.handleToggleSubmitterFavorite))
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/outdated-marks", s.handleMarkOutdated)
@@ -246,6 +250,14 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/categories", s.handlePublicListCategories)
 	s.mux.HandleFunc("GET /api/v1/tags", s.handlePublicListTags)
 	s.mux.HandleFunc("GET /api/v1/collections", s.handlePublicListCollections)
+	s.mux.HandleFunc("GET /api/v1/chat/users", s.withAuth(s.handleListChatUsers))
+	s.mux.HandleFunc("GET /api/v1/chat/conversations", s.handleListChatConversations)
+	s.mux.HandleFunc("POST /api/v1/chat/conversations", s.handleCreateChatConversation)
+	s.mux.HandleFunc("GET /api/v1/chat/conversations/{id}/messages", s.handleListChatMessages)
+	s.mux.HandleFunc("POST /api/v1/chat/conversations/{id}/messages", s.handleCreateChatMessage)
+	s.mux.HandleFunc("POST /api/v1/chat/conversations/{id}/read", s.handleReadChatConversation)
+	s.mux.HandleFunc("DELETE /api/v1/chat/conversations/{id}", s.handleDeleteChatConversation)
+	s.mux.HandleFunc("GET /api/v1/chat/events", s.handleChatEvents)
 
 	admin := s.withRole(userRoleSoftwareAdmin, userRoleSiteAdmin)
 	s.mux.HandleFunc("GET /api/v1/admin/reviews", admin(s.handleListReviews))
@@ -271,6 +283,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PATCH /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleUpdateSettings))
 	s.mux.HandleFunc("POST /api/v1/admin/settings/site-icon", s.withRole(userRoleSiteAdmin)(s.handleUploadSiteIcon))
 	s.mux.HandleFunc("POST /api/v1/admin/settings/test-email", s.withRole(userRoleSiteAdmin)(s.handleSendTestEmail))
+	s.mux.HandleFunc("GET /api/v1/admin/announcements", s.withRole(userRoleSiteAdmin)(s.handleListAnnouncements))
+	s.mux.HandleFunc("POST /api/v1/admin/announcements", s.withRole(userRoleSiteAdmin)(s.handleCreateAnnouncement))
+	s.mux.HandleFunc("PATCH /api/v1/admin/announcements/{id}", s.withRole(userRoleSiteAdmin)(s.handleUpdateAnnouncement))
+	s.mux.HandleFunc("DELETE /api/v1/admin/announcements/{id}", s.withRole(userRoleSiteAdmin)(s.handleDeleteAnnouncement))
 	s.mux.HandleFunc("GET /api/v1/admin/registration-invites", s.withRole(userRoleSiteAdmin)(s.handleListRegistrationInvites))
 	s.mux.HandleFunc("POST /api/v1/admin/registration-invites", s.withRole(userRoleSiteAdmin)(s.handleCreateRegistrationInvite))
 	s.mux.HandleFunc("DELETE /api/v1/admin/registration-invites/{id}", s.withRole(userRoleSiteAdmin)(s.handleDeleteRegistrationInvite))
@@ -283,7 +299,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/admin/storage/{key}/test", s.withRole(userRoleSiteAdmin)(s.handleTestSavedStorageConfig))
 	s.mux.HandleFunc("POST /api/v1/admin/storage/test", s.withRole(userRoleSiteAdmin)(s.handleTestStorageConfig))
 
-	s.mux.HandleFunc("GET /source/v1/index.json", s.handleSourceIndex)
+	s.mux.HandleFunc("GET /source/v1/index.json", s.handleSourceIndexV1)
+	s.mux.HandleFunc("GET /source/v2/index.json", s.handleSourceIndexV2)
 	s.mux.Handle("/mcp", s.mcpHandler())
 
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -383,8 +400,9 @@ func (h spaFileServer) serveName(w http.ResponseWriter, r *http.Request, name st
 func (h spaFileServer) serveAppConfig(w http.ResponseWriter, r *http.Request) {
 	configJSON, err := json.Marshal(map[string]string{
 		"apiBaseURL":        "",
-		"defaultSourceURL":  strings.TrimRight(h.cfg.BaseURL, "/") + "/source/v1/index.json",
+		"defaultSourceURL":  strings.TrimRight(h.cfg.BaseURL, "/") + "/source/v2/index.json",
 		"defaultSourceName": "懒猫私有商店",
+		"appVersion":        buildinfo.Version,
 	})
 	if err != nil {
 		http.Error(w, "build app config", http.StatusInternalServerError)
@@ -392,7 +410,7 @@ func (h spaFileServer) serveAppConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = fmt.Fprintf(w, "window.LAZYCAT_APPSTORE_CONFIG = Object.assign(%s, { apiBaseURL: window.location.origin, defaultSourceURL: window.location.origin + \"/source/v1/index.json\" });\n", configJSON)
+	_, _ = fmt.Fprintf(w, "window.LAZYCAT_APPSTORE_CONFIG = Object.assign(%s, { apiBaseURL: window.location.origin, defaultSourceURL: window.location.origin + \"/source/v2/index.json\" });\n", configJSON)
 }
 
 func (s *Server) handleLocalFile(w http.ResponseWriter, r *http.Request) {

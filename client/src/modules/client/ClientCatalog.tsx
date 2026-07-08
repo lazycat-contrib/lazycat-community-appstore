@@ -6,6 +6,7 @@ import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { SourceAppGrid } from './SourceAppGrid';
+import { CategoryBrowser } from '../storefront/CategoryBrowser';
 import type {
   ClientSourceStats,
   InstallOptions,
@@ -29,10 +30,12 @@ import {
   sourceForApp,
 } from '../../shared/utils';
 import {
+  buildSourceCategoryFilterContext,
   matchesSourceAppCategory,
   matchesSourceAppSource,
   sourceAppCategoryOptions,
   sourceAppSourceOptions,
+  sourceSubscriptionFilterKey,
 } from './sourceAppFilters';
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
@@ -79,7 +82,15 @@ export function ClientCatalog({
     ].filter(Boolean).join(' ').toLowerCase().includes(sourceNeedle);
   });
   const sourceOptions = sourceAppSourceOptions(searchableSourceApps);
-  const categoryOptions = sourceAppCategoryOptions(searchableSourceApps, t('common.uncategorized'));
+  const sourceFilteredCategoryApps = searchableSourceApps.filter((app) => matchesSourceAppSource(app, selectedSourceFilter));
+  const categoryOptions = sourceAppCategoryOptions(sourceFilteredCategoryApps, t('common.uncategorized'));
+  const categoryContext = useMemo(() => {
+    const scopedSources = selectedSourceFilter === 'all'
+      ? sources
+      : sources.filter((source) => sourceSubscriptionFilterKey(source) === selectedSourceFilter);
+    return buildSourceCategoryFilterContext(scopedSources);
+  }, [selectedSourceFilter, sources]);
+  const hasStructuredCategories = categoryContext.categories.length > 0;
   const updateSourceApps = searchableSourceApps.filter((app) => isSourceAppUpdateAvailable(app, installedApps));
   const sourceAppFilterItems: Array<{ key: SourceAppFilter; label: string; count: number }> = [
     { key: 'all', label: t('search.sourceFilters.all'), count: searchableSourceApps.length },
@@ -98,7 +109,7 @@ export function ClientCatalog({
   const effectiveSourceAppFilter = updateSourceApps.length === 0 && sourceAppFilter === 'updates' ? 'all' : sourceAppFilter;
   const filteredSourceApps = searchableSourceApps.filter((app) => {
     if (!matchesSourceAppSource(app, selectedSourceFilter)) return false;
-    if (!matchesSourceAppCategory(app, selectedCategoryFilter)) return false;
+    if (!matchesSourceAppCategory(app, selectedCategoryFilter, hasStructuredCategories ? categoryContext : undefined)) return false;
     if (effectiveSourceAppFilter === 'updates') return isSourceAppUpdateAvailable(app, installedApps);
     if (effectiveSourceAppFilter === 'installable') return hasInstallableVersion(app);
     if (effectiveSourceAppFilter === 'installed') return Boolean(findInstalledApplication(app, installedApps));
@@ -115,6 +126,10 @@ export function ClientCatalog({
   useEffect(() => {
     setPage(1);
   }, [sourceNeedle, selectedSourceFilter, selectedCategoryFilter, effectiveSourceAppFilter, sourceApps.length, installedApps.length]);
+
+  useEffect(() => {
+    setSelectedCategoryFilter('all');
+  }, [selectedSourceFilter]);
 
   useEffect(() => {
     setPageSize(defaultPageSize || 24);
@@ -193,16 +208,21 @@ export function ClientCatalog({
             ]}
             onChange={setSelectedSourceFilter}
           />
-          <XSelector
-            label={t('search.categoryFilter')}
-            value={selectedCategoryFilter}
-            options={[
-              { value: 'all', label: t('search.allCategories') },
-              ...categoryOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
-            ]}
-            onChange={setSelectedCategoryFilter}
-          />
+          {!hasStructuredCategories && (
+            <XSelector
+              label={t('search.categoryFilter')}
+              value={selectedCategoryFilter}
+              options={[
+                { value: 'all', label: t('search.allCategories') },
+                ...categoryOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
+              ]}
+              onChange={setSelectedCategoryFilter}
+            />
+          )}
         </div>
+        {hasStructuredCategories && (
+          <CategoryBrowser categories={categoryContext.categories} activeCategory={selectedCategoryFilter} onCategory={setSelectedCategoryFilter} />
+        )}
         <XToggleButtonGroup value={effectiveSourceAppFilter} onChange={(value) => setSourceAppFilter((value || 'all') as SourceAppFilter)} label={t('search.sourceAppFilter')} size="sm">
           {visibleSourceAppFilterItems.map((item) => (
             <XToggleButton

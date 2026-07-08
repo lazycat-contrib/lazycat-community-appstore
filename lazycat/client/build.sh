@@ -5,6 +5,7 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 CONTENT_DIR="$SCRIPT_DIR/content"
 EMBED_DIST_DIR="$ROOT_DIR/clientembed/dist"
+PACKAGE_VERSION=$(awk '/^version:/ { print $2; exit }' "$SCRIPT_DIR/package.yml")
 
 rm -rf "$CONTENT_DIR" "$EMBED_DIST_DIR"
 mkdir -p "$CONTENT_DIR/lazycat-injects" "$EMBED_DIST_DIR" "$ROOT_DIR/dist"
@@ -17,7 +18,7 @@ npm ci
 VITE_API_BASE_URL="${CLIENT_API_BASE_URL:-}" npm run build
 cp -R dist/. "$EMBED_DIST_DIR/"
 
-EMBED_DIST_DIR="$EMBED_DIST_DIR" node <<'NODE'
+CLIENT_APP_VERSION="$PACKAGE_VERSION" EMBED_DIST_DIR="$EMBED_DIST_DIR" node <<'NODE'
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -25,6 +26,7 @@ const config = {
   apiBaseURL: process.env.CLIENT_API_BASE_URL || '',
   defaultSourceURL: process.env.CLIENT_DEFAULT_SOURCE_URL || '',
   defaultSourceName: process.env.CLIENT_DEFAULT_SOURCE_NAME || '懒猫私有商店',
+  appVersion: process.env.CLIENT_APP_VERSION || '',
 };
 
 fs.writeFileSync(
@@ -34,4 +36,4 @@ fs.writeFileSync(
 NODE
 
 cd "$ROOT_DIR"
-CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$CONTENT_DIR/store-client" ./cmd/store-client
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X lazycat.community/appstore/internal/buildinfo.Version=$PACKAGE_VERSION" -o "$CONTENT_DIR/store-client" ./cmd/store-client

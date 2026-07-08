@@ -24,6 +24,7 @@ func (ClientSourceApp) Fields() []ent.Field {
 		field.String("summary").Default(""),
 		field.Text("summary_i18n_json").Default("{}"),
 		field.Text("description_i18n_json").Default("{}"),
+		field.Int("category_id").Optional().Nillable(),
 		field.String("category").Default(""),
 		field.Text("category_i18n_json").Default("{}"),
 		field.String("icon_url").Default(""),
@@ -53,6 +54,7 @@ func (ClientSourceApp) Indexes() []ent.Index {
 		index.Fields("source_id", "package_id").Unique(),
 		index.Fields("source_id", "slug"),
 		index.Fields("package_id"),
+		index.Fields("source_id", "category_id"),
 		index.Fields("category"),
 		index.Fields("source_id", "updated_at"),
 	}

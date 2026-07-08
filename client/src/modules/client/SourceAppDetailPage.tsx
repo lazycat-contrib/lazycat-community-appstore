@@ -16,7 +16,7 @@ import { clientApi } from '../../shared/api';
 import { EmptyState } from '../../shared/components/Feedback';
 import { VersionHistoryTable } from '../../shared/components/VersionHistoryTable';
 import { orderedScreenshots, screenshotDeviceLabel, usePreferredScreenshotDevice } from '../../shared/screenshotHelpers';
-import type { Comment, InstalledApplication, SourceApp, Toast } from '../../shared/types';
+import type { Comment, InstalledApplication, SourceApp, SourceSubscription, Toast } from '../../shared/types';
 import {
   arrayOrEmpty,
   cx,
@@ -34,19 +34,23 @@ import {
 
 export function SourceAppDetailPage({
   app,
+  source,
   installedMatch,
   installedState,
   onClose,
   onInstall,
+  onContactPublisher,
   onLoadInstalled,
   onRefreshSourceApp,
   setToast,
 }: {
   app: SourceApp;
+  source?: SourceSubscription;
   installedMatch?: InstalledApplication;
   installedState: 'idle' | 'loading' | 'loaded' | 'error';
   onClose: () => void;
   onInstall: (app: SourceApp, options?: { version?: string }) => void;
+  onContactPublisher?: (app: SourceApp) => void | Promise<void>;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
   onRefreshSourceApp: () => Promise<void>;
   setToast: (toast: Toast) => void;
@@ -79,6 +83,7 @@ export function SourceAppDetailPage({
   const hasSize = Boolean(latestVersion?.size && latestVersion.size > 0);
   const hasOutdatedMarks = outdatedCount > 0;
   const sourceCommentsEnabled = app.commentsEnabled !== false;
+  const canContactPublisher = Boolean(source?.chatAvailable && source.chatEnabled !== false);
   const trustState: 'ready' | 'caution' | 'blocked' = !installable ? 'blocked' : hasChecksum && hasSize ? 'ready' : 'caution';
   const trustCardVariant: CardVariant = trustState === 'ready' ? 'green' : trustState === 'caution' ? 'yellow' : 'red';
   const installedCardVariant: CardVariant = installedMatch ? 'green' : 'yellow';
@@ -253,6 +258,15 @@ export function SourceAppDetailPage({
               isDisabled={installedState === 'loading'}
               onClick={() => void onLoadInstalled()}
             />
+            {canContactPublisher && (
+              <XButton
+                type="button"
+                variant="secondary"
+                label={t('sourceDetail.contactPublisher')}
+                icon={<MessageSquare size={17} />}
+                onClick={() => void onContactPublisher?.(app)}
+              />
+            )}
           </div>
         </XCard>
 
@@ -369,6 +383,7 @@ export function SourceAppDetailPage({
                   sourceType: version.sourceType || t('drawer.sourceMissing'),
                   sizeBytes: version.size,
                   sha256: version.sha256,
+                  isLatest,
                   statusLabel: isLatest ? t('sourceDetail.latest') : t('sourceDetail.rollbackCandidate'),
                   statusVariant: isLatest ? 'success' : 'warning',
                   action: (

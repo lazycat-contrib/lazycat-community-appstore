@@ -32,6 +32,8 @@ const (
 	FieldSummaryI18nJSON = "summary_i18n_json"
 	// FieldDescriptionI18nJSON holds the string denoting the description_i18n_json field in the database.
 	FieldDescriptionI18nJSON = "description_i18n_json"
+	// FieldCategoryID holds the string denoting the category_id field in the database.
+	FieldCategoryID = "category_id"
 	// FieldCategory holds the string denoting the category field in the database.
 	FieldCategory = "category"
 	// FieldCategoryI18nJSON holds the string denoting the category_i18n_json field in the database.
@@ -79,6 +81,7 @@ var Columns = []string{
 	FieldSummary,
 	FieldSummaryI18nJSON,
 	FieldDescriptionI18nJSON,
+	FieldCategoryID,
 	FieldCategory,
 	FieldCategoryI18nJSON,
 	FieldIconURL,
@@ -196,6 +199,11 @@ func BySummaryI18nJSON(opts ...sql.OrderTermOption) OrderOption {
 // ByDescriptionI18nJSON orders the results by the description_i18n_json field.
 func ByDescriptionI18nJSON(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescriptionI18nJSON, opts...).ToFunc()
+}
+
+// ByCategoryID orders the results by the category_id field.
+func ByCategoryID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCategoryID, opts...).ToFunc()
 }
 
 // ByCategory orders the results by the category field.

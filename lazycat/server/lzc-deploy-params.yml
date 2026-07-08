@@ -14,8 +14,20 @@ params:
   - id: source_password
     type: secret
     name: "Source Password"
-    description: "Optional password for /source/v1/index.json"
+    description: "Optional password for /source/v2/index.json"
     optional: true
+  - id: source_v1_enabled
+    type: bool
+    name: "Enable v1 Compatibility Feed"
+    description: "Keep /source/v1/index.json available for older clients"
+    default_value: "true"
+    optional: false
+  - id: trust_lazycat_client_chat
+    type: bool
+    name: "Trust LazyCat Client Chat"
+    description: "Allow the standalone LazyCat client app to proxy private message requests to this server"
+    default_value: "true"
+    optional: false
   - id: db_driver
     type: string
     name: "Database Driver"
@@ -49,7 +61,13 @@ locales:
       description: "初始站点管理员密码"
     source_password:
       name: "软件源密码"
-      description: "可选的 /source/v1/index.json 访问密码"
+      description: "可选的 /source/v2/index.json 访问密码"
+    source_v1_enabled:
+      name: "启用 v1 兼容源"
+      description: "保留 /source/v1/index.json 以兼容旧客户端"
+    trust_lazycat_client_chat:
+      name: "信任客户端私信代理"
+      description: "允许独立 LazyCat 客户端应用将私信请求代理到当前服务端"
     db_driver:
       name: "数据库类型"
       description: "数据库驱动：sqlite3、postgres 或 mysql"

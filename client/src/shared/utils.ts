@@ -12,6 +12,7 @@ import type {
   SourceVersion,
   StoreApp,
   Toast,
+  Version,
 } from './types';
 
 export function errorMessage(error: unknown, fallback: string) {
@@ -100,6 +101,14 @@ export function selectedSourceVersion(app: SourceApp, version?: string) {
   return app.latestVersion;
 }
 
+export function selectedStoreVersion(app: StoreApp, version?: string): Version | undefined {
+  const wanted = version?.trim();
+  if (wanted) {
+    return app.versions?.find((item) => item.version === wanted) || (app.latestVersion?.version === wanted ? app.latestVersion : undefined);
+  }
+  return app.latestVersion;
+}
+
 function normalizeVersionParts(value?: string) {
   const raw = (value || '').trim().replace(/^[vV]/, '');
   if (!raw) return null;
@@ -176,10 +185,13 @@ export function defaultSiteProfile(title: string): SiteProfile {
     title,
     subtitle: '',
     publicUrl,
-    sourceUrl: `${publicUrl}/source/v1/index.json`,
+    sourceUrl: `${publicUrl}/source/v2/index.json`,
     defaultPageSize: 24,
     announcement: { enabled: false, level: 'info' },
+    announcements: [],
     registration: { mode: 'open' },
+    clientPolicy: {},
+    chat: { enabled: true, retentionDays: 0 },
   };
 }
 

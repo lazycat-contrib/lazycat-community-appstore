@@ -9,6 +9,9 @@ import (
 // APIToken is the predicate function for apitoken builders.
 type APIToken func(*sql.Selector)
 
+// Announcement is the predicate function for announcement builders.
+type Announcement func(*sql.Selector)
+
 // App is the predicate function for app builders.
 type App func(*sql.Selector)
 
@@ -26,6 +29,15 @@ type AppVisibility func(*sql.Selector)
 
 // Category is the predicate function for category builders.
 type Category func(*sql.Selector)
+
+// ChatConversation is the predicate function for chatconversation builders.
+type ChatConversation func(*sql.Selector)
+
+// ChatMessage is the predicate function for chatmessage builders.
+type ChatMessage func(*sql.Selector)
+
+// ChatParticipant is the predicate function for chatparticipant builders.
+type ChatParticipant func(*sql.Selector)
 
 // ClientInstallHistory is the predicate function for clientinstallhistory builders.
 type ClientInstallHistory func(*sql.Selector)

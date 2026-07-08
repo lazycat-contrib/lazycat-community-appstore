@@ -1,7 +1,6 @@
 package feed
 
 import (
-	"strings"
 	"time"
 
 	"lazycat.community/appstore/internal/catalogmeta"
@@ -14,25 +13,43 @@ type Input struct {
 	GeneratedAt       time.Time          `json:"generatedAt"`
 	Site              SiteMeta           `json:"site"`
 	Announcement      AnnouncementMeta   `json:"announcement"`
+	Announcements     []AnnouncementMeta `json:"announcements,omitempty"`
+	Categories        []CategoryInput    `json:"categories,omitempty"`
 	Groups            []GroupMeta        `json:"groups,omitempty"`
 	InvalidGroupCodes []string           `json:"invalidGroupCodes,omitempty"`
 	Apps              []AppInput         `json:"apps"`
 }
 
 type SiteMeta struct {
-	Title     string `json:"title"`
-	IconURL   string `json:"iconUrl,omitempty"`
-	PublicURL string `json:"publicUrl"`
-	SourceURL string `json:"sourceUrl"`
+	Title        string           `json:"title"`
+	IconURL      string           `json:"iconUrl,omitempty"`
+	PublicURL    string           `json:"publicUrl"`
+	SourceURL    string           `json:"sourceUrl"`
+	ClientPolicy ClientPolicyMeta `json:"clientPolicy,omitempty"`
+	Chat         ChatMeta         `json:"chat"`
+}
+
+type ClientPolicyMeta struct {
+	MinVersion string `json:"minVersion,omitempty"`
+	Message    string `json:"message,omitempty"`
+}
+
+type ChatMeta struct {
+	Enabled       bool `json:"enabled"`
+	RetentionDays int  `json:"retentionDays,omitempty"`
 }
 
 type AnnouncementMeta struct {
+	ID        int    `json:"id,omitempty"`
 	Enabled   bool   `json:"enabled"`
 	Level     string `json:"level"`
 	Title     string `json:"title,omitempty"`
 	Body      string `json:"body,omitempty"`
 	LinkLabel string `json:"linkLabel,omitempty"`
 	LinkURL   string `json:"linkUrl,omitempty"`
+	StartsAt  string `json:"startsAt,omitempty"`
+	EndsAt    string `json:"endsAt,omitempty"`
+	SortOrder int    `json:"sortOrder,omitempty"`
 	UpdatedAt string `json:"updatedAt,omitempty"`
 }
 
@@ -40,6 +57,15 @@ type GroupMeta struct {
 	ID   int    `json:"id,omitempty"`
 	Name string `json:"name"`
 	Code string `json:"code,omitempty"`
+}
+
+type CategoryInput struct {
+	ID        int               `json:"id"`
+	Name      string            `json:"name"`
+	NameI18n  map[string]string `json:"nameI18n,omitempty"`
+	Slug      string            `json:"slug"`
+	ParentID  *int              `json:"parentId,omitempty"`
+	SortOrder int               `json:"sortOrder,omitempty"`
 }
 
 type AppInput struct {
@@ -53,6 +79,7 @@ type AppInput struct {
 	Description      string                   `json:"description"`
 	DescriptionI18n  map[string]string        `json:"descriptionI18n,omitempty"`
 	IconURL          string                   `json:"iconUrl,omitempty"`
+	CategoryID       *int                     `json:"categoryId,omitempty"`
 	Category         string                   `json:"category,omitempty"`
 	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`
 	Screenshots      []catalogmeta.Screenshot `json:"screenshots,omitempty"`
@@ -75,18 +102,6 @@ type VersionInput struct {
 	SHA256              string    `json:"sha256"`
 	Size                int64     `json:"size"`
 	PublishedAt         time.Time `json:"publishedAt"`
-}
-
-type Index struct {
-	Schema            string             `json:"schema"`
-	BaseURL           string             `json:"baseUrl"`
-	GitHubMirrors     []mirrorutil.Entry `json:"githubMirrors,omitempty"`
-	GeneratedAt       time.Time          `json:"generatedAt"`
-	Site              SiteMeta           `json:"site"`
-	Announcement      AnnouncementMeta   `json:"announcement"`
-	Groups            []GroupMeta        `json:"groups,omitempty"`
-	InvalidGroupCodes []string           `json:"invalidGroupCodes,omitempty"`
-	Apps              []App              `json:"apps"`
 }
 
 type App struct {
@@ -124,67 +139,41 @@ type Version struct {
 	PublishedAt         time.Time `json:"publishedAt"`
 }
 
-func BuildIndex(input Input) Index {
-	generatedAt := input.GeneratedAt
-	if generatedAt.IsZero() {
-		generatedAt = time.Now().UTC()
+func BuildApp(inApp AppInput) (App, bool) {
+	versions := ApprovedVersions(inApp.Versions, inApp.InstallProtected)
+	if len(versions) == 0 {
+		return App{}, false
 	}
-
-	index := Index{
-		Schema:            "lazycat.appstore.source.v1",
-		BaseURL:           strings.TrimRight(input.BaseURL, "/"),
-		GitHubMirrors:     input.GitHubMirrors,
-		GeneratedAt:       generatedAt,
-		Site:              input.Site,
-		Announcement:      input.Announcement,
-		Groups:            input.Groups,
-		InvalidGroupCodes: input.InvalidGroupCodes,
-		Apps:              make([]App, 0, len(input.Apps)),
+	commentsEnabled := true
+	if inApp.CommentsEnabled != nil {
+		commentsEnabled = *inApp.CommentsEnabled
 	}
-	if index.Site.PublicURL == "" {
-		index.Site.PublicURL = index.BaseURL
-	}
-	if index.Site.SourceURL == "" && index.Site.PublicURL != "" {
-		index.Site.SourceURL = strings.TrimRight(index.Site.PublicURL, "/") + "/source/v1/index.json"
-	}
-
-	for _, inApp := range input.Apps {
-		versions := approvedVersions(inApp.Versions, inApp.InstallProtected)
-		if len(versions) == 0 {
-			continue
-		}
-		commentsEnabled := true
-		if inApp.CommentsEnabled != nil {
-			commentsEnabled = *inApp.CommentsEnabled
-		}
-		index.Apps = append(index.Apps, App{
-			ID:               inApp.ID,
-			PackageID:        inApp.PackageID,
-			Name:             inApp.Name,
-			NameI18n:         inApp.NameI18n,
-			Slug:             inApp.Slug,
-			Summary:          inApp.Summary,
-			SummaryI18n:      inApp.SummaryI18n,
-			Description:      inApp.Description,
-			DescriptionI18n:  inApp.DescriptionI18n,
-			IconURL:          inApp.IconURL,
-			Category:         inApp.Category,
-			CategoryI18n:     inApp.CategoryI18n,
-			Screenshots:      inApp.Screenshots,
-			Tags:             inApp.Tags,
-			Submitter:        inApp.Submitter,
-			InstallProtected: inApp.InstallProtected,
-			CommentsEnabled:  commentsEnabled,
-			OutdatedMarks:    inApp.OutdatedMarks,
-			UpdatedAt:        inApp.UpdatedAt,
-			LatestVersion:    versions[0],
-			Versions:         versions,
-		})
-	}
-	return index
+	return App{
+		ID:               inApp.ID,
+		PackageID:        inApp.PackageID,
+		Name:             inApp.Name,
+		NameI18n:         inApp.NameI18n,
+		Slug:             inApp.Slug,
+		Summary:          inApp.Summary,
+		SummaryI18n:      inApp.SummaryI18n,
+		Description:      inApp.Description,
+		DescriptionI18n:  inApp.DescriptionI18n,
+		IconURL:          inApp.IconURL,
+		Category:         inApp.Category,
+		CategoryI18n:     inApp.CategoryI18n,
+		Screenshots:      inApp.Screenshots,
+		Tags:             inApp.Tags,
+		Submitter:        inApp.Submitter,
+		InstallProtected: inApp.InstallProtected,
+		CommentsEnabled:  commentsEnabled,
+		OutdatedMarks:    inApp.OutdatedMarks,
+		UpdatedAt:        inApp.UpdatedAt,
+		LatestVersion:    versions[0],
+		Versions:         versions,
+	}, true
 }
 
-func approvedVersions(inputs []VersionInput, installProtected bool) []Version {
+func ApprovedVersions(inputs []VersionInput, installProtected bool) []Version {
 	versions := make([]Version, 0, len(inputs))
 	for _, input := range inputs {
 		if input.Status != "APPROVED" {

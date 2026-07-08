@@ -115,6 +115,20 @@ func (_c *ClientSourceAppCreate) SetNillableDescriptionI18nJSON(v *string) *Clie
 	return _c
 }
 
+// SetCategoryID sets the "category_id" field.
+func (_c *ClientSourceAppCreate) SetCategoryID(v int) *ClientSourceAppCreate {
+	_c.mutation.SetCategoryID(v)
+	return _c
+}
+
+// SetNillableCategoryID sets the "category_id" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableCategoryID(v *int) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetCategoryID(*v)
+	}
+	return _c
+}
+
 // SetCategory sets the "category" field.
 func (_c *ClientSourceAppCreate) SetCategory(v string) *ClientSourceAppCreate {
 	_c.mutation.SetCategory(v)
@@ -512,6 +526,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 	if value, ok := _c.mutation.DescriptionI18nJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldDescriptionI18nJSON, field.TypeString, value)
 		_node.DescriptionI18nJSON = value
+	}
+	if value, ok := _c.mutation.CategoryID(); ok {
+		_spec.SetField(clientsourceapp.FieldCategoryID, field.TypeInt, value)
+		_node.CategoryID = &value
 	}
 	if value, ok := _c.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)

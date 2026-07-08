@@ -32,6 +32,7 @@ type Config struct {
 	RequireEmailVerify         bool
 	SourcePassword             string
 	SourcePasswordRotation     int
+	SourceV1Enabled            bool
 	GitHubDownloadMirrors      string
 	GitHubRawMirrors           string
 	SMTPHost                   string
@@ -40,6 +41,7 @@ type Config struct {
 	SMTPPass                   string
 	SMTPFrom                   string
 	TrustLazyCatClientComments bool
+	TrustLazyCatClientChat     bool
 	SitePublicURL              string
 	AdminUsername              string
 	AdminPassword              string
@@ -73,6 +75,7 @@ func Load() Config {
 		RequireEmailVerify:         envBool("REQUIRE_EMAIL_VERIFY", false),
 		SourcePassword:             os.Getenv("SOURCE_PASSWORD"),
 		SourcePasswordRotation:     envInt("SOURCE_PASSWORD_ROTATION", 0),
+		SourceV1Enabled:            envBool("SOURCE_V1_ENABLED", true),
 		GitHubDownloadMirrors:      strings.TrimSpace(os.Getenv("GITHUB_DOWNLOAD_MIRRORS")),
 		GitHubRawMirrors:           strings.TrimSpace(os.Getenv("GITHUB_RAW_MIRRORS")),
 		SMTPHost:                   os.Getenv("SMTP_HOST"),
@@ -81,6 +84,7 @@ func Load() Config {
 		SMTPPass:                   os.Getenv("SMTP_PASS"),
 		SMTPFrom:                   os.Getenv("SMTP_FROM"),
 		TrustLazyCatClientComments: envBool("TRUST_LAZYCAT_CLIENT_COMMENTS", false),
+		TrustLazyCatClientChat:     envBool("TRUST_LAZYCAT_CLIENT_CHAT", envBool("TRUST_LAZYCAT_CLIENT_COMMENTS", false)),
 		SitePublicURL:              strings.TrimRight(env("SITE_PUBLIC_URL", env("BASE_URL", "http://localhost:8080")), "/"),
 		AdminUsername:              env("ADMIN_USERNAME", "admin"),
 		AdminPassword:              env("ADMIN_PASSWORD", "changeme"),

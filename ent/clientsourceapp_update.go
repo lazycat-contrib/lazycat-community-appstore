@@ -155,6 +155,33 @@ func (_u *ClientSourceAppUpdate) SetNillableDescriptionI18nJSON(v *string) *Clie
 	return _u
 }
 
+// SetCategoryID sets the "category_id" field.
+func (_u *ClientSourceAppUpdate) SetCategoryID(v int) *ClientSourceAppUpdate {
+	_u.mutation.ResetCategoryID()
+	_u.mutation.SetCategoryID(v)
+	return _u
+}
+
+// SetNillableCategoryID sets the "category_id" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableCategoryID(v *int) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetCategoryID(*v)
+	}
+	return _u
+}
+
+// AddCategoryID adds value to the "category_id" field.
+func (_u *ClientSourceAppUpdate) AddCategoryID(v int) *ClientSourceAppUpdate {
+	_u.mutation.AddCategoryID(v)
+	return _u
+}
+
+// ClearCategoryID clears the value of the "category_id" field.
+func (_u *ClientSourceAppUpdate) ClearCategoryID() *ClientSourceAppUpdate {
+	_u.mutation.ClearCategoryID()
+	return _u
+}
+
 // SetCategory sets the "category" field.
 func (_u *ClientSourceAppUpdate) SetCategory(v string) *ClientSourceAppUpdate {
 	_u.mutation.SetCategory(v)
@@ -419,6 +446,15 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.DescriptionI18nJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldDescriptionI18nJSON, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.CategoryID(); ok {
+		_spec.SetField(clientsourceapp.FieldCategoryID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCategoryID(); ok {
+		_spec.AddField(clientsourceapp.FieldCategoryID, field.TypeInt, value)
+	}
+	if _u.mutation.CategoryIDCleared() {
+		_spec.ClearField(clientsourceapp.FieldCategoryID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)
 	}
@@ -627,6 +663,33 @@ func (_u *ClientSourceAppUpdateOne) SetNillableDescriptionI18nJSON(v *string) *C
 	if v != nil {
 		_u.SetDescriptionI18nJSON(*v)
 	}
+	return _u
+}
+
+// SetCategoryID sets the "category_id" field.
+func (_u *ClientSourceAppUpdateOne) SetCategoryID(v int) *ClientSourceAppUpdateOne {
+	_u.mutation.ResetCategoryID()
+	_u.mutation.SetCategoryID(v)
+	return _u
+}
+
+// SetNillableCategoryID sets the "category_id" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableCategoryID(v *int) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetCategoryID(*v)
+	}
+	return _u
+}
+
+// AddCategoryID adds value to the "category_id" field.
+func (_u *ClientSourceAppUpdateOne) AddCategoryID(v int) *ClientSourceAppUpdateOne {
+	_u.mutation.AddCategoryID(v)
+	return _u
+}
+
+// ClearCategoryID clears the value of the "category_id" field.
+func (_u *ClientSourceAppUpdateOne) ClearCategoryID() *ClientSourceAppUpdateOne {
+	_u.mutation.ClearCategoryID()
 	return _u
 }
 
@@ -923,6 +986,15 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	}
 	if value, ok := _u.mutation.DescriptionI18nJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldDescriptionI18nJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CategoryID(); ok {
+		_spec.SetField(clientsourceapp.FieldCategoryID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCategoryID(); ok {
+		_spec.AddField(clientsourceapp.FieldCategoryID, field.TypeInt, value)
+	}
+	if _u.mutation.CategoryIDCleared() {
+		_spec.ClearField(clientsourceapp.FieldCategoryID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Category(); ok {
 		_spec.SetField(clientsourceapp.FieldCategory, field.TypeString, value)

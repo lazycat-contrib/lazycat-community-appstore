@@ -37,6 +37,39 @@ var (
 			},
 		},
 	}
+	// AnnouncementsColumns holds the columns for the "announcements" table.
+	AnnouncementsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "level", Type: field.TypeEnum, Enums: []string{"info", "warning", "success"}, Default: "info"},
+		{Name: "title", Type: field.TypeString, Default: ""},
+		{Name: "body", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "link_label", Type: field.TypeString, Default: ""},
+		{Name: "link_url", Type: field.TypeString, Default: ""},
+		{Name: "starts_at", Type: field.TypeTime, Nullable: true},
+		{Name: "ends_at", Type: field.TypeTime, Nullable: true},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AnnouncementsTable holds the schema information for the "announcements" table.
+	AnnouncementsTable = &schema.Table{
+		Name:       "announcements",
+		Columns:    AnnouncementsColumns,
+		PrimaryKey: []*schema.Column{AnnouncementsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "announcement_enabled_sort_order_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementsColumns[1], AnnouncementsColumns[9], AnnouncementsColumns[11]},
+			},
+			{
+				Name:    "announcement_starts_at_ends_at",
+				Unique:  false,
+				Columns: []*schema.Column{AnnouncementsColumns[7], AnnouncementsColumns[8]},
+			},
+		},
+	}
 	// AppsColumns holds the columns for the "apps" table.
 	AppsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -254,6 +287,118 @@ var (
 			},
 		},
 	}
+	// ChatConversationsColumns holds the columns for the "chat_conversations" table.
+	ChatConversationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "app_id", Type: field.TypeInt, Nullable: true},
+		{Name: "topic", Type: field.TypeString, Default: ""},
+		{Name: "last_message_body", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "last_message_sender_name", Type: field.TypeString, Default: ""},
+		{Name: "last_message_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ChatConversationsTable holds the schema information for the "chat_conversations" table.
+	ChatConversationsTable = &schema.Table{
+		Name:       "chat_conversations",
+		Columns:    ChatConversationsColumns,
+		PrimaryKey: []*schema.Column{ChatConversationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "chatconversation_app_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChatConversationsColumns[1]},
+			},
+			{
+				Name:    "chatconversation_last_message_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatConversationsColumns[5]},
+			},
+			{
+				Name:    "chatconversation_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatConversationsColumns[7]},
+			},
+		},
+	}
+	// ChatMessagesColumns holds the columns for the "chat_messages" table.
+	ChatMessagesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "conversation_id", Type: field.TypeInt},
+		{Name: "sender_type", Type: field.TypeEnum, Enums: []string{"USER", "CLIENT"}, Default: "USER"},
+		{Name: "sender_user_id", Type: field.TypeInt, Default: 0},
+		{Name: "sender_client_user_id", Type: field.TypeString, Default: ""},
+		{Name: "sender_name", Type: field.TypeString, Default: ""},
+		{Name: "sender_avatar_url", Type: field.TypeString, Default: ""},
+		{Name: "body", Type: field.TypeString, Size: 2147483647},
+		{Name: "deleted", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// ChatMessagesTable holds the schema information for the "chat_messages" table.
+	ChatMessagesTable = &schema.Table{
+		Name:       "chat_messages",
+		Columns:    ChatMessagesColumns,
+		PrimaryKey: []*schema.Column{ChatMessagesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "chatmessage_conversation_id_deleted_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatMessagesColumns[1], ChatMessagesColumns[8], ChatMessagesColumns[9]},
+			},
+			{
+				Name:    "chatmessage_sender_type_sender_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatMessagesColumns[2], ChatMessagesColumns[3], ChatMessagesColumns[9]},
+			},
+			{
+				Name:    "chatmessage_sender_type_sender_client_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatMessagesColumns[2], ChatMessagesColumns[4], ChatMessagesColumns[9]},
+			},
+		},
+	}
+	// ChatParticipantsColumns holds the columns for the "chat_participants" table.
+	ChatParticipantsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "conversation_id", Type: field.TypeInt},
+		{Name: "actor_type", Type: field.TypeEnum, Enums: []string{"USER", "CLIENT"}, Default: "USER"},
+		{Name: "user_id", Type: field.TypeInt, Default: 0},
+		{Name: "client_user_id", Type: field.TypeString, Default: ""},
+		{Name: "display_name", Type: field.TypeString, Default: ""},
+		{Name: "avatar_url", Type: field.TypeString, Default: ""},
+		{Name: "last_read_at", Type: field.TypeTime, Nullable: true},
+		{Name: "hidden_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ChatParticipantsTable holds the schema information for the "chat_participants" table.
+	ChatParticipantsTable = &schema.Table{
+		Name:       "chat_participants",
+		Columns:    ChatParticipantsColumns,
+		PrimaryKey: []*schema.Column{ChatParticipantsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "chatparticipant_conversation_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChatParticipantsColumns[1]},
+			},
+			{
+				Name:    "chatparticipant_conversation_id_actor_type_user_id_client_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ChatParticipantsColumns[1], ChatParticipantsColumns[2], ChatParticipantsColumns[3], ChatParticipantsColumns[4]},
+			},
+			{
+				Name:    "chatparticipant_actor_type_user_id_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatParticipantsColumns[2], ChatParticipantsColumns[3], ChatParticipantsColumns[10]},
+			},
+			{
+				Name:    "chatparticipant_actor_type_client_user_id_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{ChatParticipantsColumns[2], ChatParticipantsColumns[4], ChatParticipantsColumns[10]},
+			},
+		},
+	}
 	// ClientInstallHistoriesColumns holds the columns for the "client_install_histories" table.
 	ClientInstallHistoriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -328,6 +473,12 @@ var (
 		{Name: "group_names_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "last_invalid_group_codes_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "mirrors_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "categories_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "announcements_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "min_client_version", Type: field.TypeString, Default: ""},
+		{Name: "min_client_version_message", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "chat_available", Type: field.TypeBool, Default: false},
+		{Name: "chat_enabled", Type: field.TypeBool, Default: true},
 		{Name: "last_sync", Type: field.TypeTime, Nullable: true},
 		{Name: "last_error", Type: field.TypeString, Nullable: true},
 		{Name: "last_error_code", Type: field.TypeEnum, Nullable: true, Enums: []string{"auth", "format", "http", "network"}},
@@ -350,7 +501,7 @@ var (
 			{
 				Name:    "clientsource_user_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[17]},
+				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[23]},
 			},
 		},
 	}
@@ -365,6 +516,7 @@ var (
 		{Name: "summary", Type: field.TypeString, Default: ""},
 		{Name: "summary_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "description_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
+		{Name: "category_id", Type: field.TypeInt, Nullable: true},
 		{Name: "category", Type: field.TypeString, Default: ""},
 		{Name: "category_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "icon_url", Type: field.TypeString, Default: ""},
@@ -386,7 +538,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "client_source_apps_client_sources_apps",
-				Columns:    []*schema.Column{ClientSourceAppsColumns[20]},
+				Columns:    []*schema.Column{ClientSourceAppsColumns[21]},
 				RefColumns: []*schema.Column{ClientSourcesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -395,12 +547,12 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_package_id",
 				Unique:  true,
-				Columns: []*schema.Column{ClientSourceAppsColumns[20], ClientSourceAppsColumns[2]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[21], ClientSourceAppsColumns[2]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_slug",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[20], ClientSourceAppsColumns[5]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[21], ClientSourceAppsColumns[5]},
 			},
 			{
 				Name:    "clientsourceapp_package_id",
@@ -408,14 +560,19 @@ var (
 				Columns: []*schema.Column{ClientSourceAppsColumns[2]},
 			},
 			{
+				Name:    "clientsourceapp_source_id_category_id",
+				Unique:  false,
+				Columns: []*schema.Column{ClientSourceAppsColumns[21], ClientSourceAppsColumns[9]},
+			},
+			{
 				Name:    "clientsourceapp_category",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[9]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[10]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[20], ClientSourceAppsColumns[19]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[21], ClientSourceAppsColumns[20]},
 			},
 		},
 	}
@@ -1005,12 +1162,16 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APITokensTable,
+		AnnouncementsTable,
 		AppsTable,
 		AppScreenshotsTable,
 		AppTagsTable,
 		AppVersionsTable,
 		AppVisibilitiesTable,
 		CategoriesTable,
+		ChatConversationsTable,
+		ChatMessagesTable,
+		ChatParticipantsTable,
 		ClientInstallHistoriesTable,
 		ClientSettingsTable,
 		ClientSourcesTable,

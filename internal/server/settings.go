@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"lazycat.community/appstore/ent/sitesetting"
+	"lazycat.community/appstore/internal/buildinfo"
 	"lazycat.community/appstore/internal/mirror"
 	"lazycat.community/appstore/internal/pagination"
 )
@@ -19,7 +20,10 @@ const (
 	settingRequireEmailVerify       = "require_email_verify"
 	settingSourcePassword           = "source_password"
 	settingSourcePasswordRotation   = "source_password_rotation"
+	settingSourceV1Enabled          = "source_v1_enabled"
 	settingCommentsEnabled          = "comments_enabled"
+	settingChatEnabled              = "chat_enabled"
+	settingChatRetentionDays        = "chat_retention_days"
 	settingAllowManualOutdatedClear = "allow_manual_outdated_clear"
 	settingGitHubDownloadMirrors    = "github_download_mirrors"
 	settingGitHubRawMirrors         = "github_raw_mirrors"
@@ -28,6 +32,8 @@ const (
 	settingSiteIconURL              = "site_icon_url"
 	settingSitePublicURL            = "site_public_url"
 	settingDefaultStorageKey        = "default_storage_key"
+	settingMinClientVersion         = "min_client_version"
+	settingMinClientVersionMessage  = "min_client_version_message"
 	settingAnnouncementEnabled      = "announcement_enabled"
 	settingAnnouncementLevel        = "announcement_level"
 	settingAnnouncementTitle        = "announcement_title"
@@ -104,6 +110,10 @@ func (s *Server) sourcePassword(ctx context.Context) string {
 	return token
 }
 
+func (s *Server) sourceV1Enabled(ctx context.Context) bool {
+	return s.settingBool(ctx, settingSourceV1Enabled, s.cfg.SourceV1Enabled)
+}
+
 func (s *Server) effectiveGitHubMirrors(ctx context.Context) []mirror.Entry {
 	download, _ := mirror.Parse(s.setting(ctx, settingGitHubDownloadMirrors, s.cfg.GitHubDownloadMirrors), mirror.KindDownload)
 	raw, _ := mirror.Parse(s.setting(ctx, settingGitHubRawMirrors, s.cfg.GitHubRawMirrors), mirror.KindRaw)
@@ -150,6 +160,18 @@ func (s *Server) commentsAllowed(ctx context.Context, appCommentsEnabled bool) b
 	return appCommentsEnabled && s.commentsEnabled(ctx)
 }
 
+func (s *Server) chatEnabled(ctx context.Context) bool {
+	return s.settingBool(ctx, settingChatEnabled, true)
+}
+
+func (s *Server) chatRetentionDays(ctx context.Context) int {
+	days := s.settingInt(ctx, settingChatRetentionDays, 0)
+	if days < 0 {
+		return 0
+	}
+	return days
+}
+
 func (s *Server) manualOutdatedClearAllowed(ctx context.Context) bool {
 	return s.settingBool(ctx, settingAllowManualOutdatedClear, false)
 }
@@ -172,7 +194,49 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 	if !validAnnouncementLevel(level) {
 		level = "info"
 	}
-	announcement := siteAnnouncement{
+	announcements := s.activeSiteAnnouncements(ctx)
+	announcement := siteAnnouncement{Enabled: false, Level: level}
+	if len(announcements) > 0 {
+		announcement = announcements[0]
+	}
+	return siteProfile{
+		Title:           title,
+		Subtitle:        strings.TrimSpace(s.setting(ctx, settingSiteSubtitle, "")),
+		IconURL:         cleanURLSetting(s.setting(ctx, settingSiteIconURL, "")),
+		PublicURL:       publicURL,
+		SourceURL:       sourceFeedURL(publicURL, 2),
+		Version:         appVersion(),
+		DefaultPageSize: s.effectiveDefaultPageSize(ctx, pagination.DefaultPageSize, 100),
+		Announcement:    announcement,
+		Announcements:   announcements,
+		Registration:    siteRegistration{Mode: s.registrationMode(ctx)},
+		ClientPolicy:    s.clientPolicy(ctx),
+		Chat:            siteChat{Enabled: s.chatEnabled(ctx), RetentionDays: s.chatRetentionDays(ctx)},
+	}
+}
+
+func (s *Server) clientPolicy(ctx context.Context) siteClientPolicy {
+	version := strings.TrimSpace(s.setting(ctx, settingMinClientVersion, defaultMinClientVersion()))
+	message := strings.TrimSpace(s.setting(ctx, settingMinClientVersionMessage, ""))
+	return siteClientPolicy{
+		MinVersion: version,
+		Message:    message,
+	}
+}
+
+func defaultMinClientVersion() string {
+	if strings.TrimSpace(buildinfo.ClientVersion) == "" {
+		return "0.1.12"
+	}
+	return strings.TrimSpace(buildinfo.ClientVersion)
+}
+
+func (s *Server) legacySiteAnnouncement(ctx context.Context) siteAnnouncement {
+	level := strings.TrimSpace(s.setting(ctx, settingAnnouncementLevel, "info"))
+	if !validAnnouncementLevel(level) {
+		level = "info"
+	}
+	return siteAnnouncement{
 		Enabled:   s.settingBool(ctx, settingAnnouncementEnabled, false),
 		Level:     level,
 		Title:     strings.TrimSpace(s.setting(ctx, settingAnnouncementTitle, "")),
@@ -180,17 +244,6 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 		LinkLabel: strings.TrimSpace(s.setting(ctx, settingAnnouncementLinkLabel, "")),
 		LinkURL:   cleanURLSetting(s.setting(ctx, settingAnnouncementLinkURL, "")),
 		UpdatedAt: strings.TrimSpace(s.setting(ctx, settingAnnouncementUpdatedAt, "")),
-	}
-	return siteProfile{
-		Title:           title,
-		Subtitle:        strings.TrimSpace(s.setting(ctx, settingSiteSubtitle, "")),
-		IconURL:         cleanURLSetting(s.setting(ctx, settingSiteIconURL, "")),
-		PublicURL:       publicURL,
-		SourceURL:       publicURL + "/source/v1/index.json",
-		Version:         appVersion(),
-		DefaultPageSize: s.effectiveDefaultPageSize(ctx, pagination.DefaultPageSize, 100),
-		Announcement:    announcement,
-		Registration:    siteRegistration{Mode: s.registrationMode(ctx)},
 	}
 }
 
@@ -203,6 +256,14 @@ func (s *Server) sitePublicURL(ctx context.Context) string {
 		return cleanURLSetting(s.cfg.SitePublicURL)
 	}
 	return cleanURLSetting(s.cfg.BaseURL)
+}
+
+func sourceFeedURL(publicURL string, version int) string {
+	path := "/source/v2/index.json"
+	if version == 1 {
+		path = "/source/v1/index.json"
+	}
+	return strings.TrimRight(publicURL, "/") + path
 }
 
 func (s *Server) settingBool(ctx context.Context, key string, fallback bool) bool {

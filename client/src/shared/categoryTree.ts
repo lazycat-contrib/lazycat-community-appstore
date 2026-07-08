@@ -8,6 +8,12 @@ export type CategoryTreeItem = {
   path: string;
 };
 
+export type CategoryHierarchy = {
+  roots: Category[];
+  childrenByParent: Map<number, Category[]>;
+  byID: Map<number, Category>;
+};
+
 function categoryParentID(category: Category) {
   return category.parentId ?? null;
 }
@@ -20,23 +26,38 @@ function sortCategories(items: Category[]) {
   });
 }
 
-export function flattenCategoryTree(categories: Category[]): CategoryTreeItem[] {
+export function buildCategoryHierarchy(categories: Category[]): CategoryHierarchy {
   const byID = new Map(categories.map((category) => [category.id, category]));
-  const childrenByParent = new Map<number | null, Category[]>();
+  const roots: Category[] = [];
+  const childrenByParent = new Map<number, Category[]>();
+
   for (const category of categories) {
     const parentID = categoryParentID(category);
-    const parentKey = parentID && byID.has(parentID) ? parentID : null;
-    childrenByParent.set(parentKey, [...(childrenByParent.get(parentKey) || []), category]);
+    if (parentID && byID.has(parentID)) {
+      childrenByParent.set(parentID, [...(childrenByParent.get(parentID) || []), category]);
+    } else {
+      roots.push(category);
+    }
   }
   for (const [parentID, children] of childrenByParent.entries()) {
     childrenByParent.set(parentID, sortCategories(children));
   }
 
+  return {
+    roots: sortCategories(roots),
+    childrenByParent,
+    byID,
+  };
+}
+
+export function flattenCategoryTree(categories: Category[]): CategoryTreeItem[] {
+  const { roots, childrenByParent } = buildCategoryHierarchy(categories);
+
   const output: CategoryTreeItem[] = [];
   const visited = new Set<number>();
 
-  function visit(parentID: number | null, depth: number, parentPath: string) {
-    for (const category of childrenByParent.get(parentID) || []) {
+  function visit(items: Category[], depth: number, parentPath: string) {
+    for (const category of items) {
       if (visited.has(category.id)) continue;
       visited.add(category.id);
       const name = localizedName(category);
@@ -47,11 +68,11 @@ export function flattenCategoryTree(categories: Category[]): CategoryTreeItem[] 
         label: `${'  '.repeat(depth)}${path}`,
         path,
       });
-      visit(category.id, depth + 1, path);
+      visit(childrenByParent.get(category.id) || [], depth + 1, path);
     }
   }
 
-  visit(null, 0, '');
+  visit(roots, 0, '');
   for (const category of sortCategories(categories)) {
     if (!visited.has(category.id)) {
       const name = localizedName(category);

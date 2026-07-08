@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/appscreenshot"
@@ -19,6 +20,9 @@ import (
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
+	"lazycat.community/appstore/ent/chatconversation"
+	"lazycat.community/appstore/ent/chatmessage"
+	"lazycat.community/appstore/ent/chatparticipant"
 	"lazycat.community/appstore/ent/clientinstallhistory"
 	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
@@ -103,12 +107,16 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			apitoken.Table:             apitoken.ValidColumn,
+			announcement.Table:         announcement.ValidColumn,
 			app.Table:                  app.ValidColumn,
 			appscreenshot.Table:        appscreenshot.ValidColumn,
 			apptag.Table:               apptag.ValidColumn,
 			appversion.Table:           appversion.ValidColumn,
 			appvisibility.Table:        appvisibility.ValidColumn,
 			category.Table:             category.ValidColumn,
+			chatconversation.Table:     chatconversation.ValidColumn,
+			chatmessage.Table:          chatmessage.ValidColumn,
+			chatparticipant.Table:      chatparticipant.ValidColumn,
 			clientinstallhistory.Table: clientinstallhistory.ValidColumn,
 			clientsetting.Table:        clientsetting.ValidColumn,
 			clientsource.Table:         clientsource.ValidColumn,

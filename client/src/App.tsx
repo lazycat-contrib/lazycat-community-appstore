@@ -1,15 +1,12 @@
 import {
   Archive,
-  Cloud,
+  AlertTriangle,
   Download,
-  History,
-  Home,
   LogIn,
   LogOut,
-  PackagePlus,
+  MessageSquare,
   RefreshCw,
   Search,
-  Settings,
   ShieldCheck,
   UserRound,
   X,
@@ -30,7 +27,7 @@ import { TopNav as XTopNav } from '@astryxdesign/core/TopNav';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
-import { API_BASE, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
+import { API_BASE, APP_VERSION, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
 import { api, clientApi, fetchAllPaginated } from './shared/api';
 import {
   ANNOUNCEMENT_DISMISS_STORAGE_KEY,
@@ -41,6 +38,7 @@ import {
 import { getAstryxTheme } from './shared/astryxThemes';
 import { AstryxThemeSelector, LanguageSelector, readAstryxThemeName, readSystemTheme, readThemeMode, ThemeToggle, type LanguageCode } from './shared/theme';
 import { displayUserName } from './shared/appHelpers';
+import { categoryDescendantIds } from './shared/categoryTree';
 import type {
   Category,
   ClientInstallResult,
@@ -76,6 +74,7 @@ import {
   applicableMirrorsForVersion,
   arrayOrEmpty,
   belongsToSource,
+  compareVersions,
   cx,
   defaultSiteProfile,
   errorMessage,
@@ -87,19 +86,23 @@ import {
   localizedAppSummary,
   runAction,
   selectedSourceVersion,
+  selectedStoreVersion,
   shortSHA,
   sourceForApp,
   withInstallPassword,
 } from './shared/utils';
 import { AnnouncementBanner } from './components/AnnouncementBanner';
 import { UserAvatar } from './components/AppIcon';
-import { EmptyState } from './shared/components/Feedback';
+import { EmptyState, SectionTitle } from './shared/components/Feedback';
+import { ModalLayer } from './shared/components/ModalLayer';
 import { StatusBadge } from './shared/components/StatusBadge';
 import { ClientHistoryView } from './modules/client/ClientHistoryView';
 import { InstallOptionsDialog } from './modules/client/InstallOptionsDialog';
 import { ClientSettingsView } from './modules/client/ClientSettingsView';
 import { SourceAppDetailPage } from './modules/client/SourceAppDetailPage';
 import { SourcesView as ClientSourcesView } from './modules/client/SourcesView';
+import { ChatWorkspace } from './modules/chat/ChatWorkspace';
+import { useChatEntryActions } from './modules/chat/useChatEntryActions';
 import { AdminPanel } from './modules/admin/AdminPanel';
 import { LoginPage } from './modules/auth/LoginPage';
 import { SetupWizard } from './modules/auth/SetupWizard';
@@ -108,30 +111,26 @@ import { ProfileView } from './modules/profile/ProfileView';
 import { SearchView } from './modules/search/SearchView';
 import { AppDrawer, type AppDetailMode } from './modules/storefront/AppDrawer';
 import { StorefrontHome } from './modules/storefront/StorefrontHome';
+import { buildNavItems, type TabKey } from './modules/shell/navigation';
 
-type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'history' | 'settings' | 'admin';
-type NavItem = { key: TabKey; labelKey: string; icon: typeof Home };
 type AuthMode = 'login' | 'register' | 'verify';
 
 const DEFAULT_REVIEW_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
 const DEFAULT_HISTORY_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
 const DEFAULT_CLIENT_PAGE_SIZE = 24;
 
-const serverBaseTabs: NavItem[] = [
-  { key: 'home', labelKey: 'nav.store', icon: Home },
-  { key: 'search', labelKey: 'nav.discover', icon: Search },
-  { key: 'profile', labelKey: 'nav.myApps', icon: PackagePlus },
-];
+function isAnnouncementCurrentlyVisible(item: { enabled?: boolean; title?: string; body?: string; startsAt?: string; endsAt?: string }) {
+  if (!item.enabled || (!item.title && !item.body)) return false;
+  const now = Date.now();
+  if (item.startsAt && new Date(item.startsAt).getTime() > now) return false;
+  if (item.endsAt && new Date(item.endsAt).getTime() <= now) return false;
+  return true;
+}
 
-const serverAdminTab: NavItem = { key: 'admin', labelKey: 'nav.admin', icon: ShieldCheck };
-
-const clientTabs: NavItem[] = [
-  { key: 'sources', labelKey: 'nav.sources', icon: Cloud },
-  { key: 'search', labelKey: 'nav.install', icon: Download },
-  { key: 'profile', labelKey: 'nav.installed', icon: Archive },
-  { key: 'history', labelKey: 'nav.history', icon: History },
-  { key: 'settings', labelKey: 'nav.settings', icon: Settings },
-];
+function announcementStorageKey(item: { id?: number; level?: string; title?: string; body?: string; updatedAt?: string; sourceName?: string }) {
+  const identity = item.id ? `id:${item.id}` : `${item.level || 'info'}:${item.title || ''}:${item.body || ''}`;
+  return `${item.sourceName || 'site'}:${identity}:${item.updatedAt || ''}`;
+}
 
 function verificationTokenFromURL() {
   const params = new URLSearchParams(window.location.search);
@@ -204,6 +203,7 @@ export function App() {
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
   const [selectedAppMode, setSelectedAppMode] = useState<AppDetailMode>('detail');
   const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
+  const [sources, setSources] = useState<SourceSubscription[]>([]);
   const [clientSettings, setClientSettings] = useState<ClientSettings>({
     commentDisplayName: '',
     defaultPageSize: DEFAULT_CLIENT_PAGE_SIZE,
@@ -226,6 +226,7 @@ export function App() {
       return '';
     }
   });
+  const [dismissedClientPolicyKey, setDismissedClientPolicyKey] = useState('');
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
   const [setupRequired, setSetupRequired] = useState(false);
@@ -234,8 +235,15 @@ export function App() {
   const acceptedCollaborationInviteRef = useRef('');
   const defaultSourceCheckedRef = useRef(false);
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
-  const serverNavItems = user ? [...serverBaseTabs, ...(canReview ? [serverAdminTab] : [])] : serverBaseTabs.filter((item) => item.key !== 'profile');
-  const navItems = HAS_API ? serverNavItems : clientTabs;
+  const serverChatVisible = HAS_API && Boolean(user && siteProfile.chat?.enabled);
+  const clientChatVisible = !HAS_API && sources.some((source) => source.chatAvailable && source.chatEnabled !== false);
+  const navItems = buildNavItems({
+    hasAPI: HAS_API,
+    user,
+    canReview,
+    serverChatVisible,
+    clientChatVisible,
+  });
   const siteTitle = HAS_API ? siteProfile.title : t('appName');
   const footerYear = new Date().getFullYear();
   const siteFooterName = siteProfile.title || siteTitle;
@@ -246,16 +254,38 @@ export function App() {
   const resolvedTheme: ResolvedTheme = themeMode === 'system' ? systemTheme : themeMode;
   const selectedAstryxTheme = useMemo(() => getAstryxTheme(astryxThemeName), [astryxThemeName]);
   const tagOptions = useMemo(() => knownAppTags(apps, catalogTags), [apps, catalogTags]);
-  const announcementKey =
-    siteProfile.announcement.updatedAt ||
-    `${siteProfile.announcement.level}:${siteProfile.announcement.title || ''}:${siteProfile.announcement.body || ''}`;
-  const showAnnouncement =
-    HAS_API &&
-    siteProfile.announcement.enabled &&
-    Boolean(siteProfile.announcement.title || siteProfile.announcement.body) &&
-    announcementKey !== dismissedAnnouncement;
-
-  const [sources, setSources] = useState<SourceSubscription[]>([]);
+  const visibleAnnouncements = useMemo(() => {
+    const items = HAS_API
+      ? ((siteProfile.announcements && siteProfile.announcements.length > 0) ? siteProfile.announcements : [siteProfile.announcement])
+      : sources.flatMap((source) => (source.announcements || []).map((announcement) => ({ ...announcement, sourceName: source.name })));
+    return items.filter(isAnnouncementCurrentlyVisible);
+  }, [siteProfile.announcement, siteProfile.announcements, sources]);
+  const announcementKey = visibleAnnouncements.map(announcementStorageKey).join('|');
+  const showAnnouncement = visibleAnnouncements.length > 0 && announcementKey !== dismissedAnnouncement;
+  const incompatibleClientPolicies = useMemo(() => {
+    if (HAS_API || !APP_VERSION || APP_VERSION === 'dev') return [];
+    return sources
+      .map((source) => ({
+        source,
+        minVersion: source.clientPolicy?.minVersion?.trim() || '',
+        message: source.clientPolicy?.message?.trim() || '',
+      }))
+      .filter((item) => item.minVersion && compareVersions(APP_VERSION, item.minVersion) < 0);
+  }, [sources]);
+  const clientPolicyDialogKey = incompatibleClientPolicies.map((item) => `${item.source.id}:${item.minVersion}:${item.message}`).join('|');
+  const showClientPolicyDialog = incompatibleClientPolicies.length > 0 && clientPolicyDialogKey !== dismissedClientPolicyKey;
+  const { chatFocus, consumeChatFocus, contactStorePublisher, contactSourcePublisher } = useChatEntryActions({
+    user,
+    sources,
+    setToast,
+    onLoginRequired: () => openLogin('/'),
+    onOpenChat: () => setTab('chat'),
+    onCloseStoreDetail: () => {
+      setSelectedApp(null);
+      setSelectedAppMode('detail');
+    },
+    onCloseSourceDetail: () => setSelectedSourceApp(null),
+  });
 
   function navigateRoute(path: string) {
     window.history.pushState(null, '', path);
@@ -370,8 +400,8 @@ export function App() {
     } catch {
       // Notification still works for this session when storage is blocked.
     }
-    setToast({ tone: 'neutral', message: siteProfile.announcement.title || t('site.newAnnouncement') });
-  }, [announcementKey, showAnnouncement, siteProfile.announcement.title, t]);
+    setToast({ tone: 'neutral', message: visibleAnnouncements[0]?.title || t('site.newAnnouncement') });
+  }, [announcementKey, showAnnouncement, t, visibleAnnouncements]);
 
   useEffect(() => {
     try {
@@ -645,8 +675,16 @@ export function App() {
 
   const filteredApps = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    const selectedCategoryID = Number(activeCategory);
+    const selectedCategoryIDs = new Set<number>();
+    if (activeCategory !== 'all' && Number.isFinite(selectedCategoryID) && selectedCategoryID > 0) {
+      selectedCategoryIDs.add(selectedCategoryID);
+      for (const childID of categoryDescendantIds(categories, selectedCategoryID)) {
+        selectedCategoryIDs.add(childID);
+      }
+    }
     const filtered = storeApps.filter((app) => {
-      const categoryMatch = activeCategory === 'all' || String(app.categoryId || '') === activeCategory;
+      const categoryMatch = activeCategory === 'all' || (app.categoryId ? selectedCategoryIDs.has(app.categoryId) : false);
       const submitterMatch = activeSubmitter === 'all' || app.owner === activeSubmitter;
       const appTagSet = new Set((app.tags || []).map((tag) => tag.toLowerCase()));
       const tagMatch = activeTags.length === 0 || activeTags.some((tag) => appTagSet.has(tag.toLowerCase()));
@@ -666,7 +704,7 @@ export function App() {
       if (sortMode === 'name') return localizedAppName(a).localeCompare(localizedAppName(b));
       return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
     });
-  }, [storeApps, activeCategory, activeSubmitter, activeTags, query, sortMode]);
+  }, [storeApps, activeCategory, activeSubmitter, activeTags, categories, query, sortMode]);
 
   async function openApp(app: StoreApp, mode: AppDetailMode = 'detail') {
     await runAction(setToast, t('toast.loadAppDetailFailed'), async () => {
@@ -694,7 +732,7 @@ export function App() {
 
   async function installApp(app: StoreApp | SourceApp, options: InstallOptions = {}) {
     const isSourceApp = 'sourceName' in app;
-    const version = isSourceApp ? selectedSourceVersion(app, options.version) : app.latestVersion;
+    const version = isSourceApp ? selectedSourceVersion(app, options.version) : selectedStoreVersion(app, options.version);
     const appName = localizedAppName(app);
     if (!version) {
       setToast({ tone: 'error', message: t('toast.noInstallableVersion') });
@@ -838,6 +876,7 @@ export function App() {
         defaultDownloadMirrorId: source.defaultDownloadMirrorId || '',
         defaultRawMirrorId: source.defaultRawMirrorId || '',
         groupCodes: source.groupCodes || [],
+        chatEnabled: source.chatEnabled !== false,
       }),
     });
     await refreshClientData({ silent: true });
@@ -1005,6 +1044,13 @@ export function App() {
                             icon: <UserRound size={16} />,
                             onClick: () => setIsProfileDialogOpen(true),
                           },
+                          ...(serverChatVisible
+                            ? [{
+                                label: t('nav.chat'),
+                                icon: <MessageSquare size={16} />,
+                                onClick: () => navigateTo('chat'),
+                              }]
+                            : []),
                           {
                             label: t('auth.logout'),
                             icon: <LogOut size={16} />,
@@ -1054,7 +1100,7 @@ export function App() {
           <>
             {showAnnouncement && (
               <AnnouncementBanner
-                announcement={siteProfile.announcement}
+                announcements={visibleAnnouncements}
                 onDismiss={() => {
                   setDismissedAnnouncement(announcementKey);
                   try {
@@ -1075,11 +1121,13 @@ export function App() {
                 categories={categories}
                 tagOptions={tagOptions}
                 storageOptions={storageOptions}
+                chatEnabled={serverChatVisible}
                 onClose={() => {
                   setSelectedApp(null);
                   setSelectedAppMode('detail');
                 }}
                 onInstall={installApp}
+                onContactPublisher={contactStorePublisher}
                 onRefresh={async () => {
                   await openApp(selectedApp, selectedAppMode);
                   await refreshAll();
@@ -1090,10 +1138,12 @@ export function App() {
             ) : !HAS_API && selectedSourceApp ? (
               <SourceAppDetailPage
                 app={selectedSourceApp}
+                source={sourceForApp(selectedSourceApp, sources)}
                 installedMatch={findInstalledApplication(selectedSourceApp, installedApps)}
                 installedState={installedState}
                 onClose={() => setSelectedSourceApp(null)}
                 onInstall={installApp}
+                onContactPublisher={contactSourcePublisher}
                 onLoadInstalled={loadInstalledApps}
                 onRefreshSourceApp={async () => {
                   const data = await clientApi<{ app: SourceApp }>(`/apps/${selectedSourceApp.id}`);
@@ -1113,6 +1163,7 @@ export function App() {
                 onInstall={installApp}
                 onNavigate={navigateTo}
                 onSubmitApp={openSubmitApp}
+                activeCategory={activeCategory}
                 onCategory={(category) => {
                   setActiveCategory(category);
                   navigateTo('search');
@@ -1145,6 +1196,15 @@ export function App() {
                 onInstall={installApp}
                 onGoSources={() => navigateTo('sources')}
                 defaultPageSize={HAS_API ? siteProfile.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE : clientSettings.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE}
+              />
+            )}
+            {tab === 'chat' && (
+              <ChatWorkspace
+                mode={HAS_API ? 'server' : 'client'}
+                sources={sources}
+                focus={chatFocus}
+                onFocusConsumed={consumeChatFocus}
+                setToast={setToast}
               />
             )}
             {tab === 'sources' && (
@@ -1244,7 +1304,7 @@ export function App() {
           version={
             'sourceName' in installPasswordRequest.app
               ? selectedSourceVersion(installPasswordRequest.app, installPasswordRequest.version)
-              : installPasswordRequest.app.latestVersion
+              : selectedStoreVersion(installPasswordRequest.app, installPasswordRequest.version)
           }
           onCancel={() => setInstallPasswordRequest(null)}
           onSubmit={(options) => {
@@ -1254,6 +1314,28 @@ export function App() {
             void installApp(target, { ...options, version: targetVersion });
           }}
         />
+      )}
+
+      {showClientPolicyDialog && (
+        <ModalLayer onClose={() => setDismissedClientPolicyKey(clientPolicyDialogKey)} purpose="required" width="min(620px, calc(100vw - 36px))">
+          <div className="modal-panel form-panel client-version-dialog">
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setDismissedClientPolicyKey(clientPolicyDialogKey)} />
+            <SectionTitle icon={AlertTriangle} title={t('clientPolicy.title')} />
+            <p>{t('clientPolicy.body', { version: APP_VERSION })}</p>
+            <div className="client-policy-list">
+              {incompatibleClientPolicies.map((item) => (
+                <div key={`${item.source.id}:${item.minVersion}`} className="client-policy-item">
+                  <strong>{item.source.name}</strong>
+                  <span>{t('clientPolicy.versionRequirement', { current: APP_VERSION, required: item.minVersion })}</span>
+                  {item.message && <p>{item.message}</p>}
+                </div>
+              ))}
+            </div>
+            <div className="dialog-actions">
+              <XButton type="button" variant="primary" label={t('common.close')} icon={<X size={17} />} onClick={() => setDismissedClientPolicyKey(clientPolicyDialogKey)} />
+            </div>
+          </div>
+        </ModalLayer>
       )}
 
       {installActivity && (

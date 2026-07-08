@@ -169,6 +169,90 @@ func (_u *ClientSourceUpdate) SetNillableMirrorsJSON(v *string) *ClientSourceUpd
 	return _u
 }
 
+// SetCategoriesJSON sets the "categories_json" field.
+func (_u *ClientSourceUpdate) SetCategoriesJSON(v string) *ClientSourceUpdate {
+	_u.mutation.SetCategoriesJSON(v)
+	return _u
+}
+
+// SetNillableCategoriesJSON sets the "categories_json" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableCategoriesJSON(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetCategoriesJSON(*v)
+	}
+	return _u
+}
+
+// SetAnnouncementsJSON sets the "announcements_json" field.
+func (_u *ClientSourceUpdate) SetAnnouncementsJSON(v string) *ClientSourceUpdate {
+	_u.mutation.SetAnnouncementsJSON(v)
+	return _u
+}
+
+// SetNillableAnnouncementsJSON sets the "announcements_json" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableAnnouncementsJSON(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetAnnouncementsJSON(*v)
+	}
+	return _u
+}
+
+// SetMinClientVersion sets the "min_client_version" field.
+func (_u *ClientSourceUpdate) SetMinClientVersion(v string) *ClientSourceUpdate {
+	_u.mutation.SetMinClientVersion(v)
+	return _u
+}
+
+// SetNillableMinClientVersion sets the "min_client_version" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableMinClientVersion(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetMinClientVersion(*v)
+	}
+	return _u
+}
+
+// SetMinClientVersionMessage sets the "min_client_version_message" field.
+func (_u *ClientSourceUpdate) SetMinClientVersionMessage(v string) *ClientSourceUpdate {
+	_u.mutation.SetMinClientVersionMessage(v)
+	return _u
+}
+
+// SetNillableMinClientVersionMessage sets the "min_client_version_message" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableMinClientVersionMessage(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetMinClientVersionMessage(*v)
+	}
+	return _u
+}
+
+// SetChatAvailable sets the "chat_available" field.
+func (_u *ClientSourceUpdate) SetChatAvailable(v bool) *ClientSourceUpdate {
+	_u.mutation.SetChatAvailable(v)
+	return _u
+}
+
+// SetNillableChatAvailable sets the "chat_available" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableChatAvailable(v *bool) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetChatAvailable(*v)
+	}
+	return _u
+}
+
+// SetChatEnabled sets the "chat_enabled" field.
+func (_u *ClientSourceUpdate) SetChatEnabled(v bool) *ClientSourceUpdate {
+	_u.mutation.SetChatEnabled(v)
+	return _u
+}
+
+// SetNillableChatEnabled sets the "chat_enabled" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableChatEnabled(v *bool) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetChatEnabled(*v)
+	}
+	return _u
+}
+
 // SetLastSync sets the "last_sync" field.
 func (_u *ClientSourceUpdate) SetLastSync(v time.Time) *ClientSourceUpdate {
 	_u.mutation.SetLastSync(v)
@@ -435,6 +519,24 @@ func (_u *ClientSourceUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.MirrorsJSON(); ok {
 		_spec.SetField(clientsource.FieldMirrorsJSON, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.CategoriesJSON(); ok {
+		_spec.SetField(clientsource.FieldCategoriesJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AnnouncementsJSON(); ok {
+		_spec.SetField(clientsource.FieldAnnouncementsJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MinClientVersion(); ok {
+		_spec.SetField(clientsource.FieldMinClientVersion, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MinClientVersionMessage(); ok {
+		_spec.SetField(clientsource.FieldMinClientVersionMessage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ChatAvailable(); ok {
+		_spec.SetField(clientsource.FieldChatAvailable, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ChatEnabled(); ok {
+		_spec.SetField(clientsource.FieldChatEnabled, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)
 	}
@@ -672,6 +774,90 @@ func (_u *ClientSourceUpdateOne) SetMirrorsJSON(v string) *ClientSourceUpdateOne
 func (_u *ClientSourceUpdateOne) SetNillableMirrorsJSON(v *string) *ClientSourceUpdateOne {
 	if v != nil {
 		_u.SetMirrorsJSON(*v)
+	}
+	return _u
+}
+
+// SetCategoriesJSON sets the "categories_json" field.
+func (_u *ClientSourceUpdateOne) SetCategoriesJSON(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetCategoriesJSON(v)
+	return _u
+}
+
+// SetNillableCategoriesJSON sets the "categories_json" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableCategoriesJSON(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetCategoriesJSON(*v)
+	}
+	return _u
+}
+
+// SetAnnouncementsJSON sets the "announcements_json" field.
+func (_u *ClientSourceUpdateOne) SetAnnouncementsJSON(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetAnnouncementsJSON(v)
+	return _u
+}
+
+// SetNillableAnnouncementsJSON sets the "announcements_json" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableAnnouncementsJSON(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetAnnouncementsJSON(*v)
+	}
+	return _u
+}
+
+// SetMinClientVersion sets the "min_client_version" field.
+func (_u *ClientSourceUpdateOne) SetMinClientVersion(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetMinClientVersion(v)
+	return _u
+}
+
+// SetNillableMinClientVersion sets the "min_client_version" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableMinClientVersion(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetMinClientVersion(*v)
+	}
+	return _u
+}
+
+// SetMinClientVersionMessage sets the "min_client_version_message" field.
+func (_u *ClientSourceUpdateOne) SetMinClientVersionMessage(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetMinClientVersionMessage(v)
+	return _u
+}
+
+// SetNillableMinClientVersionMessage sets the "min_client_version_message" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableMinClientVersionMessage(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetMinClientVersionMessage(*v)
+	}
+	return _u
+}
+
+// SetChatAvailable sets the "chat_available" field.
+func (_u *ClientSourceUpdateOne) SetChatAvailable(v bool) *ClientSourceUpdateOne {
+	_u.mutation.SetChatAvailable(v)
+	return _u
+}
+
+// SetNillableChatAvailable sets the "chat_available" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableChatAvailable(v *bool) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetChatAvailable(*v)
+	}
+	return _u
+}
+
+// SetChatEnabled sets the "chat_enabled" field.
+func (_u *ClientSourceUpdateOne) SetChatEnabled(v bool) *ClientSourceUpdateOne {
+	_u.mutation.SetChatEnabled(v)
+	return _u
+}
+
+// SetNillableChatEnabled sets the "chat_enabled" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableChatEnabled(v *bool) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetChatEnabled(*v)
 	}
 	return _u
 }
@@ -971,6 +1157,24 @@ func (_u *ClientSourceUpdateOne) sqlSave(ctx context.Context) (_node *ClientSour
 	}
 	if value, ok := _u.mutation.MirrorsJSON(); ok {
 		_spec.SetField(clientsource.FieldMirrorsJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CategoriesJSON(); ok {
+		_spec.SetField(clientsource.FieldCategoriesJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AnnouncementsJSON(); ok {
+		_spec.SetField(clientsource.FieldAnnouncementsJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MinClientVersion(); ok {
+		_spec.SetField(clientsource.FieldMinClientVersion, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MinClientVersionMessage(); ok {
+		_spec.SetField(clientsource.FieldMinClientVersionMessage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ChatAvailable(); ok {
+		_spec.SetField(clientsource.FieldChatAvailable, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ChatEnabled(); ok {
+		_spec.SetField(clientsource.FieldChatEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)

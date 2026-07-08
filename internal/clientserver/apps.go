@@ -144,6 +144,7 @@ func sourceAppDTO(app *ent.ClientSourceApp) (SourceAppDTO, error) {
 		Summary:          app.Summary,
 		SummaryI18n:      catalogmeta.DecodeLocalizedText(app.SummaryI18nJSON),
 		DescriptionI18n:  catalogmeta.DecodeLocalizedText(app.DescriptionI18nJSON),
+		CategoryID:       app.CategoryID,
 		Category:         app.Category,
 		CategoryI18n:     catalogmeta.DecodeLocalizedText(app.CategoryI18nJSON),
 		IconURL:          app.IconURL,

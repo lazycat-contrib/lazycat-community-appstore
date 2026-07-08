@@ -4,6 +4,7 @@ import {
   Cloud,
   Download,
   KeyRound,
+  MessageSquare,
   Pencil,
   Plus,
   RefreshCw,
@@ -17,12 +18,14 @@ import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { DEFAULT_SOURCE_URL } from '../../config';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
+import { CategoryBrowser } from '../storefront/CategoryBrowser';
 import type {
   ClientSourceStats,
   InstalledApplication,
@@ -46,10 +49,12 @@ import {
 } from '../../shared/utils';
 import { SourceAppGrid } from './SourceAppGrid';
 import {
+  buildSourceCategoryFilterContext,
   matchesSourceAppCategory,
   matchesSourceAppSource,
   sourceAppCategoryOptions,
   sourceAppSourceOptions,
+  sourceSubscriptionFilterKey,
 } from './sourceAppFilters';
 import { normalizeGroupCodes, normalizeSourceURL, parseSourceConfigInput } from './sourceConfig';
 
@@ -83,7 +88,7 @@ export function SourcesView({
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
-  const emptyDraft: SourceInput = { name: '', url: DEFAULT_SOURCE_URL, password: '', defaultDownloadMirrorId: '', defaultRawMirrorId: '', groupCodes: [] };
+  const emptyDraft: SourceInput = { name: '', url: DEFAULT_SOURCE_URL, password: '', defaultDownloadMirrorId: '', defaultRawMirrorId: '', groupCodes: [], chatEnabled: true };
   const [draft, setDraft] = useState(emptyDraft);
   const [syncingID, setSyncingID] = useState<SourceID | null>(null);
   const [confirmDeleteSource, setConfirmDeleteSource] = useState<SourceID | null>(null);
@@ -136,7 +141,7 @@ export function SourcesView({
       return;
     }
     try {
-      await onAddSource({ name, url, password: draft.password, defaultDownloadMirrorId: '', defaultRawMirrorId: '', groupCodes: draftGroupCodes });
+      await onAddSource({ name, url, password: draft.password, defaultDownloadMirrorId: '', defaultRawMirrorId: '', groupCodes: draftGroupCodes, chatEnabled: draft.chatEnabled !== false });
       setDraft(emptyDraft);
       setIsAddSourceOpen(false);
       setToast({ tone: 'success', message: t('sources.addedNext') });
@@ -154,6 +159,7 @@ export function SourcesView({
       defaultDownloadMirrorId: source.defaultDownloadMirrorId || '',
       defaultRawMirrorId: source.defaultRawMirrorId || '',
       groupCodes: source.groupCodes || [],
+      chatEnabled: source.chatEnabled !== false,
     });
   }
 
@@ -179,6 +185,7 @@ export function SourcesView({
         defaultDownloadMirrorId: editDraft.defaultDownloadMirrorId || '',
         defaultRawMirrorId: editDraft.defaultRawMirrorId || '',
         groupCodes: normalizeGroupCodes(editDraft.groupCodes || []),
+        chatEnabled: editDraft.chatEnabled !== false,
       });
       setEditingSource(null);
       setToast({ tone: 'success', message: t('sources.updated') });
@@ -206,9 +213,19 @@ export function SourcesView({
   ];
   const filteredSources = sources.filter((source) => sourceHealthFilter === 'all' || healthFor(source) === sourceHealthFilter);
   const syncedSourceOptions = sourceAppSourceOptions(sourceApps);
-  const syncedCategoryOptions = sourceAppCategoryOptions(sourceApps, t('common.uncategorized'));
+  const syncedSourceFilteredApps = sourceApps.filter((app) => matchesSourceAppSource(app, selectedSyncedSource));
+  const syncedCategoryOptions = sourceAppCategoryOptions(syncedSourceFilteredApps, t('common.uncategorized'));
+  const syncedCategoryContext = useMemo(() => {
+    const scopedSources = selectedSyncedSource === 'all'
+      ? sources
+      : sources.filter((source) => sourceSubscriptionFilterKey(source) === selectedSyncedSource);
+    return buildSourceCategoryFilterContext(scopedSources);
+  }, [selectedSyncedSource, sources]);
+  const hasSyncedStructuredCategories = syncedCategoryContext.categories.length > 0;
   const filteredSyncedSourceApps = sourceApps.filter(
-    (app) => matchesSourceAppSource(app, selectedSyncedSource) && matchesSourceAppCategory(app, selectedSyncedCategory),
+    (app) =>
+      matchesSourceAppSource(app, selectedSyncedSource) &&
+      matchesSourceAppCategory(app, selectedSyncedCategory, hasSyncedStructuredCategories ? syncedCategoryContext : undefined),
   );
   const syncedTotalPages = Math.max(1, Math.ceil(filteredSyncedSourceApps.length / syncedPageSize));
   const currentSyncedPage = Math.min(syncedPage, syncedTotalPages);
@@ -220,6 +237,10 @@ export function SourcesView({
   useEffect(() => {
     setSyncedPage(1);
   }, [sourceApps.length, selectedSyncedSource, selectedSyncedCategory]);
+
+  useEffect(() => {
+    setSelectedSyncedCategory('all');
+  }, [selectedSyncedSource]);
 
   async function deleteSource(source: SourceSubscription) {
     if (confirmDeleteSource !== source.id) {
@@ -348,6 +369,17 @@ export function SourcesView({
               onChange={(value) => setEditDraft({ ...editDraft, groupCodes: value.split(/[,\s;]+/) })}
             />
             <XTextInput type="password" label={t('sources.password')} value={editDraft.password} onChange={(value) => setEditDraft({ ...editDraft, password: value })} />
+            <XSwitch
+              label={t('sources.chatEnabled')}
+              description={editingSource.chatAvailable ? t('sources.chatEnabledHelp') : t('sources.chatUnavailableHelp')}
+              value={editDraft.chatEnabled !== false}
+              isDisabled={!editingSource.chatAvailable}
+              disabledMessage={t('sources.chatUnavailableHelp')}
+              labelSpacing="spread"
+              width="100%"
+              labelIcon={<MessageSquare size={16} />}
+              onChange={(checked) => setEditDraft({ ...editDraft, chatEnabled: checked })}
+            />
             <XSelector
               label={t('sources.defaultDownloadMirror')}
               description={t('sources.defaultDownloadMirrorHelp')}
@@ -433,6 +465,7 @@ export function SourcesView({
                       <small>{source.password ? t('sources.passwordConfigured') : t('sources.passwordNotConfigured')}</small>
                       <small>{t('sources.downloadMirrorConfigured', { name: sourceMirrorSummary(source, 'download', t('sources.directMirror')) })}</small>
                       <small>{t('sources.rawMirrorConfigured', { name: sourceMirrorSummary(source, 'raw', t('sources.directMirror')) })}</small>
+                      <small>{source.chatAvailable ? (source.chatEnabled === false ? t('sources.chatOff') : t('sources.chatOn')) : t('sources.chatUnavailable')}</small>
                     </div>
                     {(source.groups?.length || 0) > 0 && (
                       <div className="source-group-chips" aria-label={t('sources.groups')}>
@@ -489,16 +522,21 @@ export function SourcesView({
             ]}
             onChange={setSelectedSyncedSource}
           />
-          <XSelector
-            label={t('search.categoryFilter')}
-            value={selectedSyncedCategory}
-            options={[
-              { value: 'all', label: t('search.allCategories') },
-              ...syncedCategoryOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
-            ]}
-            onChange={setSelectedSyncedCategory}
-          />
+          {!hasSyncedStructuredCategories && (
+            <XSelector
+              label={t('search.categoryFilter')}
+              value={selectedSyncedCategory}
+              options={[
+                { value: 'all', label: t('search.allCategories') },
+                ...syncedCategoryOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
+              ]}
+              onChange={setSelectedSyncedCategory}
+            />
+          )}
         </div>
+        {hasSyncedStructuredCategories && (
+          <CategoryBrowser categories={syncedCategoryContext.categories} activeCategory={selectedSyncedCategory} onCategory={setSelectedSyncedCategory} />
+        )}
         <SourceAppGrid
           apps={pagedSyncedSourceApps}
           installedApps={installedApps}

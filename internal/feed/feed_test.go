@@ -1,18 +1,20 @@
-package feed
+package feed_test
 
 import (
 	"testing"
 
+	"lazycat.community/appstore/internal/feed"
+	feedv1 "lazycat.community/appstore/internal/feed/v1"
 	"lazycat.community/appstore/internal/mirror"
 )
 
 func TestBuildIndexUsesLatestApprovedVersionAndPublishesMirrors(t *testing.T) {
-	index := BuildIndex(Input{
+	index := feedv1.BuildIndex(feed.Input{
 		BaseURL: "https://store.example.com",
 		GitHubMirrors: []mirror.Entry{
 			{ID: mirror.ID(mirror.KindDownload, "https://mirror.example.com/https://github.com"), Kind: mirror.KindDownload, Name: "Fast", URL: "https://mirror.example.com/https://github.com"},
 		},
-		Apps: []AppInput{
+		Apps: []feed.AppInput{
 			{
 				ID:          1,
 				Name:        "Demo",
@@ -21,7 +23,7 @@ func TestBuildIndexUsesLatestApprovedVersionAndPublishesMirrors(t *testing.T) {
 				Description: "Demo description",
 				Category:    "Tools",
 				Tags:        []string{"utility"},
-				Versions: []VersionInput{
+				Versions: []feed.VersionInput{
 					{Version: "1.0.0", Status: "APPROVED", SourceType: "GITHUB", DownloadURL: "https://store.example.com/api/v1/apps/1/versions/2/download", UpstreamDownloadURL: "https://github.com/acme/demo/releases/download/v1/demo.lpk", SHA256: "abc", Size: 12},
 					{Version: "0.9.0", Status: "APPROVED", SourceType: "GITHUB", DownloadURL: "https://store.example.com/api/v1/apps/1/versions/1/download", UpstreamDownloadURL: "https://github.com/acme/demo/releases/download/v0/demo.lpk", SHA256: "old", Size: 11},
 				},
@@ -48,12 +50,12 @@ func TestBuildIndexUsesLatestApprovedVersionAndPublishesMirrors(t *testing.T) {
 }
 
 func TestBuildIndexKeepsStoreDownloadURLWithoutMirror(t *testing.T) {
-	index := BuildIndex(Input{
-		Apps: []AppInput{
+	index := feedv1.BuildIndex(feed.Input{
+		Apps: []feed.AppInput{
 			{
 				ID:   1,
 				Name: "Demo",
-				Versions: []VersionInput{
+				Versions: []feed.VersionInput{
 					{
 						Version:             "1.0.0",
 						Status:              "APPROVED",
@@ -72,13 +74,13 @@ func TestBuildIndexKeepsStoreDownloadURLWithoutMirror(t *testing.T) {
 }
 
 func TestBuildIndexDoesNotMirrorProtectedAppDownloads(t *testing.T) {
-	index := BuildIndex(Input{
-		Apps: []AppInput{
+	index := feedv1.BuildIndex(feed.Input{
+		Apps: []feed.AppInput{
 			{
 				ID:               1,
 				Name:             "Protected",
 				InstallProtected: true,
-				Versions: []VersionInput{
+				Versions: []feed.VersionInput{
 					{
 						Version:             "1.0.0",
 						Status:              "APPROVED",
@@ -103,12 +105,12 @@ func TestBuildIndexDoesNotMirrorProtectedAppDownloads(t *testing.T) {
 }
 
 func TestBuildIndexSkipsAppsWithoutApprovedVersion(t *testing.T) {
-	index := BuildIndex(Input{
-		Apps: []AppInput{
+	index := feedv1.BuildIndex(feed.Input{
+		Apps: []feed.AppInput{
 			{
 				ID:   1,
 				Name: "Draft",
-				Versions: []VersionInput{
+				Versions: []feed.VersionInput{
 					{Version: "1.0.0", Status: "PENDING", DownloadURL: "https://example.com/app.lpk"},
 				},
 			},

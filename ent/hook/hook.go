@@ -21,6 +21,18 @@ func (f APITokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APITokenMutation", m)
 }
 
+// The AnnouncementFunc type is an adapter to allow the use of ordinary
+// function as Announcement mutator.
+type AnnouncementFunc func(context.Context, *ent.AnnouncementMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AnnouncementFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AnnouncementMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AnnouncementMutation", m)
+}
+
 // The AppFunc type is an adapter to allow the use of ordinary
 // function as App mutator.
 type AppFunc func(context.Context, *ent.AppMutation) (ent.Value, error)
@@ -91,6 +103,42 @@ func (f CategoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CategoryMutation", m)
+}
+
+// The ChatConversationFunc type is an adapter to allow the use of ordinary
+// function as ChatConversation mutator.
+type ChatConversationFunc func(context.Context, *ent.ChatConversationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ChatConversationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ChatConversationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChatConversationMutation", m)
+}
+
+// The ChatMessageFunc type is an adapter to allow the use of ordinary
+// function as ChatMessage mutator.
+type ChatMessageFunc func(context.Context, *ent.ChatMessageMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ChatMessageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ChatMessageMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChatMessageMutation", m)
+}
+
+// The ChatParticipantFunc type is an adapter to allow the use of ordinary
+// function as ChatParticipant mutator.
+type ChatParticipantFunc func(context.Context, *ent.ChatParticipantMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ChatParticipantFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ChatParticipantMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChatParticipantMutation", m)
 }
 
 // The ClientInstallHistoryFunc type is an adapter to allow the use of ordinary

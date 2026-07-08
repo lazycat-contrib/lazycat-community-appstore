@@ -1,6 +1,6 @@
 usage: |
   打开应用后访问 /login，会自动使用部署参数中设置的管理员账号登录；如未自动完成，可手动使用该账号登录。
-  软件源地址为 /source/v1/index.json，可被独立客户端或其他订阅方使用。
+  软件源地址为 /source/v2/index.json，可被独立客户端或其他订阅方使用，/source/v1/index.json 仍保留兼容旧客户端。
 
 application:
   subdomain: lazycat-appstore-server
@@ -17,6 +17,7 @@ application:
     - SITE_PUBLIC_URL=https://${LAZYCAT_APP_DOMAIN}
     - CLIENT_ORIGINS=https://${LAZYCAT_APP_DOMAIN}
     - TRUST_LAZYCAT_CLIENT_COMMENTS=true
+    - TRUST_LAZYCAT_CLIENT_CHAT={{ .U.trust_lazycat_client_chat }}
     - DB_DRIVER={{ .U.db_driver }}
     - DB_DSN={{ .U.db_dsn }}
     - STORAGE_BACKEND=local
@@ -26,6 +27,7 @@ application:
     - REQUIRE_EMAIL_VERIFY=false
     - SOURCE_PASSWORD={{ .U.source_password }}
     - SOURCE_PASSWORD_ROTATION=0
+    - SOURCE_V1_ENABLED={{ .U.source_v1_enabled }}
     - GITHUB_DOWNLOAD_MIRRORS={{ .U.github_download_mirrors }}
     - GITHUB_RAW_MIRRORS={{ .U.github_raw_mirrors }}
     - ADMIN_USERNAME={{ .U.admin_username }}

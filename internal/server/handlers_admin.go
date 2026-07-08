@@ -322,6 +322,25 @@ func (s *Server) validateCategoryParent(ctx context.Context, categoryID int, par
 	if categoryID > 0 && *parentID == categoryID {
 		return fmt.Errorf("Category cannot be its own parent")
 	}
+	parent, err := s.db.Category.Query().Where(category.IDEQ(*parentID)).Only(ctx)
+	if entgo.IsNotFound(err) {
+		return fmt.Errorf("Parent category does not exist")
+	}
+	if err != nil {
+		return err
+	}
+	if parent.ParentID != nil {
+		return fmt.Errorf("Category depth cannot exceed two levels")
+	}
+	if categoryID > 0 {
+		children, err := s.db.Category.Query().Where(category.ParentIDEQ(categoryID)).Count(ctx)
+		if err != nil {
+			return err
+		}
+		if children > 0 {
+			return fmt.Errorf("Category depth cannot exceed two levels")
+		}
+	}
 	currentID := *parentID
 	seen := map[int]struct{}{}
 	if categoryID > 0 {
@@ -493,7 +512,10 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingRequireEmailVerify:       strconv.FormatBool(s.cfg.RequireEmailVerify),
 		settingSourcePassword:           s.cfg.SourcePassword,
 		settingSourcePasswordRotation:   strconv.Itoa(s.cfg.SourcePasswordRotation),
+		settingSourceV1Enabled:          strconv.FormatBool(s.cfg.SourceV1Enabled),
 		settingCommentsEnabled:          "true",
+		settingChatEnabled:              "true",
+		settingChatRetentionDays:        "0",
 		settingAllowManualOutdatedClear: "false",
 		settingGitHubDownloadMirrors:    s.cfg.GitHubDownloadMirrors,
 		settingGitHubRawMirrors:         s.cfg.GitHubRawMirrors,
@@ -501,6 +523,8 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingSiteSubtitle:             s.siteProfile(r.Context()).Subtitle,
 		settingSiteIconURL:              "",
 		settingSitePublicURL:            s.sitePublicURL(r.Context()),
+		settingMinClientVersion:         defaultMinClientVersion(),
+		settingMinClientVersionMessage:  "",
 		settingAnnouncementEnabled:      "false",
 		settingAnnouncementLevel:        "info",
 		settingAnnouncementTitle:        "",
@@ -682,7 +706,7 @@ func validateSetting(key, value string) error {
 		if err != nil || parsed <= 0 {
 			return fmt.Errorf("%s must be a positive integer", key)
 		}
-	case settingMaxVersions, settingSourcePasswordRotation, settingDefaultPageSize:
+	case settingMaxVersions, settingSourcePasswordRotation, settingDefaultPageSize, settingChatRetentionDays:
 		parsed, err := strconv.Atoi(value)
 		if err != nil || parsed < 0 {
 			return fmt.Errorf("%s must be a non-negative integer", key)
@@ -693,7 +717,7 @@ func validateSetting(key, value string) error {
 		if key == settingDefaultPageSize && parsed > 200 {
 			return fmt.Errorf("%s must be at most 200", key)
 		}
-	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingAllowManualOutdatedClear:
+	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingChatEnabled, settingAllowManualOutdatedClear, settingSourceV1Enabled:
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("%s must be a boolean", key)
 		}
@@ -725,6 +749,14 @@ func validateSetting(key, value string) error {
 	case settingSiteSubtitle:
 		if len([]rune(value)) > 180 {
 			return fmt.Errorf("%s must be 180 characters or fewer", key)
+		}
+	case settingMinClientVersion:
+		if len([]rune(value)) > 40 {
+			return fmt.Errorf("%s must be 40 characters or fewer", key)
+		}
+	case settingMinClientVersionMessage:
+		if len([]rune(value)) > 300 {
+			return fmt.Errorf("%s must be 300 characters or fewer", key)
 		}
 	case settingAnnouncementTitle:
 		if len([]rune(value)) > 120 {
@@ -759,7 +791,10 @@ func isPublicSetting(key string) bool {
 		settingRequireEmailVerify,
 		settingSourcePassword,
 		settingSourcePasswordRotation,
+		settingSourceV1Enabled,
 		settingCommentsEnabled,
+		settingChatEnabled,
+		settingChatRetentionDays,
 		settingAllowManualOutdatedClear,
 		settingGitHubDownloadMirrors,
 		settingGitHubRawMirrors,
@@ -767,6 +802,8 @@ func isPublicSetting(key string) bool {
 		settingSiteSubtitle,
 		settingSiteIconURL,
 		settingSitePublicURL,
+		settingMinClientVersion,
+		settingMinClientVersionMessage,
 		settingAnnouncementEnabled,
 		settingAnnouncementLevel,
 		settingAnnouncementTitle,

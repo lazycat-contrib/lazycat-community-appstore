@@ -134,7 +134,7 @@ func TestEmbeddedAppConfigUsesSameOriginAPI(t *testing.T) {
 	for _, want := range []string{
 		"window.LAZYCAT_APPSTORE_CONFIG",
 		"apiBaseURL: window.location.origin",
-		`defaultSourceURL: window.location.origin + "/source/v1/index.json"`,
+		`defaultSourceURL: window.location.origin + "/source/v2/index.json"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("app config missing %q, body = %s, headers = %v", want, body, rec.Header())
@@ -170,7 +170,7 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("site profile status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"title":"懒猫私有商店服务端"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"http://store.test/source/v1/index.json"`) {
+	if !strings.Contains(rec.Body.String(), `"title":"懒猫私有商店服务端"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"http://store.test/source/v2/index.json"`) {
 		t.Fatalf("default site profile body = %s", rec.Body.String())
 	}
 	var defaultProfile struct {
@@ -184,6 +184,9 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	}
 	if defaultProfile.Site.DefaultPageSize != 24 {
 		t.Fatalf("default page size = %d, want 24", defaultProfile.Site.DefaultPageSize)
+	}
+	if defaultProfile.Site.ClientPolicy.MinVersion != defaultMinClientVersion() {
+		t.Fatalf("default min client version = %q, want %q", defaultProfile.Site.ClientPolicy.MinVersion, defaultMinClientVersion())
 	}
 
 	app.login("admin", "changeme")
@@ -215,7 +218,7 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 		`"subtitle":"发现适合这台 NAS 的应用。"`,
 		`"iconUrl":"https://cdn.example.com/icon.png"`,
 		`"publicUrl":"https://apps.example.com"`,
-		`"sourceUrl":"https://apps.example.com/source/v1/index.json"`,
+		`"sourceUrl":"https://apps.example.com/source/v2/index.json"`,
 		`"enabled":true`,
 		`"level":"warning"`,
 		`"title":"Maintenance"`,
@@ -295,7 +298,7 @@ func TestMCPProfileUsesSitePublicURLSettings(t *testing.T) {
 	if response.Endpoint != "https://actual.example.com/mcp" {
 		t.Fatalf("mcp endpoint = %q", response.Endpoint)
 	}
-	if response.SourceURL != "https://actual.example.com/source/v1/index.json" {
+	if response.SourceURL != "https://actual.example.com/source/v2/index.json" {
 		t.Fatalf("mcp source url = %q", response.SourceURL)
 	}
 	if got := app.server.mcpImplementation(t.Context()).WebsiteURL; got != "https://actual.example.com" {
@@ -1138,6 +1141,10 @@ func TestAdminCanUpdateAndDeleteTaxonomy(t *testing.T) {
 	if childCategory.ParentID == nil || *childCategory.ParentID != createdCategory.ID {
 		t.Fatalf("child parent = %v, want %d", childCategory.ParentID, createdCategory.ID)
 	}
+	rec = app.do(http.MethodPost, "/api/v1/admin/categories", map[string]any{"name": "下载加速", "slug": "download-accelerators", "parentId": childCategory.ID})
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("create grandchild category status = %d, body = %s", rec.Code, rec.Body.String())
+	}
 	rec = app.do(http.MethodPatch, fmt.Sprintf("/api/v1/admin/categories/%d", createdCategory.ID), map[string]any{"parentId": childCategory.ID})
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("cycle update status = %d, body = %s", rec.Code, rec.Body.String())
@@ -1432,6 +1439,7 @@ func TestServerStartsWithGitHubStorageBackendForExternalVersions(t *testing.T) {
 		LocalStoragePath: filepath.Join(root, "files"),
 		MaxLPKSize:       1024 * 1024,
 		MaxVersions:      10,
+		SourceV1Enabled:  true,
 		AdminUsername:    "admin",
 		AdminPassword:    "changeme",
 		AdminBootstrap:   true,
@@ -1803,6 +1811,7 @@ func newTestAppWithAdminBootstrap(t *testing.T, adminBootstrap bool) *testApp {
 		LocalStoragePath: filepath.Join(root, "files"),
 		MaxLPKSize:       1024 * 1024,
 		MaxVersions:      10,
+		SourceV1Enabled:  true,
 		AdminUsername:    "admin",
 		AdminPassword:    "changeme",
 		AdminBootstrap:   adminBootstrap,
@@ -1864,14 +1873,46 @@ func TestAdminSettingSourcePasswordProtectsSourceFeed(t *testing.T) {
 		t.Fatalf("settings update status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 
-	rec = app.do(http.MethodGet, "/source/v1/index.json", nil)
+	rec = app.do(http.MethodGet, "/source/v2/index.json", nil)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("source without password status = %d, want 401; body = %s", rec.Code, rec.Body.String())
 	}
 
-	rec = app.do(http.MethodGet, "/source/v1/index.json?password=secret", nil)
+	rec = app.do(http.MethodGet, "/source/v2/index.json?password=secret", nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("source with password status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAdminSettingCanDisableSourceV1CompatibilityFeed(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodGet, "/api/v1/admin/settings", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("settings status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"source_v1_enabled":"true"`) {
+		t.Fatalf("settings missing default source_v1_enabled=true: %s", rec.Body.String())
+	}
+
+	rec = app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{"source_v1_enabled": "false"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("settings update status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	app.cookies = nil
+
+	rec = app.do(http.MethodGet, "/source/v1/index.json", nil)
+	if rec.Code != http.StatusGone {
+		t.Fatalf("v1 source status = %d, want 410; body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "SOURCE_V1_DISABLED") {
+		t.Fatalf("v1 disabled response missing error code: %s", rec.Body.String())
+	}
+
+	rec = app.do(http.MethodGet, "/source/v2/index.json", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("v2 source status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -1890,6 +1931,7 @@ func TestAdminSettingsRejectInvalidValues(t *testing.T) {
 		{"announcement_link_url": "javascript:alert(1)"},
 		{"announcement_level": "danger"},
 		{"announcement_enabled": "yes"},
+		{"source_v1_enabled": "maybe"},
 		{"registration_mode": "members-only"},
 	}
 	for _, body := range tests {
@@ -2079,6 +2121,93 @@ func TestSourceFeedIncludesSiteProfileMetadata(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("source feed missing %q, body = %s", want, body)
 		}
+	}
+}
+
+func TestSourceFeedV2PublishesStructuredCategories(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	parent := app.server.db.Category.Create().
+		SetName("工具").
+		SetNameI18n(`{"zh-CN":"工具","en":"Tools"}`).
+		SetSlug("v2-tools").
+		SetSortOrder(1).
+		SaveX(ctx)
+	child := app.server.db.Category.Create().
+		SetName("开发工具").
+		SetNameI18n(`{"zh-CN":"开发工具","en":"Developer Tools"}`).
+		SetSlug("v2-developer-tools").
+		SetParentID(parent.ID).
+		SetSortOrder(2).
+		SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.v2-categorized").
+		SetName("V2 Categorized").
+		SetSlug("v2-categorized").
+		SetCategoryID(child.ID).
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	app.server.db.AppVersion.Create().
+		SetAppID(record.ID).
+		SetUploaderID(admin.ID).
+		SetVersion("1.0.0").
+		SetStatus(appversion.StatusAPPROVED).
+		SetSourceType(appversion.SourceTypeGITHUB).
+		SetDownloadURL("https://github.com/acme/v2-categorized/releases/download/v1/app.lpk").
+		SetSha256(strings.Repeat("b", 64)).
+		SetPublishedAt(time.Now()).
+		SaveX(ctx)
+
+	rec := app.do(http.MethodGet, "/source/v2/index.json", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("v2 source status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var v2 struct {
+		Schema     string `json:"schema"`
+		Categories []struct {
+			ID       int  `json:"id"`
+			ParentID *int `json:"parentId"`
+		} `json:"categories"`
+		Apps []struct {
+			ID         int  `json:"id"`
+			CategoryID *int `json:"categoryId"`
+		} `json:"apps"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &v2); err != nil {
+		t.Fatalf("decode v2 feed: %v", err)
+	}
+	if v2.Schema != "lazycat.appstore.source.v2" {
+		t.Fatalf("v2 schema = %q", v2.Schema)
+	}
+	if len(v2.Categories) != 2 {
+		t.Fatalf("v2 category count = %d, body = %s", len(v2.Categories), rec.Body.String())
+	}
+	var sawParent, sawChild, sawAppCategory bool
+	for _, item := range v2.Categories {
+		if item.ID == parent.ID && item.ParentID == nil {
+			sawParent = true
+		}
+		if item.ID == child.ID && item.ParentID != nil && *item.ParentID == parent.ID {
+			sawChild = true
+		}
+	}
+	for _, item := range v2.Apps {
+		if item.ID == record.ID && item.CategoryID != nil && *item.CategoryID == child.ID {
+			sawAppCategory = true
+		}
+	}
+	if !sawParent || !sawChild || !sawAppCategory {
+		t.Fatalf("v2 feed missing structured category data: %s", rec.Body.String())
+	}
+
+	rec = app.do(http.MethodGet, "/source/v1/index.json", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("v1 source status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), `"categories"`) || strings.Contains(rec.Body.String(), `"categoryId"`) {
+		t.Fatalf("v1 feed leaked v2 category fields: %s", rec.Body.String())
 	}
 }
 
@@ -2344,13 +2473,13 @@ func TestGroupCreateRotateAndClientConfig(t *testing.T) {
 	}
 
 	rec = app.do(http.MethodPost, "/api/v1/groups/client-config", map[string]any{
-		"sourceUrl": "https://store.example.com/source/v1/index.json",
+		"sourceUrl": "https://store.example.com/source/v2/index.json",
 		"groupIds":  []int{created.Group.ID},
 	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("client config status = %d body = %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"encoded"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"https://store.example.com/source/v1/index.json"`) {
+	if !strings.Contains(rec.Body.String(), `"encoded"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"https://store.example.com/source/v2/index.json"`) {
 		t.Fatalf("client config response missing fields: %s", rec.Body.String())
 	}
 }

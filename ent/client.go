@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/appscreenshot"
@@ -22,6 +23,9 @@ import (
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
 	"lazycat.community/appstore/ent/category"
+	"lazycat.community/appstore/ent/chatconversation"
+	"lazycat.community/appstore/ent/chatmessage"
+	"lazycat.community/appstore/ent/chatparticipant"
 	"lazycat.community/appstore/ent/clientinstallhistory"
 	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
@@ -54,6 +58,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// APIToken is the client for interacting with the APIToken builders.
 	APIToken *APITokenClient
+	// Announcement is the client for interacting with the Announcement builders.
+	Announcement *AnnouncementClient
 	// App is the client for interacting with the App builders.
 	App *AppClient
 	// AppScreenshot is the client for interacting with the AppScreenshot builders.
@@ -66,6 +72,12 @@ type Client struct {
 	AppVisibility *AppVisibilityClient
 	// Category is the client for interacting with the Category builders.
 	Category *CategoryClient
+	// ChatConversation is the client for interacting with the ChatConversation builders.
+	ChatConversation *ChatConversationClient
+	// ChatMessage is the client for interacting with the ChatMessage builders.
+	ChatMessage *ChatMessageClient
+	// ChatParticipant is the client for interacting with the ChatParticipant builders.
+	ChatParticipant *ChatParticipantClient
 	// ClientInstallHistory is the client for interacting with the ClientInstallHistory builders.
 	ClientInstallHistory *ClientInstallHistoryClient
 	// ClientSetting is the client for interacting with the ClientSetting builders.
@@ -124,12 +136,16 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIToken = NewAPITokenClient(c.config)
+	c.Announcement = NewAnnouncementClient(c.config)
 	c.App = NewAppClient(c.config)
 	c.AppScreenshot = NewAppScreenshotClient(c.config)
 	c.AppTag = NewAppTagClient(c.config)
 	c.AppVersion = NewAppVersionClient(c.config)
 	c.AppVisibility = NewAppVisibilityClient(c.config)
 	c.Category = NewCategoryClient(c.config)
+	c.ChatConversation = NewChatConversationClient(c.config)
+	c.ChatMessage = NewChatMessageClient(c.config)
+	c.ChatParticipant = NewChatParticipantClient(c.config)
 	c.ClientInstallHistory = NewClientInstallHistoryClient(c.config)
 	c.ClientSetting = NewClientSettingClient(c.config)
 	c.ClientSource = NewClientSourceClient(c.config)
@@ -246,12 +262,16 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                  ctx,
 		config:               cfg,
 		APIToken:             NewAPITokenClient(cfg),
+		Announcement:         NewAnnouncementClient(cfg),
 		App:                  NewAppClient(cfg),
 		AppScreenshot:        NewAppScreenshotClient(cfg),
 		AppTag:               NewAppTagClient(cfg),
 		AppVersion:           NewAppVersionClient(cfg),
 		AppVisibility:        NewAppVisibilityClient(cfg),
 		Category:             NewCategoryClient(cfg),
+		ChatConversation:     NewChatConversationClient(cfg),
+		ChatMessage:          NewChatMessageClient(cfg),
+		ChatParticipant:      NewChatParticipantClient(cfg),
 		ClientInstallHistory: NewClientInstallHistoryClient(cfg),
 		ClientSetting:        NewClientSettingClient(cfg),
 		ClientSource:         NewClientSourceClient(cfg),
@@ -295,12 +315,16 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                  ctx,
 		config:               cfg,
 		APIToken:             NewAPITokenClient(cfg),
+		Announcement:         NewAnnouncementClient(cfg),
 		App:                  NewAppClient(cfg),
 		AppScreenshot:        NewAppScreenshotClient(cfg),
 		AppTag:               NewAppTagClient(cfg),
 		AppVersion:           NewAppVersionClient(cfg),
 		AppVisibility:        NewAppVisibilityClient(cfg),
 		Category:             NewCategoryClient(cfg),
+		ChatConversation:     NewChatConversationClient(cfg),
+		ChatMessage:          NewChatMessageClient(cfg),
+		ChatParticipant:      NewChatParticipantClient(cfg),
 		ClientInstallHistory: NewClientInstallHistoryClient(cfg),
 		ClientSetting:        NewClientSettingClient(cfg),
 		ClientSource:         NewClientSourceClient(cfg),
@@ -353,8 +377,9 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
-		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
+		c.APIToken, c.Announcement, c.App, c.AppScreenshot, c.AppTag, c.AppVersion,
+		c.AppVisibility, c.Category, c.ChatConversation, c.ChatMessage,
+		c.ChatParticipant, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
 		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
 		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
 		c.CommentNotification, c.Favorite, c.GroupMember, c.MCPToken, c.OutdatedMark,
@@ -369,8 +394,9 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIToken, c.App, c.AppScreenshot, c.AppTag, c.AppVersion, c.AppVisibility,
-		c.Category, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
+		c.APIToken, c.Announcement, c.App, c.AppScreenshot, c.AppTag, c.AppVersion,
+		c.AppVisibility, c.Category, c.ChatConversation, c.ChatMessage,
+		c.ChatParticipant, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
 		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
 		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
 		c.CommentNotification, c.Favorite, c.GroupMember, c.MCPToken, c.OutdatedMark,
@@ -386,6 +412,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *APITokenMutation:
 		return c.APIToken.mutate(ctx, m)
+	case *AnnouncementMutation:
+		return c.Announcement.mutate(ctx, m)
 	case *AppMutation:
 		return c.App.mutate(ctx, m)
 	case *AppScreenshotMutation:
@@ -398,6 +426,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AppVisibility.mutate(ctx, m)
 	case *CategoryMutation:
 		return c.Category.mutate(ctx, m)
+	case *ChatConversationMutation:
+		return c.ChatConversation.mutate(ctx, m)
+	case *ChatMessageMutation:
+		return c.ChatMessage.mutate(ctx, m)
+	case *ChatParticipantMutation:
+		return c.ChatParticipant.mutate(ctx, m)
 	case *ClientInstallHistoryMutation:
 		return c.ClientInstallHistory.mutate(ctx, m)
 	case *ClientSettingMutation:
@@ -579,6 +613,139 @@ func (c *APITokenClient) mutate(ctx context.Context, m *APITokenMutation) (Value
 		return (&APITokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown APIToken mutation op: %q", m.Op())
+	}
+}
+
+// AnnouncementClient is a client for the Announcement schema.
+type AnnouncementClient struct {
+	config
+}
+
+// NewAnnouncementClient returns a client for the Announcement from the given config.
+func NewAnnouncementClient(c config) *AnnouncementClient {
+	return &AnnouncementClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `announcement.Hooks(f(g(h())))`.
+func (c *AnnouncementClient) Use(hooks ...Hook) {
+	c.hooks.Announcement = append(c.hooks.Announcement, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `announcement.Intercept(f(g(h())))`.
+func (c *AnnouncementClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Announcement = append(c.inters.Announcement, interceptors...)
+}
+
+// Create returns a builder for creating a Announcement entity.
+func (c *AnnouncementClient) Create() *AnnouncementCreate {
+	mutation := newAnnouncementMutation(c.config, OpCreate)
+	return &AnnouncementCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Announcement entities.
+func (c *AnnouncementClient) CreateBulk(builders ...*AnnouncementCreate) *AnnouncementCreateBulk {
+	return &AnnouncementCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AnnouncementClient) MapCreateBulk(slice any, setFunc func(*AnnouncementCreate, int)) *AnnouncementCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AnnouncementCreateBulk{err: fmt.Errorf("calling to AnnouncementClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AnnouncementCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AnnouncementCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Announcement.
+func (c *AnnouncementClient) Update() *AnnouncementUpdate {
+	mutation := newAnnouncementMutation(c.config, OpUpdate)
+	return &AnnouncementUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AnnouncementClient) UpdateOne(_m *Announcement) *AnnouncementUpdateOne {
+	mutation := newAnnouncementMutation(c.config, OpUpdateOne, withAnnouncement(_m))
+	return &AnnouncementUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AnnouncementClient) UpdateOneID(id int) *AnnouncementUpdateOne {
+	mutation := newAnnouncementMutation(c.config, OpUpdateOne, withAnnouncementID(id))
+	return &AnnouncementUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Announcement.
+func (c *AnnouncementClient) Delete() *AnnouncementDelete {
+	mutation := newAnnouncementMutation(c.config, OpDelete)
+	return &AnnouncementDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AnnouncementClient) DeleteOne(_m *Announcement) *AnnouncementDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AnnouncementClient) DeleteOneID(id int) *AnnouncementDeleteOne {
+	builder := c.Delete().Where(announcement.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AnnouncementDeleteOne{builder}
+}
+
+// Query returns a query builder for Announcement.
+func (c *AnnouncementClient) Query() *AnnouncementQuery {
+	return &AnnouncementQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAnnouncement},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Announcement entity by its id.
+func (c *AnnouncementClient) Get(ctx context.Context, id int) (*Announcement, error) {
+	return c.Query().Where(announcement.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AnnouncementClient) GetX(ctx context.Context, id int) *Announcement {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AnnouncementClient) Hooks() []Hook {
+	return c.hooks.Announcement
+}
+
+// Interceptors returns the client interceptors.
+func (c *AnnouncementClient) Interceptors() []Interceptor {
+	return c.inters.Announcement
+}
+
+func (c *AnnouncementClient) mutate(ctx context.Context, m *AnnouncementMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AnnouncementCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AnnouncementUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AnnouncementUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AnnouncementDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Announcement mutation op: %q", m.Op())
 	}
 }
 
@@ -1377,6 +1544,405 @@ func (c *CategoryClient) mutate(ctx context.Context, m *CategoryMutation) (Value
 		return (&CategoryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Category mutation op: %q", m.Op())
+	}
+}
+
+// ChatConversationClient is a client for the ChatConversation schema.
+type ChatConversationClient struct {
+	config
+}
+
+// NewChatConversationClient returns a client for the ChatConversation from the given config.
+func NewChatConversationClient(c config) *ChatConversationClient {
+	return &ChatConversationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `chatconversation.Hooks(f(g(h())))`.
+func (c *ChatConversationClient) Use(hooks ...Hook) {
+	c.hooks.ChatConversation = append(c.hooks.ChatConversation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `chatconversation.Intercept(f(g(h())))`.
+func (c *ChatConversationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ChatConversation = append(c.inters.ChatConversation, interceptors...)
+}
+
+// Create returns a builder for creating a ChatConversation entity.
+func (c *ChatConversationClient) Create() *ChatConversationCreate {
+	mutation := newChatConversationMutation(c.config, OpCreate)
+	return &ChatConversationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ChatConversation entities.
+func (c *ChatConversationClient) CreateBulk(builders ...*ChatConversationCreate) *ChatConversationCreateBulk {
+	return &ChatConversationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ChatConversationClient) MapCreateBulk(slice any, setFunc func(*ChatConversationCreate, int)) *ChatConversationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ChatConversationCreateBulk{err: fmt.Errorf("calling to ChatConversationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ChatConversationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ChatConversationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ChatConversation.
+func (c *ChatConversationClient) Update() *ChatConversationUpdate {
+	mutation := newChatConversationMutation(c.config, OpUpdate)
+	return &ChatConversationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ChatConversationClient) UpdateOne(_m *ChatConversation) *ChatConversationUpdateOne {
+	mutation := newChatConversationMutation(c.config, OpUpdateOne, withChatConversation(_m))
+	return &ChatConversationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ChatConversationClient) UpdateOneID(id int) *ChatConversationUpdateOne {
+	mutation := newChatConversationMutation(c.config, OpUpdateOne, withChatConversationID(id))
+	return &ChatConversationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ChatConversation.
+func (c *ChatConversationClient) Delete() *ChatConversationDelete {
+	mutation := newChatConversationMutation(c.config, OpDelete)
+	return &ChatConversationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ChatConversationClient) DeleteOne(_m *ChatConversation) *ChatConversationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ChatConversationClient) DeleteOneID(id int) *ChatConversationDeleteOne {
+	builder := c.Delete().Where(chatconversation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ChatConversationDeleteOne{builder}
+}
+
+// Query returns a query builder for ChatConversation.
+func (c *ChatConversationClient) Query() *ChatConversationQuery {
+	return &ChatConversationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeChatConversation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ChatConversation entity by its id.
+func (c *ChatConversationClient) Get(ctx context.Context, id int) (*ChatConversation, error) {
+	return c.Query().Where(chatconversation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ChatConversationClient) GetX(ctx context.Context, id int) *ChatConversation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ChatConversationClient) Hooks() []Hook {
+	return c.hooks.ChatConversation
+}
+
+// Interceptors returns the client interceptors.
+func (c *ChatConversationClient) Interceptors() []Interceptor {
+	return c.inters.ChatConversation
+}
+
+func (c *ChatConversationClient) mutate(ctx context.Context, m *ChatConversationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ChatConversationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ChatConversationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ChatConversationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ChatConversationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ChatConversation mutation op: %q", m.Op())
+	}
+}
+
+// ChatMessageClient is a client for the ChatMessage schema.
+type ChatMessageClient struct {
+	config
+}
+
+// NewChatMessageClient returns a client for the ChatMessage from the given config.
+func NewChatMessageClient(c config) *ChatMessageClient {
+	return &ChatMessageClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `chatmessage.Hooks(f(g(h())))`.
+func (c *ChatMessageClient) Use(hooks ...Hook) {
+	c.hooks.ChatMessage = append(c.hooks.ChatMessage, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `chatmessage.Intercept(f(g(h())))`.
+func (c *ChatMessageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ChatMessage = append(c.inters.ChatMessage, interceptors...)
+}
+
+// Create returns a builder for creating a ChatMessage entity.
+func (c *ChatMessageClient) Create() *ChatMessageCreate {
+	mutation := newChatMessageMutation(c.config, OpCreate)
+	return &ChatMessageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ChatMessage entities.
+func (c *ChatMessageClient) CreateBulk(builders ...*ChatMessageCreate) *ChatMessageCreateBulk {
+	return &ChatMessageCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ChatMessageClient) MapCreateBulk(slice any, setFunc func(*ChatMessageCreate, int)) *ChatMessageCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ChatMessageCreateBulk{err: fmt.Errorf("calling to ChatMessageClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ChatMessageCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ChatMessageCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ChatMessage.
+func (c *ChatMessageClient) Update() *ChatMessageUpdate {
+	mutation := newChatMessageMutation(c.config, OpUpdate)
+	return &ChatMessageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ChatMessageClient) UpdateOne(_m *ChatMessage) *ChatMessageUpdateOne {
+	mutation := newChatMessageMutation(c.config, OpUpdateOne, withChatMessage(_m))
+	return &ChatMessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ChatMessageClient) UpdateOneID(id int) *ChatMessageUpdateOne {
+	mutation := newChatMessageMutation(c.config, OpUpdateOne, withChatMessageID(id))
+	return &ChatMessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ChatMessage.
+func (c *ChatMessageClient) Delete() *ChatMessageDelete {
+	mutation := newChatMessageMutation(c.config, OpDelete)
+	return &ChatMessageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ChatMessageClient) DeleteOne(_m *ChatMessage) *ChatMessageDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ChatMessageClient) DeleteOneID(id int) *ChatMessageDeleteOne {
+	builder := c.Delete().Where(chatmessage.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ChatMessageDeleteOne{builder}
+}
+
+// Query returns a query builder for ChatMessage.
+func (c *ChatMessageClient) Query() *ChatMessageQuery {
+	return &ChatMessageQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeChatMessage},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ChatMessage entity by its id.
+func (c *ChatMessageClient) Get(ctx context.Context, id int) (*ChatMessage, error) {
+	return c.Query().Where(chatmessage.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ChatMessageClient) GetX(ctx context.Context, id int) *ChatMessage {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ChatMessageClient) Hooks() []Hook {
+	return c.hooks.ChatMessage
+}
+
+// Interceptors returns the client interceptors.
+func (c *ChatMessageClient) Interceptors() []Interceptor {
+	return c.inters.ChatMessage
+}
+
+func (c *ChatMessageClient) mutate(ctx context.Context, m *ChatMessageMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ChatMessageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ChatMessageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ChatMessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ChatMessageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ChatMessage mutation op: %q", m.Op())
+	}
+}
+
+// ChatParticipantClient is a client for the ChatParticipant schema.
+type ChatParticipantClient struct {
+	config
+}
+
+// NewChatParticipantClient returns a client for the ChatParticipant from the given config.
+func NewChatParticipantClient(c config) *ChatParticipantClient {
+	return &ChatParticipantClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `chatparticipant.Hooks(f(g(h())))`.
+func (c *ChatParticipantClient) Use(hooks ...Hook) {
+	c.hooks.ChatParticipant = append(c.hooks.ChatParticipant, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `chatparticipant.Intercept(f(g(h())))`.
+func (c *ChatParticipantClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ChatParticipant = append(c.inters.ChatParticipant, interceptors...)
+}
+
+// Create returns a builder for creating a ChatParticipant entity.
+func (c *ChatParticipantClient) Create() *ChatParticipantCreate {
+	mutation := newChatParticipantMutation(c.config, OpCreate)
+	return &ChatParticipantCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ChatParticipant entities.
+func (c *ChatParticipantClient) CreateBulk(builders ...*ChatParticipantCreate) *ChatParticipantCreateBulk {
+	return &ChatParticipantCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ChatParticipantClient) MapCreateBulk(slice any, setFunc func(*ChatParticipantCreate, int)) *ChatParticipantCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ChatParticipantCreateBulk{err: fmt.Errorf("calling to ChatParticipantClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ChatParticipantCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ChatParticipantCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ChatParticipant.
+func (c *ChatParticipantClient) Update() *ChatParticipantUpdate {
+	mutation := newChatParticipantMutation(c.config, OpUpdate)
+	return &ChatParticipantUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ChatParticipantClient) UpdateOne(_m *ChatParticipant) *ChatParticipantUpdateOne {
+	mutation := newChatParticipantMutation(c.config, OpUpdateOne, withChatParticipant(_m))
+	return &ChatParticipantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ChatParticipantClient) UpdateOneID(id int) *ChatParticipantUpdateOne {
+	mutation := newChatParticipantMutation(c.config, OpUpdateOne, withChatParticipantID(id))
+	return &ChatParticipantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ChatParticipant.
+func (c *ChatParticipantClient) Delete() *ChatParticipantDelete {
+	mutation := newChatParticipantMutation(c.config, OpDelete)
+	return &ChatParticipantDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ChatParticipantClient) DeleteOne(_m *ChatParticipant) *ChatParticipantDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ChatParticipantClient) DeleteOneID(id int) *ChatParticipantDeleteOne {
+	builder := c.Delete().Where(chatparticipant.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ChatParticipantDeleteOne{builder}
+}
+
+// Query returns a query builder for ChatParticipant.
+func (c *ChatParticipantClient) Query() *ChatParticipantQuery {
+	return &ChatParticipantQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeChatParticipant},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ChatParticipant entity by its id.
+func (c *ChatParticipantClient) Get(ctx context.Context, id int) (*ChatParticipant, error) {
+	return c.Query().Where(chatparticipant.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ChatParticipantClient) GetX(ctx context.Context, id int) *ChatParticipant {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ChatParticipantClient) Hooks() []Hook {
+	return c.hooks.ChatParticipant
+}
+
+// Interceptors returns the client interceptors.
+func (c *ChatParticipantClient) Interceptors() []Interceptor {
+	return c.inters.ChatParticipant
+}
+
+func (c *ChatParticipantClient) mutate(ctx context.Context, m *ChatParticipantMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ChatParticipantCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ChatParticipantUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ChatParticipantUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ChatParticipantDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ChatParticipant mutation op: %q", m.Op())
 	}
 }
 
@@ -4474,19 +5040,21 @@ func (c *UserGroupClient) mutate(ctx context.Context, m *UserGroupMutation) (Val
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
-		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
-		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
-		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
-		MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting,
-		StorageConfig, Tag, User, UserGroup []ent.Hook
+		APIToken, Announcement, App, AppScreenshot, AppTag, AppVersion, AppVisibility,
+		Category, ChatConversation, ChatMessage, ChatParticipant, ClientInstallHistory,
+		ClientSetting, ClientSource, ClientSourceApp, ClientSyncSetting, Collaborator,
+		CollaboratorInvite, CollaboratorRequest, Collection, CollectionApp, Comment,
+		CommentNotification, Favorite, GroupMember, MCPToken, OutdatedMark,
+		RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
+		UserGroup []ent.Hook
 	}
 	inters struct {
-		APIToken, App, AppScreenshot, AppTag, AppVersion, AppVisibility, Category,
-		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
-		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
-		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
-		MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting,
-		StorageConfig, Tag, User, UserGroup []ent.Interceptor
+		APIToken, Announcement, App, AppScreenshot, AppTag, AppVersion, AppVisibility,
+		Category, ChatConversation, ChatMessage, ChatParticipant, ClientInstallHistory,
+		ClientSetting, ClientSource, ClientSourceApp, ClientSyncSetting, Collaborator,
+		CollaboratorInvite, CollaboratorRequest, Collection, CollectionApp, Comment,
+		CommentNotification, Favorite, GroupMember, MCPToken, OutdatedMark,
+		RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
+		UserGroup []ent.Interceptor
 	}
 )

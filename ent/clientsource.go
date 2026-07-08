@@ -37,6 +37,18 @@ type ClientSource struct {
 	LastInvalidGroupCodesJSON string `json:"last_invalid_group_codes_json,omitempty"`
 	// MirrorsJSON holds the value of the "mirrors_json" field.
 	MirrorsJSON string `json:"mirrors_json,omitempty"`
+	// CategoriesJSON holds the value of the "categories_json" field.
+	CategoriesJSON string `json:"categories_json,omitempty"`
+	// AnnouncementsJSON holds the value of the "announcements_json" field.
+	AnnouncementsJSON string `json:"announcements_json,omitempty"`
+	// MinClientVersion holds the value of the "min_client_version" field.
+	MinClientVersion string `json:"min_client_version,omitempty"`
+	// MinClientVersionMessage holds the value of the "min_client_version_message" field.
+	MinClientVersionMessage string `json:"min_client_version_message,omitempty"`
+	// ChatAvailable holds the value of the "chat_available" field.
+	ChatAvailable bool `json:"chat_available,omitempty"`
+	// ChatEnabled holds the value of the "chat_enabled" field.
+	ChatEnabled bool `json:"chat_enabled,omitempty"`
 	// LastSync holds the value of the "last_sync" field.
 	LastSync *time.Time `json:"last_sync,omitempty"`
 	// LastError holds the value of the "last_error" field.
@@ -80,9 +92,11 @@ func (*ClientSource) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case clientsource.FieldChatAvailable, clientsource.FieldChatEnabled:
+			values[i] = new(sql.NullBool)
 		case clientsource.FieldID, clientsource.FieldLastAppCount, clientsource.FieldLastInstallableCount:
 			values[i] = new(sql.NullInt64)
-		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldGroupCodesJSON, clientsource.FieldGroupNamesJSON, clientsource.FieldLastInvalidGroupCodesJSON, clientsource.FieldMirrorsJSON, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
+		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldGroupCodesJSON, clientsource.FieldGroupNamesJSON, clientsource.FieldLastInvalidGroupCodesJSON, clientsource.FieldMirrorsJSON, clientsource.FieldCategoriesJSON, clientsource.FieldAnnouncementsJSON, clientsource.FieldMinClientVersion, clientsource.FieldMinClientVersionMessage, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
 			values[i] = new(sql.NullString)
 		case clientsource.FieldLastSync, clientsource.FieldCreatedAt, clientsource.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -166,6 +180,42 @@ func (_m *ClientSource) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field mirrors_json", values[i])
 			} else if value.Valid {
 				_m.MirrorsJSON = value.String
+			}
+		case clientsource.FieldCategoriesJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field categories_json", values[i])
+			} else if value.Valid {
+				_m.CategoriesJSON = value.String
+			}
+		case clientsource.FieldAnnouncementsJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field announcements_json", values[i])
+			} else if value.Valid {
+				_m.AnnouncementsJSON = value.String
+			}
+		case clientsource.FieldMinClientVersion:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field min_client_version", values[i])
+			} else if value.Valid {
+				_m.MinClientVersion = value.String
+			}
+		case clientsource.FieldMinClientVersionMessage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field min_client_version_message", values[i])
+			} else if value.Valid {
+				_m.MinClientVersionMessage = value.String
+			}
+		case clientsource.FieldChatAvailable:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field chat_available", values[i])
+			} else if value.Valid {
+				_m.ChatAvailable = value.Bool
+			}
+		case clientsource.FieldChatEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field chat_enabled", values[i])
+			} else if value.Valid {
+				_m.ChatEnabled = value.Bool
 			}
 		case clientsource.FieldLastSync:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -282,6 +332,24 @@ func (_m *ClientSource) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("mirrors_json=")
 	builder.WriteString(_m.MirrorsJSON)
+	builder.WriteString(", ")
+	builder.WriteString("categories_json=")
+	builder.WriteString(_m.CategoriesJSON)
+	builder.WriteString(", ")
+	builder.WriteString("announcements_json=")
+	builder.WriteString(_m.AnnouncementsJSON)
+	builder.WriteString(", ")
+	builder.WriteString("min_client_version=")
+	builder.WriteString(_m.MinClientVersion)
+	builder.WriteString(", ")
+	builder.WriteString("min_client_version_message=")
+	builder.WriteString(_m.MinClientVersionMessage)
+	builder.WriteString(", ")
+	builder.WriteString("chat_available=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChatAvailable))
+	builder.WriteString(", ")
+	builder.WriteString("chat_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChatEnabled))
 	builder.WriteString(", ")
 	if v := _m.LastSync; v != nil {
 		builder.WriteString("last_sync=")

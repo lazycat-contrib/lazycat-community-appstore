@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Badge as XBadge, type BadgeVariant } from '@astryxdesign/core/Badge';
+import { Collapsible as XCollapsible } from '@astryxdesign/core/Collapsible';
 import { Table as XTable, pixel, proportional, type TableColumn } from '@astryxdesign/core/Table';
 import { Text as XText } from '@astryxdesign/core/Text';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +15,7 @@ export type VersionHistoryRow = {
   publishedAt?: string;
   statusLabel?: string;
   statusVariant?: BadgeVariant;
+  isLatest?: boolean;
   action?: ReactNode;
 };
 
@@ -83,10 +85,11 @@ export function VersionHistoryTable({ rows }: { rows: VersionHistoryRow[] }) {
     });
   }
 
-  return (
-    <div className="version-table-wrap">
+  function renderTable(tableRows: VersionHistoryTableRow[], label: string) {
+    return (
       <XTable
-        data={rows as VersionHistoryTableRow[]}
+        aria-label={label}
+        data={tableRows}
         columns={columns}
         idKey={(row) => row.id}
         density="compact"
@@ -94,6 +97,35 @@ export function VersionHistoryTable({ rows }: { rows: VersionHistoryRow[] }) {
         textOverflow="truncate"
         hasHover
       />
+    );
+  }
+
+  const latestRows = rows.filter((row) => row.isLatest);
+  const latest = latestRows.length > 0 ? latestRows : rows.slice(0, 1);
+  const latestIds = new Set(latest.map((row) => row.id));
+  const historical = rows.filter((row) => !latestIds.has(row.id));
+
+  return (
+    <div className="version-history-stack">
+      <div className="version-table-wrap">
+        {renderTable(latest as VersionHistoryTableRow[], t('versionHistory.latestTable'))}
+      </div>
+      {historical.length > 0 && (
+        <XCollapsible
+          className="version-history-collapsible"
+          defaultIsOpen={false}
+          trigger={(
+            <span className="version-history-trigger">
+              <strong>{t('versionHistory.historyTitle')}</strong>
+              <span>{t('versionHistory.historyCount', { count: historical.length })}</span>
+            </span>
+          )}
+        >
+          <div className="version-table-wrap history">
+            {renderTable(historical as VersionHistoryTableRow[], t('versionHistory.historyTable'))}
+          </div>
+        </XCollapsible>
+      )}
     </div>
   );
 }

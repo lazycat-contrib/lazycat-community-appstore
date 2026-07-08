@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	entgo "lazycat.community/appstore/ent"
@@ -18,9 +19,23 @@ import (
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/feed"
+	feedv1 "lazycat.community/appstore/internal/feed/v1"
+	feedv2 "lazycat.community/appstore/internal/feed/v2"
 )
 
-func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleSourceIndexV1(w http.ResponseWriter, r *http.Request) {
+	if !s.sourceV1Enabled(r.Context()) {
+		writeError(w, http.StatusGone, "SOURCE_V1_DISABLED", "The v1 source feed is disabled by the site administrator", nil)
+		return
+	}
+	s.handleSourceIndex(w, r, 1)
+}
+
+func (s *Server) handleSourceIndexV2(w http.ResponseWriter, r *http.Request) {
+	s.handleSourceIndex(w, r, 2)
+}
+
+func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, version int) {
 	sourcePassword := s.sourcePassword(r.Context())
 	if sourcePassword != "" {
 		password := r.Header.Get("X-Source-Password")
@@ -56,18 +71,14 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 			Title:     profile.Title,
 			IconURL:   profile.IconURL,
 			PublicURL: profile.PublicURL,
-			SourceURL: profile.SourceURL,
+			SourceURL: sourceFeedURL(profile.PublicURL, version),
+			Chat: feed.ChatMeta{
+				Enabled:       profile.Chat.Enabled,
+				RetentionDays: profile.Chat.RetentionDays,
+			},
 		},
-		Announcement: feed.AnnouncementMeta{
-			Enabled:   profile.Announcement.Enabled,
-			Level:     profile.Announcement.Level,
-			Title:     profile.Announcement.Title,
-			Body:      profile.Announcement.Body,
-			LinkLabel: profile.Announcement.LinkLabel,
-			LinkURL:   profile.Announcement.LinkURL,
-			UpdatedAt: profile.Announcement.UpdatedAt,
-		},
-		Apps: make([]feed.AppInput, 0, len(apps)),
+		Announcement: siteAnnouncementToFeed(profile.Announcement),
+		Apps:         make([]feed.AppInput, 0, len(apps)),
 	}
 	for _, group := range groupAccess.validGroups {
 		input.Groups = append(input.Groups, feed.GroupMeta{ID: group.ID, Name: group.Name, Code: group.Code})
@@ -78,6 +89,14 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SOURCE_BUILD_FAILED", "Could not build source index", nil)
 		return
+	}
+	if version >= 2 {
+		input.Site.ClientPolicy = feed.ClientPolicyMeta{
+			MinVersion: profile.ClientPolicy.MinVersion,
+			Message:    profile.ClientPolicy.Message,
+		}
+		input.Categories = sourceIndexCategoryInputs(preload.categories)
+		input.Announcements = siteAnnouncementsToFeed(profile.Announcements)
 	}
 	for _, record := range apps {
 		if _, ok := preload.publicAppIDs[record.ID]; !ok {
@@ -108,6 +127,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 		}
 		if record.CategoryID != nil {
 			if categoryRecord := preload.categories[*record.CategoryID]; categoryRecord != nil {
+				appInput.CategoryID = record.CategoryID
 				appInput.Category = categoryRecord.Name
 				appInput.CategoryI18n = catalogmeta.DecodeLocalizedText(categoryRecord.NameI18n)
 			}
@@ -115,7 +135,38 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request) {
 		input.Apps = append(input.Apps, appInput)
 	}
 
-	writeJSON(w, http.StatusOK, feed.BuildIndex(input))
+	if version >= 2 {
+		writeJSON(w, http.StatusOK, feedv2.BuildIndex(input))
+		return
+	}
+	writeJSON(w, http.StatusOK, feedv1.BuildIndex(input))
+}
+
+func siteAnnouncementToFeed(item siteAnnouncement) feed.AnnouncementMeta {
+	return feed.AnnouncementMeta{
+		ID:        item.ID,
+		Enabled:   item.Enabled,
+		Level:     item.Level,
+		Title:     item.Title,
+		Body:      item.Body,
+		LinkLabel: item.LinkLabel,
+		LinkURL:   item.LinkURL,
+		StartsAt:  item.StartsAt,
+		EndsAt:    item.EndsAt,
+		SortOrder: item.SortOrder,
+		UpdatedAt: item.UpdatedAt,
+	}
+}
+
+func siteAnnouncementsToFeed(items []siteAnnouncement) []feed.AnnouncementMeta {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]feed.AnnouncementMeta, 0, len(items))
+	for _, item := range items {
+		out = append(out, siteAnnouncementToFeed(item))
+	}
+	return out
 }
 
 type sourceIndexPreload struct {
@@ -225,18 +276,49 @@ func (s *Server) loadSourceIndexSubmitters(ctx context.Context, ownerIDs map[int
 }
 
 func (s *Server) loadSourceIndexCategories(ctx context.Context, categoryIDs map[int]struct{}, out map[int]*entgo.Category) error {
-	ids := mapKeys(categoryIDs)
-	if len(ids) == 0 {
-		return nil
-	}
-	records, err := s.db.Category.Query().Where(category.IDIn(ids...)).All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, record := range records {
-		out[record.ID] = record
+	pending := mapKeys(categoryIDs)
+	for len(pending) > 0 {
+		records, err := s.db.Category.Query().Where(category.IDIn(pending...)).All(ctx)
+		if err != nil {
+			return err
+		}
+		next := []int{}
+		for _, record := range records {
+			out[record.ID] = record
+			if record.ParentID != nil {
+				if _, exists := out[*record.ParentID]; !exists {
+					next = append(next, *record.ParentID)
+				}
+			}
+		}
+		pending = next
 	}
 	return nil
+}
+
+func sourceIndexCategoryInputs(records map[int]*entgo.Category) []feed.CategoryInput {
+	out := make([]feed.CategoryInput, 0, len(records))
+	for _, record := range records {
+		out = append(out, feed.CategoryInput{
+			ID:        record.ID,
+			Name:      record.Name,
+			NameI18n:  catalogmeta.DecodeLocalizedText(record.NameI18n),
+			Slug:      record.Slug,
+			ParentID:  record.ParentID,
+			SortOrder: record.SortOrder,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		left, right := out[i], out[j]
+		if left.SortOrder != right.SortOrder {
+			return left.SortOrder < right.SortOrder
+		}
+		if left.Name != right.Name {
+			return left.Name < right.Name
+		}
+		return left.ID < right.ID
+	})
+	return out
 }
 
 func (s *Server) loadSourceIndexTags(ctx context.Context, appIDs []int, out map[int][]string) error {

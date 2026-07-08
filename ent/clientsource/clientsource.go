@@ -35,6 +35,18 @@ const (
 	FieldLastInvalidGroupCodesJSON = "last_invalid_group_codes_json"
 	// FieldMirrorsJSON holds the string denoting the mirrors_json field in the database.
 	FieldMirrorsJSON = "mirrors_json"
+	// FieldCategoriesJSON holds the string denoting the categories_json field in the database.
+	FieldCategoriesJSON = "categories_json"
+	// FieldAnnouncementsJSON holds the string denoting the announcements_json field in the database.
+	FieldAnnouncementsJSON = "announcements_json"
+	// FieldMinClientVersion holds the string denoting the min_client_version field in the database.
+	FieldMinClientVersion = "min_client_version"
+	// FieldMinClientVersionMessage holds the string denoting the min_client_version_message field in the database.
+	FieldMinClientVersionMessage = "min_client_version_message"
+	// FieldChatAvailable holds the string denoting the chat_available field in the database.
+	FieldChatAvailable = "chat_available"
+	// FieldChatEnabled holds the string denoting the chat_enabled field in the database.
+	FieldChatEnabled = "chat_enabled"
 	// FieldLastSync holds the string denoting the last_sync field in the database.
 	FieldLastSync = "last_sync"
 	// FieldLastError holds the string denoting the last_error field in the database.
@@ -75,6 +87,12 @@ var Columns = []string{
 	FieldGroupNamesJSON,
 	FieldLastInvalidGroupCodesJSON,
 	FieldMirrorsJSON,
+	FieldCategoriesJSON,
+	FieldAnnouncementsJSON,
+	FieldMinClientVersion,
+	FieldMinClientVersionMessage,
+	FieldChatAvailable,
+	FieldChatEnabled,
 	FieldLastSync,
 	FieldLastError,
 	FieldLastErrorCode,
@@ -115,6 +133,18 @@ var (
 	DefaultLastInvalidGroupCodesJSON string
 	// DefaultMirrorsJSON holds the default value on creation for the "mirrors_json" field.
 	DefaultMirrorsJSON string
+	// DefaultCategoriesJSON holds the default value on creation for the "categories_json" field.
+	DefaultCategoriesJSON string
+	// DefaultAnnouncementsJSON holds the default value on creation for the "announcements_json" field.
+	DefaultAnnouncementsJSON string
+	// DefaultMinClientVersion holds the default value on creation for the "min_client_version" field.
+	DefaultMinClientVersion string
+	// DefaultMinClientVersionMessage holds the default value on creation for the "min_client_version_message" field.
+	DefaultMinClientVersionMessage string
+	// DefaultChatAvailable holds the default value on creation for the "chat_available" field.
+	DefaultChatAvailable bool
+	// DefaultChatEnabled holds the default value on creation for the "chat_enabled" field.
+	DefaultChatEnabled bool
 	// DefaultLastAppCount holds the default value on creation for the "last_app_count" field.
 	DefaultLastAppCount int
 	// DefaultLastInstallableCount holds the default value on creation for the "last_installable_count" field.
@@ -208,6 +238,36 @@ func ByLastInvalidGroupCodesJSON(opts ...sql.OrderTermOption) OrderOption {
 // ByMirrorsJSON orders the results by the mirrors_json field.
 func ByMirrorsJSON(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMirrorsJSON, opts...).ToFunc()
+}
+
+// ByCategoriesJSON orders the results by the categories_json field.
+func ByCategoriesJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCategoriesJSON, opts...).ToFunc()
+}
+
+// ByAnnouncementsJSON orders the results by the announcements_json field.
+func ByAnnouncementsJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAnnouncementsJSON, opts...).ToFunc()
+}
+
+// ByMinClientVersion orders the results by the min_client_version field.
+func ByMinClientVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMinClientVersion, opts...).ToFunc()
+}
+
+// ByMinClientVersionMessage orders the results by the min_client_version_message field.
+func ByMinClientVersionMessage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMinClientVersionMessage, opts...).ToFunc()
+}
+
+// ByChatAvailable orders the results by the chat_available field.
+func ByChatAvailable(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChatAvailable, opts...).ToFunc()
+}
+
+// ByChatEnabled orders the results by the chat_enabled field.
+func ByChatEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChatEnabled, opts...).ToFunc()
 }
 
 // ByLastSync orders the results by the last_sync field.

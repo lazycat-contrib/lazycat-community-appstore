@@ -265,8 +265,13 @@ export type SourceSubscription = {
   defaultRawMirrorId: string;
   groupCodes?: string[];
   groups?: Array<{ name: string; code?: string }>;
+  categories?: Category[];
+  announcements?: SiteAnnouncement[];
+  clientPolicy?: ClientPolicy;
   lastInvalidGroupCodes?: string[];
   githubMirrors: GitHubMirror[];
+  chatAvailable?: boolean;
+  chatEnabled?: boolean;
   lastSync?: string;
   lastError?: string;
   lastErrorCode?: SourceErrorCode;
@@ -276,7 +281,7 @@ export type SourceSubscription = {
 
 export type SourceInput = Pick<
   SourceSubscription,
-  'name' | 'url' | 'password' | 'defaultDownloadMirrorId' | 'defaultRawMirrorId' | 'groupCodes'
+  'name' | 'url' | 'password' | 'defaultDownloadMirrorId' | 'defaultRawMirrorId' | 'groupCodes' | 'chatEnabled'
 >;
 
 export type ClientSettings = {
@@ -322,6 +327,7 @@ export type SourceApp = {
   summary: string;
   summaryI18n?: Record<string, string>;
   descriptionI18n?: Record<string, string>;
+  categoryId?: number;
   category?: string;
   categoryI18n?: Record<string, string>;
   iconUrl?: string;
@@ -343,19 +349,35 @@ export type SetupStatus = {
 };
 
 export type SiteAnnouncement = {
+  id?: number;
   enabled: boolean;
   level: 'info' | 'warning' | 'success';
   title?: string;
   body?: string;
   linkLabel?: string;
   linkUrl?: string;
+  startsAt?: string;
+  endsAt?: string;
+  sortOrder?: number;
+  sourceName?: string;
+  createdAt?: string;
   updatedAt?: string;
+};
+
+export type ClientPolicy = {
+  minVersion?: string;
+  message?: string;
 };
 
 export type RegistrationMode = 'open' | 'invite' | 'closed';
 
 export type SiteRegistration = {
   mode: RegistrationMode;
+};
+
+export type SiteChat = {
+  enabled: boolean;
+  retentionDays: number;
 };
 
 export type SiteProfile = {
@@ -367,7 +389,10 @@ export type SiteProfile = {
   version?: string;
   defaultPageSize?: number;
   announcement: SiteAnnouncement;
+  announcements?: SiteAnnouncement[];
   registration: SiteRegistration;
+  clientPolicy?: ClientPolicy;
+  chat: SiteChat;
 };
 
 export type Toast = {
@@ -424,6 +449,46 @@ export type ClientInstallResult = {
   taskId?: string;
   status?: string;
   detail?: string;
+};
+
+export type ChatParticipant = {
+  actorType: 'USER' | 'CLIENT' | string;
+  userId?: number;
+  clientUserId?: string;
+  displayName: string;
+  avatarUrl?: string;
+  isSelf?: boolean;
+};
+
+export type ChatConversation = {
+  id: number;
+  appId?: number;
+  appName?: string;
+  topic: string;
+  origin: string;
+  sourceId?: SourceID;
+  sourceName?: string;
+  participants: ChatParticipant[];
+  peer?: ChatParticipant;
+  lastMessageBody?: string;
+  lastMessageSenderName?: string;
+  lastMessageAt?: string;
+  unreadCount?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ChatMessage = {
+  id: number;
+  conversationId: number;
+  senderType: 'USER' | 'CLIENT' | string;
+  senderUserId?: number;
+  senderClientUserId?: string;
+  senderName: string;
+  senderAvatarUrl?: string;
+  body: string;
+  isMine: boolean;
+  createdAt: string;
 };
 
 export type InstallHistoryEntry = {

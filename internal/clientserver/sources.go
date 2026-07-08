@@ -38,12 +38,17 @@ func (s *Server) handleCreateSource(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Default mirror is not available until the source has been synced")
 		return
 	}
+	chatEnabled := true
+	if input.ChatEnabled != nil {
+		chatEnabled = *input.ChatEnabled
+	}
 	created, err := s.db.ClientSource.Create().
 		SetUserID(currentUserID(r)).
 		SetName(input.Name).
 		SetURL(input.URL).
 		SetPassword(input.Password).
 		SetGroupCodesJSON(encodeStringSlice(input.GroupCodes)).
+		SetChatEnabled(chatEnabled).
 		Save(r.Context())
 	if err != nil {
 		if ent.IsConstraintError(err) {
@@ -84,6 +89,10 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Default raw mirror is not available from this source")
 		return
 	}
+	chatEnabled := source.ChatEnabled
+	if input.ChatEnabled != nil {
+		chatEnabled = *input.ChatEnabled
+	}
 	updated, err := s.db.ClientSource.UpdateOne(source).
 		SetName(input.Name).
 		SetURL(input.URL).
@@ -93,6 +102,7 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 		SetLastInvalidGroupCodesJSON("").
 		SetDefaultDownloadMirrorID(input.DefaultDownloadMirrorID).
 		SetDefaultRawMirrorID(input.DefaultRawMirrorID).
+		SetChatEnabled(chatEnabled).
 		Save(r.Context())
 	if err != nil {
 		if ent.IsConstraintError(err) {
@@ -188,8 +198,13 @@ func sourceDTO(source *ent.ClientSource) SourceDTO {
 		DefaultRawMirrorID:      source.DefaultRawMirrorID,
 		GroupCodes:              decodeStringSlice(source.GroupCodesJSON),
 		Groups:                  decodeSourceGroups(source.GroupNamesJSON),
+		Categories:              decodeSourceCategories(source.CategoriesJSON),
+		Announcements:           decodeSourceAnnouncements(source.AnnouncementsJSON),
+		ClientPolicy:            normalizeSourceClientPolicy(SourceClientPolicyDTO{MinVersion: source.MinClientVersion, Message: source.MinClientVersionMessage}),
 		LastInvalidGroupCodes:   decodeStringSlice(source.LastInvalidGroupCodesJSON),
 		GitHubMirrors:           mirrors,
+		ChatAvailable:           source.ChatAvailable,
+		ChatEnabled:             source.ChatEnabled,
 		LastSync:                source.LastSync,
 		LastAppCount:            source.LastAppCount,
 		LastInstallableCount:    source.LastInstallableCount,

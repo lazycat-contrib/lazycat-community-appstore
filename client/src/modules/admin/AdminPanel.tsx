@@ -25,6 +25,7 @@ import type { Category, Collection, CollectionDraft, PaginatedResponse, Paginati
 import { errorMessage, formatBytes, formatDate, localizedName, reviewKindKey, runAction, shortSHA, statusKey, stripTrailingSlash } from '../../shared/utils';
 import { AdminUsersWorkspace } from './AdminUsersWorkspace';
 import { draftFromUser, emptyUserDraft, type ManagedUserDraft } from './AdminUsersPanel';
+import { AdminAnnouncementsPanel } from './AdminAnnouncementsPanel';
 import { StorageSettingsPanel, defaultStorageSettings, type StorageSettings } from './StorageSettingsPanel';
 
 type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string; parentId?: string; sortOrder?: string };
@@ -109,6 +110,7 @@ export function AdminPanel({
   const [approvedAppCount, setApprovedAppCount] = useState(0);
   const [reviewApps, setReviewApps] = useState<StoreApp[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [announcements, setAnnouncements] = useState<SiteAnnouncement[]>([]);
   const [registrationInvites, setRegistrationInvites] = useState<RegistrationInvite[]>([]);
   const [invitePagination, setInvitePagination] = useState<PaginationMeta>(DEFAULT_LIST_PAGINATION);
   const [inviteDraft, setInviteDraft] = useState({ note: '', maxUses: '1' });
@@ -172,24 +174,6 @@ export function AdminPanel({
     { key: 'site_icon_url', label: t('admin.settings.siteIconURL'), help: t('admin.settingsHelp.siteIconURL'), type: 'url' },
     { key: 'site_public_url', label: t('admin.settings.sitePublicURL'), help: t('admin.settingsHelp.sitePublicURL'), type: 'url' },
   ];
-  const announcementFields = [
-    { key: 'announcement_enabled', label: t('admin.settings.announcementEnabled'), help: t('admin.settingsHelp.announcementEnabled'), type: 'boolean' },
-    {
-      key: 'announcement_level',
-      label: t('admin.settings.announcementLevel'),
-      help: t('admin.settingsHelp.announcementLevel'),
-      type: 'select',
-      options: [
-        { value: 'info', label: t('site.announcementLevels.info') },
-        { value: 'warning', label: t('site.announcementLevels.warning') },
-        { value: 'success', label: t('site.announcementLevels.success') },
-      ],
-    },
-    { key: 'announcement_title', label: t('admin.settings.announcementTitle'), help: t('admin.settingsHelp.announcementTitle') },
-    { key: 'announcement_body', label: t('admin.settings.announcementBody'), help: t('admin.settingsHelp.announcementBody'), type: 'textarea' },
-    { key: 'announcement_link_label', label: t('admin.settings.announcementLinkLabel'), help: t('admin.settingsHelp.announcementLinkLabel') },
-    { key: 'announcement_link_url', label: t('admin.settings.announcementLinkURL'), help: t('admin.settingsHelp.announcementLinkURL'), type: 'url' },
-  ];
   const registrationSettingFields = [
     {
       key: 'registration_mode',
@@ -208,9 +192,14 @@ export function AdminPanel({
     { key: 'max_versions', label: t('admin.settings.maxVersions'), help: t('admin.settingsHelp.maxVersions'), inputMode: 'numeric' },
     { key: 'default_page_size', label: t('admin.settings.defaultPageSize'), help: t('admin.settingsHelp.defaultPageSize'), inputMode: 'numeric' },
     { key: 'comments_enabled', label: t('admin.settings.commentsEnabled'), help: t('admin.settingsHelp.commentsEnabled'), type: 'boolean' },
+    { key: 'chat_enabled', label: t('admin.settings.chatEnabled'), help: t('admin.settingsHelp.chatEnabled'), type: 'boolean' },
+    { key: 'chat_retention_days', label: t('admin.settings.chatRetentionDays'), help: t('admin.settingsHelp.chatRetentionDays'), inputMode: 'numeric' },
     { key: 'allow_manual_outdated_clear', label: t('admin.settings.allowManualOutdatedClear'), help: t('admin.settingsHelp.allowManualOutdatedClear'), type: 'boolean' },
+    { key: 'min_client_version', label: t('admin.settings.minClientVersion'), help: t('admin.settingsHelp.minClientVersion') },
+    { key: 'min_client_version_message', label: t('admin.settings.minClientVersionMessage'), help: t('admin.settingsHelp.minClientVersionMessage'), type: 'textarea' },
     { key: 'source_password', label: t('admin.settings.sourcePassword'), help: t('admin.settingsHelp.sourcePassword'), type: 'password' },
     { key: 'source_password_rotation', label: t('admin.settings.sourcePasswordRotation'), help: t('admin.settingsHelp.sourcePasswordRotation'), inputMode: 'numeric' },
+    { key: 'source_v1_enabled', label: t('admin.settings.sourceV1Enabled'), help: t('admin.settingsHelp.sourceV1Enabled'), type: 'boolean' },
     { key: 'github_download_mirrors', label: t('admin.settings.githubDownloadMirrors'), help: t('admin.settingsHelp.githubDownloadMirrors'), type: 'textarea' },
     { key: 'github_raw_mirrors', label: t('admin.settings.githubRawMirrors'), help: t('admin.settingsHelp.githubRawMirrors'), type: 'textarea' },
     { key: 'require_email_verify', label: t('admin.settings.requireEmailVerify'), help: t('admin.settingsHelp.requireEmailVerify'), type: 'boolean' },
@@ -248,7 +237,7 @@ export function AdminPanel({
       ? t('admin.opsSourceProtected')
       : t('admin.opsSourceOpen');
   const adminPublicURL = stripTrailingSlash(settings.site_public_url || window.location.origin);
-  const adminSourceURL = adminPublicURL ? `${adminPublicURL}/source/v1/index.json` : '';
+  const adminSourceURL = adminPublicURL ? `${adminPublicURL}/source/v2/index.json` : '';
   const adminStorageOptions = useMemo(() => storageOptionsFromRecords(storageRecords, defaultStorageKey), [storageRecords, defaultStorageKey]);
   const adminStorageChoices = useMemo(() => storageSelectOptions(adminStorageOptions), [adminStorageOptions]);
   const categoryTree = useMemo(() => flattenCategoryTree(adminCategories), [adminCategories]);
@@ -256,7 +245,7 @@ export function AdminPanel({
   const editingCategoryDraft = editingCategory ? categoryDrafts[editingCategory.id] || taxonomyDraft(editingCategory) : null;
   const editingTag = editingTagID === null ? null : adminTags.find((item) => item.id === editingTagID) || null;
   const editingTagDraft = editingTag ? tagDrafts[editingTag.id] || taxonomyDraft(editingTag) : null;
-  const announcementPreview: SiteAnnouncement = {
+  const legacyAnnouncementPreview: SiteAnnouncement = {
     enabled: settings.announcement_enabled === 'true',
     level: settings.announcement_level === 'warning' || settings.announcement_level === 'success' ? settings.announcement_level : 'info',
     title: settings.announcement_title,
@@ -265,6 +254,7 @@ export function AdminPanel({
     linkUrl: settings.announcement_link_url,
     updatedAt: settings.announcement_updated_at,
   };
+  const announcementPreview = announcements.find((item) => item.enabled && (item.title || item.body)) || legacyAnnouncementPreview;
 
   useEffect(() => {
     void reload();
@@ -365,12 +355,14 @@ export function AdminPanel({
       setTagDrafts({});
       setCollectionDrafts({});
       if (isSiteAdmin) {
-        const [settingData, storageData] = await Promise.all([
+        const [settingData, storageData, announcementData] = await Promise.all([
           api<{ settings: Record<string, string> }>('/api/v1/admin/settings'),
           api<{ storages: StorageSettings[]; defaultKey: string }>('/api/v1/admin/storage'),
+          fetchAllPaginated<SiteAnnouncement, 'announcements'>(api, '/api/v1/admin/announcements', 'announcements'),
         ]);
         setSettings(settingData.settings || {});
         setLoadedStorageRecords(storageData.storages || [], storageData.defaultKey);
+        setAnnouncements(announcementData || []);
         await Promise.all([fetchUsersPage(), fetchInvitesPage()]);
       }
     });
@@ -748,10 +740,11 @@ export function AdminPanel({
 
   function categoryParentOptions(excludeID?: number) {
     const descendantIDs = excludeID ? categoryDescendantIds(adminCategories, excludeID) : new Set<number>();
+    const hasChildren = excludeID ? adminCategories.some((category) => category.parentId === excludeID) : false;
     return [
       { value: '', label: t('admin.noParentCategory') },
       ...categoryTree
-        .filter((item) => item.category.id !== excludeID && !descendantIDs.has(item.category.id))
+        .filter((item) => !hasChildren && item.depth === 0 && item.category.id !== excludeID && !descendantIDs.has(item.category.id))
         .map((item) => ({ value: String(item.category.id), label: item.path })),
     ];
   }
@@ -1175,7 +1168,7 @@ export function AdminPanel({
               </XTabList>
             </div>
 
-            {siteSettingsTab !== 'storage' ? (
+            {siteSettingsTab !== 'storage' && siteSettingsTab !== 'announcement' ? (
               <form className="settings-tab-panel" onSubmit={saveSettings}>
                 {siteSettingsTab === 'identity' && (
                   <div className="settings-section">
@@ -1210,18 +1203,6 @@ export function AdminPanel({
                     </div>
                     <XFormLayout>
                       {siteIdentityFields.map(renderSettingField)}
-                    </XFormLayout>
-                  </div>
-                )}
-
-                {siteSettingsTab === 'announcement' && (
-                  <div className="settings-section">
-                    <div className="settings-section-head">
-                      <strong>{t('admin.announcementCenter')}</strong>
-                      <span>{t('admin.announcementCenterBody')}</span>
-                    </div>
-                    <XFormLayout>
-                      {announcementFields.map(renderSettingField)}
                     </XFormLayout>
                   </div>
                 )}
@@ -1368,6 +1349,15 @@ export function AdminPanel({
                   <XButton type="submit" variant="primary" label={t('admin.saveSettings')} icon={<Settings size={18} />} />
                 </div>
               </form>
+            ) : siteSettingsTab === 'announcement' ? (
+              <div className="settings-tab-panel">
+                <AdminAnnouncementsPanel
+                  announcements={announcements}
+                  onReload={reload}
+                  onSiteProfileSaved={onSiteProfileSaved}
+                  setToast={setToast}
+                />
+              </div>
             ) : (
               <div className="settings-tab-panel">
                 <StorageSettingsPanel

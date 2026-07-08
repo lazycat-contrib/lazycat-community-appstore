@@ -46,7 +46,7 @@ import { TagTokenizer } from '../../shared/components/TagTokenizer';
 import { VersionHistoryTable } from '../../shared/components/VersionHistoryTable';
 import { AppIcon } from '../../components/AppIcon';
 import { CommentList } from '../../components/CommentList';
-import type { Category, CollaboratorRequest, Group, Review, StorageOption, StoreApp, Toast, User } from '../../shared/types';
+import type { Category, CollaboratorRequest, Group, InstallOptions, Review, StorageOption, StoreApp, Toast, User } from '../../shared/types';
 import { flattenCategoryTree } from '../../shared/categoryTree';
 import { orderedScreenshots, screenshotDeviceLabel, usePreferredScreenshotDevice } from '../../shared/screenshotHelpers';
 import {
@@ -76,8 +76,10 @@ export function AppDrawer({
   categories,
   tagOptions,
   storageOptions,
+  chatEnabled,
   onClose,
   onInstall,
+  onContactPublisher,
   onRefresh,
   onListRefresh,
   setToast,
@@ -90,8 +92,10 @@ export function AppDrawer({
   categories: Category[];
   tagOptions: string[];
   storageOptions: StorageOption[];
+  chatEnabled: boolean;
   onClose: () => void;
-  onInstall: (app: StoreApp) => void;
+  onInstall: (app: StoreApp, options?: InstallOptions) => void | Promise<void>;
+  onContactPublisher?: (app: StoreApp) => void | Promise<void>;
   onRefresh: () => Promise<void>;
   onListRefresh: () => Promise<void>;
   setToast: (toast: Toast) => void;
@@ -130,6 +134,7 @@ export function AppDrawer({
   const canMaintain = canUserManageApp(user, app);
   const canUploadVersion = canUserUploadVersion(user, app);
   const canOpenManagement = canMaintain || canUploadVersion;
+  const canContactPublisher = Boolean(chatEnabled && user && user.id !== app.ownerId);
   const isManageMode = mode === 'manage' && canOpenManagement;
   const canEditScreenshots = isManageMode && canMaintain;
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -1041,6 +1046,15 @@ export function AppDrawer({
               {canOpenManagement && (
                 <XButton type="button" variant="secondary" label={t('drawer.manageApp')} icon={<Settings size={18} />} onClick={() => onModeChange('manage')} />
               )}
+              {canContactPublisher && (
+                <XButton
+                  type="button"
+                  variant="secondary"
+                  label={t('drawer.contactPublisher')}
+                  icon={<MessageSquare size={18} />}
+                  onClick={() => void onContactPublisher?.(app)}
+                />
+              )}
               {user && (
                 <>
                   <XButton
@@ -1182,14 +1196,31 @@ export function AppDrawer({
             <EmptyState icon={History} title={t('drawer.noVersions')} body={t('drawer.installBlocked')} />
           ) : (
             <VersionHistoryTable
-              rows={(app.versions || []).map((version) => ({
-                id: version.id,
-                version: version.version,
-                sourceType: version.sourceType,
-                sizeBytes: version.fileSize,
-                sha256: version.sha256,
-                publishedAt: version.publishedAt || version.createdAt,
-              }))}
+              rows={(app.versions || []).map((version) => {
+                const isLatest = version.id === latestVersion?.id || version.version === latestVersion?.version;
+                return {
+                  id: version.id,
+                  version: version.version,
+                  sourceType: version.sourceType,
+                  sizeBytes: version.fileSize,
+                  sha256: version.sha256,
+                  publishedAt: version.publishedAt || version.createdAt,
+                  isLatest,
+                  statusLabel: isLatest ? t('sourceDetail.latest') : t('drawer.historicalVersion'),
+                  statusVariant: isLatest ? 'success' : 'neutral',
+                  action: (
+                    <XButton
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      label={isLatest ? t('common.download') : t('drawer.downloadHistoricalVersion')}
+                      icon={<Download size={17} />}
+                      isDisabled={!version.downloadUrl}
+                      onClick={() => void onInstall(app, { version: version.version })}
+                    />
+                  ),
+                };
+              })}
             />
           )}
         </section>

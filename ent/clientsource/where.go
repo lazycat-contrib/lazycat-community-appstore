@@ -105,6 +105,36 @@ func MirrorsJSON(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldMirrorsJSON, v))
 }
 
+// CategoriesJSON applies equality check predicate on the "categories_json" field. It's identical to CategoriesJSONEQ.
+func CategoriesJSON(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldCategoriesJSON, v))
+}
+
+// AnnouncementsJSON applies equality check predicate on the "announcements_json" field. It's identical to AnnouncementsJSONEQ.
+func AnnouncementsJSON(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldAnnouncementsJSON, v))
+}
+
+// MinClientVersion applies equality check predicate on the "min_client_version" field. It's identical to MinClientVersionEQ.
+func MinClientVersion(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldMinClientVersion, v))
+}
+
+// MinClientVersionMessage applies equality check predicate on the "min_client_version_message" field. It's identical to MinClientVersionMessageEQ.
+func MinClientVersionMessage(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldMinClientVersionMessage, v))
+}
+
+// ChatAvailable applies equality check predicate on the "chat_available" field. It's identical to ChatAvailableEQ.
+func ChatAvailable(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldChatAvailable, v))
+}
+
+// ChatEnabled applies equality check predicate on the "chat_enabled" field. It's identical to ChatEnabledEQ.
+func ChatEnabled(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldChatEnabled, v))
+}
+
 // LastSync applies equality check predicate on the "last_sync" field. It's identical to LastSyncEQ.
 func LastSync(v time.Time) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldLastSync, v))
@@ -783,6 +813,286 @@ func MirrorsJSONEqualFold(v string) predicate.ClientSource {
 // MirrorsJSONContainsFold applies the ContainsFold predicate on the "mirrors_json" field.
 func MirrorsJSONContainsFold(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldContainsFold(FieldMirrorsJSON, v))
+}
+
+// CategoriesJSONEQ applies the EQ predicate on the "categories_json" field.
+func CategoriesJSONEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldCategoriesJSON, v))
+}
+
+// CategoriesJSONNEQ applies the NEQ predicate on the "categories_json" field.
+func CategoriesJSONNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldCategoriesJSON, v))
+}
+
+// CategoriesJSONIn applies the In predicate on the "categories_json" field.
+func CategoriesJSONIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldCategoriesJSON, vs...))
+}
+
+// CategoriesJSONNotIn applies the NotIn predicate on the "categories_json" field.
+func CategoriesJSONNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldCategoriesJSON, vs...))
+}
+
+// CategoriesJSONGT applies the GT predicate on the "categories_json" field.
+func CategoriesJSONGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldCategoriesJSON, v))
+}
+
+// CategoriesJSONGTE applies the GTE predicate on the "categories_json" field.
+func CategoriesJSONGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldCategoriesJSON, v))
+}
+
+// CategoriesJSONLT applies the LT predicate on the "categories_json" field.
+func CategoriesJSONLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldCategoriesJSON, v))
+}
+
+// CategoriesJSONLTE applies the LTE predicate on the "categories_json" field.
+func CategoriesJSONLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldCategoriesJSON, v))
+}
+
+// CategoriesJSONContains applies the Contains predicate on the "categories_json" field.
+func CategoriesJSONContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldCategoriesJSON, v))
+}
+
+// CategoriesJSONHasPrefix applies the HasPrefix predicate on the "categories_json" field.
+func CategoriesJSONHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldCategoriesJSON, v))
+}
+
+// CategoriesJSONHasSuffix applies the HasSuffix predicate on the "categories_json" field.
+func CategoriesJSONHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldCategoriesJSON, v))
+}
+
+// CategoriesJSONEqualFold applies the EqualFold predicate on the "categories_json" field.
+func CategoriesJSONEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldCategoriesJSON, v))
+}
+
+// CategoriesJSONContainsFold applies the ContainsFold predicate on the "categories_json" field.
+func CategoriesJSONContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldCategoriesJSON, v))
+}
+
+// AnnouncementsJSONEQ applies the EQ predicate on the "announcements_json" field.
+func AnnouncementsJSONEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldAnnouncementsJSON, v))
+}
+
+// AnnouncementsJSONNEQ applies the NEQ predicate on the "announcements_json" field.
+func AnnouncementsJSONNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldAnnouncementsJSON, v))
+}
+
+// AnnouncementsJSONIn applies the In predicate on the "announcements_json" field.
+func AnnouncementsJSONIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldAnnouncementsJSON, vs...))
+}
+
+// AnnouncementsJSONNotIn applies the NotIn predicate on the "announcements_json" field.
+func AnnouncementsJSONNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldAnnouncementsJSON, vs...))
+}
+
+// AnnouncementsJSONGT applies the GT predicate on the "announcements_json" field.
+func AnnouncementsJSONGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldAnnouncementsJSON, v))
+}
+
+// AnnouncementsJSONGTE applies the GTE predicate on the "announcements_json" field.
+func AnnouncementsJSONGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldAnnouncementsJSON, v))
+}
+
+// AnnouncementsJSONLT applies the LT predicate on the "announcements_json" field.
+func AnnouncementsJSONLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldAnnouncementsJSON, v))
+}
+
+// AnnouncementsJSONLTE applies the LTE predicate on the "announcements_json" field.
+func AnnouncementsJSONLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldAnnouncementsJSON, v))
+}
+
+// AnnouncementsJSONContains applies the Contains predicate on the "announcements_json" field.
+func AnnouncementsJSONContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldAnnouncementsJSON, v))
+}
+
+// AnnouncementsJSONHasPrefix applies the HasPrefix predicate on the "announcements_json" field.
+func AnnouncementsJSONHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldAnnouncementsJSON, v))
+}
+
+// AnnouncementsJSONHasSuffix applies the HasSuffix predicate on the "announcements_json" field.
+func AnnouncementsJSONHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldAnnouncementsJSON, v))
+}
+
+// AnnouncementsJSONEqualFold applies the EqualFold predicate on the "announcements_json" field.
+func AnnouncementsJSONEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldAnnouncementsJSON, v))
+}
+
+// AnnouncementsJSONContainsFold applies the ContainsFold predicate on the "announcements_json" field.
+func AnnouncementsJSONContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldAnnouncementsJSON, v))
+}
+
+// MinClientVersionEQ applies the EQ predicate on the "min_client_version" field.
+func MinClientVersionEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldMinClientVersion, v))
+}
+
+// MinClientVersionNEQ applies the NEQ predicate on the "min_client_version" field.
+func MinClientVersionNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldMinClientVersion, v))
+}
+
+// MinClientVersionIn applies the In predicate on the "min_client_version" field.
+func MinClientVersionIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldMinClientVersion, vs...))
+}
+
+// MinClientVersionNotIn applies the NotIn predicate on the "min_client_version" field.
+func MinClientVersionNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldMinClientVersion, vs...))
+}
+
+// MinClientVersionGT applies the GT predicate on the "min_client_version" field.
+func MinClientVersionGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldMinClientVersion, v))
+}
+
+// MinClientVersionGTE applies the GTE predicate on the "min_client_version" field.
+func MinClientVersionGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldMinClientVersion, v))
+}
+
+// MinClientVersionLT applies the LT predicate on the "min_client_version" field.
+func MinClientVersionLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldMinClientVersion, v))
+}
+
+// MinClientVersionLTE applies the LTE predicate on the "min_client_version" field.
+func MinClientVersionLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldMinClientVersion, v))
+}
+
+// MinClientVersionContains applies the Contains predicate on the "min_client_version" field.
+func MinClientVersionContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldMinClientVersion, v))
+}
+
+// MinClientVersionHasPrefix applies the HasPrefix predicate on the "min_client_version" field.
+func MinClientVersionHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldMinClientVersion, v))
+}
+
+// MinClientVersionHasSuffix applies the HasSuffix predicate on the "min_client_version" field.
+func MinClientVersionHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldMinClientVersion, v))
+}
+
+// MinClientVersionEqualFold applies the EqualFold predicate on the "min_client_version" field.
+func MinClientVersionEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldMinClientVersion, v))
+}
+
+// MinClientVersionContainsFold applies the ContainsFold predicate on the "min_client_version" field.
+func MinClientVersionContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldMinClientVersion, v))
+}
+
+// MinClientVersionMessageEQ applies the EQ predicate on the "min_client_version_message" field.
+func MinClientVersionMessageEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldMinClientVersionMessage, v))
+}
+
+// MinClientVersionMessageNEQ applies the NEQ predicate on the "min_client_version_message" field.
+func MinClientVersionMessageNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldMinClientVersionMessage, v))
+}
+
+// MinClientVersionMessageIn applies the In predicate on the "min_client_version_message" field.
+func MinClientVersionMessageIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldMinClientVersionMessage, vs...))
+}
+
+// MinClientVersionMessageNotIn applies the NotIn predicate on the "min_client_version_message" field.
+func MinClientVersionMessageNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldMinClientVersionMessage, vs...))
+}
+
+// MinClientVersionMessageGT applies the GT predicate on the "min_client_version_message" field.
+func MinClientVersionMessageGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldMinClientVersionMessage, v))
+}
+
+// MinClientVersionMessageGTE applies the GTE predicate on the "min_client_version_message" field.
+func MinClientVersionMessageGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldMinClientVersionMessage, v))
+}
+
+// MinClientVersionMessageLT applies the LT predicate on the "min_client_version_message" field.
+func MinClientVersionMessageLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldMinClientVersionMessage, v))
+}
+
+// MinClientVersionMessageLTE applies the LTE predicate on the "min_client_version_message" field.
+func MinClientVersionMessageLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldMinClientVersionMessage, v))
+}
+
+// MinClientVersionMessageContains applies the Contains predicate on the "min_client_version_message" field.
+func MinClientVersionMessageContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldMinClientVersionMessage, v))
+}
+
+// MinClientVersionMessageHasPrefix applies the HasPrefix predicate on the "min_client_version_message" field.
+func MinClientVersionMessageHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldMinClientVersionMessage, v))
+}
+
+// MinClientVersionMessageHasSuffix applies the HasSuffix predicate on the "min_client_version_message" field.
+func MinClientVersionMessageHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldMinClientVersionMessage, v))
+}
+
+// MinClientVersionMessageEqualFold applies the EqualFold predicate on the "min_client_version_message" field.
+func MinClientVersionMessageEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldMinClientVersionMessage, v))
+}
+
+// MinClientVersionMessageContainsFold applies the ContainsFold predicate on the "min_client_version_message" field.
+func MinClientVersionMessageContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldMinClientVersionMessage, v))
+}
+
+// ChatAvailableEQ applies the EQ predicate on the "chat_available" field.
+func ChatAvailableEQ(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldChatAvailable, v))
+}
+
+// ChatAvailableNEQ applies the NEQ predicate on the "chat_available" field.
+func ChatAvailableNEQ(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldChatAvailable, v))
+}
+
+// ChatEnabledEQ applies the EQ predicate on the "chat_enabled" field.
+func ChatEnabledEQ(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldChatEnabled, v))
+}
+
+// ChatEnabledNEQ applies the NEQ predicate on the "chat_enabled" field.
+func ChatEnabledNEQ(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldChatEnabled, v))
 }
 
 // LastSyncEQ applies the EQ predicate on the "last_sync" field.

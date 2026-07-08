@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// APIToken is the client for interacting with the APIToken builders.
 	APIToken *APITokenClient
+	// Announcement is the client for interacting with the Announcement builders.
+	Announcement *AnnouncementClient
 	// App is the client for interacting with the App builders.
 	App *AppClient
 	// AppScreenshot is the client for interacting with the AppScreenshot builders.
@@ -26,6 +28,12 @@ type Tx struct {
 	AppVisibility *AppVisibilityClient
 	// Category is the client for interacting with the Category builders.
 	Category *CategoryClient
+	// ChatConversation is the client for interacting with the ChatConversation builders.
+	ChatConversation *ChatConversationClient
+	// ChatMessage is the client for interacting with the ChatMessage builders.
+	ChatMessage *ChatMessageClient
+	// ChatParticipant is the client for interacting with the ChatParticipant builders.
+	ChatParticipant *ChatParticipantClient
 	// ClientInstallHistory is the client for interacting with the ClientInstallHistory builders.
 	ClientInstallHistory *ClientInstallHistoryClient
 	// ClientSetting is the client for interacting with the ClientSetting builders.
@@ -204,12 +212,16 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIToken = NewAPITokenClient(tx.config)
+	tx.Announcement = NewAnnouncementClient(tx.config)
 	tx.App = NewAppClient(tx.config)
 	tx.AppScreenshot = NewAppScreenshotClient(tx.config)
 	tx.AppTag = NewAppTagClient(tx.config)
 	tx.AppVersion = NewAppVersionClient(tx.config)
 	tx.AppVisibility = NewAppVisibilityClient(tx.config)
 	tx.Category = NewCategoryClient(tx.config)
+	tx.ChatConversation = NewChatConversationClient(tx.config)
+	tx.ChatMessage = NewChatMessageClient(tx.config)
+	tx.ChatParticipant = NewChatParticipantClient(tx.config)
 	tx.ClientInstallHistory = NewClientInstallHistoryClient(tx.config)
 	tx.ClientSetting = NewClientSettingClient(tx.config)
 	tx.ClientSource = NewClientSourceClient(tx.config)

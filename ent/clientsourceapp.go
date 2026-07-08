@@ -36,6 +36,8 @@ type ClientSourceApp struct {
 	SummaryI18nJSON string `json:"summary_i18n_json,omitempty"`
 	// DescriptionI18nJSON holds the value of the "description_i18n_json" field.
 	DescriptionI18nJSON string `json:"description_i18n_json,omitempty"`
+	// CategoryID holds the value of the "category_id" field.
+	CategoryID *int `json:"category_id,omitempty"`
 	// Category holds the value of the "category" field.
 	Category string `json:"category,omitempty"`
 	// CategoryI18nJSON holds the value of the "category_i18n_json" field.
@@ -91,7 +93,7 @@ func (*ClientSourceApp) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case clientsourceapp.FieldInstallProtected, clientsourceapp.FieldCommentsEnabled:
 			values[i] = new(sql.NullBool)
-		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID, clientsourceapp.FieldOutdatedMarks:
+		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID, clientsourceapp.FieldCategoryID, clientsourceapp.FieldOutdatedMarks:
 			values[i] = new(sql.NullInt64)
 		case clientsourceapp.FieldExternalID, clientsourceapp.FieldPackageID, clientsourceapp.FieldName, clientsourceapp.FieldNameI18nJSON, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldSummaryI18nJSON, clientsourceapp.FieldDescriptionI18nJSON, clientsourceapp.FieldCategory, clientsourceapp.FieldCategoryI18nJSON, clientsourceapp.FieldIconURL, clientsourceapp.FieldScreenshotsJSON, clientsourceapp.FieldLatestVersionJSON, clientsourceapp.FieldVersionsJSON:
 			values[i] = new(sql.NullString)
@@ -171,6 +173,13 @@ func (_m *ClientSourceApp) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field description_i18n_json", values[i])
 			} else if value.Valid {
 				_m.DescriptionI18nJSON = value.String
+			}
+		case clientsourceapp.FieldCategoryID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field category_id", values[i])
+			} else if value.Valid {
+				_m.CategoryID = new(int)
+				*_m.CategoryID = int(value.Int64)
 			}
 		case clientsourceapp.FieldCategory:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -305,6 +314,11 @@ func (_m *ClientSourceApp) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("description_i18n_json=")
 	builder.WriteString(_m.DescriptionI18nJSON)
+	builder.WriteString(", ")
+	if v := _m.CategoryID; v != nil {
+		builder.WriteString("category_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("category=")
 	builder.WriteString(_m.Category)

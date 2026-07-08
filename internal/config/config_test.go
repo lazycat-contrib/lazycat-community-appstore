@@ -7,6 +7,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("DB_DSN", "")
 	t.Setenv("SITE_MAX_LPK_SIZE", "")
 	t.Setenv("SITE_MAX_VERSIONS", "")
+	t.Setenv("SOURCE_V1_ENABLED", "")
 	t.Setenv("ADMIN_USERNAME", "")
 	t.Setenv("ADMIN_PASSWORD", "")
 
@@ -23,6 +24,9 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.MaxVersions != 10 {
 		t.Fatalf("MaxVersions = %d, want 10", cfg.MaxVersions)
+	}
+	if !cfg.SourceV1Enabled {
+		t.Fatal("SourceV1Enabled = false, want true by default")
 	}
 	if cfg.AdminBootstrap {
 		t.Fatal("AdminBootstrap = true, want false when ADMIN_USERNAME and ADMIN_PASSWORD are unset")
@@ -68,5 +72,41 @@ func TestLoadSupportsConfiguredDatabases(t *testing.T) {
 				t.Fatalf("DBDSN = %q, want %q", cfg.DBDSN, tt.dsn)
 			}
 		})
+	}
+}
+
+func TestLoadParsesTrustLazyCatClientChat(t *testing.T) {
+	tests := []struct {
+		name     string
+		comments string
+		chat     string
+		want     bool
+	}{
+		{name: "explicit true", comments: "false", chat: "true", want: true},
+		{name: "explicit false", comments: "true", chat: "false", want: false},
+		{name: "fallback to comments trust", comments: "on", chat: "", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("TRUST_LAZYCAT_CLIENT_COMMENTS", tt.comments)
+			t.Setenv("TRUST_LAZYCAT_CLIENT_CHAT", tt.chat)
+
+			cfg := Load()
+
+			if cfg.TrustLazyCatClientChat != tt.want {
+				t.Fatalf("TrustLazyCatClientChat = %v, want %v", cfg.TrustLazyCatClientChat, tt.want)
+			}
+		})
+	}
+}
+
+func TestLoadParsesSourceV1Enabled(t *testing.T) {
+	t.Setenv("SOURCE_V1_ENABLED", "false")
+
+	cfg := Load()
+
+	if cfg.SourceV1Enabled {
+		t.Fatal("SourceV1Enabled = true, want false")
 	}
 }

@@ -221,9 +221,14 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 			t.Fatalf("password header = %q", got)
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
 			"githubMirrors": []map[string]any{
 				{"kind": "download", "name": "Fast", "url": "https://ghproxy.example/https://github.com"},
 				{"kind": "download", "name": "Backup", "url": "https://backup.example/https://github.com"},
+			},
+			"categories": []map[string]any{
+				{"id": 1, "name": "Tools", "slug": "tools", "sortOrder": 1},
+				{"id": 2, "name": "Utilities", "slug": "utilities", "parentId": 1, "sortOrder": 2},
 			},
 			"apps": []map[string]any{{
 				"id":              7,
@@ -231,6 +236,7 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 				"name":            "Notes",
 				"slug":            "notes",
 				"summary":         "Write notes",
+				"categoryId":      2,
 				"category":        "tools",
 				"iconUrl":         feed.URL + "/icons/notes.png",
 				"commentsEnabled": false,
@@ -274,12 +280,12 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	}
 	apps := app.request("GET", "/api/client/v1/apps", ``, "alice")
 	body := apps.Body.String()
-	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, `"iconUrl":"`+feed.URL+`/icons/notes.png"`) || !strings.Contains(body, `"commentsEnabled":false`) || strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) {
+	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, `"categoryId":2`) || !strings.Contains(body, `"iconUrl":"`+feed.URL+`/icons/notes.png"`) || !strings.Contains(body, `"commentsEnabled":false`) || strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) {
 		t.Fatalf("cached app should keep original download URL: %s", body)
 	}
 	sources := app.request("GET", "/api/client/v1/sources", ``, "alice")
 	mirrorID := mirror.ID(mirror.KindDownload, "https://ghproxy.example/https://github.com")
-	if !strings.Contains(sources.Body.String(), `"name":"Fast"`) || !strings.Contains(sources.Body.String(), `"id":"`+mirrorID+`"`) {
+	if !strings.Contains(sources.Body.String(), `"name":"Fast"`) || !strings.Contains(sources.Body.String(), `"id":"`+mirrorID+`"`) || !strings.Contains(sources.Body.String(), `"categories":[`) || !strings.Contains(sources.Body.String(), `"parentId":1`) {
 		t.Fatalf("source did not expose mirrors: %s", sources.Body.String())
 	}
 	install := app.request("POST", "/api/client/v1/install", `{"appId":1,"mirrorId":"`+mirrorID+`"}`, "alice")

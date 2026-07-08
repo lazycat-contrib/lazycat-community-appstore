@@ -179,6 +179,7 @@ func sourceAPIBase(rawURL string) (string, error) {
 	}
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
+	parsed.Path = strings.TrimSuffix(parsed.Path, "/source/v2/index.json")
 	parsed.Path = strings.TrimSuffix(parsed.Path, "/source/v1/index.json")
 	parsed.Path = strings.TrimRight(parsed.Path, "/")
 	return strings.TrimRight(parsed.String(), "/"), nil

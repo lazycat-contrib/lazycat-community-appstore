@@ -47,15 +47,18 @@ func userDisplayName(u *ent.User) string {
 }
 
 type siteProfile struct {
-	Title           string           `json:"title"`
-	Subtitle        string           `json:"subtitle,omitempty"`
-	IconURL         string           `json:"iconUrl,omitempty"`
-	PublicURL       string           `json:"publicUrl"`
-	SourceURL       string           `json:"sourceUrl"`
-	Version         string           `json:"version"`
-	DefaultPageSize int              `json:"defaultPageSize"`
-	Announcement    siteAnnouncement `json:"announcement"`
-	Registration    siteRegistration `json:"registration"`
+	Title           string             `json:"title"`
+	Subtitle        string             `json:"subtitle,omitempty"`
+	IconURL         string             `json:"iconUrl,omitempty"`
+	PublicURL       string             `json:"publicUrl"`
+	SourceURL       string             `json:"sourceUrl"`
+	Version         string             `json:"version"`
+	DefaultPageSize int                `json:"defaultPageSize"`
+	Announcement    siteAnnouncement   `json:"announcement"`
+	Announcements   []siteAnnouncement `json:"announcements,omitempty"`
+	Registration    siteRegistration   `json:"registration"`
+	ClientPolicy    siteClientPolicy   `json:"clientPolicy,omitempty"`
+	Chat            siteChat           `json:"chat"`
 }
 
 func appVersion() string {
@@ -69,13 +72,28 @@ type siteRegistration struct {
 	Mode string `json:"mode"`
 }
 
+type siteClientPolicy struct {
+	MinVersion string `json:"minVersion,omitempty"`
+	Message    string `json:"message,omitempty"`
+}
+
+type siteChat struct {
+	Enabled       bool `json:"enabled"`
+	RetentionDays int  `json:"retentionDays"`
+}
+
 type siteAnnouncement struct {
+	ID        int    `json:"id,omitempty"`
 	Enabled   bool   `json:"enabled"`
 	Level     string `json:"level"`
 	Title     string `json:"title,omitempty"`
 	Body      string `json:"body,omitempty"`
 	LinkLabel string `json:"linkLabel,omitempty"`
 	LinkURL   string `json:"linkUrl,omitempty"`
+	StartsAt  string `json:"startsAt,omitempty"`
+	EndsAt    string `json:"endsAt,omitempty"`
+	SortOrder int    `json:"sortOrder,omitempty"`
+	CreatedAt string `json:"createdAt,omitempty"`
 	UpdatedAt string `json:"updatedAt,omitempty"`
 }
 

@@ -9,21 +9,54 @@ import (
 )
 
 type SourceDTO struct {
-	ID                      int              `json:"id"`
-	Name                    string           `json:"name"`
-	URL                     string           `json:"url"`
-	Password                string           `json:"password"`
-	DefaultDownloadMirrorID string           `json:"defaultDownloadMirrorId"`
-	DefaultRawMirrorID      string           `json:"defaultRawMirrorId"`
-	GroupCodes              []string         `json:"groupCodes,omitempty"`
-	Groups                  []SourceGroupDTO `json:"groups,omitempty"`
-	LastInvalidGroupCodes   []string         `json:"lastInvalidGroupCodes,omitempty"`
-	GitHubMirrors           []mirror.Entry   `json:"githubMirrors"`
-	LastSync                *time.Time       `json:"lastSync,omitempty"`
-	LastError               string           `json:"lastError,omitempty"`
-	LastErrorCode           string           `json:"lastErrorCode,omitempty"`
-	LastAppCount            int              `json:"lastAppCount"`
-	LastInstallableCount    int              `json:"lastInstallableCount"`
+	ID                      int                     `json:"id"`
+	Name                    string                  `json:"name"`
+	URL                     string                  `json:"url"`
+	Password                string                  `json:"password"`
+	DefaultDownloadMirrorID string                  `json:"defaultDownloadMirrorId"`
+	DefaultRawMirrorID      string                  `json:"defaultRawMirrorId"`
+	GroupCodes              []string                `json:"groupCodes,omitempty"`
+	Groups                  []SourceGroupDTO        `json:"groups,omitempty"`
+	Categories              []SourceCategoryDTO     `json:"categories,omitempty"`
+	Announcements           []SourceAnnouncementDTO `json:"announcements,omitempty"`
+	ClientPolicy            SourceClientPolicyDTO   `json:"clientPolicy,omitempty"`
+	LastInvalidGroupCodes   []string                `json:"lastInvalidGroupCodes,omitempty"`
+	GitHubMirrors           []mirror.Entry          `json:"githubMirrors"`
+	ChatAvailable           bool                    `json:"chatAvailable"`
+	ChatEnabled             bool                    `json:"chatEnabled"`
+	LastSync                *time.Time              `json:"lastSync,omitempty"`
+	LastError               string                  `json:"lastError,omitempty"`
+	LastErrorCode           string                  `json:"lastErrorCode,omitempty"`
+	LastAppCount            int                     `json:"lastAppCount"`
+	LastInstallableCount    int                     `json:"lastInstallableCount"`
+}
+
+type SourceCategoryDTO struct {
+	ID        int               `json:"id"`
+	Name      string            `json:"name"`
+	NameI18n  map[string]string `json:"nameI18n,omitempty"`
+	Slug      string            `json:"slug"`
+	ParentID  *int              `json:"parentId,omitempty"`
+	SortOrder int               `json:"sortOrder,omitempty"`
+}
+
+type SourceAnnouncementDTO struct {
+	ID        int    `json:"id,omitempty"`
+	Enabled   bool   `json:"enabled"`
+	Level     string `json:"level"`
+	Title     string `json:"title,omitempty"`
+	Body      string `json:"body,omitempty"`
+	LinkLabel string `json:"linkLabel,omitempty"`
+	LinkURL   string `json:"linkUrl,omitempty"`
+	StartsAt  string `json:"startsAt,omitempty"`
+	EndsAt    string `json:"endsAt,omitempty"`
+	SortOrder int    `json:"sortOrder,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
+}
+
+type SourceClientPolicyDTO struct {
+	MinVersion string `json:"minVersion,omitempty"`
+	Message    string `json:"message,omitempty"`
 }
 
 type SourceInput struct {
@@ -33,6 +66,7 @@ type SourceInput struct {
 	DefaultDownloadMirrorID string   `json:"defaultDownloadMirrorId"`
 	DefaultRawMirrorID      string   `json:"defaultRawMirrorId"`
 	GroupCodes              []string `json:"groupCodes"`
+	ChatEnabled             *bool    `json:"chatEnabled"`
 }
 
 type ErrorResponse struct {
@@ -63,6 +97,7 @@ type SourceAppDTO struct {
 	Summary          string                   `json:"summary"`
 	SummaryI18n      map[string]string        `json:"summaryI18n,omitempty"`
 	DescriptionI18n  map[string]string        `json:"descriptionI18n,omitempty"`
+	CategoryID       *int                     `json:"categoryId,omitempty"`
 	Category         string                   `json:"category,omitempty"`
 	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`
 	IconURL          string                   `json:"iconUrl,omitempty"`

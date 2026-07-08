@@ -4,12 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Tokenizer as XTokenizer } from '@astryxdesign/core/Tokenizer';
-import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { createStaticSource, TypeaheadItem as XTypeaheadItem, type SearchableItem } from '@astryxdesign/core/Typeahead';
-import { flattenCategoryTree } from '../../shared/categoryTree';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { Category, InstallOptions, SortMode, SourceApp, StoreApp } from '../../shared/types';
 import { AppGrid } from './AppGrid';
+import { CategoryBrowser } from './CategoryBrowser';
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
 type TagFilterItem = SearchableItem;
@@ -76,7 +75,6 @@ export function StorefrontSearch({
     const start = (currentPage - 1) * pageSize;
     return apps.slice(start, start + pageSize);
   }, [apps, currentPage, pageSize]);
-  const categoryTree = useMemo(() => flattenCategoryTree(categories), [categories]);
 
   useEffect(() => {
     setPage(1);
@@ -96,12 +94,7 @@ export function StorefrontSearch({
       <section className="panel">
         <SectionTitle icon={Search} title={t('search.localStore')} />
         {categories.length > 0 && (
-          <XToggleButtonGroup value={activeCategory} onChange={(value) => onCategory(value || 'all')} label={t('search.categoryFilter')} size="sm">
-            <XToggleButton value="all" label={t('common.all')} />
-            {categoryTree.map((item) => (
-              <XToggleButton key={item.category.id} value={String(item.category.id)} label={item.path} />
-            ))}
-          </XToggleButtonGroup>
+          <CategoryBrowser categories={categories} activeCategory={activeCategory} onCategory={onCategory} />
         )}
         <div className="filter-bar">
           <XSelector
