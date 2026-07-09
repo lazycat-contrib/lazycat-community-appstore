@@ -1,5 +1,5 @@
 package: community.lazycat.app-store-server
-version: 0.1.19
+version: 0.1.20
 name: 喵喵私有商店服务端
 description: 带嵌入式 Web 控制台的自托管 LPK 应用商店服务端。
 author: czyt
