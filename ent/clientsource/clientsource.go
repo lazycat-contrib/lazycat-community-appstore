@@ -39,6 +39,8 @@ const (
 	FieldCategoriesJSON = "categories_json"
 	// FieldAnnouncementsJSON holds the string denoting the announcements_json field in the database.
 	FieldAnnouncementsJSON = "announcements_json"
+	// FieldAdsJSON holds the string denoting the ads_json field in the database.
+	FieldAdsJSON = "ads_json"
 	// FieldMinClientVersion holds the string denoting the min_client_version field in the database.
 	FieldMinClientVersion = "min_client_version"
 	// FieldMinClientVersionMessage holds the string denoting the min_client_version_message field in the database.
@@ -47,6 +49,8 @@ const (
 	FieldChatAvailable = "chat_available"
 	// FieldChatEnabled holds the string denoting the chat_enabled field in the database.
 	FieldChatEnabled = "chat_enabled"
+	// FieldAdsPreference holds the string denoting the ads_preference field in the database.
+	FieldAdsPreference = "ads_preference"
 	// FieldLastSync holds the string denoting the last_sync field in the database.
 	FieldLastSync = "last_sync"
 	// FieldLastError holds the string denoting the last_error field in the database.
@@ -89,10 +93,12 @@ var Columns = []string{
 	FieldMirrorsJSON,
 	FieldCategoriesJSON,
 	FieldAnnouncementsJSON,
+	FieldAdsJSON,
 	FieldMinClientVersion,
 	FieldMinClientVersionMessage,
 	FieldChatAvailable,
 	FieldChatEnabled,
+	FieldAdsPreference,
 	FieldLastSync,
 	FieldLastError,
 	FieldLastErrorCode,
@@ -137,6 +143,8 @@ var (
 	DefaultCategoriesJSON string
 	// DefaultAnnouncementsJSON holds the default value on creation for the "announcements_json" field.
 	DefaultAnnouncementsJSON string
+	// DefaultAdsJSON holds the default value on creation for the "ads_json" field.
+	DefaultAdsJSON string
 	// DefaultMinClientVersion holds the default value on creation for the "min_client_version" field.
 	DefaultMinClientVersion string
 	// DefaultMinClientVersionMessage holds the default value on creation for the "min_client_version_message" field.
@@ -156,6 +164,33 @@ var (
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
 )
+
+// AdsPreference defines the type for the "ads_preference" enum field.
+type AdsPreference string
+
+// AdsPreferenceUnset is the default value of the AdsPreference enum.
+const DefaultAdsPreference = AdsPreferenceUnset
+
+// AdsPreference values.
+const (
+	AdsPreferenceUnset    AdsPreference = "unset"
+	AdsPreferenceEnabled  AdsPreference = "enabled"
+	AdsPreferenceDisabled AdsPreference = "disabled"
+)
+
+func (ap AdsPreference) String() string {
+	return string(ap)
+}
+
+// AdsPreferenceValidator is a validator for the "ads_preference" field enum values. It is called by the builders before save.
+func AdsPreferenceValidator(ap AdsPreference) error {
+	switch ap {
+	case AdsPreferenceUnset, AdsPreferenceEnabled, AdsPreferenceDisabled:
+		return nil
+	default:
+		return fmt.Errorf("clientsource: invalid enum value for ads_preference field: %q", ap)
+	}
+}
 
 // LastErrorCode defines the type for the "last_error_code" enum field.
 type LastErrorCode string
@@ -250,6 +285,11 @@ func ByAnnouncementsJSON(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAnnouncementsJSON, opts...).ToFunc()
 }
 
+// ByAdsJSON orders the results by the ads_json field.
+func ByAdsJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAdsJSON, opts...).ToFunc()
+}
+
 // ByMinClientVersion orders the results by the min_client_version field.
 func ByMinClientVersion(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMinClientVersion, opts...).ToFunc()
@@ -268,6 +308,11 @@ func ByChatAvailable(opts ...sql.OrderTermOption) OrderOption {
 // ByChatEnabled orders the results by the chat_enabled field.
 func ByChatEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldChatEnabled, opts...).ToFunc()
+}
+
+// ByAdsPreference orders the results by the ads_preference field.
+func ByAdsPreference(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAdsPreference, opts...).ToFunc()
 }
 
 // ByLastSync orders the results by the last_sync field.

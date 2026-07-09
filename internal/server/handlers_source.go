@@ -97,6 +97,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, versi
 		}
 		input.Categories = sourceIndexCategoryInputs(preload.categories)
 		input.Announcements = siteAnnouncementsToFeed(profile.Announcements)
+		input.Ads = siteAdsToFeed(profile.Ads)
 	}
 	for _, record := range apps {
 		if _, ok := preload.publicAppIDs[record.ID]; !ok {
@@ -165,6 +166,33 @@ func siteAnnouncementsToFeed(items []siteAnnouncement) []feed.AnnouncementMeta {
 	out := make([]feed.AnnouncementMeta, 0, len(items))
 	for _, item := range items {
 		out = append(out, siteAnnouncementToFeed(item))
+	}
+	return out
+}
+
+func siteAdToFeed(item siteAd) feed.AdMeta {
+	return feed.AdMeta{
+		ID:        item.ID,
+		Enabled:   item.Enabled,
+		Title:     item.Title,
+		Body:      item.Body,
+		ImageURL:  item.ImageURL,
+		LinkLabel: item.LinkLabel,
+		LinkURL:   item.LinkURL,
+		StartsAt:  item.StartsAt,
+		EndsAt:    item.EndsAt,
+		SortOrder: item.SortOrder,
+		UpdatedAt: item.UpdatedAt,
+	}
+}
+
+func siteAdsToFeed(items []siteAd) []feed.AdMeta {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]feed.AdMeta, 0, len(items))
+	for _, item := range items {
+		out = append(out, siteAdToFeed(item))
 	}
 	return out
 }

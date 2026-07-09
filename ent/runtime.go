@@ -5,6 +5,7 @@ package ent
 import (
 	"time"
 
+	"lazycat.community/appstore/ent/ad"
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
@@ -64,6 +65,46 @@ func init() {
 	apitokenDescCreatedAt := apitokenFields[5].Descriptor()
 	// apitoken.DefaultCreatedAt holds the default value on creation for the created_at field.
 	apitoken.DefaultCreatedAt = apitokenDescCreatedAt.Default.(func() time.Time)
+	adFields := schema.Ad{}.Fields()
+	_ = adFields
+	// adDescEnabled is the schema descriptor for enabled field.
+	adDescEnabled := adFields[0].Descriptor()
+	// ad.DefaultEnabled holds the default value on creation for the enabled field.
+	ad.DefaultEnabled = adDescEnabled.Default.(bool)
+	// adDescTitle is the schema descriptor for title field.
+	adDescTitle := adFields[1].Descriptor()
+	// ad.DefaultTitle holds the default value on creation for the title field.
+	ad.DefaultTitle = adDescTitle.Default.(string)
+	// adDescBody is the schema descriptor for body field.
+	adDescBody := adFields[2].Descriptor()
+	// ad.DefaultBody holds the default value on creation for the body field.
+	ad.DefaultBody = adDescBody.Default.(string)
+	// adDescImageURL is the schema descriptor for image_url field.
+	adDescImageURL := adFields[3].Descriptor()
+	// ad.DefaultImageURL holds the default value on creation for the image_url field.
+	ad.DefaultImageURL = adDescImageURL.Default.(string)
+	// adDescLinkLabel is the schema descriptor for link_label field.
+	adDescLinkLabel := adFields[4].Descriptor()
+	// ad.DefaultLinkLabel holds the default value on creation for the link_label field.
+	ad.DefaultLinkLabel = adDescLinkLabel.Default.(string)
+	// adDescLinkURL is the schema descriptor for link_url field.
+	adDescLinkURL := adFields[5].Descriptor()
+	// ad.DefaultLinkURL holds the default value on creation for the link_url field.
+	ad.DefaultLinkURL = adDescLinkURL.Default.(string)
+	// adDescSortOrder is the schema descriptor for sort_order field.
+	adDescSortOrder := adFields[8].Descriptor()
+	// ad.DefaultSortOrder holds the default value on creation for the sort_order field.
+	ad.DefaultSortOrder = adDescSortOrder.Default.(int)
+	// adDescCreatedAt is the schema descriptor for created_at field.
+	adDescCreatedAt := adFields[9].Descriptor()
+	// ad.DefaultCreatedAt holds the default value on creation for the created_at field.
+	ad.DefaultCreatedAt = adDescCreatedAt.Default.(func() time.Time)
+	// adDescUpdatedAt is the schema descriptor for updated_at field.
+	adDescUpdatedAt := adFields[10].Descriptor()
+	// ad.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	ad.DefaultUpdatedAt = adDescUpdatedAt.Default.(func() time.Time)
+	// ad.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	ad.UpdateDefaultUpdatedAt = adDescUpdatedAt.UpdateDefault.(func() time.Time)
 	announcementFields := schema.Announcement{}.Fields()
 	_ = announcementFields
 	// announcementDescEnabled is the schema descriptor for enabled field.
@@ -464,36 +505,40 @@ func init() {
 	clientsourceDescAnnouncementsJSON := clientsourceFields[11].Descriptor()
 	// clientsource.DefaultAnnouncementsJSON holds the default value on creation for the announcements_json field.
 	clientsource.DefaultAnnouncementsJSON = clientsourceDescAnnouncementsJSON.Default.(string)
+	// clientsourceDescAdsJSON is the schema descriptor for ads_json field.
+	clientsourceDescAdsJSON := clientsourceFields[12].Descriptor()
+	// clientsource.DefaultAdsJSON holds the default value on creation for the ads_json field.
+	clientsource.DefaultAdsJSON = clientsourceDescAdsJSON.Default.(string)
 	// clientsourceDescMinClientVersion is the schema descriptor for min_client_version field.
-	clientsourceDescMinClientVersion := clientsourceFields[12].Descriptor()
+	clientsourceDescMinClientVersion := clientsourceFields[13].Descriptor()
 	// clientsource.DefaultMinClientVersion holds the default value on creation for the min_client_version field.
 	clientsource.DefaultMinClientVersion = clientsourceDescMinClientVersion.Default.(string)
 	// clientsourceDescMinClientVersionMessage is the schema descriptor for min_client_version_message field.
-	clientsourceDescMinClientVersionMessage := clientsourceFields[13].Descriptor()
+	clientsourceDescMinClientVersionMessage := clientsourceFields[14].Descriptor()
 	// clientsource.DefaultMinClientVersionMessage holds the default value on creation for the min_client_version_message field.
 	clientsource.DefaultMinClientVersionMessage = clientsourceDescMinClientVersionMessage.Default.(string)
 	// clientsourceDescChatAvailable is the schema descriptor for chat_available field.
-	clientsourceDescChatAvailable := clientsourceFields[14].Descriptor()
+	clientsourceDescChatAvailable := clientsourceFields[15].Descriptor()
 	// clientsource.DefaultChatAvailable holds the default value on creation for the chat_available field.
 	clientsource.DefaultChatAvailable = clientsourceDescChatAvailable.Default.(bool)
 	// clientsourceDescChatEnabled is the schema descriptor for chat_enabled field.
-	clientsourceDescChatEnabled := clientsourceFields[15].Descriptor()
+	clientsourceDescChatEnabled := clientsourceFields[16].Descriptor()
 	// clientsource.DefaultChatEnabled holds the default value on creation for the chat_enabled field.
 	clientsource.DefaultChatEnabled = clientsourceDescChatEnabled.Default.(bool)
 	// clientsourceDescLastAppCount is the schema descriptor for last_app_count field.
-	clientsourceDescLastAppCount := clientsourceFields[19].Descriptor()
+	clientsourceDescLastAppCount := clientsourceFields[21].Descriptor()
 	// clientsource.DefaultLastAppCount holds the default value on creation for the last_app_count field.
 	clientsource.DefaultLastAppCount = clientsourceDescLastAppCount.Default.(int)
 	// clientsourceDescLastInstallableCount is the schema descriptor for last_installable_count field.
-	clientsourceDescLastInstallableCount := clientsourceFields[20].Descriptor()
+	clientsourceDescLastInstallableCount := clientsourceFields[22].Descriptor()
 	// clientsource.DefaultLastInstallableCount holds the default value on creation for the last_installable_count field.
 	clientsource.DefaultLastInstallableCount = clientsourceDescLastInstallableCount.Default.(int)
 	// clientsourceDescCreatedAt is the schema descriptor for created_at field.
-	clientsourceDescCreatedAt := clientsourceFields[21].Descriptor()
+	clientsourceDescCreatedAt := clientsourceFields[23].Descriptor()
 	// clientsource.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsource.DefaultCreatedAt = clientsourceDescCreatedAt.Default.(func() time.Time)
 	// clientsourceDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsourceDescUpdatedAt := clientsourceFields[22].Descriptor()
+	clientsourceDescUpdatedAt := clientsourceFields[24].Descriptor()
 	// clientsource.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsource.DefaultUpdatedAt = clientsourceDescUpdatedAt.Default.(func() time.Time)
 	// clientsource.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

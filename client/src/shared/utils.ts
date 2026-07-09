@@ -189,6 +189,7 @@ export function defaultSiteProfile(title: string): SiteProfile {
     defaultPageSize: 24,
     announcement: { enabled: false, level: 'info' },
     announcements: [],
+    ads: [],
     registration: { mode: 'open' },
     clientPolicy: {},
     chat: { enabled: true, retentionDays: 0 },

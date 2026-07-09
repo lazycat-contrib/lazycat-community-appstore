@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/ent/ad"
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
@@ -26,6 +27,7 @@ type SiteData struct {
 	SiteSettings   []SiteSettingRecord   `json:"siteSettings,omitempty"`
 	StorageConfigs []StorageConfigRecord `json:"storageConfigs,omitempty"`
 	Announcements  []AnnouncementRecord  `json:"announcements,omitempty"`
+	Ads            []AdRecord            `json:"ads,omitempty"`
 }
 
 type PeopleData struct {
@@ -82,6 +84,21 @@ type AnnouncementRecord struct {
 	Level     string     `json:"level"`
 	Title     string     `json:"title"`
 	Body      string     `json:"body"`
+	LinkLabel string     `json:"link_label"`
+	LinkURL   string     `json:"link_url"`
+	StartsAt  *time.Time `json:"starts_at,omitempty"`
+	EndsAt    *time.Time `json:"ends_at,omitempty"`
+	SortOrder int        `json:"sort_order"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+type AdRecord struct {
+	ID        int        `json:"id,omitempty"`
+	Enabled   bool       `json:"enabled"`
+	Title     string     `json:"title"`
+	Body      string     `json:"body"`
+	ImageURL  string     `json:"image_url"`
 	LinkLabel string     `json:"link_label"`
 	LinkURL   string     `json:"link_url"`
 	StartsAt  *time.Time `json:"starts_at,omitempty"`
@@ -247,6 +264,9 @@ func collectSiteData(ctx context.Context, db *ent.Client) (SiteData, error) {
 	if err := db.Announcement.Query().Select(announcement.FieldID, announcement.FieldEnabled, announcement.FieldLevel, announcement.FieldTitle, announcement.FieldBody, announcement.FieldLinkLabel, announcement.FieldLinkURL, announcement.FieldStartsAt, announcement.FieldEndsAt, announcement.FieldSortOrder, announcement.FieldCreatedAt, announcement.FieldUpdatedAt).Scan(ctx, &data.Announcements); err != nil {
 		return data, err
 	}
+	if err := db.Ad.Query().Select(ad.FieldID, ad.FieldEnabled, ad.FieldTitle, ad.FieldBody, ad.FieldImageURL, ad.FieldLinkLabel, ad.FieldLinkURL, ad.FieldStartsAt, ad.FieldEndsAt, ad.FieldSortOrder, ad.FieldCreatedAt, ad.FieldUpdatedAt).Scan(ctx, &data.Ads); err != nil {
+		return data, err
+	}
 	return data, nil
 }
 
@@ -301,6 +321,7 @@ func siteCounts(data SiteData) map[string]int {
 		"siteSettings":   len(data.SiteSettings),
 		"storageConfigs": len(data.StorageConfigs),
 		"announcements":  len(data.Announcements),
+		"ads":            len(data.Ads),
 	}
 }
 

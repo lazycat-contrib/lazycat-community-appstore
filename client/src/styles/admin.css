@@ -113,11 +113,115 @@
   gap: 14px;
 }
 
+.backup-manager,
+.backup-storage-section,
+.backup-last-run {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.backup-head-actions,
+.backup-form-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.backup-storage-list {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  min-width: 0;
+}
+
+.backup-storage-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  min-width: 0;
+  padding: 10px;
+}
+
+.backup-sensitive-warning {
+  justify-content: flex-start;
+}
+
+.backup-last-run,
+.backup-last-run-empty {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 12px;
+}
+
+.backup-last-run-empty {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  min-height: 58px;
+}
+
+.backup-last-run-head,
+.backup-artifact-meta {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.backup-last-run-head > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.backup-last-run-head span,
+.backup-artifact-meta,
+.backup-error-text {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.backup-artifact-meta {
+  justify-content: flex-start;
+}
+
+.backup-artifact-meta code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--field);
+  color: var(--ink);
+  padding: 2px 6px;
+}
+
+.backup-error-text {
+  color: var(--status-danger-ink);
+  overflow-wrap: anywhere;
+}
+
+.backup-target-list .astryx-list-item {
+  align-items: start;
+}
+
 @media (max-width: 720px) {
   .migration-card-head,
   .migration-preview-head,
   .migration-result-line,
-  .migration-sensitive-warning {
+  .migration-sensitive-warning,
+  .backup-last-run-head {
     display: grid;
+  }
+
+  .backup-head-actions,
+  .backup-form-actions {
+    justify-content: flex-start;
   }
 }

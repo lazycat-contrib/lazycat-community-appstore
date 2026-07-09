@@ -41,6 +41,8 @@ type ClientSource struct {
 	CategoriesJSON string `json:"categories_json,omitempty"`
 	// AnnouncementsJSON holds the value of the "announcements_json" field.
 	AnnouncementsJSON string `json:"announcements_json,omitempty"`
+	// AdsJSON holds the value of the "ads_json" field.
+	AdsJSON string `json:"ads_json,omitempty"`
 	// MinClientVersion holds the value of the "min_client_version" field.
 	MinClientVersion string `json:"min_client_version,omitempty"`
 	// MinClientVersionMessage holds the value of the "min_client_version_message" field.
@@ -49,6 +51,8 @@ type ClientSource struct {
 	ChatAvailable bool `json:"chat_available,omitempty"`
 	// ChatEnabled holds the value of the "chat_enabled" field.
 	ChatEnabled bool `json:"chat_enabled,omitempty"`
+	// AdsPreference holds the value of the "ads_preference" field.
+	AdsPreference clientsource.AdsPreference `json:"ads_preference,omitempty"`
 	// LastSync holds the value of the "last_sync" field.
 	LastSync *time.Time `json:"last_sync,omitempty"`
 	// LastError holds the value of the "last_error" field.
@@ -96,7 +100,7 @@ func (*ClientSource) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case clientsource.FieldID, clientsource.FieldLastAppCount, clientsource.FieldLastInstallableCount:
 			values[i] = new(sql.NullInt64)
-		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldGroupCodesJSON, clientsource.FieldGroupNamesJSON, clientsource.FieldLastInvalidGroupCodesJSON, clientsource.FieldMirrorsJSON, clientsource.FieldCategoriesJSON, clientsource.FieldAnnouncementsJSON, clientsource.FieldMinClientVersion, clientsource.FieldMinClientVersionMessage, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
+		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldGroupCodesJSON, clientsource.FieldGroupNamesJSON, clientsource.FieldLastInvalidGroupCodesJSON, clientsource.FieldMirrorsJSON, clientsource.FieldCategoriesJSON, clientsource.FieldAnnouncementsJSON, clientsource.FieldAdsJSON, clientsource.FieldMinClientVersion, clientsource.FieldMinClientVersionMessage, clientsource.FieldAdsPreference, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
 			values[i] = new(sql.NullString)
 		case clientsource.FieldLastSync, clientsource.FieldCreatedAt, clientsource.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -193,6 +197,12 @@ func (_m *ClientSource) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AnnouncementsJSON = value.String
 			}
+		case clientsource.FieldAdsJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field ads_json", values[i])
+			} else if value.Valid {
+				_m.AdsJSON = value.String
+			}
 		case clientsource.FieldMinClientVersion:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field min_client_version", values[i])
@@ -216,6 +226,12 @@ func (_m *ClientSource) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field chat_enabled", values[i])
 			} else if value.Valid {
 				_m.ChatEnabled = value.Bool
+			}
+		case clientsource.FieldAdsPreference:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field ads_preference", values[i])
+			} else if value.Valid {
+				_m.AdsPreference = clientsource.AdsPreference(value.String)
 			}
 		case clientsource.FieldLastSync:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -339,6 +355,9 @@ func (_m *ClientSource) String() string {
 	builder.WriteString("announcements_json=")
 	builder.WriteString(_m.AnnouncementsJSON)
 	builder.WriteString(", ")
+	builder.WriteString("ads_json=")
+	builder.WriteString(_m.AdsJSON)
+	builder.WriteString(", ")
 	builder.WriteString("min_client_version=")
 	builder.WriteString(_m.MinClientVersion)
 	builder.WriteString(", ")
@@ -350,6 +369,9 @@ func (_m *ClientSource) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("chat_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ChatEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("ads_preference=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AdsPreference))
 	builder.WriteString(", ")
 	if v := _m.LastSync; v != nil {
 		builder.WriteString("last_sync=")

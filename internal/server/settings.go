@@ -49,6 +49,10 @@ const (
 	settingSMTPPass                 = "smtp_pass"
 	settingSMTPFrom                 = "smtp_from"
 	settingSMTPFromName             = "smtp_from_name"
+	settingBackupEnabled            = "backup_enabled"
+	settingBackupScheduleTime       = "backup_schedule_time"
+	settingBackupStorageKeys        = "backup_storage_keys"
+	settingBackupLastRun            = "backup_last_run"
 )
 
 const (
@@ -215,6 +219,7 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 		DefaultPageSize: s.effectiveDefaultPageSize(ctx, pagination.DefaultPageSize, 100),
 		Announcement:    announcement,
 		Announcements:   announcements,
+		Ads:             s.activeSiteAds(ctx),
 		Registration:    siteRegistration{Mode: s.registrationMode(ctx)},
 		ClientPolicy:    s.clientPolicy(ctx),
 		Chat:            siteChat{Enabled: s.chatEnabled(ctx), RetentionDays: s.chatRetentionDays(ctx)},

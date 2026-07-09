@@ -14,6 +14,7 @@ type Input struct {
 	Site              SiteMeta           `json:"site"`
 	Announcement      AnnouncementMeta   `json:"announcement"`
 	Announcements     []AnnouncementMeta `json:"announcements,omitempty"`
+	Ads               []AdMeta           `json:"ads,omitempty"`
 	Categories        []CategoryInput    `json:"categories,omitempty"`
 	Groups            []GroupMeta        `json:"groups,omitempty"`
 	InvalidGroupCodes []string           `json:"invalidGroupCodes,omitempty"`
@@ -45,6 +46,20 @@ type AnnouncementMeta struct {
 	Level     string `json:"level"`
 	Title     string `json:"title,omitempty"`
 	Body      string `json:"body,omitempty"`
+	LinkLabel string `json:"linkLabel,omitempty"`
+	LinkURL   string `json:"linkUrl,omitempty"`
+	StartsAt  string `json:"startsAt,omitempty"`
+	EndsAt    string `json:"endsAt,omitempty"`
+	SortOrder int    `json:"sortOrder,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
+}
+
+type AdMeta struct {
+	ID        int    `json:"id,omitempty"`
+	Enabled   bool   `json:"enabled"`
+	Title     string `json:"title,omitempty"`
+	Body      string `json:"body,omitempty"`
+	ImageURL  string `json:"imageUrl,omitempty"`
 	LinkLabel string `json:"linkLabel,omitempty"`
 	LinkURL   string `json:"linkUrl,omitempty"`
 	StartsAt  string `json:"startsAt,omitempty"`

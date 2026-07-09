@@ -37,6 +37,39 @@ var (
 			},
 		},
 	}
+	// AdsColumns holds the columns for the "ads" table.
+	AdsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "title", Type: field.TypeString, Default: ""},
+		{Name: "body", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "image_url", Type: field.TypeString, Default: ""},
+		{Name: "link_label", Type: field.TypeString, Default: ""},
+		{Name: "link_url", Type: field.TypeString, Default: ""},
+		{Name: "starts_at", Type: field.TypeTime, Nullable: true},
+		{Name: "ends_at", Type: field.TypeTime, Nullable: true},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AdsTable holds the schema information for the "ads" table.
+	AdsTable = &schema.Table{
+		Name:       "ads",
+		Columns:    AdsColumns,
+		PrimaryKey: []*schema.Column{AdsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "ad_enabled_sort_order_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{AdsColumns[1], AdsColumns[9], AdsColumns[11]},
+			},
+			{
+				Name:    "ad_starts_at_ends_at",
+				Unique:  false,
+				Columns: []*schema.Column{AdsColumns[7], AdsColumns[8]},
+			},
+		},
+	}
 	// AnnouncementsColumns holds the columns for the "announcements" table.
 	AnnouncementsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -475,10 +508,12 @@ var (
 		{Name: "mirrors_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "categories_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "announcements_json", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "ads_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "min_client_version", Type: field.TypeString, Default: ""},
 		{Name: "min_client_version_message", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "chat_available", Type: field.TypeBool, Default: false},
 		{Name: "chat_enabled", Type: field.TypeBool, Default: true},
+		{Name: "ads_preference", Type: field.TypeEnum, Enums: []string{"unset", "enabled", "disabled"}, Default: "unset"},
 		{Name: "last_sync", Type: field.TypeTime, Nullable: true},
 		{Name: "last_error", Type: field.TypeString, Nullable: true},
 		{Name: "last_error_code", Type: field.TypeEnum, Nullable: true, Enums: []string{"auth", "format", "http", "network"}},
@@ -501,7 +536,7 @@ var (
 			{
 				Name:    "clientsource_user_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[23]},
+				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[25]},
 			},
 		},
 	}
@@ -1164,6 +1199,7 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APITokensTable,
+		AdsTable,
 		AnnouncementsTable,
 		AppsTable,
 		AppScreenshotsTable,

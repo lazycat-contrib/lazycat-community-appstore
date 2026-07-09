@@ -145,8 +145,8 @@ export function StorageSettingsPanel({
               <span>{draft.key || selectedKey}</span>
             </div>
             <div className="storage-editor-actions">
-              <XButton type="button" variant="secondary" size="sm" label={t('admin.testStorage')} icon={<Check size={17} />} onClick={() => void onTestDraft()} />
-              <XButton type="button" variant="primary" size="sm" label={t('admin.saveStorage')} icon={<Save size={17} />} onClick={() => void onSave()} />
+              <XButton className="storage-action-button" type="button" variant="secondary" size="sm" label={t('admin.testStorage')} icon={<Check size={17} />} onClick={() => void onTestDraft()} />
+              <XButton className="storage-action-button" type="button" variant="primary" size="sm" label={t('admin.saveStorage')} icon={<Save size={17} />} onClick={() => void onSave()} />
             </div>
           </div>
           <StorageFields storage={draft} onChange={onDraftChange} mode="edit" />

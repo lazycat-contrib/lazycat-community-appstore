@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -37,6 +38,28 @@ type Backend interface {
 	Delete(ctx context.Context, path string) error
 	PublicURL(path string) string
 	Open(ctx context.Context, path string) (Reader, error)
+}
+
+type ObjectWriter interface {
+	SaveObject(ctx context.Context, objectPath string, r io.Reader) (Object, error)
+}
+
+func CleanObjectPath(objectPath string) (string, error) {
+	objectPath = strings.TrimSpace(filepath.ToSlash(objectPath))
+	if objectPath == "" || strings.HasPrefix(objectPath, "/") {
+		return "", fmt.Errorf("object path must be relative")
+	}
+	parts := strings.Split(objectPath, "/")
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			return "", fmt.Errorf("object path contains an invalid segment")
+		}
+	}
+	cleaned := path.Clean(objectPath)
+	if cleaned == "." || strings.HasPrefix(cleaned, "../") || cleaned == ".." {
+		return "", fmt.Errorf("object path must stay inside storage root")
+	}
+	return cleaned, nil
 }
 
 func SaveLPK(ctx context.Context, backend Backend, r io.Reader, filename string, maxBytes int64) (Object, error) {

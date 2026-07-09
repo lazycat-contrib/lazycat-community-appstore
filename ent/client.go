@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"lazycat.community/appstore/ent/ad"
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
@@ -58,6 +59,8 @@ type Client struct {
 	Schema *migrate.Schema
 	// APIToken is the client for interacting with the APIToken builders.
 	APIToken *APITokenClient
+	// Ad is the client for interacting with the Ad builders.
+	Ad *AdClient
 	// Announcement is the client for interacting with the Announcement builders.
 	Announcement *AnnouncementClient
 	// App is the client for interacting with the App builders.
@@ -136,6 +139,7 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.APIToken = NewAPITokenClient(c.config)
+	c.Ad = NewAdClient(c.config)
 	c.Announcement = NewAnnouncementClient(c.config)
 	c.App = NewAppClient(c.config)
 	c.AppScreenshot = NewAppScreenshotClient(c.config)
@@ -262,6 +266,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                  ctx,
 		config:               cfg,
 		APIToken:             NewAPITokenClient(cfg),
+		Ad:                   NewAdClient(cfg),
 		Announcement:         NewAnnouncementClient(cfg),
 		App:                  NewAppClient(cfg),
 		AppScreenshot:        NewAppScreenshotClient(cfg),
@@ -315,6 +320,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                  ctx,
 		config:               cfg,
 		APIToken:             NewAPITokenClient(cfg),
+		Ad:                   NewAdClient(cfg),
 		Announcement:         NewAnnouncementClient(cfg),
 		App:                  NewAppClient(cfg),
 		AppScreenshot:        NewAppScreenshotClient(cfg),
@@ -377,8 +383,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIToken, c.Announcement, c.App, c.AppScreenshot, c.AppTag, c.AppVersion,
-		c.AppVisibility, c.Category, c.ChatConversation, c.ChatMessage,
+		c.APIToken, c.Ad, c.Announcement, c.App, c.AppScreenshot, c.AppTag,
+		c.AppVersion, c.AppVisibility, c.Category, c.ChatConversation, c.ChatMessage,
 		c.ChatParticipant, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
 		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
 		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
@@ -394,8 +400,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIToken, c.Announcement, c.App, c.AppScreenshot, c.AppTag, c.AppVersion,
-		c.AppVisibility, c.Category, c.ChatConversation, c.ChatMessage,
+		c.APIToken, c.Ad, c.Announcement, c.App, c.AppScreenshot, c.AppTag,
+		c.AppVersion, c.AppVisibility, c.Category, c.ChatConversation, c.ChatMessage,
 		c.ChatParticipant, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
 		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
 		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
@@ -412,6 +418,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *APITokenMutation:
 		return c.APIToken.mutate(ctx, m)
+	case *AdMutation:
+		return c.Ad.mutate(ctx, m)
 	case *AnnouncementMutation:
 		return c.Announcement.mutate(ctx, m)
 	case *AppMutation:
@@ -613,6 +621,139 @@ func (c *APITokenClient) mutate(ctx context.Context, m *APITokenMutation) (Value
 		return (&APITokenDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown APIToken mutation op: %q", m.Op())
+	}
+}
+
+// AdClient is a client for the Ad schema.
+type AdClient struct {
+	config
+}
+
+// NewAdClient returns a client for the Ad from the given config.
+func NewAdClient(c config) *AdClient {
+	return &AdClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ad.Hooks(f(g(h())))`.
+func (c *AdClient) Use(hooks ...Hook) {
+	c.hooks.Ad = append(c.hooks.Ad, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `ad.Intercept(f(g(h())))`.
+func (c *AdClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Ad = append(c.inters.Ad, interceptors...)
+}
+
+// Create returns a builder for creating a Ad entity.
+func (c *AdClient) Create() *AdCreate {
+	mutation := newAdMutation(c.config, OpCreate)
+	return &AdCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Ad entities.
+func (c *AdClient) CreateBulk(builders ...*AdCreate) *AdCreateBulk {
+	return &AdCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AdClient) MapCreateBulk(slice any, setFunc func(*AdCreate, int)) *AdCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AdCreateBulk{err: fmt.Errorf("calling to AdClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AdCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AdCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Ad.
+func (c *AdClient) Update() *AdUpdate {
+	mutation := newAdMutation(c.config, OpUpdate)
+	return &AdUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AdClient) UpdateOne(_m *Ad) *AdUpdateOne {
+	mutation := newAdMutation(c.config, OpUpdateOne, withAd(_m))
+	return &AdUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AdClient) UpdateOneID(id int) *AdUpdateOne {
+	mutation := newAdMutation(c.config, OpUpdateOne, withAdID(id))
+	return &AdUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Ad.
+func (c *AdClient) Delete() *AdDelete {
+	mutation := newAdMutation(c.config, OpDelete)
+	return &AdDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AdClient) DeleteOne(_m *Ad) *AdDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AdClient) DeleteOneID(id int) *AdDeleteOne {
+	builder := c.Delete().Where(ad.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AdDeleteOne{builder}
+}
+
+// Query returns a query builder for Ad.
+func (c *AdClient) Query() *AdQuery {
+	return &AdQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAd},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Ad entity by its id.
+func (c *AdClient) Get(ctx context.Context, id int) (*Ad, error) {
+	return c.Query().Where(ad.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AdClient) GetX(ctx context.Context, id int) *Ad {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AdClient) Hooks() []Hook {
+	return c.hooks.Ad
+}
+
+// Interceptors returns the client interceptors.
+func (c *AdClient) Interceptors() []Interceptor {
+	return c.inters.Ad
+}
+
+func (c *AdClient) mutate(ctx context.Context, m *AdMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AdCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AdUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AdUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AdDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Ad mutation op: %q", m.Op())
 	}
 }
 
@@ -5040,21 +5181,21 @@ func (c *UserGroupClient) mutate(ctx context.Context, m *UserGroupMutation) (Val
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIToken, Announcement, App, AppScreenshot, AppTag, AppVersion, AppVisibility,
-		Category, ChatConversation, ChatMessage, ChatParticipant, ClientInstallHistory,
-		ClientSetting, ClientSource, ClientSourceApp, ClientSyncSetting, Collaborator,
-		CollaboratorInvite, CollaboratorRequest, Collection, CollectionApp, Comment,
-		CommentNotification, Favorite, GroupMember, MCPToken, OutdatedMark,
-		RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
-		UserGroup []ent.Hook
+		APIToken, Ad, Announcement, App, AppScreenshot, AppTag, AppVersion,
+		AppVisibility, Category, ChatConversation, ChatMessage, ChatParticipant,
+		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
+		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
+		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
+		MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting,
+		StorageConfig, Tag, User, UserGroup []ent.Hook
 	}
 	inters struct {
-		APIToken, Announcement, App, AppScreenshot, AppTag, AppVersion, AppVisibility,
-		Category, ChatConversation, ChatMessage, ChatParticipant, ClientInstallHistory,
-		ClientSetting, ClientSource, ClientSourceApp, ClientSyncSetting, Collaborator,
-		CollaboratorInvite, CollaboratorRequest, Collection, CollectionApp, Comment,
-		CommentNotification, Favorite, GroupMember, MCPToken, OutdatedMark,
-		RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
-		UserGroup []ent.Interceptor
+		APIToken, Ad, Announcement, App, AppScreenshot, AppTag, AppVersion,
+		AppVisibility, Category, ChatConversation, ChatMessage, ChatParticipant,
+		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
+		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
+		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
+		MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting,
+		StorageConfig, Tag, User, UserGroup []ent.Interceptor
 	}
 )

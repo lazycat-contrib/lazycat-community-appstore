@@ -40,6 +40,11 @@ type Server struct {
 	adminLoginFailures      map[string]int
 	restartAfterImportOnce  sync.Once
 	restartAfterImport      func()
+	backupCtx               context.Context
+	backupCancel            context.CancelFunc
+	backupWG                sync.WaitGroup
+	backupRunMu             sync.Mutex
+	backupRunning           bool
 }
 
 func New(cfg config.Config) (*Server, error) {
@@ -61,6 +66,7 @@ func New(cfg config.Config) (*Server, error) {
 		_ = client.Close()
 		return nil, err
 	}
+	backupCtx, backupCancel := context.WithCancel(context.Background())
 	s := &Server{
 		cfg:                cfg,
 		db:                 client,
@@ -69,13 +75,17 @@ func New(cfg config.Config) (*Server, error) {
 		mux:                http.NewServeMux(),
 		chatHub:            newChatHub(),
 		adminLoginFailures: map[string]int{},
+		backupCtx:          backupCtx,
+		backupCancel:       backupCancel,
 	}
 	s.web = embeddedWebHandler(cfg)
 	if err := s.bootstrap(context.Background()); err != nil {
+		backupCancel()
 		_ = client.Close()
 		return nil, err
 	}
 	s.routes()
+	s.startBackupScheduler()
 	return s, nil
 }
 
@@ -110,6 +120,10 @@ func newStorageBackend(cfg config.Config) (storage.Backend, error) {
 }
 
 func (s *Server) Close() error {
+	if s.backupCancel != nil {
+		s.backupCancel()
+	}
+	s.backupWG.Wait()
 	return s.db.Close()
 }
 
@@ -300,6 +314,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/admin/announcements", s.withRole(userRoleSiteAdmin)(s.handleCreateAnnouncement))
 	s.mux.HandleFunc("PATCH /api/v1/admin/announcements/{id}", s.withRole(userRoleSiteAdmin)(s.handleUpdateAnnouncement))
 	s.mux.HandleFunc("DELETE /api/v1/admin/announcements/{id}", s.withRole(userRoleSiteAdmin)(s.handleDeleteAnnouncement))
+	s.mux.HandleFunc("GET /api/v1/admin/ads", s.withRole(userRoleSiteAdmin)(s.handleListAds))
+	s.mux.HandleFunc("POST /api/v1/admin/ads", s.withRole(userRoleSiteAdmin)(s.handleCreateAd))
+	s.mux.HandleFunc("PATCH /api/v1/admin/ads/{id}", s.withRole(userRoleSiteAdmin)(s.handleUpdateAd))
+	s.mux.HandleFunc("DELETE /api/v1/admin/ads/{id}", s.withRole(userRoleSiteAdmin)(s.handleDeleteAd))
 	s.mux.HandleFunc("GET /api/v1/admin/registration-invites", s.withRole(userRoleSiteAdmin)(s.handleListRegistrationInvites))
 	s.mux.HandleFunc("POST /api/v1/admin/registration-invites", s.withRole(userRoleSiteAdmin)(s.handleCreateRegistrationInvite))
 	s.mux.HandleFunc("DELETE /api/v1/admin/registration-invites/{id}", s.withRole(userRoleSiteAdmin)(s.handleDeleteRegistrationInvite))
@@ -311,6 +329,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/admin/storage/{key}/default", s.withRole(userRoleSiteAdmin)(s.handleSetDefaultStorageConfig))
 	s.mux.HandleFunc("POST /api/v1/admin/storage/{key}/test", s.withRole(userRoleSiteAdmin)(s.handleTestSavedStorageConfig))
 	s.mux.HandleFunc("POST /api/v1/admin/storage/test", s.withRole(userRoleSiteAdmin)(s.handleTestStorageConfig))
+	s.mux.HandleFunc("GET /api/v1/admin/backups/settings", s.withRole(userRoleSiteAdmin)(s.handleGetBackupSettings))
+	s.mux.HandleFunc("PATCH /api/v1/admin/backups/settings", s.withRole(userRoleSiteAdmin)(s.handleUpdateBackupSettings))
+	s.mux.HandleFunc("POST /api/v1/admin/backups/run", s.withRole(userRoleSiteAdmin)(s.handleRunBackup))
 	s.mux.HandleFunc("POST /api/v1/admin/migration/export", s.withRole(userRoleSiteAdmin)(s.handleMigrationExport))
 	s.mux.HandleFunc("POST /api/v1/admin/migration/import/preview", s.withRole(userRoleSiteAdmin)(s.handleMigrationImportPreview))
 	s.mux.HandleFunc("POST /api/v1/admin/migration/import", s.withRole(userRoleSiteAdmin)(s.handleMigrationImport))

@@ -11,6 +11,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"lazycat.community/appstore/ent/ad"
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
@@ -58,6 +59,7 @@ const (
 
 	// Node types.
 	TypeAPIToken             = "APIToken"
+	TypeAd                   = "Ad"
 	TypeAnnouncement         = "Announcement"
 	TypeApp                  = "App"
 	TypeAppScreenshot        = "AppScreenshot"
@@ -745,6 +747,949 @@ func (m *APITokenMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *APITokenMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown APIToken edge %s", name)
+}
+
+// AdMutation represents an operation that mutates the Ad nodes in the graph.
+type AdMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	enabled       *bool
+	title         *string
+	body          *string
+	image_url     *string
+	link_label    *string
+	link_url      *string
+	starts_at     *time.Time
+	ends_at       *time.Time
+	sort_order    *int
+	addsort_order *int
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*Ad, error)
+	predicates    []predicate.Ad
+}
+
+var _ ent.Mutation = (*AdMutation)(nil)
+
+// adOption allows management of the mutation configuration using functional options.
+type adOption func(*AdMutation)
+
+// newAdMutation creates new mutation for the Ad entity.
+func newAdMutation(c config, op Op, opts ...adOption) *AdMutation {
+	m := &AdMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAd,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAdID sets the ID field of the mutation.
+func withAdID(id int) adOption {
+	return func(m *AdMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Ad
+		)
+		m.oldValue = func(ctx context.Context) (*Ad, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Ad.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAd sets the old Ad of the mutation.
+func withAd(node *Ad) adOption {
+	return func(m *AdMutation) {
+		m.oldValue = func(context.Context) (*Ad, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AdMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AdMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AdMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AdMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Ad.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *AdMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *AdMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *AdMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetTitle sets the "title" field.
+func (m *AdMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *AdMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldTitle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *AdMutation) ResetTitle() {
+	m.title = nil
+}
+
+// SetBody sets the "body" field.
+func (m *AdMutation) SetBody(s string) {
+	m.body = &s
+}
+
+// Body returns the value of the "body" field in the mutation.
+func (m *AdMutation) Body() (r string, exists bool) {
+	v := m.body
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBody returns the old "body" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldBody(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBody is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBody requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBody: %w", err)
+	}
+	return oldValue.Body, nil
+}
+
+// ResetBody resets all changes to the "body" field.
+func (m *AdMutation) ResetBody() {
+	m.body = nil
+}
+
+// SetImageURL sets the "image_url" field.
+func (m *AdMutation) SetImageURL(s string) {
+	m.image_url = &s
+}
+
+// ImageURL returns the value of the "image_url" field in the mutation.
+func (m *AdMutation) ImageURL() (r string, exists bool) {
+	v := m.image_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldImageURL returns the old "image_url" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldImageURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldImageURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldImageURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldImageURL: %w", err)
+	}
+	return oldValue.ImageURL, nil
+}
+
+// ResetImageURL resets all changes to the "image_url" field.
+func (m *AdMutation) ResetImageURL() {
+	m.image_url = nil
+}
+
+// SetLinkLabel sets the "link_label" field.
+func (m *AdMutation) SetLinkLabel(s string) {
+	m.link_label = &s
+}
+
+// LinkLabel returns the value of the "link_label" field in the mutation.
+func (m *AdMutation) LinkLabel() (r string, exists bool) {
+	v := m.link_label
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLinkLabel returns the old "link_label" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldLinkLabel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLinkLabel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLinkLabel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLinkLabel: %w", err)
+	}
+	return oldValue.LinkLabel, nil
+}
+
+// ResetLinkLabel resets all changes to the "link_label" field.
+func (m *AdMutation) ResetLinkLabel() {
+	m.link_label = nil
+}
+
+// SetLinkURL sets the "link_url" field.
+func (m *AdMutation) SetLinkURL(s string) {
+	m.link_url = &s
+}
+
+// LinkURL returns the value of the "link_url" field in the mutation.
+func (m *AdMutation) LinkURL() (r string, exists bool) {
+	v := m.link_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLinkURL returns the old "link_url" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldLinkURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLinkURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLinkURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLinkURL: %w", err)
+	}
+	return oldValue.LinkURL, nil
+}
+
+// ResetLinkURL resets all changes to the "link_url" field.
+func (m *AdMutation) ResetLinkURL() {
+	m.link_url = nil
+}
+
+// SetStartsAt sets the "starts_at" field.
+func (m *AdMutation) SetStartsAt(t time.Time) {
+	m.starts_at = &t
+}
+
+// StartsAt returns the value of the "starts_at" field in the mutation.
+func (m *AdMutation) StartsAt() (r time.Time, exists bool) {
+	v := m.starts_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartsAt returns the old "starts_at" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldStartsAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartsAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartsAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartsAt: %w", err)
+	}
+	return oldValue.StartsAt, nil
+}
+
+// ClearStartsAt clears the value of the "starts_at" field.
+func (m *AdMutation) ClearStartsAt() {
+	m.starts_at = nil
+	m.clearedFields[ad.FieldStartsAt] = struct{}{}
+}
+
+// StartsAtCleared returns if the "starts_at" field was cleared in this mutation.
+func (m *AdMutation) StartsAtCleared() bool {
+	_, ok := m.clearedFields[ad.FieldStartsAt]
+	return ok
+}
+
+// ResetStartsAt resets all changes to the "starts_at" field.
+func (m *AdMutation) ResetStartsAt() {
+	m.starts_at = nil
+	delete(m.clearedFields, ad.FieldStartsAt)
+}
+
+// SetEndsAt sets the "ends_at" field.
+func (m *AdMutation) SetEndsAt(t time.Time) {
+	m.ends_at = &t
+}
+
+// EndsAt returns the value of the "ends_at" field in the mutation.
+func (m *AdMutation) EndsAt() (r time.Time, exists bool) {
+	v := m.ends_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEndsAt returns the old "ends_at" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldEndsAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEndsAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEndsAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEndsAt: %w", err)
+	}
+	return oldValue.EndsAt, nil
+}
+
+// ClearEndsAt clears the value of the "ends_at" field.
+func (m *AdMutation) ClearEndsAt() {
+	m.ends_at = nil
+	m.clearedFields[ad.FieldEndsAt] = struct{}{}
+}
+
+// EndsAtCleared returns if the "ends_at" field was cleared in this mutation.
+func (m *AdMutation) EndsAtCleared() bool {
+	_, ok := m.clearedFields[ad.FieldEndsAt]
+	return ok
+}
+
+// ResetEndsAt resets all changes to the "ends_at" field.
+func (m *AdMutation) ResetEndsAt() {
+	m.ends_at = nil
+	delete(m.clearedFields, ad.FieldEndsAt)
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (m *AdMutation) SetSortOrder(i int) {
+	m.sort_order = &i
+	m.addsort_order = nil
+}
+
+// SortOrder returns the value of the "sort_order" field in the mutation.
+func (m *AdMutation) SortOrder() (r int, exists bool) {
+	v := m.sort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSortOrder returns the old "sort_order" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldSortOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSortOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSortOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSortOrder: %w", err)
+	}
+	return oldValue.SortOrder, nil
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (m *AdMutation) AddSortOrder(i int) {
+	if m.addsort_order != nil {
+		*m.addsort_order += i
+	} else {
+		m.addsort_order = &i
+	}
+}
+
+// AddedSortOrder returns the value that was added to the "sort_order" field in this mutation.
+func (m *AdMutation) AddedSortOrder() (r int, exists bool) {
+	v := m.addsort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSortOrder resets all changes to the "sort_order" field.
+func (m *AdMutation) ResetSortOrder() {
+	m.sort_order = nil
+	m.addsort_order = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *AdMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *AdMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *AdMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *AdMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *AdMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Ad entity.
+// If the Ad object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AdMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *AdMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the AdMutation builder.
+func (m *AdMutation) Where(ps ...predicate.Ad) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AdMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AdMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Ad, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AdMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AdMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Ad).
+func (m *AdMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AdMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.enabled != nil {
+		fields = append(fields, ad.FieldEnabled)
+	}
+	if m.title != nil {
+		fields = append(fields, ad.FieldTitle)
+	}
+	if m.body != nil {
+		fields = append(fields, ad.FieldBody)
+	}
+	if m.image_url != nil {
+		fields = append(fields, ad.FieldImageURL)
+	}
+	if m.link_label != nil {
+		fields = append(fields, ad.FieldLinkLabel)
+	}
+	if m.link_url != nil {
+		fields = append(fields, ad.FieldLinkURL)
+	}
+	if m.starts_at != nil {
+		fields = append(fields, ad.FieldStartsAt)
+	}
+	if m.ends_at != nil {
+		fields = append(fields, ad.FieldEndsAt)
+	}
+	if m.sort_order != nil {
+		fields = append(fields, ad.FieldSortOrder)
+	}
+	if m.created_at != nil {
+		fields = append(fields, ad.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, ad.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AdMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ad.FieldEnabled:
+		return m.Enabled()
+	case ad.FieldTitle:
+		return m.Title()
+	case ad.FieldBody:
+		return m.Body()
+	case ad.FieldImageURL:
+		return m.ImageURL()
+	case ad.FieldLinkLabel:
+		return m.LinkLabel()
+	case ad.FieldLinkURL:
+		return m.LinkURL()
+	case ad.FieldStartsAt:
+		return m.StartsAt()
+	case ad.FieldEndsAt:
+		return m.EndsAt()
+	case ad.FieldSortOrder:
+		return m.SortOrder()
+	case ad.FieldCreatedAt:
+		return m.CreatedAt()
+	case ad.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AdMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ad.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case ad.FieldTitle:
+		return m.OldTitle(ctx)
+	case ad.FieldBody:
+		return m.OldBody(ctx)
+	case ad.FieldImageURL:
+		return m.OldImageURL(ctx)
+	case ad.FieldLinkLabel:
+		return m.OldLinkLabel(ctx)
+	case ad.FieldLinkURL:
+		return m.OldLinkURL(ctx)
+	case ad.FieldStartsAt:
+		return m.OldStartsAt(ctx)
+	case ad.FieldEndsAt:
+		return m.OldEndsAt(ctx)
+	case ad.FieldSortOrder:
+		return m.OldSortOrder(ctx)
+	case ad.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case ad.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Ad field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AdMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ad.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case ad.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
+		return nil
+	case ad.FieldBody:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBody(v)
+		return nil
+	case ad.FieldImageURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetImageURL(v)
+		return nil
+	case ad.FieldLinkLabel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLinkLabel(v)
+		return nil
+	case ad.FieldLinkURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLinkURL(v)
+		return nil
+	case ad.FieldStartsAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartsAt(v)
+		return nil
+	case ad.FieldEndsAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEndsAt(v)
+		return nil
+	case ad.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSortOrder(v)
+		return nil
+	case ad.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case ad.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Ad field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AdMutation) AddedFields() []string {
+	var fields []string
+	if m.addsort_order != nil {
+		fields = append(fields, ad.FieldSortOrder)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AdMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case ad.FieldSortOrder:
+		return m.AddedSortOrder()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AdMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case ad.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSortOrder(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Ad numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AdMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(ad.FieldStartsAt) {
+		fields = append(fields, ad.FieldStartsAt)
+	}
+	if m.FieldCleared(ad.FieldEndsAt) {
+		fields = append(fields, ad.FieldEndsAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AdMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AdMutation) ClearField(name string) error {
+	switch name {
+	case ad.FieldStartsAt:
+		m.ClearStartsAt()
+		return nil
+	case ad.FieldEndsAt:
+		m.ClearEndsAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Ad nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AdMutation) ResetField(name string) error {
+	switch name {
+	case ad.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case ad.FieldTitle:
+		m.ResetTitle()
+		return nil
+	case ad.FieldBody:
+		m.ResetBody()
+		return nil
+	case ad.FieldImageURL:
+		m.ResetImageURL()
+		return nil
+	case ad.FieldLinkLabel:
+		m.ResetLinkLabel()
+		return nil
+	case ad.FieldLinkURL:
+		m.ResetLinkURL()
+		return nil
+	case ad.FieldStartsAt:
+		m.ResetStartsAt()
+		return nil
+	case ad.FieldEndsAt:
+		m.ResetEndsAt()
+		return nil
+	case ad.FieldSortOrder:
+		m.ResetSortOrder()
+		return nil
+	case ad.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case ad.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Ad field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AdMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AdMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AdMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AdMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AdMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AdMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AdMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Ad unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AdMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Ad edge %s", name)
 }
 
 // AnnouncementMutation represents an operation that mutates the Announcement nodes in the graph.
@@ -10961,10 +11906,12 @@ type ClientSourceMutation struct {
 	mirrors_json                  *string
 	categories_json               *string
 	announcements_json            *string
+	ads_json                      *string
 	min_client_version            *string
 	min_client_version_message    *string
 	chat_available                *bool
 	chat_enabled                  *bool
+	ads_preference                *clientsource.AdsPreference
 	last_sync                     *time.Time
 	last_error                    *string
 	last_error_code               *clientsource.LastErrorCode
@@ -11513,6 +12460,42 @@ func (m *ClientSourceMutation) ResetAnnouncementsJSON() {
 	m.announcements_json = nil
 }
 
+// SetAdsJSON sets the "ads_json" field.
+func (m *ClientSourceMutation) SetAdsJSON(s string) {
+	m.ads_json = &s
+}
+
+// AdsJSON returns the value of the "ads_json" field in the mutation.
+func (m *ClientSourceMutation) AdsJSON() (r string, exists bool) {
+	v := m.ads_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAdsJSON returns the old "ads_json" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldAdsJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAdsJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAdsJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAdsJSON: %w", err)
+	}
+	return oldValue.AdsJSON, nil
+}
+
+// ResetAdsJSON resets all changes to the "ads_json" field.
+func (m *ClientSourceMutation) ResetAdsJSON() {
+	m.ads_json = nil
+}
+
 // SetMinClientVersion sets the "min_client_version" field.
 func (m *ClientSourceMutation) SetMinClientVersion(s string) {
 	m.min_client_version = &s
@@ -11655,6 +12638,42 @@ func (m *ClientSourceMutation) OldChatEnabled(ctx context.Context) (v bool, err 
 // ResetChatEnabled resets all changes to the "chat_enabled" field.
 func (m *ClientSourceMutation) ResetChatEnabled() {
 	m.chat_enabled = nil
+}
+
+// SetAdsPreference sets the "ads_preference" field.
+func (m *ClientSourceMutation) SetAdsPreference(cp clientsource.AdsPreference) {
+	m.ads_preference = &cp
+}
+
+// AdsPreference returns the value of the "ads_preference" field in the mutation.
+func (m *ClientSourceMutation) AdsPreference() (r clientsource.AdsPreference, exists bool) {
+	v := m.ads_preference
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAdsPreference returns the old "ads_preference" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldAdsPreference(ctx context.Context) (v clientsource.AdsPreference, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAdsPreference is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAdsPreference requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAdsPreference: %w", err)
+	}
+	return oldValue.AdsPreference, nil
+}
+
+// ResetAdsPreference resets all changes to the "ads_preference" field.
+func (m *ClientSourceMutation) ResetAdsPreference() {
+	m.ads_preference = nil
 }
 
 // SetLastSync sets the "last_sync" field.
@@ -12076,7 +13095,7 @@ func (m *ClientSourceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 25)
 	if m.user_id != nil {
 		fields = append(fields, clientsource.FieldUserID)
 	}
@@ -12113,6 +13132,9 @@ func (m *ClientSourceMutation) Fields() []string {
 	if m.announcements_json != nil {
 		fields = append(fields, clientsource.FieldAnnouncementsJSON)
 	}
+	if m.ads_json != nil {
+		fields = append(fields, clientsource.FieldAdsJSON)
+	}
 	if m.min_client_version != nil {
 		fields = append(fields, clientsource.FieldMinClientVersion)
 	}
@@ -12124,6 +13146,9 @@ func (m *ClientSourceMutation) Fields() []string {
 	}
 	if m.chat_enabled != nil {
 		fields = append(fields, clientsource.FieldChatEnabled)
+	}
+	if m.ads_preference != nil {
+		fields = append(fields, clientsource.FieldAdsPreference)
 	}
 	if m.last_sync != nil {
 		fields = append(fields, clientsource.FieldLastSync)
@@ -12178,6 +13203,8 @@ func (m *ClientSourceMutation) Field(name string) (ent.Value, bool) {
 		return m.CategoriesJSON()
 	case clientsource.FieldAnnouncementsJSON:
 		return m.AnnouncementsJSON()
+	case clientsource.FieldAdsJSON:
+		return m.AdsJSON()
 	case clientsource.FieldMinClientVersion:
 		return m.MinClientVersion()
 	case clientsource.FieldMinClientVersionMessage:
@@ -12186,6 +13213,8 @@ func (m *ClientSourceMutation) Field(name string) (ent.Value, bool) {
 		return m.ChatAvailable()
 	case clientsource.FieldChatEnabled:
 		return m.ChatEnabled()
+	case clientsource.FieldAdsPreference:
+		return m.AdsPreference()
 	case clientsource.FieldLastSync:
 		return m.LastSync()
 	case clientsource.FieldLastError:
@@ -12233,6 +13262,8 @@ func (m *ClientSourceMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldCategoriesJSON(ctx)
 	case clientsource.FieldAnnouncementsJSON:
 		return m.OldAnnouncementsJSON(ctx)
+	case clientsource.FieldAdsJSON:
+		return m.OldAdsJSON(ctx)
 	case clientsource.FieldMinClientVersion:
 		return m.OldMinClientVersion(ctx)
 	case clientsource.FieldMinClientVersionMessage:
@@ -12241,6 +13272,8 @@ func (m *ClientSourceMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldChatAvailable(ctx)
 	case clientsource.FieldChatEnabled:
 		return m.OldChatEnabled(ctx)
+	case clientsource.FieldAdsPreference:
+		return m.OldAdsPreference(ctx)
 	case clientsource.FieldLastSync:
 		return m.OldLastSync(ctx)
 	case clientsource.FieldLastError:
@@ -12348,6 +13381,13 @@ func (m *ClientSourceMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAnnouncementsJSON(v)
 		return nil
+	case clientsource.FieldAdsJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAdsJSON(v)
+		return nil
 	case clientsource.FieldMinClientVersion:
 		v, ok := value.(string)
 		if !ok {
@@ -12375,6 +13415,13 @@ func (m *ClientSourceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetChatEnabled(v)
+		return nil
+	case clientsource.FieldAdsPreference:
+		v, ok := value.(clientsource.AdsPreference)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAdsPreference(v)
 		return nil
 	case clientsource.FieldLastSync:
 		v, ok := value.(time.Time)
@@ -12558,6 +13605,9 @@ func (m *ClientSourceMutation) ResetField(name string) error {
 	case clientsource.FieldAnnouncementsJSON:
 		m.ResetAnnouncementsJSON()
 		return nil
+	case clientsource.FieldAdsJSON:
+		m.ResetAdsJSON()
+		return nil
 	case clientsource.FieldMinClientVersion:
 		m.ResetMinClientVersion()
 		return nil
@@ -12569,6 +13619,9 @@ func (m *ClientSourceMutation) ResetField(name string) error {
 		return nil
 	case clientsource.FieldChatEnabled:
 		m.ResetChatEnabled()
+		return nil
+	case clientsource.FieldAdsPreference:
+		m.ResetAdsPreference()
 		return nil
 	case clientsource.FieldLastSync:
 		m.ResetLastSync()

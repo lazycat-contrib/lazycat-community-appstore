@@ -21,6 +21,18 @@ func (f APITokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.APITokenMutation", m)
 }
 
+// The AdFunc type is an adapter to allow the use of ordinary
+// function as Ad mutator.
+type AdFunc func(context.Context, *ent.AdMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AdFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AdMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AdMutation", m)
+}
+
 // The AnnouncementFunc type is an adapter to allow the use of ordinary
 // function as Announcement mutator.
 type AnnouncementFunc func(context.Context, *ent.AnnouncementMutation) (ent.Value, error)

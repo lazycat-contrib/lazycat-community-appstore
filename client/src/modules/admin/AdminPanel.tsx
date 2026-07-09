@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Archive, Check, Copy, DatabaseBackup, Download, Gauge, KeyRound, Layers3, MessageSquare, Pencil, Plus, Save, Server, Settings, ShieldCheck, Tag, Trash2, Upload, Users, X } from 'lucide-react';
+import { Archive, Check, CloudUpload, Copy, DatabaseBackup, Download, Gauge, KeyRound, Layers3, Megaphone, MessageSquare, Pencil, Plus, Save, Server, Settings, ShieldCheck, Tag, Trash2, Upload, Users, X } from 'lucide-react';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
@@ -15,6 +15,7 @@ import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { TreeList as XTreeList, type TreeListItemData } from '@astryxdesign/core/TreeList';
 import { useTranslation } from 'react-i18next';
 import { AnnouncementBanner } from '../../components/AnnouncementBanner';
+import { AdSpot } from '../../components/AdSpot';
 import { api, fetchAllPaginated } from '../../shared/api';
 import { categoryDescendantIds, flattenCategoryTree } from '../../shared/categoryTree';
 import { CollectionAppPicker } from './CollectionAppPicker';
@@ -22,13 +23,15 @@ import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { FilePicker } from '../../shared/components/FilePicker';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { RECOMMENDED_DOWNLOAD_MIRRORS, RECOMMENDED_RAW_MIRRORS, mirrorPresetText } from '../../shared/constants';
-import type { Category, Collection, CollectionDraft, PaginatedResponse, Pagination as PaginationMeta, RegistrationInvite, Review, SiteAnnouncement, SiteProfile, StorageOption, StoreApp, TagRecord, Toast, User } from '../../shared/types';
+import type { Category, Collection, CollectionDraft, PaginatedResponse, Pagination as PaginationMeta, RegistrationInvite, Review, SiteAd, SiteAnnouncement, SiteProfile, StorageOption, StoreApp, TagRecord, Toast, User } from '../../shared/types';
 import { errorMessage, formatBytes, formatDate, localizedName, reviewKindKey, runAction, shortSHA, statusKey, stripTrailingSlash } from '../../shared/utils';
 import { AdminUsersWorkspace } from './AdminUsersWorkspace';
 import { draftFromUser, emptyUserDraft, type ManagedUserDraft } from './AdminUsersPanel';
 import { AdminAnnouncementsPanel } from './AdminAnnouncementsPanel';
+import { AdminAdsPanel } from './AdminAdsPanel';
 import { StorageSettingsPanel, defaultStorageSettings, type StorageSettings } from './StorageSettingsPanel';
 import { AdminMigrationPanel } from './migration/AdminMigrationPanel';
+import { AdminBackupPanel } from './AdminBackupPanel';
 
 type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string; parentId?: string; sortOrder?: string };
 
@@ -113,6 +116,7 @@ export function AdminPanel({
   const [reviewApps, setReviewApps] = useState<StoreApp[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [announcements, setAnnouncements] = useState<SiteAnnouncement[]>([]);
+  const [ads, setAds] = useState<SiteAd[]>([]);
   const [registrationInvites, setRegistrationInvites] = useState<RegistrationInvite[]>([]);
   const [invitePagination, setInvitePagination] = useState<PaginationMeta>(DEFAULT_LIST_PAGINATION);
   const [inviteDraft, setInviteDraft] = useState({ note: '', maxUses: '1' });
@@ -132,7 +136,7 @@ export function AdminPanel({
   const [categoryForm, setCategoryForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '', parentId: '', sortOrder: '0' });
   const [tagForm, setTagForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' });
   const [collectionForm, setCollectionForm] = useState<{ name: string; kind: string; appIds: number[] }>({ name: '', kind: 'MANUAL', appIds: [] });
-  const [siteSettingsTab, setSiteSettingsTab] = useState<'identity' | 'announcement' | 'registration' | 'policy' | 'storage' | 'mail' | 'migration'>('identity');
+  const [siteSettingsTab, setSiteSettingsTab] = useState<'identity' | 'announcement' | 'ads' | 'registration' | 'policy' | 'storage' | 'mail' | 'backup' | 'migration'>('identity');
   const [userDialogMode, setUserDialogMode] = useState<'create' | 'edit' | null>(null);
   const [userDraft, setUserDraft] = useState<ManagedUserDraft>(emptyUserDraft);
   const [isCollectionCreateOpen, setIsCollectionCreateOpen] = useState(false);
@@ -165,10 +169,12 @@ export function AdminPanel({
   const siteSettingsTabs = [
     { key: 'identity', label: t('admin.siteSettingTabs.identity'), icon: Archive },
     { key: 'announcement', label: t('admin.siteSettingTabs.announcement'), icon: MessageSquare },
+    { key: 'ads', label: t('admin.siteSettingTabs.ads'), icon: Megaphone },
     { key: 'registration', label: t('admin.siteSettingTabs.registration'), icon: KeyRound },
     { key: 'policy', label: t('admin.siteSettingTabs.policy'), icon: ShieldCheck },
     { key: 'storage', label: t('admin.siteSettingTabs.storage'), icon: Server },
     { key: 'mail', label: t('admin.siteSettingTabs.mail'), icon: MessageSquare },
+    { key: 'backup', label: t('admin.siteSettingTabs.backup'), icon: CloudUpload },
     { key: 'migration', label: t('admin.siteSettingTabs.migration'), icon: DatabaseBackup },
   ] as const;
   const siteIdentityFields = [
@@ -360,14 +366,16 @@ export function AdminPanel({
       setTagDrafts({});
       setCollectionDrafts({});
       if (isSiteAdmin) {
-        const [settingData, storageData, announcementData] = await Promise.all([
+        const [settingData, storageData, announcementData, adData] = await Promise.all([
           api<{ settings: Record<string, string> }>('/api/v1/admin/settings'),
           api<{ storages: StorageSettings[]; defaultKey: string }>('/api/v1/admin/storage'),
           fetchAllPaginated<SiteAnnouncement, 'announcements'>(api, '/api/v1/admin/announcements', 'announcements'),
+          fetchAllPaginated<SiteAd, 'ads'>(api, '/api/v1/admin/ads', 'ads'),
         ]);
         setSettings(settingData.settings || {});
         setLoadedStorageRecords(storageData.storages || [], storageData.defaultKey);
         setAnnouncements(announcementData || []);
+        setAds(adData || []);
         await Promise.all([fetchUsersPage(), fetchInvitesPage()]);
       }
     });
@@ -1176,7 +1184,11 @@ export function AdminPanel({
               <div className="settings-tab-panel">
                 <AdminMigrationPanel api={api} setToast={setToast} />
               </div>
-            ) : siteSettingsTab !== 'storage' && siteSettingsTab !== 'announcement' ? (
+            ) : siteSettingsTab === 'backup' ? (
+              <div className="settings-tab-panel">
+                <AdminBackupPanel storages={storageRecords} setToast={setToast} />
+              </div>
+            ) : siteSettingsTab !== 'storage' && siteSettingsTab !== 'announcement' && siteSettingsTab !== 'ads' ? (
               <form className="settings-tab-panel" onSubmit={saveSettings}>
                 {siteSettingsTab === 'identity' && (
                   <div className="settings-section">
@@ -1366,6 +1378,15 @@ export function AdminPanel({
                   setToast={setToast}
                 />
               </div>
+            ) : siteSettingsTab === 'ads' ? (
+              <div className="settings-tab-panel">
+                <AdminAdsPanel
+                  ads={ads}
+                  onReload={reload}
+                  onSiteProfileSaved={onSiteProfileSaved}
+                  setToast={setToast}
+                />
+              </div>
             ) : (
               <div className="settings-tab-panel">
                 <StorageSettingsPanel
@@ -1415,6 +1436,7 @@ export function AdminPanel({
                 <span>{t('admin.announcementDisabled')}</span>
               </div>
             )}
+            <AdSpot ads={ads} className="site-preview-ad" />
           </section>
         </section>
       )}

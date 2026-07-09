@@ -84,3 +84,33 @@ func TestLocalDeleteRemovesStoredPath(t *testing.T) {
 		t.Fatalf("stored file still exists or stat failed unexpectedly: %v", err)
 	}
 }
+
+func TestCleanObjectPathRejectsUnsafePaths(t *testing.T) {
+	for _, input := range []string{"", "/backup.zip", "../backup.zip", "backups/../backup.zip", "backups//backup.zip", "backups/./backup.zip"} {
+		t.Run(input, func(t *testing.T) {
+			if _, err := CleanObjectPath(input); err == nil {
+				t.Fatalf("CleanObjectPath(%q) accepted unsafe path", input)
+			}
+		})
+	}
+}
+
+func TestLocalSaveObjectWritesRequestedRelativePath(t *testing.T) {
+	root := t.TempDir()
+	backend := NewLocalBackend(root, "/files/")
+
+	obj, err := backend.SaveObject(context.Background(), "backups/appstore/snapshot.zip", strings.NewReader("zip"))
+	if err != nil {
+		t.Fatalf("SaveObject returned error: %v", err)
+	}
+	if obj.Path != "backups/appstore/snapshot.zip" {
+		t.Fatalf("Path = %q, want requested path", obj.Path)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "backups", "appstore", "snapshot.zip"))
+	if err != nil {
+		t.Fatalf("read stored object: %v", err)
+	}
+	if string(data) != "zip" {
+		t.Fatalf("stored content = %q, want zip", string(data))
+	}
+}

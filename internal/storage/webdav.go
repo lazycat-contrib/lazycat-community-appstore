@@ -45,6 +45,18 @@ func NewWebDAVBackend(baseURL, username, password, publicURL string, rootPrefix 
 
 func (b *WebDAVBackend) Save(ctx context.Context, filename string, r io.Reader) (Object, error) {
 	rel := path.Join(time.Now().Format("2006/01/02"), randomName()+strings.ToLower(filepath.Ext(filename)))
+	return b.saveAt(ctx, rel, r)
+}
+
+func (b *WebDAVBackend) SaveObject(ctx context.Context, objectPath string, r io.Reader) (Object, error) {
+	rel, err := CleanObjectPath(objectPath)
+	if err != nil {
+		return Object{}, err
+	}
+	return b.saveAt(ctx, rel, r)
+}
+
+func (b *WebDAVBackend) saveAt(ctx context.Context, rel string, r io.Reader) (Object, error) {
 	body, err := io.ReadAll(r)
 	if err != nil {
 		return Object{}, err

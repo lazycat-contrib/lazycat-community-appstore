@@ -42,14 +42,17 @@ func (s *Server) handleCreateSource(w http.ResponseWriter, r *http.Request) {
 	if input.ChatEnabled != nil {
 		chatEnabled = *input.ChatEnabled
 	}
-	created, err := s.db.ClientSource.Create().
+	create := s.db.ClientSource.Create().
 		SetUserID(currentUserID(r)).
 		SetName(input.Name).
 		SetURL(input.URL).
 		SetPassword(input.Password).
 		SetGroupCodesJSON(encodeStringSlice(input.GroupCodes)).
-		SetChatEnabled(chatEnabled).
-		Save(r.Context())
+		SetChatEnabled(chatEnabled)
+	if input.AdsPreference != nil {
+		create.SetAdsPreference(clientsource.AdsPreference(*input.AdsPreference))
+	}
+	created, err := create.Save(r.Context())
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			writeError(w, http.StatusConflict, "SOURCE_EXISTS", "Source URL already exists")
@@ -93,7 +96,7 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 	if input.ChatEnabled != nil {
 		chatEnabled = *input.ChatEnabled
 	}
-	updated, err := s.db.ClientSource.UpdateOne(source).
+	update := s.db.ClientSource.UpdateOne(source).
 		SetName(input.Name).
 		SetURL(input.URL).
 		SetPassword(input.Password).
@@ -102,8 +105,11 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 		SetLastInvalidGroupCodesJSON("").
 		SetDefaultDownloadMirrorID(input.DefaultDownloadMirrorID).
 		SetDefaultRawMirrorID(input.DefaultRawMirrorID).
-		SetChatEnabled(chatEnabled).
-		Save(r.Context())
+		SetChatEnabled(chatEnabled)
+	if input.AdsPreference != nil {
+		update.SetAdsPreference(clientsource.AdsPreference(*input.AdsPreference))
+	}
+	record, err := update.Save(r.Context())
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			writeError(w, http.StatusConflict, "SOURCE_EXISTS", "Source URL already exists")
@@ -112,7 +118,7 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SOURCE_UPDATE_FAILED", "Could not update source")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"source": sourceDTO(updated)})
+	writeJSON(w, http.StatusOK, map[string]any{"source": sourceDTO(record)})
 }
 
 func (s *Server) handleDeleteSource(w http.ResponseWriter, r *http.Request) {
@@ -154,6 +160,14 @@ func readSourceInput(w http.ResponseWriter, r *http.Request) (SourceInput, bool)
 	input.DefaultDownloadMirrorID = strings.TrimSpace(input.DefaultDownloadMirrorID)
 	input.DefaultRawMirrorID = strings.TrimSpace(input.DefaultRawMirrorID)
 	input.GroupCodes = normalizeGroupCodes(input.GroupCodes)
+	if input.AdsPreference != nil {
+		preference := strings.ToLower(strings.TrimSpace(*input.AdsPreference))
+		if !validSourceAdsPreference(preference) {
+			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Ads preference must be unset, enabled, or disabled")
+			return SourceInput{}, false
+		}
+		input.AdsPreference = &preference
+	}
 	if input.Name == "" {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Source name is required")
 		return SourceInput{}, false
@@ -200,11 +214,13 @@ func sourceDTO(source *ent.ClientSource) SourceDTO {
 		Groups:                  decodeSourceGroups(source.GroupNamesJSON),
 		Categories:              decodeSourceCategories(source.CategoriesJSON),
 		Announcements:           decodeSourceAnnouncements(source.AnnouncementsJSON),
+		Ads:                     decodeSourceAds(source.AdsJSON),
 		ClientPolicy:            normalizeSourceClientPolicy(SourceClientPolicyDTO{MinVersion: source.MinClientVersion, Message: source.MinClientVersionMessage}),
 		LastInvalidGroupCodes:   decodeStringSlice(source.LastInvalidGroupCodesJSON),
 		GitHubMirrors:           mirrors,
 		ChatAvailable:           source.ChatAvailable,
 		ChatEnabled:             source.ChatEnabled,
+		AdsPreference:           sourceAdsPreferenceString(source.AdsPreference),
 		LastSync:                source.LastSync,
 		LastAppCount:            source.LastAppCount,
 		LastInstallableCount:    source.LastInstallableCount,
@@ -216,6 +232,22 @@ func sourceDTO(source *ent.ClientSource) SourceDTO {
 		dto.LastErrorCode = string(*source.LastErrorCode)
 	}
 	return dto
+}
+
+func validSourceAdsPreference(value string) bool {
+	switch clientsource.AdsPreference(value) {
+	case clientsource.AdsPreferenceUnset, clientsource.AdsPreferenceEnabled, clientsource.AdsPreferenceDisabled:
+		return true
+	default:
+		return false
+	}
+}
+
+func sourceAdsPreferenceString(value clientsource.AdsPreference) string {
+	if validSourceAdsPreference(string(value)) {
+		return string(value)
+	}
+	return string(clientsource.AdsPreferenceUnset)
 }
 
 func sourceHasMirrorKind(source *ent.ClientSource, id string, kind string) bool {

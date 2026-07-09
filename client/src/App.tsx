@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   LogIn,
   LogOut,
+  Megaphone,
   MessageSquare,
   RefreshCw,
   ShieldCheck,
@@ -55,6 +56,7 @@ import type {
   Review,
   SetupStatus,
   SiteProfile,
+  SiteAd,
   SortMode,
   SourceApp,
   SourceInput,
@@ -277,6 +279,17 @@ export function App() {
       : sources.flatMap((source) => (source.announcements || []).map((announcement) => ({ ...announcement, sourceName: source.name })));
     return items.filter(isAnnouncementCurrentlyVisible);
   }, [siteProfile.announcement, siteProfile.announcements, sources]);
+  const storefrontAds = useMemo<SiteAd[]>(() => {
+    if (HAS_API) return siteProfile.ads || [];
+    return sources.flatMap((source) => {
+      if (source.adsPreference !== 'enabled') return [];
+      return (source.ads || []).map((ad) => ({ ...ad, sourceName: source.name }));
+    });
+  }, [siteProfile.ads, sources]);
+  const pendingAdPreferenceSource = useMemo(() => {
+    if (HAS_API) return null;
+    return sources.find((source) => (source.ads || []).length > 0 && (source.adsPreference || 'unset') === 'unset') || null;
+  }, [sources]);
   const announcementKey = visibleAnnouncements.map(announcementStorageKey).join('|');
   const showAnnouncement = visibleAnnouncements.length > 0 && announcementKey !== dismissedAnnouncement;
   const showGlobalAnnouncement = showAnnouncement && !(HAS_API && tab === 'admin');
@@ -988,9 +1001,19 @@ export function App() {
         defaultRawMirrorId: source.defaultRawMirrorId || '',
         groupCodes: source.groupCodes || [],
         chatEnabled: source.chatEnabled !== false,
+        adsPreference: source.adsPreference || 'unset',
       }),
     });
     await refreshClientData({ silent: true });
+  }
+
+  async function setSourceAdsPreference(source: SourceSubscription, adsPreference: 'enabled' | 'disabled') {
+    try {
+      await updateClientSource({ ...source, adsPreference });
+      setToast({ tone: 'success', message: t('sources.updated') });
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSaveFailed')) });
+    }
   }
 
   async function deleteClientSource(source: SourceSubscription) {
@@ -1337,6 +1360,7 @@ export function App() {
                   navigateTo('search');
                 }}
                 isAuthenticated={Boolean(user)}
+                ads={storefrontAds}
               />
             )}
             {tab === 'search' && (
@@ -1384,6 +1408,7 @@ export function App() {
                 onInstall={installApp}
                 installedApps={installedApps}
                 sourceStats={sourceStats}
+                ads={storefrontAds}
                 setToast={setToast}
               />
             )}
@@ -1501,6 +1526,31 @@ export function App() {
             </div>
             <div className="dialog-actions">
               <XButton type="button" variant="primary" label={t('common.close')} icon={<X size={17} />} onClick={() => setDismissedClientPolicyKey(clientPolicyDialogKey)} />
+            </div>
+          </div>
+        </ModalLayer>
+      )}
+
+      {pendingAdPreferenceSource && (
+        <ModalLayer onClose={() => {}} purpose="required" width="min(560px, calc(100vw - 36px))">
+          <div className="modal-panel form-panel source-ad-preference-dialog">
+            <SectionTitle icon={Megaphone} title={t('ads.preferenceTitle')} />
+            <p>{t('ads.preferenceBody', { name: pendingAdPreferenceSource.name })}</p>
+            <div className="dialog-actions">
+              <XButton
+                type="button"
+                variant="secondary"
+                label={t('ads.disableSourceAds')}
+                icon={<X size={17} />}
+                onClick={() => void setSourceAdsPreference(pendingAdPreferenceSource, 'disabled')}
+              />
+              <XButton
+                type="button"
+                variant="primary"
+                label={t('ads.enableSourceAds')}
+                icon={<Megaphone size={17} />}
+                onClick={() => void setSourceAdsPreference(pendingAdPreferenceSource, 'enabled')}
+              />
             </div>
           </div>
         </ModalLayer>

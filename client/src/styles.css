@@ -1131,9 +1131,20 @@ body,
 }
 
 .storage-editor-actions > button {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  width: auto !important;
+  max-width: 100%;
   min-width: 36px;
   min-height: 36px;
+}
+
+.storage-settings-panel .storage-action-button {
+  width: auto !important;
+  white-space: nowrap;
+}
+
+.storage-settings-panel .storage-action-button:active {
+  transform: scale(0.98);
 }
 
 .storage-editor-head strong,
@@ -1318,6 +1329,40 @@ body,
 }
 
 .announcement-dialog {
+  width: 100%;
+}
+
+.ad-manager {
+  display: grid;
+  gap: 14px;
+}
+
+.ad-list .astryx-list-item {
+  align-items: start;
+}
+
+.ad-list-thumb {
+  width: 52px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--surface);
+  flex: 0 0 auto;
+}
+
+.ad-list-thumb-empty {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+.ad-list .row-actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.ad-dialog {
   width: 100%;
 }
 

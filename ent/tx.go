@@ -14,6 +14,8 @@ type Tx struct {
 	config
 	// APIToken is the client for interacting with the APIToken builders.
 	APIToken *APITokenClient
+	// Ad is the client for interacting with the Ad builders.
+	Ad *AdClient
 	// Announcement is the client for interacting with the Announcement builders.
 	Announcement *AnnouncementClient
 	// App is the client for interacting with the App builders.
@@ -212,6 +214,7 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.APIToken = NewAPITokenClient(tx.config)
+	tx.Ad = NewAdClient(tx.config)
 	tx.Announcement = NewAnnouncementClient(tx.config)
 	tx.App = NewAppClient(tx.config)
 	tx.AppScreenshot = NewAppScreenshotClient(tx.config)

@@ -197,6 +197,20 @@ func (_u *ClientSourceUpdate) SetNillableAnnouncementsJSON(v *string) *ClientSou
 	return _u
 }
 
+// SetAdsJSON sets the "ads_json" field.
+func (_u *ClientSourceUpdate) SetAdsJSON(v string) *ClientSourceUpdate {
+	_u.mutation.SetAdsJSON(v)
+	return _u
+}
+
+// SetNillableAdsJSON sets the "ads_json" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableAdsJSON(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetAdsJSON(*v)
+	}
+	return _u
+}
+
 // SetMinClientVersion sets the "min_client_version" field.
 func (_u *ClientSourceUpdate) SetMinClientVersion(v string) *ClientSourceUpdate {
 	_u.mutation.SetMinClientVersion(v)
@@ -249,6 +263,20 @@ func (_u *ClientSourceUpdate) SetChatEnabled(v bool) *ClientSourceUpdate {
 func (_u *ClientSourceUpdate) SetNillableChatEnabled(v *bool) *ClientSourceUpdate {
 	if v != nil {
 		_u.SetChatEnabled(*v)
+	}
+	return _u
+}
+
+// SetAdsPreference sets the "ads_preference" field.
+func (_u *ClientSourceUpdate) SetAdsPreference(v clientsource.AdsPreference) *ClientSourceUpdate {
+	_u.mutation.SetAdsPreference(v)
+	return _u
+}
+
+// SetNillableAdsPreference sets the "ads_preference" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableAdsPreference(v *clientsource.AdsPreference) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetAdsPreference(*v)
 	}
 	return _u
 }
@@ -469,6 +497,11 @@ func (_u *ClientSourceUpdate) check() error {
 			return &ValidationError{Name: "url", err: fmt.Errorf(`ent: validator failed for field "ClientSource.url": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AdsPreference(); ok {
+		if err := clientsource.AdsPreferenceValidator(v); err != nil {
+			return &ValidationError{Name: "ads_preference", err: fmt.Errorf(`ent: validator failed for field "ClientSource.ads_preference": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.LastErrorCode(); ok {
 		if err := clientsource.LastErrorCodeValidator(v); err != nil {
 			return &ValidationError{Name: "last_error_code", err: fmt.Errorf(`ent: validator failed for field "ClientSource.last_error_code": %w`, err)}
@@ -525,6 +558,9 @@ func (_u *ClientSourceUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.AnnouncementsJSON(); ok {
 		_spec.SetField(clientsource.FieldAnnouncementsJSON, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.AdsJSON(); ok {
+		_spec.SetField(clientsource.FieldAdsJSON, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.MinClientVersion(); ok {
 		_spec.SetField(clientsource.FieldMinClientVersion, field.TypeString, value)
 	}
@@ -536,6 +572,9 @@ func (_u *ClientSourceUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.ChatEnabled(); ok {
 		_spec.SetField(clientsource.FieldChatEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AdsPreference(); ok {
+		_spec.SetField(clientsource.FieldAdsPreference, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)
@@ -806,6 +845,20 @@ func (_u *ClientSourceUpdateOne) SetNillableAnnouncementsJSON(v *string) *Client
 	return _u
 }
 
+// SetAdsJSON sets the "ads_json" field.
+func (_u *ClientSourceUpdateOne) SetAdsJSON(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetAdsJSON(v)
+	return _u
+}
+
+// SetNillableAdsJSON sets the "ads_json" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableAdsJSON(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetAdsJSON(*v)
+	}
+	return _u
+}
+
 // SetMinClientVersion sets the "min_client_version" field.
 func (_u *ClientSourceUpdateOne) SetMinClientVersion(v string) *ClientSourceUpdateOne {
 	_u.mutation.SetMinClientVersion(v)
@@ -858,6 +911,20 @@ func (_u *ClientSourceUpdateOne) SetChatEnabled(v bool) *ClientSourceUpdateOne {
 func (_u *ClientSourceUpdateOne) SetNillableChatEnabled(v *bool) *ClientSourceUpdateOne {
 	if v != nil {
 		_u.SetChatEnabled(*v)
+	}
+	return _u
+}
+
+// SetAdsPreference sets the "ads_preference" field.
+func (_u *ClientSourceUpdateOne) SetAdsPreference(v clientsource.AdsPreference) *ClientSourceUpdateOne {
+	_u.mutation.SetAdsPreference(v)
+	return _u
+}
+
+// SetNillableAdsPreference sets the "ads_preference" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableAdsPreference(v *clientsource.AdsPreference) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetAdsPreference(*v)
 	}
 	return _u
 }
@@ -1091,6 +1158,11 @@ func (_u *ClientSourceUpdateOne) check() error {
 			return &ValidationError{Name: "url", err: fmt.Errorf(`ent: validator failed for field "ClientSource.url": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.AdsPreference(); ok {
+		if err := clientsource.AdsPreferenceValidator(v); err != nil {
+			return &ValidationError{Name: "ads_preference", err: fmt.Errorf(`ent: validator failed for field "ClientSource.ads_preference": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.LastErrorCode(); ok {
 		if err := clientsource.LastErrorCodeValidator(v); err != nil {
 			return &ValidationError{Name: "last_error_code", err: fmt.Errorf(`ent: validator failed for field "ClientSource.last_error_code": %w`, err)}
@@ -1164,6 +1236,9 @@ func (_u *ClientSourceUpdateOne) sqlSave(ctx context.Context) (_node *ClientSour
 	if value, ok := _u.mutation.AnnouncementsJSON(); ok {
 		_spec.SetField(clientsource.FieldAnnouncementsJSON, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.AdsJSON(); ok {
+		_spec.SetField(clientsource.FieldAdsJSON, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.MinClientVersion(); ok {
 		_spec.SetField(clientsource.FieldMinClientVersion, field.TypeString, value)
 	}
@@ -1175,6 +1250,9 @@ func (_u *ClientSourceUpdateOne) sqlSave(ctx context.Context) (_node *ClientSour
 	}
 	if value, ok := _u.mutation.ChatEnabled(); ok {
 		_spec.SetField(clientsource.FieldChatEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AdsPreference(); ok {
+		_spec.SetField(clientsource.FieldAdsPreference, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)

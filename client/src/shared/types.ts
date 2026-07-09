@@ -250,6 +250,8 @@ export type StorageOption = {
 
 export type SourceID = number | string;
 
+export type AdsPreference = 'unset' | 'enabled' | 'disabled';
+
 export type GitHubMirror = {
   id: string;
   kind: 'download' | 'raw';
@@ -268,11 +270,13 @@ export type SourceSubscription = {
   groups?: Array<{ name: string; code?: string }>;
   categories?: Category[];
   announcements?: SiteAnnouncement[];
+  ads?: SiteAd[];
   clientPolicy?: ClientPolicy;
   lastInvalidGroupCodes?: string[];
   githubMirrors: GitHubMirror[];
   chatAvailable?: boolean;
   chatEnabled?: boolean;
+  adsPreference?: AdsPreference;
   lastSync?: string;
   lastError?: string;
   lastErrorCode?: SourceErrorCode;
@@ -282,7 +286,7 @@ export type SourceSubscription = {
 
 export type SourceInput = Pick<
   SourceSubscription,
-  'name' | 'url' | 'password' | 'defaultDownloadMirrorId' | 'defaultRawMirrorId' | 'groupCodes' | 'chatEnabled'
+  'name' | 'url' | 'password' | 'defaultDownloadMirrorId' | 'defaultRawMirrorId' | 'groupCodes' | 'chatEnabled' | 'adsPreference'
 >;
 
 export type ClientSettings = {
@@ -381,6 +385,22 @@ export type SiteAnnouncement = {
   updatedAt?: string;
 };
 
+export type SiteAd = {
+  id?: number;
+  enabled: boolean;
+  title?: string;
+  body?: string;
+  imageUrl?: string;
+  linkLabel?: string;
+  linkUrl?: string;
+  startsAt?: string;
+  endsAt?: string;
+  sortOrder?: number;
+  sourceName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type ClientPolicy = {
   minVersion?: string;
   message?: string;
@@ -411,10 +431,42 @@ export type SiteProfile = {
   defaultPageSize?: number;
   announcement: SiteAnnouncement;
   announcements?: SiteAnnouncement[];
+  ads?: SiteAd[];
   registration: SiteRegistration;
   clientPolicy?: ClientPolicy;
   chat: SiteChat;
   security: SiteSecurity;
+};
+
+export type BackupTargetResult = {
+  storageKey: string;
+  storageName: string;
+  objectPath?: string;
+  downloadUrl?: string;
+  status: 'success' | 'partial' | 'failed' | string;
+  error?: string;
+};
+
+export type BackupRunResult = {
+  startedAt: string;
+  finishedAt?: string;
+  trigger: 'manual' | 'scheduled' | string;
+  status: 'success' | 'partial' | 'failed' | string;
+  objectPath?: string;
+  size?: number;
+  sha256?: string;
+  manifestCounts?: Record<string, number>;
+  warnings?: string[];
+  targets?: BackupTargetResult[];
+  error?: string;
+};
+
+export type BackupSettings = {
+  enabled: boolean;
+  scheduleTime: string;
+  storageKeys: string[];
+  lastRun?: BackupRunResult;
+  isRunning: boolean;
 };
 
 export type Toast = {

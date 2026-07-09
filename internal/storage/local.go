@@ -30,6 +30,18 @@ func NewLocalBackend(root, urlPrefix string) *LocalBackend {
 
 func (b *LocalBackend) Save(ctx context.Context, filename string, r io.Reader) (Object, error) {
 	rel := filepath.Join(time.Now().Format("2006/01/02"), randomName()+strings.ToLower(filepath.Ext(filename)))
+	return b.saveAt(ctx, rel, r)
+}
+
+func (b *LocalBackend) SaveObject(ctx context.Context, objectPath string, r io.Reader) (Object, error) {
+	rel, err := CleanObjectPath(objectPath)
+	if err != nil {
+		return Object{}, err
+	}
+	return b.saveAt(ctx, rel, r)
+}
+
+func (b *LocalBackend) saveAt(ctx context.Context, rel string, r io.Reader) (Object, error) {
 	full := filepath.Join(b.root, rel)
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		return Object{}, err

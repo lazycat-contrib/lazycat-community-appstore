@@ -165,6 +165,20 @@ func (_c *ClientSourceCreate) SetNillableAnnouncementsJSON(v *string) *ClientSou
 	return _c
 }
 
+// SetAdsJSON sets the "ads_json" field.
+func (_c *ClientSourceCreate) SetAdsJSON(v string) *ClientSourceCreate {
+	_c.mutation.SetAdsJSON(v)
+	return _c
+}
+
+// SetNillableAdsJSON sets the "ads_json" field if the given value is not nil.
+func (_c *ClientSourceCreate) SetNillableAdsJSON(v *string) *ClientSourceCreate {
+	if v != nil {
+		_c.SetAdsJSON(*v)
+	}
+	return _c
+}
+
 // SetMinClientVersion sets the "min_client_version" field.
 func (_c *ClientSourceCreate) SetMinClientVersion(v string) *ClientSourceCreate {
 	_c.mutation.SetMinClientVersion(v)
@@ -217,6 +231,20 @@ func (_c *ClientSourceCreate) SetChatEnabled(v bool) *ClientSourceCreate {
 func (_c *ClientSourceCreate) SetNillableChatEnabled(v *bool) *ClientSourceCreate {
 	if v != nil {
 		_c.SetChatEnabled(*v)
+	}
+	return _c
+}
+
+// SetAdsPreference sets the "ads_preference" field.
+func (_c *ClientSourceCreate) SetAdsPreference(v clientsource.AdsPreference) *ClientSourceCreate {
+	_c.mutation.SetAdsPreference(v)
+	return _c
+}
+
+// SetNillableAdsPreference sets the "ads_preference" field if the given value is not nil.
+func (_c *ClientSourceCreate) SetNillableAdsPreference(v *clientsource.AdsPreference) *ClientSourceCreate {
+	if v != nil {
+		_c.SetAdsPreference(*v)
 	}
 	return _c
 }
@@ -405,6 +433,10 @@ func (_c *ClientSourceCreate) defaults() {
 		v := clientsource.DefaultAnnouncementsJSON
 		_c.mutation.SetAnnouncementsJSON(v)
 	}
+	if _, ok := _c.mutation.AdsJSON(); !ok {
+		v := clientsource.DefaultAdsJSON
+		_c.mutation.SetAdsJSON(v)
+	}
 	if _, ok := _c.mutation.MinClientVersion(); !ok {
 		v := clientsource.DefaultMinClientVersion
 		_c.mutation.SetMinClientVersion(v)
@@ -420,6 +452,10 @@ func (_c *ClientSourceCreate) defaults() {
 	if _, ok := _c.mutation.ChatEnabled(); !ok {
 		v := clientsource.DefaultChatEnabled
 		_c.mutation.SetChatEnabled(v)
+	}
+	if _, ok := _c.mutation.AdsPreference(); !ok {
+		v := clientsource.DefaultAdsPreference
+		_c.mutation.SetAdsPreference(v)
 	}
 	if _, ok := _c.mutation.LastAppCount(); !ok {
 		v := clientsource.DefaultLastAppCount
@@ -492,6 +528,9 @@ func (_c *ClientSourceCreate) check() error {
 	if _, ok := _c.mutation.AnnouncementsJSON(); !ok {
 		return &ValidationError{Name: "announcements_json", err: errors.New(`ent: missing required field "ClientSource.announcements_json"`)}
 	}
+	if _, ok := _c.mutation.AdsJSON(); !ok {
+		return &ValidationError{Name: "ads_json", err: errors.New(`ent: missing required field "ClientSource.ads_json"`)}
+	}
 	if _, ok := _c.mutation.MinClientVersion(); !ok {
 		return &ValidationError{Name: "min_client_version", err: errors.New(`ent: missing required field "ClientSource.min_client_version"`)}
 	}
@@ -503,6 +542,14 @@ func (_c *ClientSourceCreate) check() error {
 	}
 	if _, ok := _c.mutation.ChatEnabled(); !ok {
 		return &ValidationError{Name: "chat_enabled", err: errors.New(`ent: missing required field "ClientSource.chat_enabled"`)}
+	}
+	if _, ok := _c.mutation.AdsPreference(); !ok {
+		return &ValidationError{Name: "ads_preference", err: errors.New(`ent: missing required field "ClientSource.ads_preference"`)}
+	}
+	if v, ok := _c.mutation.AdsPreference(); ok {
+		if err := clientsource.AdsPreferenceValidator(v); err != nil {
+			return &ValidationError{Name: "ads_preference", err: fmt.Errorf(`ent: validator failed for field "ClientSource.ads_preference": %w`, err)}
+		}
 	}
 	if v, ok := _c.mutation.LastErrorCode(); ok {
 		if err := clientsource.LastErrorCodeValidator(v); err != nil {
@@ -595,6 +642,10 @@ func (_c *ClientSourceCreate) createSpec() (*ClientSource, *sqlgraph.CreateSpec)
 		_spec.SetField(clientsource.FieldAnnouncementsJSON, field.TypeString, value)
 		_node.AnnouncementsJSON = value
 	}
+	if value, ok := _c.mutation.AdsJSON(); ok {
+		_spec.SetField(clientsource.FieldAdsJSON, field.TypeString, value)
+		_node.AdsJSON = value
+	}
 	if value, ok := _c.mutation.MinClientVersion(); ok {
 		_spec.SetField(clientsource.FieldMinClientVersion, field.TypeString, value)
 		_node.MinClientVersion = value
@@ -610,6 +661,10 @@ func (_c *ClientSourceCreate) createSpec() (*ClientSource, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.ChatEnabled(); ok {
 		_spec.SetField(clientsource.FieldChatEnabled, field.TypeBool, value)
 		_node.ChatEnabled = value
+	}
+	if value, ok := _c.mutation.AdsPreference(); ok {
+		_spec.SetField(clientsource.FieldAdsPreference, field.TypeEnum, value)
+		_node.AdsPreference = value
 	}
 	if value, ok := _c.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)

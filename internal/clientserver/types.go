@@ -19,11 +19,13 @@ type SourceDTO struct {
 	Groups                  []SourceGroupDTO        `json:"groups,omitempty"`
 	Categories              []SourceCategoryDTO     `json:"categories,omitempty"`
 	Announcements           []SourceAnnouncementDTO `json:"announcements,omitempty"`
+	Ads                     []SourceAdDTO           `json:"ads,omitempty"`
 	ClientPolicy            SourceClientPolicyDTO   `json:"clientPolicy,omitempty"`
 	LastInvalidGroupCodes   []string                `json:"lastInvalidGroupCodes,omitempty"`
 	GitHubMirrors           []mirror.Entry          `json:"githubMirrors"`
 	ChatAvailable           bool                    `json:"chatAvailable"`
 	ChatEnabled             bool                    `json:"chatEnabled"`
+	AdsPreference           string                  `json:"adsPreference"`
 	LastSync                *time.Time              `json:"lastSync,omitempty"`
 	LastError               string                  `json:"lastError,omitempty"`
 	LastErrorCode           string                  `json:"lastErrorCode,omitempty"`
@@ -54,6 +56,20 @@ type SourceAnnouncementDTO struct {
 	UpdatedAt string `json:"updatedAt,omitempty"`
 }
 
+type SourceAdDTO struct {
+	ID        int    `json:"id,omitempty"`
+	Enabled   bool   `json:"enabled"`
+	Title     string `json:"title,omitempty"`
+	Body      string `json:"body,omitempty"`
+	ImageURL  string `json:"imageUrl,omitempty"`
+	LinkLabel string `json:"linkLabel,omitempty"`
+	LinkURL   string `json:"linkUrl,omitempty"`
+	StartsAt  string `json:"startsAt,omitempty"`
+	EndsAt    string `json:"endsAt,omitempty"`
+	SortOrder int    `json:"sortOrder,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
+}
+
 type SourceClientPolicyDTO struct {
 	MinVersion string `json:"minVersion,omitempty"`
 	Message    string `json:"message,omitempty"`
@@ -67,6 +83,7 @@ type SourceInput struct {
 	DefaultRawMirrorID      string   `json:"defaultRawMirrorId"`
 	GroupCodes              []string `json:"groupCodes"`
 	ChatEnabled             *bool    `json:"chatEnabled"`
+	AdsPreference           *string  `json:"adsPreference"`
 }
 
 type ErrorResponse struct {

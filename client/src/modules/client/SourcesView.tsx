@@ -4,6 +4,7 @@ import {
   Cloud,
   Download,
   KeyRound,
+  Megaphone,
   MessageSquare,
   Pencil,
   Plus,
@@ -24,6 +25,7 @@ import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { DEFAULT_SOURCE_URL } from '../../config';
+import { AdSpot } from '../../components/AdSpot';
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
@@ -37,6 +39,7 @@ import type {
   SourceID,
   SourceInput,
   SourceSubscription,
+  SiteAd,
   Toast,
 } from '../../shared/types';
 import {
@@ -74,6 +77,7 @@ export function SourcesView({
   onInstall,
   installedApps,
   sourceStats,
+  ads,
   setToast,
 }: {
   sources: SourceSubscription[];
@@ -88,10 +92,11 @@ export function SourcesView({
   onInstall: (app: SourceApp) => void;
   installedApps: InstalledApplication[];
   sourceStats: ClientSourceStats;
+  ads?: SiteAd[];
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
-  const emptyDraft: SourceInput = { name: '', url: DEFAULT_SOURCE_URL, password: '', defaultDownloadMirrorId: '', defaultRawMirrorId: '', groupCodes: [], chatEnabled: true };
+  const emptyDraft: SourceInput = { name: '', url: DEFAULT_SOURCE_URL, password: '', defaultDownloadMirrorId: '', defaultRawMirrorId: '', groupCodes: [], chatEnabled: true, adsPreference: 'unset' };
   const [draft, setDraft] = useState(emptyDraft);
   const [syncingID, setSyncingID] = useState<SourceID | null>(null);
   const [confirmDeleteSource, setConfirmDeleteSource] = useState<SourceID | null>(null);
@@ -164,6 +169,7 @@ export function SourcesView({
       defaultRawMirrorId: source.defaultRawMirrorId || '',
       groupCodes: source.groupCodes || [],
       chatEnabled: source.chatEnabled !== false,
+      adsPreference: source.adsPreference || 'unset',
     });
   }
 
@@ -190,6 +196,7 @@ export function SourcesView({
         defaultRawMirrorId: editDraft.defaultRawMirrorId || '',
         groupCodes: normalizeGroupCodes(editDraft.groupCodes || []),
         chatEnabled: editDraft.chatEnabled !== false,
+        adsPreference: editDraft.adsPreference || editingSource.adsPreference || 'unset',
       });
       setEditingSource(null);
       setToast({ tone: 'success', message: t('sources.updated') });
@@ -274,6 +281,8 @@ export function SourcesView({
           <XButton type="button" variant="secondary" label={t('sources.syncAll')} icon={<RefreshCw size={18} />} onClick={() => void onSyncAll()} />
         </div>
       </div>
+
+      <AdSpot ads={ads} className="client-source-ad" />
 
       <div className="client-summary-grid source-summary" aria-label={t('sources.summary')}>
         <div>
@@ -384,6 +393,17 @@ export function SourcesView({
               labelIcon={<MessageSquare size={16} />}
               onChange={(checked) => setEditDraft({ ...editDraft, chatEnabled: checked })}
             />
+            {(editingSource.ads || []).length > 0 && (
+              <XSwitch
+                label={t('sources.adsEnabled')}
+                description={t('sources.adsEnabledHelp')}
+                value={editDraft.adsPreference === 'enabled'}
+                labelSpacing="spread"
+                width="100%"
+                labelIcon={<Megaphone size={16} />}
+                onChange={(checked) => setEditDraft({ ...editDraft, adsPreference: checked ? 'enabled' : 'disabled' })}
+              />
+            )}
             <XSelector
               label={t('sources.defaultDownloadMirror')}
               description={t('sources.defaultDownloadMirrorHelp')}

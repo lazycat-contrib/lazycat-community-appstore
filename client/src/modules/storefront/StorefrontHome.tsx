@@ -4,8 +4,9 @@ import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
 import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { API_BASE } from '../../config';
+import { AdSpot, visibleSiteAds } from '../../components/AdSpot';
 import { SectionTitle } from '../../shared/components/Feedback';
-import type { Category, Collection, SiteProfile, StoreApp } from '../../shared/types';
+import type { Category, Collection, SiteAd, SiteProfile, StoreApp } from '../../shared/types';
 import { AppGrid } from './AppGrid';
 import { CategoryBrowser } from './CategoryBrowser';
 
@@ -22,6 +23,7 @@ export function StorefrontHome({
   activeCategory,
   onCategory,
   isAuthenticated,
+  ads,
 }: {
   apps: StoreApp[];
   appCount?: number;
@@ -35,6 +37,7 @@ export function StorefrontHome({
   activeCategory: string;
   onCategory: (category: string) => void;
   isAuthenticated: boolean;
+  ads?: SiteAd[];
 }) {
   const { t } = useTranslation();
   const latest = [...apps].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).slice(0, 6);
@@ -42,10 +45,11 @@ export function StorefrontHome({
   const sourceFeedURL = siteProfile.sourceUrl || `${API_BASE || window.location.origin}/source/v2/index.json`;
   const BackstageIcon = isAuthenticated ? PackagePlus : LogIn;
   const backstageLabel = isAuthenticated ? t('home.submitApp') : t('topbar.login');
+  const visibleAds = visibleSiteAds(ads);
 
   return (
     <section className="page-grid storefront-page">
-      <div className="hero-band storefront-hero">
+      <div className={`hero-band storefront-hero${visibleAds.length === 0 ? ' storefront-hero-without-ad' : ''}`}>
         <div className="storefront-hero-copy">
           <span className="eyebrow">{t('home.eyebrow')}</span>
           <h1>{siteProfile.title || t('home.title')}</h1>
@@ -55,6 +59,7 @@ export function StorefrontHome({
             <XButton type="button" variant="primary" label={backstageLabel} icon={<BackstageIcon size={18} />} onClick={onSubmitApp} />
           </div>
         </div>
+        {visibleAds.length > 0 && <AdSpot ads={visibleAds} className="storefront-hero-ad" />}
       </div>
 
       <section className="store-metrics" aria-label={t('nav.store')}>

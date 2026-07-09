@@ -115,6 +115,11 @@ func AnnouncementsJSON(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldAnnouncementsJSON, v))
 }
 
+// AdsJSON applies equality check predicate on the "ads_json" field. It's identical to AdsJSONEQ.
+func AdsJSON(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldAdsJSON, v))
+}
+
 // MinClientVersion applies equality check predicate on the "min_client_version" field. It's identical to MinClientVersionEQ.
 func MinClientVersion(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldMinClientVersion, v))
@@ -945,6 +950,71 @@ func AnnouncementsJSONContainsFold(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldContainsFold(FieldAnnouncementsJSON, v))
 }
 
+// AdsJSONEQ applies the EQ predicate on the "ads_json" field.
+func AdsJSONEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldAdsJSON, v))
+}
+
+// AdsJSONNEQ applies the NEQ predicate on the "ads_json" field.
+func AdsJSONNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldAdsJSON, v))
+}
+
+// AdsJSONIn applies the In predicate on the "ads_json" field.
+func AdsJSONIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldAdsJSON, vs...))
+}
+
+// AdsJSONNotIn applies the NotIn predicate on the "ads_json" field.
+func AdsJSONNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldAdsJSON, vs...))
+}
+
+// AdsJSONGT applies the GT predicate on the "ads_json" field.
+func AdsJSONGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldAdsJSON, v))
+}
+
+// AdsJSONGTE applies the GTE predicate on the "ads_json" field.
+func AdsJSONGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldAdsJSON, v))
+}
+
+// AdsJSONLT applies the LT predicate on the "ads_json" field.
+func AdsJSONLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldAdsJSON, v))
+}
+
+// AdsJSONLTE applies the LTE predicate on the "ads_json" field.
+func AdsJSONLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldAdsJSON, v))
+}
+
+// AdsJSONContains applies the Contains predicate on the "ads_json" field.
+func AdsJSONContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldAdsJSON, v))
+}
+
+// AdsJSONHasPrefix applies the HasPrefix predicate on the "ads_json" field.
+func AdsJSONHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldAdsJSON, v))
+}
+
+// AdsJSONHasSuffix applies the HasSuffix predicate on the "ads_json" field.
+func AdsJSONHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldAdsJSON, v))
+}
+
+// AdsJSONEqualFold applies the EqualFold predicate on the "ads_json" field.
+func AdsJSONEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldAdsJSON, v))
+}
+
+// AdsJSONContainsFold applies the ContainsFold predicate on the "ads_json" field.
+func AdsJSONContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldAdsJSON, v))
+}
+
 // MinClientVersionEQ applies the EQ predicate on the "min_client_version" field.
 func MinClientVersionEQ(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldMinClientVersion, v))
@@ -1093,6 +1163,26 @@ func ChatEnabledEQ(v bool) predicate.ClientSource {
 // ChatEnabledNEQ applies the NEQ predicate on the "chat_enabled" field.
 func ChatEnabledNEQ(v bool) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldNEQ(FieldChatEnabled, v))
+}
+
+// AdsPreferenceEQ applies the EQ predicate on the "ads_preference" field.
+func AdsPreferenceEQ(v AdsPreference) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldAdsPreference, v))
+}
+
+// AdsPreferenceNEQ applies the NEQ predicate on the "ads_preference" field.
+func AdsPreferenceNEQ(v AdsPreference) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldAdsPreference, v))
+}
+
+// AdsPreferenceIn applies the In predicate on the "ads_preference" field.
+func AdsPreferenceIn(vs ...AdsPreference) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldAdsPreference, vs...))
+}
+
+// AdsPreferenceNotIn applies the NotIn predicate on the "ads_preference" field.
+func AdsPreferenceNotIn(vs ...AdsPreference) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldAdsPreference, vs...))
 }
 
 // LastSyncEQ applies the EQ predicate on the "last_sync" field.

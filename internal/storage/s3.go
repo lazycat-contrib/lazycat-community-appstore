@@ -69,12 +69,28 @@ func NewS3Backend(options S3Options) (*S3Backend, error) {
 
 func (b *S3Backend) Save(ctx context.Context, filename string, r io.Reader) (Object, error) {
 	rel := path.Join(time.Now().Format("2006/01/02"), randomName()+strings.ToLower(filepath.Ext(filename)))
+	return b.saveAt(ctx, rel, r)
+}
+
+func (b *S3Backend) SaveObject(ctx context.Context, objectPath string, r io.Reader) (Object, error) {
+	rel, err := CleanObjectPath(objectPath)
+	if err != nil {
+		return Object{}, err
+	}
+	return b.saveAt(ctx, rel, r)
+}
+
+func (b *S3Backend) saveAt(ctx context.Context, rel string, r io.Reader) (Object, error) {
 	key := b.objectKey(rel)
+	contentType := mime.TypeByExtension(strings.ToLower(path.Ext(rel)))
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
 	if _, err := b.client.PutObject(ctx, &awss3.PutObjectInput{
 		Bucket:      aws.String(b.bucket),
 		Key:         aws.String(key),
 		Body:        r,
-		ContentType: aws.String("application/octet-stream"),
+		ContentType: aws.String(contentType),
 	}); err != nil {
 		return Object{}, err
 	}

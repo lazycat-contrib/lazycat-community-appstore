@@ -25,6 +25,7 @@ type Index struct {
 	Site              feed.SiteMeta           `json:"site"`
 	Announcement      feed.AnnouncementMeta   `json:"announcement"`
 	Announcements     []feed.AnnouncementMeta `json:"announcements,omitempty"`
+	Ads               []feed.AdMeta           `json:"ads,omitempty"`
 	Categories        []Category              `json:"categories,omitempty"`
 	Groups            []feed.GroupMeta        `json:"groups,omitempty"`
 	InvalidGroupCodes []string                `json:"invalidGroupCodes,omitempty"`
@@ -45,6 +46,7 @@ func BuildIndex(input feed.Input) Index {
 		Site:              input.Site,
 		Announcement:      input.Announcement,
 		Announcements:     input.Announcements,
+		Ads:               input.Ads,
 		Categories:        make([]Category, 0, len(input.Categories)),
 		Groups:            input.Groups,
 		InvalidGroupCodes: input.InvalidGroupCodes,

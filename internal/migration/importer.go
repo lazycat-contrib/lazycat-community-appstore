@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/ent/ad"
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	apppkg "lazycat.community/appstore/ent/app"
@@ -209,6 +210,9 @@ func replaceSelectedData(ctx context.Context, db *ent.Client, options ImportOpti
 		}
 	}
 	if options.IncludeSite {
+		if _, err := db.Ad.Delete().Exec(ctx); err != nil {
+			return err
+		}
 		if _, err := db.Announcement.Delete().Exec(ctx); err != nil {
 			return err
 		}
@@ -271,6 +275,20 @@ func importSiteData(ctx context.Context, db *ent.Client, data SiteData, result *
 		}
 		result.Created++
 	}
+	for _, record := range data.Ads {
+		exists, err := db.Ad.Query().Where(ad.TitleEQ(record.Title), ad.BodyEQ(record.Body), ad.ImageURLEQ(record.ImageURL), ad.CreatedAtEQ(record.CreatedAt)).Exist(ctx)
+		if err != nil {
+			return err
+		}
+		if exists {
+			result.Skipped++
+			continue
+		}
+		if _, err := applyAdCreate(db.Ad.Create(), record).Save(ctx); err != nil {
+			return err
+		}
+		result.Created++
+	}
 	return nil
 }
 
@@ -284,6 +302,10 @@ func applyStorageConfigUpdate(update *ent.StorageConfigUpdateOne, record Storage
 
 func applyAnnouncementCreate(create *ent.AnnouncementCreate, record AnnouncementRecord) *ent.AnnouncementCreate {
 	return create.SetEnabled(record.Enabled).SetLevel(announcement.Level(record.Level)).SetTitle(record.Title).SetBody(record.Body).SetLinkLabel(record.LinkLabel).SetLinkURL(record.LinkURL).SetNillableStartsAt(record.StartsAt).SetNillableEndsAt(record.EndsAt).SetSortOrder(record.SortOrder).SetCreatedAt(record.CreatedAt).SetUpdatedAt(record.UpdatedAt)
+}
+
+func applyAdCreate(create *ent.AdCreate, record AdRecord) *ent.AdCreate {
+	return create.SetEnabled(record.Enabled).SetTitle(record.Title).SetBody(record.Body).SetImageURL(record.ImageURL).SetLinkLabel(record.LinkLabel).SetLinkURL(record.LinkURL).SetNillableStartsAt(record.StartsAt).SetNillableEndsAt(record.EndsAt).SetSortOrder(record.SortOrder).SetCreatedAt(record.CreatedAt).SetUpdatedAt(record.UpdatedAt)
 }
 
 func importPeopleData(ctx context.Context, db *ent.Client, data PeopleData, maps *importMaps, result *ImportResult) error {

@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"lazycat.community/appstore/ent/ad"
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
@@ -107,6 +108,7 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			apitoken.Table:             apitoken.ValidColumn,
+			ad.Table:                   ad.ValidColumn,
 			announcement.Table:         announcement.ValidColumn,
 			app.Table:                  app.ValidColumn,
 			appscreenshot.Table:        appscreenshot.ValidColumn,
