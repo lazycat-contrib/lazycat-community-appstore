@@ -100,6 +100,7 @@ export function StorageSettingsPanel({
 }: StorageSettingsPanelProps) {
   const { t } = useTranslation();
   const selectedStorage = storages.find((storage) => storage.key === selectedKey) || storages[0];
+  const effectiveDefaultKey = defaultKey || storages.find((storage) => storage.isDefault)?.key || storages[0]?.key || '';
   const defaultStorageOptions = storages.map((storage) => ({ value: storage.key, label: storage.name || storage.key }));
 
   return (
@@ -112,48 +113,58 @@ export function StorageSettingsPanel({
         <XButton type="button" variant="primary" size="sm" label={t('admin.createStorage')} icon={<Plus size={17} />} onClick={onOpenCreate} />
       </div>
 
-      {defaultStorageOptions.length > 0 && (
-        <div className="storage-default-control">
-          <XSelector
-            label={t('admin.defaultStoragePicker')}
-            description={t('admin.defaultStoragePickerHelp')}
-            value={defaultKey}
-            options={defaultStorageOptions}
-            onChange={(nextKey) => {
-              const storage = storages.find((item) => item.key === nextKey);
-              if (storage && storage.key !== defaultKey) {
-                void onSetDefault(storage);
-              }
-            }}
-          />
-        </div>
-      )}
-
       <div className="storage-admin-grid">
-        <div className="storage-config-list" role="list" aria-label={t('admin.storageConfigs')}>
-          {storages.map((storage) => (
-            <div key={storage.key} className={cx('storage-config-row', storage.key === selectedKey && 'selected')} role="listitem">
-              <button type="button" className="storage-config-main" onClick={() => onSelect(storage.key)}>
-                <span className="storage-config-icon">{providerIcon(storage.provider)}</span>
-                <span className="storage-config-body">
-                  <strong>{storage.name || storage.key}</strong>
-                  <small>{storage.key} · {connectionSummary(storage, t)}</small>
-                </span>
-                <span className="storage-config-meta">
-                  {storage.key === defaultKey && <XBadge label={t('admin.defaultStorage')} variant="success" />}
-                </span>
-              </button>
-              <span className="storage-config-actions">
-                {storage.key !== defaultKey && (
-                  <XIconButton type="button" variant="ghost" size="sm" label={t('admin.setDefaultStorage')} icon={<Star size={16} />} onClick={() => void onSetDefault(storage)} />
-                )}
-                <XIconButton type="button" variant="ghost" size="sm" label={t('admin.testStorageNamed', { name: storage.name || storage.key })} icon={<Check size={16} />} onClick={() => void onTestSaved(storage)} />
-                {storage.key !== defaultKey && (
-                  <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteStorageNamed', { name: storage.name || storage.key })} icon={<Trash2 size={16} />} onClick={() => void onDelete(storage)} />
-                )}
-              </span>
+        <div className="storage-config-overview">
+          <div className="storage-config-overview-head">
+            <div>
+              <strong>{t('admin.storageConfigs')}</strong>
+              <span>{t('admin.defaultStoragePickerHelp')}</span>
             </div>
-          ))}
+            {defaultStorageOptions.length > 0 && (
+              <div className="storage-default-control">
+                <XSelector
+                  label={t('admin.defaultStoragePicker')}
+                  value={effectiveDefaultKey}
+                  options={defaultStorageOptions}
+                  onChange={(nextKey) => {
+                    const storage = storages.find((item) => item.key === nextKey);
+                    if (storage && storage.key !== effectiveDefaultKey) {
+                      void onSetDefault(storage);
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="storage-config-list" role="list" aria-label={t('admin.storageConfigs')}>
+            {storages.map((storage) => {
+              const isDefault = storage.key === effectiveDefaultKey;
+              return (
+                <div key={storage.key} className={cx('storage-config-row', storage.key === selectedKey && 'selected')} role="listitem">
+                  <button type="button" className="storage-config-main" onClick={() => onSelect(storage.key)}>
+                    <span className="storage-config-icon">{providerIcon(storage.provider)}</span>
+                    <span className="storage-config-body">
+                      <strong>{storage.name || storage.key}</strong>
+                      <small>{storage.key} · {connectionSummary(storage, t)}</small>
+                    </span>
+                    <span className="storage-config-meta">
+                      {isDefault && <XBadge label={t('admin.defaultStorage')} variant="success" icon={<Star size={13} />} />}
+                    </span>
+                  </button>
+                  <span className="storage-config-actions">
+                    {!isDefault && (
+                      <XButton className="storage-default-button" type="button" variant="secondary" size="sm" label={t('admin.setDefaultStorage')} icon={<Star size={16} />} onClick={() => void onSetDefault(storage)} />
+                    )}
+                    <XIconButton type="button" variant="ghost" size="sm" label={t('admin.testStorageNamed', { name: storage.name || storage.key })} icon={<Check size={16} />} onClick={() => void onTestSaved(storage)} />
+                    {!isDefault && (
+                      <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteStorageNamed', { name: storage.name || storage.key })} icon={<Trash2 size={16} />} onClick={() => void onDelete(storage)} />
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <section className="storage-editor-panel">
