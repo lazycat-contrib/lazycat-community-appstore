@@ -25,6 +25,10 @@ func New(cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := migrateSchema(context.Background(), db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	auth, err := newClientAuth(context.Background(), cfg)
 	if err != nil {
 		_ = db.Close()
@@ -69,6 +73,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/client/v1/auth/logout", s.handleClientAuthLogout)
 	s.mux.HandleFunc("GET /auth/oidc/start", s.handleClientOIDCStart)
 	s.mux.HandleFunc("GET /auth/oidc/callback", s.handleClientOIDCCallback)
+	s.mux.HandleFunc("GET /api/client/v1/assets/{id}", s.clientAPI(s.handleClientAsset))
+	s.mux.HandleFunc("HEAD /api/client/v1/assets/{id}", s.clientAPI(s.handleClientAsset))
 	s.mux.HandleFunc("GET /api/client/v1/sources", s.clientAPI(s.handleListSources))
 	s.mux.HandleFunc("POST /api/client/v1/sources", s.clientAPI(s.handleCreateSource))
 	s.mux.HandleFunc("PATCH /api/client/v1/sources/{id}", s.clientAPI(s.handleUpdateSource))

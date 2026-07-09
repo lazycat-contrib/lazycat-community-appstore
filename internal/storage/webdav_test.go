@@ -46,4 +46,7 @@ func TestWebDAVBackendSaveUsesPUTWithBasicAuth(t *testing.T) {
 	if !strings.HasPrefix(obj.DownloadURL, server.URL) {
 		t.Fatalf("DownloadURL = %q, want server URL prefix", obj.DownloadURL)
 	}
+	if obj.Size != int64(len("content")) {
+		t.Fatalf("Size = %d, want %d", obj.Size, len("content"))
+	}
 }

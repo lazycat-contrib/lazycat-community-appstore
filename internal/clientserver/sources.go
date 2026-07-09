@@ -137,6 +137,15 @@ func (s *Server) handleDeleteSource(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SOURCE_LOAD_FAILED", "Could not load source")
 		return
 	}
+	appRecords, err := s.db.ClientSourceApp.Query().Where(clientsourceapp.SourceIDEQ(source.ID)).All(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "SOURCE_DELETE_FAILED", "Could not load source apps")
+		return
+	}
+	appIDs := make([]int, 0, len(appRecords))
+	for _, record := range appRecords {
+		appIDs = append(appIDs, record.ID)
+	}
 	if _, err := s.db.ClientSourceApp.Delete().Where(clientsourceapp.SourceIDEQ(source.ID)).Exec(r.Context()); err != nil {
 		writeError(w, http.StatusInternalServerError, "SOURCE_DELETE_FAILED", "Could not delete source apps")
 		return
@@ -145,6 +154,7 @@ func (s *Server) handleDeleteSource(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SOURCE_DELETE_FAILED", "Could not delete source")
 		return
 	}
+	_ = s.deleteClientAssetLinksForOwnerIDs(r.Context(), clientAssetOwnerSourceApp, appIDs)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

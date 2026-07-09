@@ -2,6 +2,7 @@ package migration
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"lazycat.community/appstore/ent"
@@ -13,6 +14,8 @@ import (
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/asset"
+	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/mcptoken"
@@ -23,11 +26,20 @@ import (
 	"lazycat.community/appstore/ent/usergroup"
 )
 
+const (
+	assetOwnerApp        = "app"
+	assetOwnerSite       = "site"
+	serverAssetURLPrefix = "/api/v1/assets"
+	siteIconSettingKey   = "site_icon_url"
+)
+
 type SiteData struct {
 	SiteSettings   []SiteSettingRecord   `json:"siteSettings,omitempty"`
 	StorageConfigs []StorageConfigRecord `json:"storageConfigs,omitempty"`
 	Announcements  []AnnouncementRecord  `json:"announcements,omitempty"`
 	Ads            []AdRecord            `json:"ads,omitempty"`
+	Assets         []AssetRecord         `json:"assets,omitempty"`
+	AssetLinks     []AssetLinkRecord     `json:"assetLinks,omitempty"`
 }
 
 type PeopleData struct {
@@ -46,6 +58,29 @@ type AppsData struct {
 	AppScreenshots  []AppScreenshotRecord `json:"appScreenshots,omitempty"`
 	AppTags         []AppTagRecord        `json:"appTags,omitempty"`
 	AppVisibilities []AppVisibilityRecord `json:"appVisibilities,omitempty"`
+	Assets          []AssetRecord         `json:"assets,omitempty"`
+	AssetLinks      []AssetLinkRecord     `json:"assetLinks,omitempty"`
+}
+
+type AssetRecord struct {
+	ID        int       `json:"id,omitempty"`
+	SHA256    string    `json:"sha256"`
+	MediaType string    `json:"media_type"`
+	Size      int64     `json:"size"`
+	Data      []byte    `json:"data"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type AssetLinkRecord struct {
+	ID        int       `json:"id,omitempty"`
+	AssetID   int       `json:"asset_id"`
+	OwnerType string    `json:"owner_type"`
+	OwnerID   int       `json:"owner_id"`
+	Role      string    `json:"role"`
+	SortOrder int       `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type SiteSettingRecord struct {
@@ -267,6 +302,12 @@ func collectSiteData(ctx context.Context, db *ent.Client) (SiteData, error) {
 	if err := db.Ad.Query().Select(ad.FieldID, ad.FieldEnabled, ad.FieldTitle, ad.FieldBody, ad.FieldImageURL, ad.FieldLinkLabel, ad.FieldLinkURL, ad.FieldStartsAt, ad.FieldEndsAt, ad.FieldSortOrder, ad.FieldCreatedAt, ad.FieldUpdatedAt).Scan(ctx, &data.Ads); err != nil {
 		return data, err
 	}
+	links, assets, err := collectAssetRecords(ctx, db, assetOwnerSite)
+	if err != nil {
+		return data, err
+	}
+	data.AssetLinks = links
+	data.Assets = assets
 	return data, nil
 }
 
@@ -313,7 +354,51 @@ func collectAppsData(ctx context.Context, db *ent.Client) (AppsData, error) {
 	if err := db.AppVisibility.Query().Select(appvisibility.FieldID, appvisibility.FieldAppID, appvisibility.FieldGroupID, appvisibility.FieldCreatedAt).Scan(ctx, &data.AppVisibilities); err != nil {
 		return data, err
 	}
+	links, assets, err := collectAssetRecords(ctx, db, assetOwnerApp)
+	if err != nil {
+		return data, err
+	}
+	data.AssetLinks = links
+	data.Assets = assets
 	return data, nil
+}
+
+func collectAssetRecords(ctx context.Context, db *ent.Client, ownerType string) ([]AssetLinkRecord, []AssetRecord, error) {
+	var links []AssetLinkRecord
+	if err := db.AssetLink.Query().
+		Where(assetlink.OwnerTypeEQ(ownerType)).
+		Order(ent.Asc(assetlink.FieldOwnerID), ent.Asc(assetlink.FieldRole), ent.Asc(assetlink.FieldSortOrder), ent.Asc(assetlink.FieldID)).
+		Select(assetlink.FieldID, assetlink.FieldAssetID, assetlink.FieldOwnerType, assetlink.FieldOwnerID, assetlink.FieldRole, assetlink.FieldSortOrder, assetlink.FieldCreatedAt, assetlink.FieldUpdatedAt).
+		Scan(ctx, &links); err != nil {
+		return nil, nil, err
+	}
+	if len(links) == 0 {
+		return links, nil, nil
+	}
+	seen := map[int]struct{}{}
+	ids := make([]int, 0, len(links))
+	for _, link := range links {
+		if link.AssetID <= 0 {
+			continue
+		}
+		if _, ok := seen[link.AssetID]; ok {
+			continue
+		}
+		seen[link.AssetID] = struct{}{}
+		ids = append(ids, link.AssetID)
+	}
+	sort.Ints(ids)
+	var assets []AssetRecord
+	if len(ids) > 0 {
+		if err := db.Asset.Query().
+			Where(asset.IDIn(ids...)).
+			Order(ent.Asc(asset.FieldID)).
+			Select(asset.FieldID, asset.FieldSha256, asset.FieldMediaType, asset.FieldSize, asset.FieldData, asset.FieldCreatedAt, asset.FieldUpdatedAt).
+			Scan(ctx, &assets); err != nil {
+			return nil, nil, err
+		}
+	}
+	return links, assets, nil
 }
 
 func siteCounts(data SiteData) map[string]int {
@@ -322,6 +407,8 @@ func siteCounts(data SiteData) map[string]int {
 		"storageConfigs": len(data.StorageConfigs),
 		"announcements":  len(data.Announcements),
 		"ads":            len(data.Ads),
+		"siteAssets":     len(data.Assets),
+		"siteAssetLinks": len(data.AssetLinks),
 	}
 }
 
@@ -344,6 +431,8 @@ func appsCounts(data AppsData) map[string]int {
 		"screenshots":     len(data.AppScreenshots),
 		"appTags":         len(data.AppTags),
 		"appVisibilities": len(data.AppVisibilities),
+		"appAssets":       len(data.Assets),
+		"appAssetLinks":   len(data.AssetLinks),
 	}
 }
 

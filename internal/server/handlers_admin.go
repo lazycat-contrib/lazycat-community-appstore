@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -19,10 +20,10 @@ import (
 	"lazycat.community/appstore/ent/reviewrequest"
 	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/ent/tag"
+	"lazycat.community/appstore/internal/assetdata"
 	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/mirror"
 	"lazycat.community/appstore/internal/pagination"
-	"lazycat.community/appstore/internal/storage"
 )
 
 func (s *Server) handleListReviews(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -177,16 +178,24 @@ func (s *Server) handleListCategories(w http.ResponseWriter, r *http.Request, u 
 }
 
 func (s *Server) handlePublicListCategories(w http.ResponseWriter, r *http.Request) {
-	records, err := s.db.Category.Query().Order(entgo.Asc(category.FieldSortOrder), entgo.Asc(category.FieldName)).All(r.Context())
+	value, err := s.sharedFirstLoad(r.Context(), firstLoadKey(r, "public-categories"), s.publicListCategoriesResponse)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "CATEGORY_LIST_FAILED", "Could not list categories", nil)
 		return
+	}
+	writeJSON(w, http.StatusOK, value)
+}
+
+func (s *Server) publicListCategoriesResponse(ctx context.Context) (any, error) {
+	records, err := s.db.Category.Query().Order(entgo.Asc(category.FieldSortOrder), entgo.Asc(category.FieldName)).All(ctx)
+	if err != nil {
+		return nil, err
 	}
 	out := make([]categoryDTO, 0, len(records))
 	for _, record := range records {
 		out = append(out, toCategoryDTO(record))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"categories": out})
+	return map[string]any{"categories": out}, nil
 }
 
 func (s *Server) handleCreateCategory(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -371,16 +380,24 @@ func (s *Server) handleListTags(w http.ResponseWriter, r *http.Request, u *entgo
 }
 
 func (s *Server) handlePublicListTags(w http.ResponseWriter, r *http.Request) {
-	records, err := s.db.Tag.Query().Order(entgo.Asc(tag.FieldName)).All(r.Context())
+	value, err := s.sharedFirstLoad(r.Context(), firstLoadKey(r, "public-tags"), s.publicListTagsResponse)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "TAG_LIST_FAILED", "Could not list tags", nil)
 		return
+	}
+	writeJSON(w, http.StatusOK, value)
+}
+
+func (s *Server) publicListTagsResponse(ctx context.Context) (any, error) {
+	records, err := s.db.Tag.Query().Order(entgo.Asc(tag.FieldName)).All(ctx)
+	if err != nil {
+		return nil, err
 	}
 	out := make([]tagDTO, 0, len(records))
 	for _, record := range records {
 		out = append(out, toTagDTO(record))
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"tags": out})
+	return map[string]any{"tags": out}, nil
 }
 
 func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -566,6 +583,18 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request, u 
 	if s.settingsChangeAnnouncement(r.Context(), input) {
 		input[settingAnnouncementUpdatedAt] = time.Now().UTC().Format(time.RFC3339)
 	}
+	siteIconTouched := false
+	siteIconAssetID := 0
+	if value, ok := input[settingSiteIconURL]; ok {
+		nextValue, assetID, err := s.materializeSiteIconSetting(r.Context(), value)
+		if err != nil {
+			writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
+			return
+		}
+		input[settingSiteIconURL] = nextValue
+		siteIconTouched = true
+		siteIconAssetID = assetID
+	}
 	for key, value := range input {
 		exists, err := s.db.SiteSetting.Query().Where(sitesetting.KeyEQ(key)).Only(r.Context())
 		if err == nil {
@@ -573,6 +602,13 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request, u 
 			continue
 		}
 		_, _ = s.db.SiteSetting.Create().SetKey(key).SetValue(value).Save(r.Context())
+	}
+	if siteIconTouched {
+		if siteIconAssetID > 0 {
+			_ = s.replaceAssetLinks(r.Context(), assetOwnerSite, 0, assetRoleIcon, siteIconAssetID)
+		} else {
+			_ = s.deleteAssetLinksForOwner(r.Context(), assetOwnerSite, 0)
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
@@ -592,32 +628,34 @@ func (s *Server) handleUploadSiteIcon(w http.ResponseWriter, r *http.Request, u 
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
 		return
 	}
-	storageKey, err := s.uploadStorageKey(r.Context(), r.FormValue("storageKey"))
+	raw, err := io.ReadAll(io.LimitReader(file, maxSiteIconImageSize+1))
 	if err != nil {
-		writeError(w, http.StatusUnprocessableEntity, "SITE_ICON_UPLOAD_FAILED", err.Error(), nil)
+		writeError(w, http.StatusUnprocessableEntity, "SITE_ICON_UPLOAD_FAILED", "Could not read site icon", nil)
 		return
 	}
-	backend, err := s.storageBackendForKey(r.Context(), storageKey)
+	payload, err := assetdata.NewImagePayload(raw, header.Header.Get("Content-Type"), maxSiteIconImageSize)
 	if err != nil {
-		writeError(w, http.StatusUnprocessableEntity, "SITE_ICON_UPLOAD_FAILED", err.Error(), nil)
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
 		return
 	}
-	obj, err := storage.SaveFile(r.Context(), backend, file, header.Filename, maxSiteIconImageSize)
+	assetRecord, err := s.saveAsset(r.Context(), payload)
 	if err != nil {
-		writeError(w, http.StatusUnprocessableEntity, "SITE_ICON_UPLOAD_FAILED", err.Error(), nil)
+		writeError(w, http.StatusInternalServerError, "SITE_ICON_SAVE_FAILED", "Could not save site icon", nil)
 		return
 	}
-	iconURL := s.absoluteURL(r.Context(), obj.DownloadURL)
+	iconURL := assetdata.URL(serverAssetURLPrefix, assetRecord.ID)
 	if err := s.setSetting(r.Context(), settingSiteIconURL, iconURL); err != nil {
-		_ = backend.Delete(r.Context(), obj.Path)
+		_ = s.cleanupAssetIDs(r.Context(), assetRecord.ID)
+		writeError(w, http.StatusInternalServerError, "SITE_ICON_SAVE_FAILED", "Could not save site icon", nil)
+		return
+	}
+	if err := s.replaceAssetLinks(r.Context(), assetOwnerSite, 0, assetRoleIcon, assetRecord.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "SITE_ICON_SAVE_FAILED", "Could not save site icon", nil)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"url":        iconURL,
-		"storageKey": storageKey,
-		"path":       obj.Path,
-		"site":       s.siteProfile(r.Context()),
+		"url":  iconURL,
+		"site": s.siteProfile(r.Context()),
 	})
 }
 
@@ -744,9 +782,13 @@ func validateSetting(key, value string) error {
 		if _, err := mirror.Parse(value, settingMirrorKind(key)); err != nil {
 			return fmt.Errorf("%s %w", key, err)
 		}
-	case settingSitePublicURL, settingSiteIconURL, settingAnnouncementLinkURL:
+	case settingSitePublicURL, settingAnnouncementLinkURL:
 		if !isHTTPURLOrEmpty(value) {
 			return fmt.Errorf("%s must be an http or https URL", key)
+		}
+	case settingSiteIconURL:
+		if !isImageSettingURLOrEmpty(value) {
+			return fmt.Errorf("%s must be an http, https, asset, or data image URL", key)
 		}
 	case settingAnnouncementLevel:
 		if !validAnnouncementLevel(value) {

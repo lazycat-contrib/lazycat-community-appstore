@@ -28,6 +28,10 @@ type Tx struct {
 	AppVersion *AppVersionClient
 	// AppVisibility is the client for interacting with the AppVisibility builders.
 	AppVisibility *AppVisibilityClient
+	// Asset is the client for interacting with the Asset builders.
+	Asset *AssetClient
+	// AssetLink is the client for interacting with the AssetLink builders.
+	AssetLink *AssetLinkClient
 	// Category is the client for interacting with the Category builders.
 	Category *CategoryClient
 	// ChatConversation is the client for interacting with the ChatConversation builders.
@@ -36,6 +40,10 @@ type Tx struct {
 	ChatMessage *ChatMessageClient
 	// ChatParticipant is the client for interacting with the ChatParticipant builders.
 	ChatParticipant *ChatParticipantClient
+	// ClientAsset is the client for interacting with the ClientAsset builders.
+	ClientAsset *ClientAssetClient
+	// ClientAssetLink is the client for interacting with the ClientAssetLink builders.
+	ClientAssetLink *ClientAssetLinkClient
 	// ClientInstallHistory is the client for interacting with the ClientInstallHistory builders.
 	ClientInstallHistory *ClientInstallHistoryClient
 	// ClientSetting is the client for interacting with the ClientSetting builders.
@@ -221,10 +229,14 @@ func (tx *Tx) init() {
 	tx.AppTag = NewAppTagClient(tx.config)
 	tx.AppVersion = NewAppVersionClient(tx.config)
 	tx.AppVisibility = NewAppVisibilityClient(tx.config)
+	tx.Asset = NewAssetClient(tx.config)
+	tx.AssetLink = NewAssetLinkClient(tx.config)
 	tx.Category = NewCategoryClient(tx.config)
 	tx.ChatConversation = NewChatConversationClient(tx.config)
 	tx.ChatMessage = NewChatMessageClient(tx.config)
 	tx.ChatParticipant = NewChatParticipantClient(tx.config)
+	tx.ClientAsset = NewClientAssetClient(tx.config)
+	tx.ClientAssetLink = NewClientAssetLinkClient(tx.config)
 	tx.ClientInstallHistory = NewClientInstallHistoryClient(tx.config)
 	tx.ClientSetting = NewClientSettingClient(tx.config)
 	tx.ClientSource = NewClientSourceClient(tx.config)

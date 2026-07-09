@@ -442,7 +442,11 @@ func (s *Server) handleListFavorites(w http.ResponseWriter, r *http.Request, u *
 			writeError(w, http.StatusInternalServerError, "FAVORITE_LIST_FAILED", "Could not list favorites", nil)
 			return
 		}
-		apps, submitters := s.favoriteListDTOs(r, u, records)
+		apps, submitters, err := s.favoriteListDTOs(r, u, records)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "FAVORITE_LIST_FAILED", "Could not list favorites", nil)
+			return
+		}
 		writeJSON(w, http.StatusOK, pagination.NewFavoritesPage(apps, submitters, page, total))
 		return
 	}
@@ -452,11 +456,15 @@ func (s *Server) handleListFavorites(w http.ResponseWriter, r *http.Request, u *
 		writeError(w, http.StatusInternalServerError, "FAVORITE_LIST_FAILED", "Could not list favorites", nil)
 		return
 	}
-	apps, submitters := s.favoriteListDTOs(r, u, records)
+	apps, submitters, err := s.favoriteListDTOs(r, u, records)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "FAVORITE_LIST_FAILED", "Could not list favorites", nil)
+		return
+	}
 	writeJSON(w, http.StatusOK, pagination.Favorites[appSummary, publicUser]{Apps: apps, Submitters: submitters})
 }
 
-func (s *Server) favoriteListDTOs(r *http.Request, u *entgo.User, records []*entgo.Favorite) ([]appSummary, []publicUser) {
+func (s *Server) favoriteListDTOs(r *http.Request, u *entgo.User, records []*entgo.Favorite) ([]appSummary, []publicUser, error) {
 	apps := []appSummary{}
 	submitters := []publicUser{}
 	appIDs := make([]int, 0, len(records))
@@ -471,21 +479,38 @@ func (s *Server) favoriteListDTOs(r *http.Request, u *entgo.User, records []*ent
 	}
 
 	appByID := map[int]*entgo.App{}
+	appRecords := []*entgo.App{}
 	if len(appIDs) > 0 {
 		appRecords, err := s.db.App.Query().Where(app.IDIn(appIDs...)).All(r.Context())
-		if err == nil {
-			for _, appRecord := range appRecords {
-				appByID[appRecord.ID] = appRecord
-			}
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, appRecord := range appRecords {
+			appByID[appRecord.ID] = appRecord
 		}
 	}
 	submitterByID := map[int]*entgo.User{}
 	if len(submitterIDs) > 0 {
 		submitterRecords, err := s.db.User.Query().Where(userpkg.IDIn(submitterIDs...)).All(r.Context())
-		if err == nil {
-			for _, submitter := range submitterRecords {
-				submitterByID[submitter.ID] = submitter
-			}
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, submitter := range submitterRecords {
+			submitterByID[submitter.ID] = submitter
+		}
+	}
+	preload, err := s.preloadAppSummaries(r.Context(), appRecords, u)
+	if err != nil {
+		return nil, nil, err
+	}
+	userGroups := map[int]struct{}{}
+	if u != nil && !isAdmin(u) {
+		groupIDs, err := s.userGroupIDs(r.Context(), u.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, groupID := range groupIDs {
+			userGroups[groupID] = struct{}{}
 		}
 	}
 
@@ -493,8 +518,8 @@ func (s *Server) favoriteListDTOs(r *http.Request, u *entgo.User, records []*ent
 		switch record.TargetType {
 		case favorite.TargetTypeAPP:
 			appRecord := appByID[record.TargetID]
-			if appRecord != nil && appRecord.Status == app.StatusAPPROVED && s.userCanSeeApp(r, appRecord, u) {
-				apps = append(apps, s.appSummaryDTO(r, appRecord, u))
+			if appRecord != nil && appRecord.Status == app.StatusAPPROVED && userCanSeeAppFromPreload(appRecord, u, preload, userGroups) {
+				apps = append(apps, s.appSummaryDTOFromPreload(r.Context(), appRecord, u, preload))
 			}
 		case favorite.TargetTypeSUBMITTER:
 			if submitter := submitterByID[record.TargetID]; submitter != nil {
@@ -502,7 +527,7 @@ func (s *Server) favoriteListDTOs(r *http.Request, u *entgo.User, records []*ent
 			}
 		}
 	}
-	return apps, submitters
+	return apps, submitters, nil
 }
 
 type outdatedRequest struct {

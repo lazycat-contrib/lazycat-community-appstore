@@ -38,9 +38,20 @@ import (
 
 func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	u := s.optionalUser(r)
+	managedList := r.URL.Query().Get("managed") == "1" || r.URL.Query().Get("managed") == "true"
+	if !managedList && u == nil {
+		value, err := s.sharedFirstLoad(r.Context(), firstLoadKey(r, "public-apps"), func(ctx context.Context) (any, error) {
+			return s.publicListAppsResponse(ctx, r)
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "APP_LIST_FAILED", "Could not list apps", nil)
+			return
+		}
+		writeJSON(w, http.StatusOK, value)
+		return
+	}
 	q := s.db.App.Query()
 	page := pagination.FromRequest(r, s.effectiveDefaultPageSize(r.Context(), pagination.DefaultPageSize, 100), 100)
-	managedList := r.URL.Query().Get("managed") == "1" || r.URL.Query().Get("managed") == "true"
 	if managedList {
 		if u == nil {
 			writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required", nil)
@@ -114,6 +125,49 @@ func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, pagination.NewAppsPage(out, page, total))
 }
 
+func (s *Server) publicListAppsResponse(ctx context.Context, r *http.Request) (any, error) {
+	q := s.db.App.Query().Where(app.StatusEQ(app.StatusAPPROVED))
+	q.Where(app.Not(appHasAnyVisibility()))
+	page := pagination.FromRequest(r, s.effectiveDefaultPageSize(ctx, pagination.DefaultPageSize, 100), 100)
+	if search := strings.TrimSpace(r.URL.Query().Get("q")); search != "" {
+		q.Where(app.Or(app.PackageIDContainsFold(search), app.NameContainsFold(search), app.SummaryContainsFold(search), app.DescriptionContainsFold(search)))
+	}
+	if ids := parsePositiveIDList(r.URL.Query().Get("ids")); len(ids) > 0 {
+		q.Where(app.IDIn(ids...))
+	}
+	if categoryID, err := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("categoryId"))); err == nil && categoryID > 0 {
+		q.Where(app.CategoryIDEQ(categoryID))
+	}
+	if owner := strings.TrimSpace(r.URL.Query().Get("submitter")); owner != "" && owner != "all" {
+		s.applyAppListSubmitterFilter(ctx, q, owner)
+	}
+	total, err := q.Clone().Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	switch strings.TrimSpace(r.URL.Query().Get("sort")) {
+	case "downloads":
+		q.Order(entgo.Desc(app.FieldDownloadCount), entgo.Desc(app.FieldUpdatedAt))
+	case "name":
+		q.Order(entgo.Asc(app.FieldName), entgo.Desc(app.FieldUpdatedAt))
+	default:
+		q.Order(entgo.Desc(app.FieldUpdatedAt))
+	}
+	records, err := q.Offset(page.Offset()).Limit(page.PageSize).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	preload, err := s.preloadAppSummaries(ctx, records, nil)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]appSummary, 0, len(records))
+	for _, record := range records {
+		out = append(out, s.appSummaryDTOFromPreload(ctx, record, nil, preload))
+	}
+	return pagination.NewAppsPage(out, page, total), nil
+}
+
 func (s *Server) applyAppListSubmitterFilter(ctx context.Context, q *entgo.AppQuery, value string) {
 	if ownerID, err := strconv.Atoi(value); err == nil {
 		q.Where(app.OwnerIDEQ(ownerID))
@@ -153,7 +207,12 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
 		return
 	}
-	detail := appDetail{appSummary: s.appSummaryDTO(r, record, u)}
+	preload, err := s.preloadAppSummaries(r.Context(), []*entgo.App{record}, u)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "APP_LOAD_FAILED", "Could not load app", nil)
+		return
+	}
+	detail := appDetail{appSummary: s.appSummaryDTOFromPreload(r.Context(), record, u, preload)}
 	versionRecords, _ := s.db.AppVersion.Query().Where(appversion.AppIDEQ(record.ID)).Order(entgo.Desc(appversion.FieldCreatedAt)).All(r.Context())
 	for _, v := range versionRecords {
 		if v.Status != appversion.StatusAPPROVED && (u == nil || (!isAdmin(u) && record.OwnerID != u.ID)) {
@@ -197,6 +256,7 @@ type createAppJSON struct {
 	SourceType                string            `json:"sourceType"`
 	SHA256                    string            `json:"sha256"`
 	UseMirrorDownload         bool              `json:"useMirrorDownload"`
+	iconAssetID               int
 }
 
 type updateAppJSON struct {
@@ -249,7 +309,7 @@ func (s *Server) handleCreateApp(w http.ResponseWriter, r *http.Request, u *entg
 			writeError(w, http.StatusUnprocessableEntity, "LPK_METADATA_FAILED", err.Error(), nil)
 			return
 		}
-		if err := applyAppMetadata(&input, inspected.Metadata); err != nil {
+		if err := s.applyAppMetadata(r.Context(), &input, inspected.Metadata); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "LPK_METADATA_FAILED", err.Error(), nil)
 			return
 		}
@@ -311,7 +371,7 @@ func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *e
 			writeError(w, http.StatusUnprocessableEntity, "APP_CREATE_FAILED", err.Error(), nil)
 			return
 		}
-		if err := applyAppMetadata(&input, meta); err != nil {
+		if err := s.applyAppMetadata(r.Context(), &input, meta); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "APP_CREATE_FAILED", err.Error(), nil)
 			return
 		}
@@ -331,6 +391,9 @@ func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *e
 }
 
 func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createAppJSON) (*entgo.App, error) {
+	if err := s.materializeAppIconURL(r.Context(), &input); err != nil {
+		return nil, err
+	}
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
 		return nil, errors.New("app name is required")
@@ -382,7 +445,19 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 	}
 	record, err := create.Save(r.Context())
 	if err != nil {
+		if input.iconAssetID > 0 {
+			_ = s.cleanupAssetIDs(r.Context(), input.iconAssetID)
+		}
 		return nil, err
+	}
+	if input.iconAssetID > 0 {
+		if err := s.replaceAssetLinks(r.Context(), assetOwnerApp, record.ID, assetRoleIcon, input.iconAssetID); err != nil {
+			return nil, err
+		}
+	} else if assetID, ok := s.assetIDFromURL(input.IconURL); ok {
+		if err := s.replaceAssetLinks(r.Context(), assetOwnerApp, record.ID, assetRoleIcon, assetID); err != nil {
+			return nil, err
+		}
 	}
 	_ = s.syncTags(r, record.ID, input.Tags)
 	if status == app.StatusPENDING {
@@ -552,6 +627,7 @@ func (s *Server) handleDeleteApp(w http.ResponseWriter, r *http.Request, u *entg
 		writeError(w, http.StatusInternalServerError, "APP_DELETE_FAILED", "Could not delete app", nil)
 		return
 	}
+	_ = s.deleteAssetLinksForOwner(r.Context(), assetOwnerApp, id)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -784,6 +860,7 @@ func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *e
 
 func (s *Server) updateAppFromApprovedLPKMetadata(r *http.Request, appID int, meta lpkmeta.Metadata) error {
 	update := s.db.App.UpdateOneID(appID).SetStatus(app.StatusAPPROVED)
+	iconAssetID := 0
 	if !meta.NameI18n.IsZero() {
 		update.SetNameI18nJSON(catalogmeta.EncodeLocalizedText(meta.NameI18n))
 	}
@@ -803,8 +880,27 @@ func (s *Server) updateAppFromApprovedLPKMetadata(r *http.Request, appID int, me
 			update.SetSummary(summary)
 		}
 	}
+	if len(meta.IconData) > 0 {
+		iconURL, assetID, err := s.saveLPKIconAsset(r.Context(), meta)
+		if err != nil {
+			return err
+		}
+		if iconURL != "" {
+			update.SetIconURL(iconURL)
+			iconAssetID = assetID
+		}
+	}
 	_, err := update.Save(r.Context())
-	return err
+	if err != nil {
+		if iconAssetID > 0 {
+			_ = s.cleanupAssetIDs(r.Context(), iconAssetID)
+		}
+		return err
+	}
+	if iconAssetID > 0 {
+		return s.replaceAssetLinks(r.Context(), assetOwnerApp, appID, assetRoleIcon, iconAssetID)
+	}
+	return nil
 }
 
 func appInputNeedsLPKInspection(input createAppJSON) bool {
@@ -818,7 +914,7 @@ func versionInputNeedsLPKInspection(input createAppJSON) bool {
 	return strings.TrimSpace(input.Version) == "" || strings.TrimSpace(input.SHA256) == ""
 }
 
-func applyAppMetadata(input *createAppJSON, meta lpkmeta.Metadata) error {
+func (s *Server) applyAppMetadata(ctx context.Context, input *createAppJSON, meta lpkmeta.Metadata) error {
 	if input.PackageID != "" && meta.PackageID != "" && input.PackageID != meta.PackageID {
 		return fmt.Errorf("LPK package %q does not match packageId %q", meta.PackageID, input.PackageID)
 	}
@@ -850,7 +946,12 @@ func applyAppMetadata(input *createAppJSON, meta lpkmeta.Metadata) error {
 		input.Version = meta.Version
 	}
 	if strings.TrimSpace(input.IconURL) == "" {
-		input.IconURL = meta.IconDataURL()
+		iconURL, assetID, err := s.saveLPKIconAsset(ctx, meta)
+		if err != nil {
+			return err
+		}
+		input.IconURL = iconURL
+		input.iconAssetID = assetID
 	}
 	return nil
 }

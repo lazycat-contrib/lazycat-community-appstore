@@ -2,6 +2,7 @@ package clientserver
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientinstallhistory"
+	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/ent/clientsyncsetting"
 	"lazycat.community/appstore/internal/mirror"
 	"lazycat.community/appstore/internal/pagination"
@@ -368,6 +370,56 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	}
 }
 
+func TestSyncSourceCachesDataURLIconAsClientAsset(t *testing.T) {
+	app := testServer(t)
+	iconDataURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(clientTestPNG1x1)
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"apps": []map[string]any{{
+				"id":        9,
+				"packageId": "cloud.lazycat.app.icon-cache",
+				"name":      "Icon Cache",
+				"slug":      "icon-cache",
+				"summary":   "Caches icons",
+				"iconUrl":   iconDataURL,
+				"latestVersion": map[string]any{
+					"version":     "1.0.0",
+					"downloadUrl": "https://example.com/icon-cache.lpk",
+					"sha256":      strings.Repeat("b", 64),
+				},
+			}},
+		})
+	}))
+	defer feed.Close()
+	source := app.server.db.ClientSource.Create().
+		SetUserID("alice").
+		SetName("Icon Source").
+		SetURL(feed.URL).
+		SaveX(t.Context())
+
+	rec := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("sync source = %d %s", rec.Code, rec.Body.String())
+	}
+	list := app.request(http.MethodGet, "/api/client/v1/apps", "", "alice")
+	if list.Code != http.StatusOK {
+		t.Fatalf("list apps = %d %s", list.Code, list.Body.String())
+	}
+	body := list.Body.String()
+	if strings.Contains(body, "data:image") || !strings.Contains(body, `"/api/client/v1/assets/`) {
+		t.Fatalf("app list did not use client asset URL: %s", body)
+	}
+	sourceApp := app.server.db.ClientSourceApp.Query().Where(clientsourceapp.SourceIDEQ(source.ID)).OnlyX(t.Context())
+	if !strings.HasPrefix(sourceApp.IconURL, "/api/client/v1/assets/") {
+		t.Fatalf("cached icon URL = %q", sourceApp.IconURL)
+	}
+	assetRec := app.request(http.MethodGet, sourceApp.IconURL, "", "alice")
+	if assetRec.Code != http.StatusOK || !strings.HasPrefix(assetRec.Header().Get("Content-Type"), "image/png") {
+		t.Fatalf("asset response = %d content-type=%q", assetRec.Code, assetRec.Header().Get("Content-Type"))
+	}
+}
+
 func TestOutdatedMarkProxyForwardsClientIdentityAndBody(t *testing.T) {
 	var gotPath, gotProxy, gotDevice, gotPassword, gotBody string
 	sourceServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -681,4 +733,16 @@ func testClient(t *testing.T) *ent.Client {
 		t.Fatal(err)
 	}
 	return client
+}
+
+var clientTestPNG1x1 = []byte{
+	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+	0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+	0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+	0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+	0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+	0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+	0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
+	0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+	0x42, 0x60, 0x82,
 }

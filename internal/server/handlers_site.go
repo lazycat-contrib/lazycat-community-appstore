@@ -1,7 +1,19 @@
 package server
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+)
 
 func (s *Server) handleSiteProfile(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"site": s.siteProfile(r.Context())})
+	value, err := s.sharedFirstLoad(r.Context(), firstLoadKey(r, "site-profile"), s.siteProfileResponse)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "SITE_PROFILE_FAILED", "Could not load site profile", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, value)
+}
+
+func (s *Server) siteProfileResponse(ctx context.Context) (any, error) {
+	return map[string]any{"site": s.siteProfile(ctx)}, nil
 }

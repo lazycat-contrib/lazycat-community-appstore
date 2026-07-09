@@ -13,10 +13,14 @@ import (
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/asset"
+	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
 	"lazycat.community/appstore/ent/chatconversation"
 	"lazycat.community/appstore/ent/chatmessage"
 	"lazycat.community/appstore/ent/chatparticipant"
+	"lazycat.community/appstore/ent/clientasset"
+	"lazycat.community/appstore/ent/clientassetlink"
 	"lazycat.community/appstore/ent/clientinstallhistory"
 	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
@@ -283,6 +287,66 @@ func init() {
 	appvisibilityDescCreatedAt := appvisibilityFields[2].Descriptor()
 	// appvisibility.DefaultCreatedAt holds the default value on creation for the created_at field.
 	appvisibility.DefaultCreatedAt = appvisibilityDescCreatedAt.Default.(func() time.Time)
+	assetFields := schema.Asset{}.Fields()
+	_ = assetFields
+	// assetDescSha256 is the schema descriptor for sha256 field.
+	assetDescSha256 := assetFields[0].Descriptor()
+	// asset.Sha256Validator is a validator for the "sha256" field. It is called by the builders before save.
+	asset.Sha256Validator = assetDescSha256.Validators[0].(func(string) error)
+	// assetDescMediaType is the schema descriptor for media_type field.
+	assetDescMediaType := assetFields[1].Descriptor()
+	// asset.MediaTypeValidator is a validator for the "media_type" field. It is called by the builders before save.
+	asset.MediaTypeValidator = assetDescMediaType.Validators[0].(func(string) error)
+	// assetDescSize is the schema descriptor for size field.
+	assetDescSize := assetFields[2].Descriptor()
+	// asset.SizeValidator is a validator for the "size" field. It is called by the builders before save.
+	asset.SizeValidator = assetDescSize.Validators[0].(func(int64) error)
+	// assetDescData is the schema descriptor for data field.
+	assetDescData := assetFields[3].Descriptor()
+	// asset.DataValidator is a validator for the "data" field. It is called by the builders before save.
+	asset.DataValidator = assetDescData.Validators[0].(func([]byte) error)
+	// assetDescCreatedAt is the schema descriptor for created_at field.
+	assetDescCreatedAt := assetFields[4].Descriptor()
+	// asset.DefaultCreatedAt holds the default value on creation for the created_at field.
+	asset.DefaultCreatedAt = assetDescCreatedAt.Default.(func() time.Time)
+	// assetDescUpdatedAt is the schema descriptor for updated_at field.
+	assetDescUpdatedAt := assetFields[5].Descriptor()
+	// asset.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	asset.DefaultUpdatedAt = assetDescUpdatedAt.Default.(func() time.Time)
+	// asset.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	asset.UpdateDefaultUpdatedAt = assetDescUpdatedAt.UpdateDefault.(func() time.Time)
+	assetlinkFields := schema.AssetLink{}.Fields()
+	_ = assetlinkFields
+	// assetlinkDescAssetID is the schema descriptor for asset_id field.
+	assetlinkDescAssetID := assetlinkFields[0].Descriptor()
+	// assetlink.AssetIDValidator is a validator for the "asset_id" field. It is called by the builders before save.
+	assetlink.AssetIDValidator = assetlinkDescAssetID.Validators[0].(func(int) error)
+	// assetlinkDescOwnerType is the schema descriptor for owner_type field.
+	assetlinkDescOwnerType := assetlinkFields[1].Descriptor()
+	// assetlink.OwnerTypeValidator is a validator for the "owner_type" field. It is called by the builders before save.
+	assetlink.OwnerTypeValidator = assetlinkDescOwnerType.Validators[0].(func(string) error)
+	// assetlinkDescOwnerID is the schema descriptor for owner_id field.
+	assetlinkDescOwnerID := assetlinkFields[2].Descriptor()
+	// assetlink.OwnerIDValidator is a validator for the "owner_id" field. It is called by the builders before save.
+	assetlink.OwnerIDValidator = assetlinkDescOwnerID.Validators[0].(func(int) error)
+	// assetlinkDescRole is the schema descriptor for role field.
+	assetlinkDescRole := assetlinkFields[3].Descriptor()
+	// assetlink.RoleValidator is a validator for the "role" field. It is called by the builders before save.
+	assetlink.RoleValidator = assetlinkDescRole.Validators[0].(func(string) error)
+	// assetlinkDescSortOrder is the schema descriptor for sort_order field.
+	assetlinkDescSortOrder := assetlinkFields[4].Descriptor()
+	// assetlink.DefaultSortOrder holds the default value on creation for the sort_order field.
+	assetlink.DefaultSortOrder = assetlinkDescSortOrder.Default.(int)
+	// assetlinkDescCreatedAt is the schema descriptor for created_at field.
+	assetlinkDescCreatedAt := assetlinkFields[5].Descriptor()
+	// assetlink.DefaultCreatedAt holds the default value on creation for the created_at field.
+	assetlink.DefaultCreatedAt = assetlinkDescCreatedAt.Default.(func() time.Time)
+	// assetlinkDescUpdatedAt is the schema descriptor for updated_at field.
+	assetlinkDescUpdatedAt := assetlinkFields[6].Descriptor()
+	// assetlink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	assetlink.DefaultUpdatedAt = assetlinkDescUpdatedAt.Default.(func() time.Time)
+	// assetlink.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	assetlink.UpdateDefaultUpdatedAt = assetlinkDescUpdatedAt.UpdateDefault.(func() time.Time)
 	categoryFields := schema.Category{}.Fields()
 	_ = categoryFields
 	// categoryDescName is the schema descriptor for name field.
@@ -393,6 +457,66 @@ func init() {
 	chatparticipant.DefaultUpdatedAt = chatparticipantDescUpdatedAt.Default.(func() time.Time)
 	// chatparticipant.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	chatparticipant.UpdateDefaultUpdatedAt = chatparticipantDescUpdatedAt.UpdateDefault.(func() time.Time)
+	clientassetFields := schema.ClientAsset{}.Fields()
+	_ = clientassetFields
+	// clientassetDescSha256 is the schema descriptor for sha256 field.
+	clientassetDescSha256 := clientassetFields[0].Descriptor()
+	// clientasset.Sha256Validator is a validator for the "sha256" field. It is called by the builders before save.
+	clientasset.Sha256Validator = clientassetDescSha256.Validators[0].(func(string) error)
+	// clientassetDescMediaType is the schema descriptor for media_type field.
+	clientassetDescMediaType := clientassetFields[1].Descriptor()
+	// clientasset.MediaTypeValidator is a validator for the "media_type" field. It is called by the builders before save.
+	clientasset.MediaTypeValidator = clientassetDescMediaType.Validators[0].(func(string) error)
+	// clientassetDescSize is the schema descriptor for size field.
+	clientassetDescSize := clientassetFields[2].Descriptor()
+	// clientasset.SizeValidator is a validator for the "size" field. It is called by the builders before save.
+	clientasset.SizeValidator = clientassetDescSize.Validators[0].(func(int64) error)
+	// clientassetDescData is the schema descriptor for data field.
+	clientassetDescData := clientassetFields[3].Descriptor()
+	// clientasset.DataValidator is a validator for the "data" field. It is called by the builders before save.
+	clientasset.DataValidator = clientassetDescData.Validators[0].(func([]byte) error)
+	// clientassetDescCreatedAt is the schema descriptor for created_at field.
+	clientassetDescCreatedAt := clientassetFields[4].Descriptor()
+	// clientasset.DefaultCreatedAt holds the default value on creation for the created_at field.
+	clientasset.DefaultCreatedAt = clientassetDescCreatedAt.Default.(func() time.Time)
+	// clientassetDescUpdatedAt is the schema descriptor for updated_at field.
+	clientassetDescUpdatedAt := clientassetFields[5].Descriptor()
+	// clientasset.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	clientasset.DefaultUpdatedAt = clientassetDescUpdatedAt.Default.(func() time.Time)
+	// clientasset.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	clientasset.UpdateDefaultUpdatedAt = clientassetDescUpdatedAt.UpdateDefault.(func() time.Time)
+	clientassetlinkFields := schema.ClientAssetLink{}.Fields()
+	_ = clientassetlinkFields
+	// clientassetlinkDescAssetID is the schema descriptor for asset_id field.
+	clientassetlinkDescAssetID := clientassetlinkFields[0].Descriptor()
+	// clientassetlink.AssetIDValidator is a validator for the "asset_id" field. It is called by the builders before save.
+	clientassetlink.AssetIDValidator = clientassetlinkDescAssetID.Validators[0].(func(int) error)
+	// clientassetlinkDescOwnerType is the schema descriptor for owner_type field.
+	clientassetlinkDescOwnerType := clientassetlinkFields[1].Descriptor()
+	// clientassetlink.OwnerTypeValidator is a validator for the "owner_type" field. It is called by the builders before save.
+	clientassetlink.OwnerTypeValidator = clientassetlinkDescOwnerType.Validators[0].(func(string) error)
+	// clientassetlinkDescOwnerID is the schema descriptor for owner_id field.
+	clientassetlinkDescOwnerID := clientassetlinkFields[2].Descriptor()
+	// clientassetlink.OwnerIDValidator is a validator for the "owner_id" field. It is called by the builders before save.
+	clientassetlink.OwnerIDValidator = clientassetlinkDescOwnerID.Validators[0].(func(int) error)
+	// clientassetlinkDescRole is the schema descriptor for role field.
+	clientassetlinkDescRole := clientassetlinkFields[3].Descriptor()
+	// clientassetlink.RoleValidator is a validator for the "role" field. It is called by the builders before save.
+	clientassetlink.RoleValidator = clientassetlinkDescRole.Validators[0].(func(string) error)
+	// clientassetlinkDescSortOrder is the schema descriptor for sort_order field.
+	clientassetlinkDescSortOrder := clientassetlinkFields[4].Descriptor()
+	// clientassetlink.DefaultSortOrder holds the default value on creation for the sort_order field.
+	clientassetlink.DefaultSortOrder = clientassetlinkDescSortOrder.Default.(int)
+	// clientassetlinkDescCreatedAt is the schema descriptor for created_at field.
+	clientassetlinkDescCreatedAt := clientassetlinkFields[5].Descriptor()
+	// clientassetlink.DefaultCreatedAt holds the default value on creation for the created_at field.
+	clientassetlink.DefaultCreatedAt = clientassetlinkDescCreatedAt.Default.(func() time.Time)
+	// clientassetlinkDescUpdatedAt is the schema descriptor for updated_at field.
+	clientassetlinkDescUpdatedAt := clientassetlinkFields[6].Descriptor()
+	// clientassetlink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	clientassetlink.DefaultUpdatedAt = clientassetlinkDescUpdatedAt.Default.(func() time.Time)
+	// clientassetlink.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	clientassetlink.UpdateDefaultUpdatedAt = clientassetlinkDescUpdatedAt.UpdateDefault.(func() time.Time)
 	clientinstallhistoryFields := schema.ClientInstallHistory{}.Fields()
 	_ = clientinstallhistoryFields
 	// clientinstallhistoryDescUserID is the schema descriptor for user_id field.

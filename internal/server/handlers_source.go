@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	entgo "lazycat.community/appstore/ent"
@@ -69,7 +70,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, versi
 		GitHubMirrors: s.effectiveGitHubMirrors(r.Context()),
 		Site: feed.SiteMeta{
 			Title:     profile.Title,
-			IconURL:   profile.IconURL,
+			IconURL:   s.feedImageURL(r.Context(), profile.IconURL),
 			PublicURL: profile.PublicURL,
 			SourceURL: sourceFeedURL(profile.PublicURL, version),
 			Chat: feed.ChatMeta{
@@ -124,7 +125,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, versi
 			Versions:         preload.versions[record.ID],
 		}
 		if record.IconURL != nil {
-			appInput.IconURL = *record.IconURL
+			appInput.IconURL = s.feedImageURL(r.Context(), *record.IconURL)
 		}
 		if record.CategoryID != nil {
 			if categoryRecord := preload.categories[*record.CategoryID]; categoryRecord != nil {
@@ -141,6 +142,17 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, versi
 		return
 	}
 	writeJSON(w, http.StatusOK, feedv1.BuildIndex(input))
+}
+
+func (s *Server) feedImageURL(ctx context.Context, raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.HasPrefix(raw, "data:") {
+		return ""
+	}
+	if strings.HasPrefix(raw, "/") {
+		return s.absoluteURL(ctx, raw)
+	}
+	return raw
 }
 
 func siteAnnouncementToFeed(item siteAnnouncement) feed.AnnouncementMeta {

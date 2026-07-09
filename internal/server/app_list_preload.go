@@ -28,6 +28,7 @@ type appSummaryPreload struct {
 	collaboratorAppIDs map[int]struct{}
 	appFavorites       map[int]bool
 	submitterFavorites map[int]bool
+	commentsEnabled    bool
 }
 
 func (s *Server) applyAppListVisibility(ctx context.Context, q *entgo.AppQuery, u *entgo.User, collaboratorAppIDs []int) error {
@@ -111,6 +112,7 @@ func (s *Server) preloadAppSummaries(ctx context.Context, apps []*entgo.App, u *
 	if len(apps) == 0 {
 		return data, nil
 	}
+	data.commentsEnabled = s.commentsEnabled(ctx)
 	appIDs := make([]int, 0, len(apps))
 	ownerIDs := map[int]struct{}{}
 	categoryIDs := map[int]struct{}{}
@@ -286,7 +288,7 @@ func (s *Server) appSummaryDTOFromPreload(ctx context.Context, record *entgo.App
 		Status:                    string(record.Status),
 		AllowUnreviewedUpdates:    record.AllowUnreviewedUpdates,
 		CommentsEnabled:           record.CommentsEnabled,
-		CommentsAllowed:           s.commentsAllowed(ctx, record.CommentsEnabled),
+		CommentsAllowed:           record.CommentsEnabled && preload.commentsEnabled,
 		EmailNotificationsEnabled: record.EmailNotificationsEnabled,
 		InstallProtected:          record.InstallPasswordHash != "",
 		DownloadCount:             record.DownloadCount,

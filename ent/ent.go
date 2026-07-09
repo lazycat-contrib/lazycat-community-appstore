@@ -20,10 +20,14 @@ import (
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/asset"
+	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
 	"lazycat.community/appstore/ent/chatconversation"
 	"lazycat.community/appstore/ent/chatmessage"
 	"lazycat.community/appstore/ent/chatparticipant"
+	"lazycat.community/appstore/ent/clientasset"
+	"lazycat.community/appstore/ent/clientassetlink"
 	"lazycat.community/appstore/ent/clientinstallhistory"
 	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsource"
@@ -115,10 +119,14 @@ func checkColumn(t, c string) error {
 			apptag.Table:               apptag.ValidColumn,
 			appversion.Table:           appversion.ValidColumn,
 			appvisibility.Table:        appvisibility.ValidColumn,
+			asset.Table:                asset.ValidColumn,
+			assetlink.Table:            assetlink.ValidColumn,
 			category.Table:             category.ValidColumn,
 			chatconversation.Table:     chatconversation.ValidColumn,
 			chatmessage.Table:          chatmessage.ValidColumn,
 			chatparticipant.Table:      chatparticipant.ValidColumn,
+			clientasset.Table:          clientasset.ValidColumn,
+			clientassetlink.Table:      clientassetlink.ValidColumn,
 			clientinstallhistory.Table: clientinstallhistory.ValidColumn,
 			clientsetting.Table:        clientsetting.ValidColumn,
 			clientsource.Table:         clientsource.ValidColumn,

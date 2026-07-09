@@ -222,6 +222,11 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 				apps[i].CategoryID = nil
 			}
 		}
+		iconURL, _, err := s.materializeSourceIcon(ctx, source.URL, source.Password, apps[i].IconURL)
+		if err != nil {
+			return SourceDTO{}, err
+		}
+		apps[i].IconURL = iconURL
 		row, err := buildSourceAppCacheRow(apps[i])
 		if err != nil {
 			return SourceDTO{}, err
@@ -247,6 +252,16 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 		if entry, ok := mirror.Find(mirrors, defaultRawMirrorID); !ok || entry.Kind != mirror.KindRaw {
 			defaultRawMirrorID = ""
 		}
+	}
+	oldAppRecords, err := s.db.ClientSourceApp.Query().
+		Where(clientsourceapp.SourceIDEQ(source.ID)).
+		All(ctx)
+	if err != nil {
+		return SourceDTO{}, err
+	}
+	oldAppIDs := make([]int, 0, len(oldAppRecords))
+	for _, record := range oldAppRecords {
+		oldAppIDs = append(oldAppIDs, record.ID)
 	}
 
 	tx, err := s.db.Tx(ctx)
@@ -301,6 +316,12 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 		return SourceDTO{}, err
 	}
 	if err := tx.Commit(); err != nil {
+		return SourceDTO{}, err
+	}
+	if err := s.linkClientSourceAppIconAssets(ctx, updated.ID); err != nil {
+		return SourceDTO{}, err
+	}
+	if err := s.deleteClientAssetLinksForOwnerIDs(ctx, clientAssetOwnerSourceApp, oldAppIDs); err != nil {
 		return SourceDTO{}, err
 	}
 	return sourceDTO(updated), nil

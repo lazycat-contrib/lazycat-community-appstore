@@ -478,7 +478,7 @@ func (s *Server) mcpCreateAppFromURL(ctx context.Context, req *mcp.CallToolReque
 		if err != nil {
 			return nil, mcpCreateAppOutput{}, err
 		}
-		if err := applyAppMetadata(&createInput, inspected.Metadata); err != nil {
+		if err := s.applyAppMetadata(ctx, &createInput, inspected.Metadata); err != nil {
 			return nil, mcpCreateAppOutput{}, err
 		}
 		if createInput.SHA256 == "" {

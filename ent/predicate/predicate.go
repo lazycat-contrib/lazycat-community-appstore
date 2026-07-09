@@ -30,6 +30,12 @@ type AppVersion func(*sql.Selector)
 // AppVisibility is the predicate function for appvisibility builders.
 type AppVisibility func(*sql.Selector)
 
+// Asset is the predicate function for asset builders.
+type Asset func(*sql.Selector)
+
+// AssetLink is the predicate function for assetlink builders.
+type AssetLink func(*sql.Selector)
+
 // Category is the predicate function for category builders.
 type Category func(*sql.Selector)
 
@@ -41,6 +47,12 @@ type ChatMessage func(*sql.Selector)
 
 // ChatParticipant is the predicate function for chatparticipant builders.
 type ChatParticipant func(*sql.Selector)
+
+// ClientAsset is the predicate function for clientasset builders.
+type ClientAsset func(*sql.Selector)
+
+// ClientAssetLink is the predicate function for clientassetlink builders.
+type ClientAssetLink func(*sql.Selector)
 
 // ClientInstallHistory is the predicate function for clientinstallhistory builders.
 type ClientInstallHistory func(*sql.Selector)

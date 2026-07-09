@@ -54,6 +54,7 @@ const (
 	settingBackupStorageKeys        = "backup_storage_keys"
 	settingBackupTargets            = "backup_targets"
 	settingBackupLastRun            = "backup_last_run"
+	settingSchemaVersion            = "schema_version"
 )
 
 const (
@@ -239,7 +240,7 @@ func (s *Server) clientPolicy(ctx context.Context) siteClientPolicy {
 
 func defaultMinClientVersion() string {
 	if strings.TrimSpace(buildinfo.ClientVersion) == "" {
-		return "0.1.13"
+		return "0.1.14"
 	}
 	return strings.TrimSpace(buildinfo.ClientVersion)
 }
@@ -302,6 +303,14 @@ func isHTTPURLOrEmpty(value string) bool {
 	}
 	parsed, err := url.Parse(value)
 	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
+}
+
+func isImageSettingURLOrEmpty(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || strings.HasPrefix(value, serverAssetURLPrefix+"/") || strings.HasPrefix(value, "data:image/") {
+		return true
+	}
+	return isHTTPURLOrEmpty(value)
 }
 
 func validAnnouncementLevel(value string) bool {

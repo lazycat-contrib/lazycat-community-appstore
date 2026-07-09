@@ -105,6 +105,30 @@ func (f AppVisibilityFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppVisibilityMutation", m)
 }
 
+// The AssetFunc type is an adapter to allow the use of ordinary
+// function as Asset mutator.
+type AssetFunc func(context.Context, *ent.AssetMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AssetFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AssetMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AssetMutation", m)
+}
+
+// The AssetLinkFunc type is an adapter to allow the use of ordinary
+// function as AssetLink mutator.
+type AssetLinkFunc func(context.Context, *ent.AssetLinkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AssetLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AssetLinkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AssetLinkMutation", m)
+}
+
 // The CategoryFunc type is an adapter to allow the use of ordinary
 // function as Category mutator.
 type CategoryFunc func(context.Context, *ent.CategoryMutation) (ent.Value, error)
@@ -151,6 +175,30 @@ func (f ChatParticipantFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChatParticipantMutation", m)
+}
+
+// The ClientAssetFunc type is an adapter to allow the use of ordinary
+// function as ClientAsset mutator.
+type ClientAssetFunc func(context.Context, *ent.ClientAssetMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ClientAssetFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ClientAssetMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ClientAssetMutation", m)
+}
+
+// The ClientAssetLinkFunc type is an adapter to allow the use of ordinary
+// function as ClientAssetLink mutator.
+type ClientAssetLinkFunc func(context.Context, *ent.ClientAssetLinkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ClientAssetLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ClientAssetLinkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ClientAssetLinkMutation", m)
 }
 
 // The ClientInstallHistoryFunc type is an adapter to allow the use of ordinary

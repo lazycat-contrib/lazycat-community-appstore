@@ -296,6 +296,68 @@ var (
 			},
 		},
 	}
+	// AssetsColumns holds the columns for the "assets" table.
+	AssetsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "sha256", Type: field.TypeString},
+		{Name: "media_type", Type: field.TypeString},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "data", Type: field.TypeBytes},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AssetsTable holds the schema information for the "assets" table.
+	AssetsTable = &schema.Table{
+		Name:       "assets",
+		Columns:    AssetsColumns,
+		PrimaryKey: []*schema.Column{AssetsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "asset_sha256",
+				Unique:  true,
+				Columns: []*schema.Column{AssetsColumns[1]},
+			},
+		},
+	}
+	// AssetLinksColumns holds the columns for the "asset_links" table.
+	AssetLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "asset_id", Type: field.TypeInt},
+		{Name: "owner_type", Type: field.TypeString},
+		{Name: "owner_id", Type: field.TypeInt},
+		{Name: "role", Type: field.TypeString},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AssetLinksTable holds the schema information for the "asset_links" table.
+	AssetLinksTable = &schema.Table{
+		Name:       "asset_links",
+		Columns:    AssetLinksColumns,
+		PrimaryKey: []*schema.Column{AssetLinksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "assetlink_asset_id",
+				Unique:  false,
+				Columns: []*schema.Column{AssetLinksColumns[1]},
+			},
+			{
+				Name:    "assetlink_owner_type_owner_id",
+				Unique:  false,
+				Columns: []*schema.Column{AssetLinksColumns[2], AssetLinksColumns[3]},
+			},
+			{
+				Name:    "assetlink_owner_type_owner_id_role_sort_order",
+				Unique:  false,
+				Columns: []*schema.Column{AssetLinksColumns[2], AssetLinksColumns[3], AssetLinksColumns[4], AssetLinksColumns[5]},
+			},
+			{
+				Name:    "assetlink_owner_type_owner_id_role_asset_id",
+				Unique:  true,
+				Columns: []*schema.Column{AssetLinksColumns[2], AssetLinksColumns[3], AssetLinksColumns[4], AssetLinksColumns[1]},
+			},
+		},
+	}
 	// CategoriesColumns holds the columns for the "categories" table.
 	CategoriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -429,6 +491,68 @@ var (
 				Name:    "chatparticipant_actor_type_client_user_id_updated_at",
 				Unique:  false,
 				Columns: []*schema.Column{ChatParticipantsColumns[2], ChatParticipantsColumns[4], ChatParticipantsColumns[10]},
+			},
+		},
+	}
+	// ClientAssetsColumns holds the columns for the "client_assets" table.
+	ClientAssetsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "sha256", Type: field.TypeString},
+		{Name: "media_type", Type: field.TypeString},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "data", Type: field.TypeBytes},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ClientAssetsTable holds the schema information for the "client_assets" table.
+	ClientAssetsTable = &schema.Table{
+		Name:       "client_assets",
+		Columns:    ClientAssetsColumns,
+		PrimaryKey: []*schema.Column{ClientAssetsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "clientasset_sha256",
+				Unique:  true,
+				Columns: []*schema.Column{ClientAssetsColumns[1]},
+			},
+		},
+	}
+	// ClientAssetLinksColumns holds the columns for the "client_asset_links" table.
+	ClientAssetLinksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "asset_id", Type: field.TypeInt},
+		{Name: "owner_type", Type: field.TypeString},
+		{Name: "owner_id", Type: field.TypeInt},
+		{Name: "role", Type: field.TypeString},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ClientAssetLinksTable holds the schema information for the "client_asset_links" table.
+	ClientAssetLinksTable = &schema.Table{
+		Name:       "client_asset_links",
+		Columns:    ClientAssetLinksColumns,
+		PrimaryKey: []*schema.Column{ClientAssetLinksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "clientassetlink_asset_id",
+				Unique:  false,
+				Columns: []*schema.Column{ClientAssetLinksColumns[1]},
+			},
+			{
+				Name:    "clientassetlink_owner_type_owner_id",
+				Unique:  false,
+				Columns: []*schema.Column{ClientAssetLinksColumns[2], ClientAssetLinksColumns[3]},
+			},
+			{
+				Name:    "clientassetlink_owner_type_owner_id_role_sort_order",
+				Unique:  false,
+				Columns: []*schema.Column{ClientAssetLinksColumns[2], ClientAssetLinksColumns[3], ClientAssetLinksColumns[4], ClientAssetLinksColumns[5]},
+			},
+			{
+				Name:    "clientassetlink_owner_type_owner_id_role_asset_id",
+				Unique:  true,
+				Columns: []*schema.Column{ClientAssetLinksColumns[2], ClientAssetLinksColumns[3], ClientAssetLinksColumns[4], ClientAssetLinksColumns[1]},
 			},
 		},
 	}
@@ -1206,10 +1330,14 @@ var (
 		AppTagsTable,
 		AppVersionsTable,
 		AppVisibilitiesTable,
+		AssetsTable,
+		AssetLinksTable,
 		CategoriesTable,
 		ChatConversationsTable,
 		ChatMessagesTable,
 		ChatParticipantsTable,
+		ClientAssetsTable,
+		ClientAssetLinksTable,
 		ClientInstallHistoriesTable,
 		ClientSettingsTable,
 		ClientSourcesTable,

@@ -5,9 +5,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -20,11 +24,13 @@ import (
 
 	"github.com/pquerna/otp/totp"
 
+	entclient "lazycat.community/appstore/ent"
 	apppkg "lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
 	"lazycat.community/appstore/ent/collaborator"
 	"lazycat.community/appstore/ent/collaboratorrequest"
@@ -51,6 +57,8 @@ type testApp struct {
 	handler http.Handler
 	cookies []*http.Cookie
 }
+
+var benchmarkAppSummaries []appSummary
 
 func TestSetupWizardCreatesFirstSiteAdmin(t *testing.T) {
 	app := newTestAppWithAdminBootstrap(t, false)
@@ -1785,7 +1793,7 @@ func TestMultipartCreateAppFillsMetadataFromLPK(t *testing.T) {
 	if created.Name != "Upload Meta" || created.Slug != "upload-meta" || created.Summary != "Parsed from package.yml" {
 		t.Fatalf("metadata not applied: %+v", created)
 	}
-	if created.IconURL == nil || !strings.HasPrefix(*created.IconURL, "data:image/png;base64,") {
+	if created.IconURL == nil || !strings.HasPrefix(*created.IconURL, "/api/v1/assets/") {
 		t.Fatalf("icon metadata not applied: icon=%v", created.IconURL)
 	}
 	version := app.server.db.AppVersion.Query().Where(appversion.AppIDEQ(created.ID)).OnlyX(t.Context())
@@ -1818,8 +1826,90 @@ func TestURLCreateAppFillsMetadataAndSHA256(t *testing.T) {
 	if created.Name != "URL Meta" || version.Version != "2.0.0" || version.Sha256 != hex.EncodeToString(sum[:]) || version.FileSize != int64(len(lpk)) {
 		t.Fatalf("url metadata not applied: app=%+v version=%+v", created, version)
 	}
-	if created.IconURL == nil || !strings.HasPrefix(*created.IconURL, "data:image/png;base64,") {
+	if created.IconURL == nil || !strings.HasPrefix(*created.IconURL, "/api/v1/assets/") {
 		t.Fatalf("url icon metadata not applied: icon=%v", created.IconURL)
+	}
+}
+
+func TestSchemaMigrationMovesImageDataURLsToAssets(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	appIcon := testPNG(t, 512, 320)
+	siteLogo := testPNG(t, 300, 200)
+	appDataURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(appIcon)
+	siteDataURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(siteLogo)
+	record := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.legacy-icon").
+		SetName("Legacy Icon").
+		SetSlug("legacy-icon").
+		SetIconURL(appDataURL).
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	if err := app.server.setSetting(ctx, settingSiteIconURL, siteDataURL); err != nil {
+		t.Fatalf("set site icon: %v", err)
+	}
+	if err := app.server.setSetting(ctx, settingSchemaVersion, "0"); err != nil {
+		t.Fatalf("set schema version: %v", err)
+	}
+
+	if err := app.server.migrateSchema(ctx); err != nil {
+		t.Fatalf("migrate schema: %v", err)
+	}
+
+	updated := app.server.db.App.GetX(ctx, record.ID)
+	if updated.IconURL == nil || !strings.HasPrefix(*updated.IconURL, "/api/v1/assets/") || strings.Contains(*updated.IconURL, "data:image") {
+		t.Fatalf("app icon was not migrated: %v", updated.IconURL)
+	}
+	appLinks := app.server.db.AssetLink.Query().
+		Where(assetlink.OwnerTypeEQ(assetOwnerApp), assetlink.OwnerIDEQ(record.ID), assetlink.RoleEQ(assetRoleIcon)).
+		CountX(ctx)
+	if appLinks != 1 {
+		t.Fatalf("app asset links = %d, want 1", appLinks)
+	}
+	siteIcon := app.server.setting(ctx, settingSiteIconURL, "")
+	if !strings.HasPrefix(siteIcon, "/api/v1/assets/") || strings.Contains(siteIcon, "data:image") {
+		t.Fatalf("site icon was not migrated: %q", siteIcon)
+	}
+	siteLinks := app.server.db.AssetLink.Query().
+		Where(assetlink.OwnerTypeEQ(assetOwnerSite), assetlink.OwnerIDEQ(0), assetlink.RoleEQ(assetRoleIcon)).
+		CountX(ctx)
+	if siteLinks != 1 {
+		t.Fatalf("site asset links = %d, want 1", siteLinks)
+	}
+	rec := app.do(http.MethodGet, *updated.IconURL, nil)
+	if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Header().Get("Content-Type"), "image/png") {
+		t.Fatalf("asset response = %d content-type=%q body=%s", rec.Code, rec.Header().Get("Content-Type"), rec.Body.String())
+	}
+	etag := rec.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("asset response did not include ETag")
+	}
+	cacheReq := httptest.NewRequest(http.MethodGet, *updated.IconURL, nil)
+	cacheReq.Header.Set("If-None-Match", etag)
+	cacheRec := httptest.NewRecorder()
+	app.handler.ServeHTTP(cacheRec, cacheReq)
+	if cacheRec.Code != http.StatusNotModified || cacheRec.Body.Len() != 0 {
+		t.Fatalf("conditional asset response = %d bodyLen=%d", cacheRec.Code, cacheRec.Body.Len())
+	}
+	appIconConfig, _, err := image.DecodeConfig(bytes.NewReader(rec.Body.Bytes()))
+	if err != nil {
+		t.Fatalf("decode app icon asset: %v", err)
+	}
+	if appIconConfig.Width > maxLPKIconSide || appIconConfig.Height > maxLPKIconSide {
+		t.Fatalf("app icon was not resized: %dx%d", appIconConfig.Width, appIconConfig.Height)
+	}
+	siteRec := app.do(http.MethodGet, siteIcon, nil)
+	if siteRec.Code != http.StatusOK {
+		t.Fatalf("site asset response = %d body=%s", siteRec.Code, siteRec.Body.String())
+	}
+	siteConfig, _, err := image.DecodeConfig(bytes.NewReader(siteRec.Body.Bytes()))
+	if err != nil {
+		t.Fatalf("decode site logo asset: %v", err)
+	}
+	if siteConfig.Width != 300 || siteConfig.Height != 200 {
+		t.Fatalf("site logo should not be resized: %dx%d", siteConfig.Width, siteConfig.Height)
 	}
 }
 
@@ -1868,6 +1958,64 @@ func TestLPKFetchURLUsesConfiguredGitHubMirrors(t *testing.T) {
 	}
 	if got, want := directURL.String(), "https://github.com/acme/demo/releases/download/v1/app.lpk"; got != want {
 		t.Fatalf("direct fetch url = %q, want %q", got, want)
+	}
+}
+
+func BenchmarkPreloadAppSummaries(b *testing.B) {
+	ctx := context.Background()
+	client, err := openEnt(config.Config{DBDriver: "sqlite3", DBDSN: filepath.Join(b.TempDir(), "bench.db")})
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer client.Close()
+	if err := client.Schema.Create(ctx); err != nil {
+		b.Fatal(err)
+	}
+	srv := &Server{db: client}
+	owner := client.User.Create().
+		SetUsername("owner").
+		SetPasswordHash("hash").
+		SetRole(user.RoleUSER).
+		SaveX(ctx)
+	cat := client.Category.Create().SetName("Tools").SetSlug("tools").SaveX(ctx)
+	tagA := client.Tag.Create().SetName("Productivity").SetSlug("productivity").SaveX(ctx)
+	tagB := client.Tag.Create().SetName("Utility").SetSlug("utility").SaveX(ctx)
+	records := make([]*entclient.App, 0, 50)
+	now := time.Now()
+	for i := 0; i < cap(records); i++ {
+		record := client.App.Create().
+			SetOwnerID(owner.ID).
+			SetCategoryID(cat.ID).
+			SetPackageID(fmt.Sprintf("cloud.lazycat.bench.%02d", i)).
+			SetName(fmt.Sprintf("Bench App %02d", i)).
+			SetSlug(fmt.Sprintf("bench-app-%02d", i)).
+			SetSummary("Benchmark app").
+			SetStatus(apppkg.StatusAPPROVED).
+			SaveX(ctx)
+		client.AppTag.Create().SetAppID(record.ID).SetTagID(tagA.ID).SaveX(ctx)
+		client.AppTag.Create().SetAppID(record.ID).SetTagID(tagB.ID).SaveX(ctx)
+		client.AppVersion.Create().
+			SetAppID(record.ID).
+			SetUploaderID(owner.ID).
+			SetVersion("1.0.0").
+			SetStatus(appversion.StatusAPPROVED).
+			SetPublishedAt(now).
+			SaveX(ctx)
+		records = append(records, record)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		preload, err := srv.preloadAppSummaries(ctx, records, nil)
+		if err != nil {
+			b.Fatal(err)
+		}
+		out := make([]appSummary, 0, len(records))
+		for _, record := range records {
+			out = append(out, srv.appSummaryDTOFromPreload(ctx, record, nil, preload))
+		}
+		benchmarkAppSummaries = out
 	}
 }
 
@@ -3288,11 +3436,43 @@ func testLPKArchive(t *testing.T, packageID, version, name, description string) 
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
 	writeTestTarFile(t, tw, "package.yml", []byte(body))
-	writeTestTarFile(t, tw, "icon.png", []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0x00, 0x00, 0x00, 0x0d})
+	writeTestTarFile(t, tw, "icon.png", testPNG1x1)
 	if err := tw.Close(); err != nil {
 		t.Fatalf("Close tar: %v", err)
 	}
 	return buf.Bytes()
+}
+
+func testPNG(t *testing.T, width, height int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			img.Set(x, y, color.RGBA{
+				R: uint8(x % 256),
+				G: uint8(y % 256),
+				B: uint8((x + y) % 256),
+				A: 255,
+			})
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode png: %v", err)
+	}
+	return buf.Bytes()
+}
+
+var testPNG1x1 = []byte{
+	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+	0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+	0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+	0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+	0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+	0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+	0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00,
+	0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+	0x42, 0x60, 0x82,
 }
 
 func writeTestTarFile(t *testing.T, tw *tar.Writer, name string, content []byte) {

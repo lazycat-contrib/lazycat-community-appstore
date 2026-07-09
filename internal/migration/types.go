@@ -8,7 +8,7 @@ import (
 	"lazycat.community/appstore/internal/storage"
 )
 
-const FormatVersion = 1
+const FormatVersion = 2
 
 type Module string
 

@@ -25,6 +25,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib-x/entsqlite"
 	_ "github.com/lib/pq"
+	"golang.org/x/sync/singleflight"
 )
 
 type Server struct {
@@ -45,6 +46,7 @@ type Server struct {
 	backupWG                sync.WaitGroup
 	backupRunMu             sync.Mutex
 	backupRunning           bool
+	firstLoadGroup          singleflight.Group
 }
 
 func New(cfg config.Config) (*Server, error) {
@@ -80,6 +82,11 @@ func New(cfg config.Config) (*Server, error) {
 	}
 	s.web = embeddedWebHandler(cfg)
 	if err := s.bootstrap(context.Background()); err != nil {
+		backupCancel()
+		_ = client.Close()
+		return nil, err
+	}
+	if err := s.migrateSchema(context.Background()); err != nil {
 		backupCancel()
 		_ = client.Close()
 		return nil, err
@@ -202,6 +209,8 @@ func ensureSQLiteDir(cfg config.Config) error {
 func (s *Server) routes() {
 	s.mux.Handle("GET /files/", http.StripPrefix("/files/", http.HandlerFunc(s.handleLocalFile)))
 	s.mux.HandleFunc("GET /api/v1/files/{storageKey}/{path...}", s.handleProxyFile)
+	s.mux.HandleFunc("GET /api/v1/assets/{id}", s.handleAsset)
+	s.mux.HandleFunc("HEAD /api/v1/assets/{id}", s.handleAsset)
 	s.mux.HandleFunc("GET /favicon.ico", s.handleFavicon)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "lazycat-appstore-server"})

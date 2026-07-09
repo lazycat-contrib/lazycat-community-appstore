@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -57,14 +56,11 @@ func (b *WebDAVBackend) SaveObject(ctx context.Context, objectPath string, r io.
 }
 
 func (b *WebDAVBackend) saveAt(ctx context.Context, rel string, r io.Reader) (Object, error) {
-	body, err := io.ReadAll(r)
-	if err != nil {
-		return Object{}, err
-	}
 	if err := b.mkcol(ctx, path.Dir(rel)); err != nil {
 		return Object{}, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, b.objectURL(rel), bytes.NewReader(body))
+	body := &countingReader{reader: r}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, b.objectURL(rel), body)
 	if err != nil {
 		return Object{}, err
 	}
@@ -77,7 +73,7 @@ func (b *WebDAVBackend) saveAt(ctx context.Context, rel string, r io.Reader) (Ob
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return Object{}, fmt.Errorf("webdav put failed: %s", resp.Status)
 	}
-	return Object{Path: rel, Size: int64(len(body)), DownloadURL: b.PublicURL(rel)}, nil
+	return Object{Path: rel, Size: body.total, DownloadURL: b.PublicURL(rel)}, nil
 }
 
 func (b *WebDAVBackend) Delete(ctx context.Context, objectPath string) error {
@@ -191,4 +187,15 @@ func (b *WebDAVBackend) auth(req *http.Request) {
 	if b.username != "" || b.password != "" {
 		req.SetBasicAuth(b.username, b.password)
 	}
+}
+
+type countingReader struct {
+	reader io.Reader
+	total  int64
+}
+
+func (r *countingReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	r.total += int64(n)
+	return n, err
 }

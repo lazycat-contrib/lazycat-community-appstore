@@ -45,3 +45,25 @@ func (s *Server) userCanSeeApp(r *http.Request, record *entgo.App, u *entgo.User
 		Exist(r.Context())
 	return err == nil && ok
 }
+
+func userCanSeeAppFromPreload(record *entgo.App, u *entgo.User, preload appSummaryPreload, userGroupIDs map[int]struct{}) bool {
+	groupIDs := preload.visibleGroupIDs[record.ID]
+	if len(groupIDs) == 0 {
+		return true
+	}
+	if u == nil {
+		return false
+	}
+	if isAdmin(u) || record.OwnerID == u.ID {
+		return true
+	}
+	if _, ok := preload.collaboratorAppIDs[record.ID]; ok {
+		return true
+	}
+	for _, groupID := range groupIDs {
+		if _, ok := userGroupIDs[groupID]; ok {
+			return true
+		}
+	}
+	return false
+}

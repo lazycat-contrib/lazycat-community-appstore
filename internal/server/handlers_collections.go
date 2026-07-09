@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -24,7 +25,19 @@ func (s *Server) handleAdminListCollections(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *Server) handlePublicListCollections(w http.ResponseWriter, r *http.Request) {
-	s.listCollections(w, r, s.optionalUser(r), false)
+	u := s.optionalUser(r)
+	if u != nil {
+		s.listCollections(w, r, u, false)
+		return
+	}
+	value, err := s.sharedFirstLoad(r.Context(), firstLoadKey(r, "public-collections"), func(ctx context.Context) (any, error) {
+		return s.publicListCollectionsResponse(ctx, r)
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "COLLECTION_LIST_FAILED", "Could not list collections", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, value)
 }
 
 func (s *Server) listCollections(w http.ResponseWriter, r *http.Request, u *entgo.User, includeDrafts bool) {
@@ -38,6 +51,19 @@ func (s *Server) listCollections(w http.ResponseWriter, r *http.Request, u *entg
 		out = append(out, s.buildCollectionDTO(r, record, u, includeDrafts))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"collections": out})
+}
+
+func (s *Server) publicListCollectionsResponse(ctx context.Context, r *http.Request) (any, error) {
+	req := r.Clone(ctx)
+	records, err := s.db.Collection.Query().Order(entgo.Asc(collection.FieldSortOrder), entgo.Asc(collection.FieldName)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]collectionDTO, 0, len(records))
+	for _, record := range records {
+		out = append(out, s.buildCollectionDTO(req, record, nil, false))
+	}
+	return map[string]any{"collections": out}, nil
 }
 
 func (s *Server) handleCreateCollection(w http.ResponseWriter, r *http.Request, u *entgo.User) {

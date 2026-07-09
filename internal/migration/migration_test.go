@@ -4,8 +4,11 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -14,6 +17,8 @@ import (
 	apppkg "lazycat.community/appstore/ent/app"
 	versionpkg "lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/asset"
+	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/user"
 
 	_ "github.com/lib-x/entsqlite"
@@ -148,6 +153,58 @@ func TestImporterMergeCreatesRecordsByStableKeys(t *testing.T) {
 	}
 	if target.AppVisibility.Query().Where(appvisibility.AppIDEQ(record.ID)).CountX(ctx) != 1 {
 		t.Fatal("app visibility was not imported")
+	}
+}
+
+func TestImporterRestoresAssetsAndRemapsAssetURLs(t *testing.T) {
+	ctx := context.Background()
+	source := newMigrationTestDB(t)
+	seedMigrationData(t, source)
+	sourceApp := source.App.Query().Where(apppkg.PackageIDEQ("cloud.lazycat.example")).OnlyX(ctx)
+	payload := []byte("source app icon")
+	sum := sha256.Sum256(payload)
+	sourceAsset := source.Asset.Create().
+		SetSha256(hex.EncodeToString(sum[:])).
+		SetMediaType("image/png").
+		SetSize(int64(len(payload))).
+		SetData(payload).
+		SaveX(ctx)
+	source.App.UpdateOneID(sourceApp.ID).SetIconURL(assetURL(sourceAsset.ID)).SaveX(ctx)
+	source.AssetLink.Create().
+		SetAssetID(sourceAsset.ID).
+		SetOwnerType(assetOwnerApp).
+		SetOwnerID(sourceApp.ID).
+		SetRole("icon").
+		SaveX(ctx)
+
+	var buf bytes.Buffer
+	if _, err := NewExporter(source, nil, "test").Export(ctx, &buf, Options{IncludePeople: true, IncludeApps: true}); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+
+	target := newMigrationTestDB(t)
+	target.Asset.Create().
+		SetSha256("0123456789abcdef").
+		SetMediaType("image/png").
+		SetSize(4).
+		SetData([]byte("seed")).
+		SaveX(ctx)
+	result, err := NewImporter(target, nil).Import(ctx, bytes.NewReader(buf.Bytes()), int64(buf.Len()), ImportOptions{Options: Options{IncludePeople: true, IncludeApps: true}, Mode: ImportModeMerge})
+	if err != nil {
+		t.Fatalf("Import: %v", err)
+	}
+	if result.Created == 0 {
+		t.Fatalf("created = %d, want > 0", result.Created)
+	}
+	importedAsset := target.Asset.Query().Where(asset.Sha256EQ(hex.EncodeToString(sum[:]))).OnlyX(ctx)
+	importedApp := target.App.Query().Where(apppkg.PackageIDEQ("cloud.lazycat.example")).OnlyX(ctx)
+	if importedApp.IconURL == nil || *importedApp.IconURL != assetURL(importedAsset.ID) {
+		t.Fatalf("app icon URL = %v, want %q", importedApp.IconURL, assetURL(importedAsset.ID))
+	}
+	if target.AssetLink.Query().
+		Where(assetlink.AssetIDEQ(importedAsset.ID), assetlink.OwnerTypeEQ(assetOwnerApp), assetlink.OwnerIDEQ(importedApp.ID), assetlink.RoleEQ("icon")).
+		CountX(ctx) != 1 {
+		t.Fatal("asset link was not restored with remapped ids")
 	}
 }
 
@@ -363,4 +420,8 @@ func writeTestJSON(t *testing.T, zw *zip.Writer, name string, value any) {
 	if err := json.NewEncoder(w).Encode(value); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func assetURL(id int) string {
+	return serverAssetURLPrefix + "/" + strconv.Itoa(id)
 }
