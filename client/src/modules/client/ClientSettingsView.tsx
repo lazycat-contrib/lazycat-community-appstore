@@ -1,11 +1,13 @@
-import { Clock3, Download, RefreshCw, Save, Settings, ShieldCheck, Sparkles } from 'lucide-react';
+import { Clock3, Download, Info, RefreshCw, Save, Settings, ShieldCheck, Sparkles } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
+import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
+import { APP_VERSION } from '../../config';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { ClientSettings, ClientSourceStats, Toast } from '../../shared/types';
 import { errorMessage, formatDate } from '../../shared/utils';
@@ -13,6 +15,7 @@ import { errorMessage, formatDate } from '../../shared/utils';
 const syncIntervalOptions = [5, 15, 30, 60, 360, 720, 1440];
 const pageSizeOptions = [12, 24, 48, 96, 100];
 const installDismissOptions = [0, 3, 5, 10, 30];
+type ClientSettingsTab = 'sync' | 'identity' | 'install' | 'about';
 
 export function ClientSettingsView({
   settings,
@@ -27,6 +30,7 @@ export function ClientSettingsView({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<ClientSettings>(settings);
+  const [activeTab, setActiveTab] = useState<ClientSettingsTab>('sync');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -65,6 +69,13 @@ export function ClientSettingsView({
 
   const intervalValue = String(draft.autoSyncIntervalMinutes || 60);
   const syncStatusClass = syncState === 'failed' ? 'failed' : syncState === 'partial' ? 'stale' : syncState === 'off' ? 'unsynced' : 'synced';
+  const effectiveClientTitle = draft.clientTitle.trim() || t('appName');
+  const settingsTabs = [
+    { key: 'sync', label: t('clientSettings.tabs.sync'), icon: Clock3 },
+    { key: 'identity', label: t('clientSettings.tabs.identity'), icon: ShieldCheck },
+    { key: 'install', label: t('clientSettings.tabs.install'), icon: Download },
+    { key: 'about', label: t('clientSettings.tabs.about'), icon: Info },
+  ] satisfies Array<{ key: ClientSettingsTab; label: string; icon: typeof Clock3 }>;
 
   async function saveSettings(event?: Pick<FormEvent, 'preventDefault'>) {
     event?.preventDefault();
@@ -132,7 +143,17 @@ export function ClientSettingsView({
       </div>
 
       <form className="client-settings-layout" onSubmit={saveSettings}>
-        <section className="panel settings-card-panel">
+        <div className="horizontal-control-scroll client-settings-tabs">
+          <XTabList value={activeTab} onChange={(value) => setActiveTab(value as ClientSettingsTab)} hasDivider size="md">
+            {settingsTabs.map((item) => {
+              const Icon = item.icon;
+              return <XTab key={item.key} value={item.key} label={item.label} icon={<Icon size={16} />} />;
+            })}
+          </XTabList>
+        </div>
+
+        {activeTab === 'sync' && (
+        <section className="panel settings-card-panel settings-tab-panel client-settings-panel">
           <div className="settings-card-head">
             <div>
               <Clock3 size={19} />
@@ -168,8 +189,10 @@ export function ClientSettingsView({
             onChange={(checked) => setDraft({ ...draft, syncOnStartup: checked })}
           />
         </section>
+        )}
 
-        <section className="panel settings-card-panel">
+        {activeTab === 'identity' && (
+        <section className="panel settings-card-panel settings-tab-panel client-settings-panel">
           <div className="settings-card-head">
             <div>
               <ShieldCheck size={19} />
@@ -199,13 +222,19 @@ export function ClientSettingsView({
             options={pageSizeOptions.map((value) => ({ value: String(value), label: t('clientSettings.pageSizeOption', { count: value }) }))}
             onChange={(value) => setDraft({ ...draft, defaultPageSize: Number(value) || 24 })}
           />
-          <div className="settings-card-head compact">
+        </section>
+        )}
+
+        {activeTab === 'install' && (
+        <section className="panel settings-card-panel settings-tab-panel client-settings-panel">
+          <div className="settings-card-head">
             <div>
               <Download size={19} />
               <h2>{t('clientSettings.installTitle')}</h2>
             </div>
             <StatusBadge tone="synced" label={t('clientSettings.localOnly')} />
           </div>
+          <p className="muted-text">{t('clientSettings.installBody')}</p>
           <XSelector
             label={t('clientSettings.installSuccessDismiss')}
             description={t('clientSettings.installSuccessDismissHelp')}
@@ -217,6 +246,34 @@ export function ClientSettingsView({
             onChange={(value) => setDraft({ ...draft, installSuccessDismissSeconds: Number(value) })}
           />
         </section>
+        )}
+
+        {activeTab === 'about' && (
+        <section className="panel settings-card-panel settings-tab-panel client-settings-panel client-about-panel">
+          <div className="settings-card-head">
+            <div>
+              <Info size={19} />
+              <h2>{t('clientSettings.aboutTitle')}</h2>
+            </div>
+            <StatusBadge tone="info" label={t('clientSettings.aboutBadge')} />
+          </div>
+          <p className="muted-text">{t('clientSettings.aboutBody')}</p>
+          <div className="client-about-list" aria-label={t('clientSettings.aboutTitle')}>
+            <div>
+              <span>{t('clientSettings.clientVersion')}</span>
+              <strong>{APP_VERSION}</strong>
+            </div>
+            <div>
+              <span>{t('clientSettings.runtimeMode')}</span>
+              <strong>{t('mode.standaloneClient')}</strong>
+            </div>
+            <div>
+              <span>{t('clientSettings.effectiveTitle')}</span>
+              <strong>{effectiveClientTitle}</strong>
+            </div>
+          </div>
+        </section>
+        )}
 
         <div className="settings-form-actions">
           <XButton

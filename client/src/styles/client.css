@@ -112,9 +112,16 @@
 
 .client-settings-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
   gap: 14px;
   align-items: start;
+}
+
+.client-settings-tabs {
+  width: 100%;
+}
+
+.client-settings-panel {
+  width: min(760px, 100%);
 }
 
 .settings-card-panel {
@@ -149,6 +156,46 @@
   justify-content: flex-end;
 }
 
+.client-about-panel {
+  gap: 16px;
+}
+
+.client-about-list {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.client-about-list > div {
+  align-items: center;
+  display: grid;
+  gap: 8px 16px;
+  grid-template-columns: minmax(120px, 0.42fr) minmax(0, 1fr);
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.client-about-list > div + div {
+  border-top: 1px solid var(--line);
+}
+
+.client-about-list span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.client-about-list strong {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .spin {
   animation: spin 700ms linear infinite;
 }
@@ -166,8 +213,7 @@
 }
 
 @media (max-width: 980px) {
-  .settings-overview-grid,
-  .client-settings-layout {
+  .settings-overview-grid {
     grid-template-columns: 1fr;
   }
 
@@ -179,6 +225,10 @@
 @media (max-width: 640px) {
   .settings-hero {
     align-items: stretch;
+  }
+
+  .client-about-list > div {
+    grid-template-columns: 1fr;
   }
 }
 
