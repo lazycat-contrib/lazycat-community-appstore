@@ -382,14 +382,19 @@ func (s *Server) listStorageConfigs(ctx context.Context) ([]appStorageConfig, st
 		return nil, "", err
 	}
 	configs := make([]appStorageConfig, 0, len(records)+1)
+	hasPrimary := false
 	for _, record := range records {
-		configs = append(configs, appStorageConfigFromRecord(record))
+		cfg := appStorageConfigFromRecord(record)
+		if cfg.Key == primaryStorageConfigKey {
+			hasPrimary = true
+		}
+		configs = append(configs, cfg)
 	}
-	if len(configs) == 0 {
+	if !hasPrimary {
 		cfg := s.storageConfigFromEnv()
 		cfg.Key = primaryStorageConfigKey
 		cfg.Name = "Primary"
-		configs = append(configs, cfg)
+		configs = append([]appStorageConfig{cfg}, configs...)
 	}
 	defaultKey := s.defaultStorageKey(ctx)
 	hasDefault := false

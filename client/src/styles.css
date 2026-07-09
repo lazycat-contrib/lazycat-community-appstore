@@ -1188,31 +1188,25 @@ body,
   min-width: 0;
   max-width: 100%;
   min-height: 36px;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(112px, max-content));
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
   justify-content: flex-end;
   justify-self: end;
 }
 
 .storage-editor-actions > button {
-  flex: 0 0 auto;
-  width: auto !important;
+  width: 100%;
   max-width: 100%;
-  min-width: 104px;
+  min-width: 112px;
   min-height: 36px;
   justify-content: center;
 }
 
 .storage-settings-panel .storage-action-button {
-  width: max-content !important;
   white-space: nowrap;
-  overflow: visible;
-}
-
-.storage-settings-panel .storage-action-button:active {
-  transform: scale(0.98);
+  overflow: hidden;
 }
 
 .storage-editor-head strong,
@@ -1234,13 +1228,14 @@ body,
 
   .storage-editor-actions {
     width: 100%;
-    justify-content: flex-start;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
     justify-self: start;
   }
 
   .storage-editor-actions > button,
   .storage-settings-panel .storage-action-button {
-    width: 100% !important;
+    width: 100%;
   }
 }
 
@@ -4952,7 +4947,9 @@ code {
   }
 
   .storage-editor-actions {
-    justify-content: flex-start;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
   }
 
   .group-member-manager {

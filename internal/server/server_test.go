@@ -2279,6 +2279,51 @@ func TestAdminStorageConfigAcceptsR2DTOFieldsOnCreate(t *testing.T) {
 	}
 }
 
+func TestAdminStorageConfigListsEnvPrimaryWithCreatedStorage(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodPost, "/api/v1/admin/storage", map[string]any{
+		"key":             "cf-r2",
+		"name":            "Cloudflare R2",
+		"provider":        "CLOUDFLARE_R2",
+		"deliveryMode":    "SERVER",
+		"endpointUrl":     "https://example-account.r2.cloudflarestorage.com",
+		"bucketName":      "apps",
+		"region":          "auto",
+		"pathStyle":       true,
+		"accountId":       "example-account",
+		"rootPrefix":      "appstore",
+		"accessKeyId":     "ak",
+		"secretAccessKey": "sk",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("r2 storage create status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = app.do(http.MethodGet, "/api/v1/admin/storage", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("storage get status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{`"key":"primary"`, `"provider":"LOCAL"`, `"key":"cf-r2"`, `"provider":"CLOUDFLARE_R2"`, `"defaultKey":"primary"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("storage list missing %s: %s", want, body)
+		}
+	}
+
+	rec = app.do(http.MethodGet, "/api/v1/storage-options", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("storage options status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body = rec.Body.String()
+	for _, want := range []string{`"key":"primary"`, `"provider":"LOCAL"`, `"key":"cf-r2"`, `"provider":"CLOUDFLARE_R2"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("storage options missing %s: %s", want, body)
+		}
+	}
+}
+
 func TestAdminStorageConfigRejectsIncompleteSettings(t *testing.T) {
 	app := newTestApp(t)
 	app.login("admin", "changeme")

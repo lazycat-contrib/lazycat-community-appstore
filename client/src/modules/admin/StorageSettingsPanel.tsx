@@ -140,6 +140,7 @@ export function StorageSettingsPanel({
           <div className="storage-config-list" role="list" aria-label={t('admin.storageConfigs')}>
             {storages.map((storage) => {
               const isDefault = storage.key === effectiveDefaultKey;
+              const canDelete = !isDefault && storage.key !== defaultStorageSettings.key;
               return (
                 <div key={storage.key} className={cx('storage-config-row', storage.key === selectedKey && 'selected')} role="listitem">
                   <button type="button" className="storage-config-main" onClick={() => onSelect(storage.key)}>
@@ -157,7 +158,7 @@ export function StorageSettingsPanel({
                       <XButton className="storage-default-button" type="button" variant="secondary" size="sm" label={t('admin.setDefaultStorage')} icon={<Star size={16} />} onClick={() => void onSetDefault(storage)} />
                     )}
                     <XIconButton type="button" variant="ghost" size="sm" label={t('admin.testStorageNamed', { name: storage.name || storage.key })} icon={<Check size={16} />} onClick={() => void onTestSaved(storage)} />
-                    {!isDefault && (
+                    {canDelete && (
                       <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteStorageNamed', { name: storage.name || storage.key })} icon={<Trash2 size={16} />} onClick={() => void onDelete(storage)} />
                     )}
                   </span>
