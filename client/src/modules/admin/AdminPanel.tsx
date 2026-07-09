@@ -629,6 +629,7 @@ export function AdminPanel({
           label={field.label}
           description={field.help}
           value={settings[field.key] === 'true'}
+          labelPosition="start"
           labelSpacing="spread"
           width="100%"
           onChange={(checked) => updateSetting(field.key, checked ? 'true' : 'false')}

@@ -126,13 +126,15 @@ export function SecuritySettingsDialog({
                   />
                 </div>
               ) : (
-                <XButton
-                  type="button"
-                  variant="secondary"
-                  label={t('profile.enableTwoFactor')}
-                  icon={<KeyRound size={17} />}
-                  onClick={() => setTwoFactorDialogOpen(true)}
-                />
+                <div className="security-two-factor-actions security-two-factor-actions-compact">
+                  <XButton
+                    type="button"
+                    variant="secondary"
+                    label={t('profile.enableTwoFactor')}
+                    icon={<KeyRound size={17} />}
+                    onClick={() => setTwoFactorDialogOpen(true)}
+                  />
+                </div>
               )}
             </section>
           )}

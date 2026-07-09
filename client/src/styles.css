@@ -122,6 +122,10 @@ body,
   outline-offset: 2px;
 }
 
+#main-content:focus {
+  outline: none;
+}
+
 .skip-link {
   position: fixed;
   left: 16px;
@@ -986,6 +990,15 @@ body,
   min-width: min(240px, 100%);
   display: grid;
   gap: 10px;
+}
+
+.security-two-factor-actions > button {
+  width: 100%;
+  justify-content: center;
+}
+
+.security-two-factor-actions-compact {
+  justify-self: end;
 }
 
 .storage-settings-panel {
@@ -4326,6 +4339,10 @@ code {
 
   .security-two-factor-actions {
     width: 100%;
+  }
+
+  .security-two-factor-actions-compact {
+    justify-self: stretch;
   }
 
   .site-settings-panel {
