@@ -37,6 +37,7 @@ import { AstryxThemeSelector, LanguageSelector, readAstryxThemeName, readSystemT
 import { displayUserName } from './shared/appHelpers';
 import type {
   Category,
+  ClientAuthStatus,
   ClientInstallResult,
   CollaborationData,
   ClientSettings,
@@ -115,6 +116,19 @@ const DEFAULT_REVIEW_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalI
 const DEFAULT_HISTORY_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
 const DEFAULT_CLIENT_PAGE_SIZE = 24;
 const DEFAULT_INSTALL_SUCCESS_DISMISS_SECONDS = 3;
+const DEFAULT_CLIENT_AUTH: ClientAuthStatus = { authenticated: false, oidcEnabled: false, user: null };
+
+function defaultClientSettings(): ClientSettings {
+  return {
+    clientTitle: '',
+    commentDisplayName: '',
+    defaultPageSize: DEFAULT_CLIENT_PAGE_SIZE,
+    autoSyncEnabled: false,
+    autoSyncIntervalMinutes: 60,
+    syncOnStartup: false,
+    installSuccessDismissSeconds: DEFAULT_INSTALL_SUCCESS_DISMISS_SECONDS,
+  };
+}
 
 function isAnnouncementCurrentlyVisible(item: { enabled?: boolean; title?: string; body?: string; startsAt?: string; endsAt?: string }) {
   if (!item.enabled || (!item.title && !item.body)) return false;
@@ -209,15 +223,9 @@ export function App() {
   const [selectedAppMode, setSelectedAppMode] = useState<AppDetailMode>('detail');
   const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
   const [sources, setSources] = useState<SourceSubscription[]>([]);
-  const [clientSettings, setClientSettings] = useState<ClientSettings>({
-    clientTitle: '',
-    commentDisplayName: '',
-    defaultPageSize: DEFAULT_CLIENT_PAGE_SIZE,
-    autoSyncEnabled: false,
-    autoSyncIntervalMinutes: 60,
-    syncOnStartup: false,
-    installSuccessDismissSeconds: DEFAULT_INSTALL_SUCCESS_DISMISS_SECONDS,
-  });
+  const [clientAuth, setClientAuth] = useState<ClientAuthStatus>(DEFAULT_CLIENT_AUTH);
+  const [clientAuthLoaded, setClientAuthLoaded] = useState(false);
+  const [clientSettings, setClientSettings] = useState<ClientSettings>(defaultClientSettings);
   const [installedApps, setInstalledApps] = useState<InstalledApplication[]>([]);
   const [installHistory, setInstallHistory] = useState<InstallHistoryEntry[]>([]);
   const [installHistoryPagination, setInstallHistoryPagination] = useState<PaginationMeta>(DEFAULT_HISTORY_PAGINATION);
@@ -294,6 +302,19 @@ export function App() {
     },
     onCloseSourceDetail: () => setSelectedSourceApp(null),
   });
+  const clientAccountName = clientAuth.user?.displayName?.trim() || clientAuth.user?.id || t('clientAuth.lazyCatUser');
+  const clientAccountUser = useMemo<User | null>(() => {
+    if (!clientAuth.user) return null;
+    const name = clientAuth.user.displayName?.trim() || clientAuth.user.id;
+    return {
+      id: 0,
+      username: clientAuth.user.id,
+      nickname: name,
+      email: clientAuth.user.email,
+      role: 'USER',
+      avatarUrl: clientAuth.user.avatarUrl,
+    };
+  }, [clientAuth.user]);
 
   useEffect(() => {
     if (!installActivity || installActivity.status !== 'success') return;
@@ -320,6 +341,17 @@ export function App() {
       params.set('returnTo', returnTo);
     }
     navigateRoute(`/login${params.size ? `?${params.toString()}` : ''}`);
+  }
+
+  function startClientOIDCLogin() {
+    const next = currentRoute();
+    window.location.assign(`/auth/oidc/start?next=${encodeURIComponent(next)}`);
+  }
+
+  async function logoutClientIdentity() {
+    await clientApi('/auth/logout', { method: 'POST' });
+    setClientAuth(DEFAULT_CLIENT_AUTH);
+    await refreshClientData({ silent: true });
   }
 
   function completeLogin(nextUser: User) {
@@ -470,9 +502,11 @@ export function App() {
 
   useEffect(() => {
     if (HAS_API || sourceAppsLoaded || sourceAppsLoading) return;
+    if (!clientAuthLoaded) return;
+    if (clientAuth.oidcEnabled && !clientAuth.authenticated) return;
     if (tab !== 'sources' && tab !== 'search' && tab !== 'history') return;
     void loadClientApps();
-  }, [sourceAppsLoaded, sourceAppsLoading, tab]);
+  }, [clientAuth.authenticated, clientAuth.oidcEnabled, clientAuthLoaded, sourceAppsLoaded, sourceAppsLoading, tab]);
 
   useEffect(() => {
     if (!HAS_API || isLoginRoute) return;
@@ -659,6 +693,18 @@ export function App() {
     }
   }
 
+  async function loadClientAuth() {
+    const data = await clientApi<ClientAuthStatus>('/auth/me');
+    const nextAuth: ClientAuthStatus = {
+      authenticated: Boolean(data.authenticated),
+      oidcEnabled: Boolean(data.oidcEnabled),
+      user: data.user || null,
+    };
+    setClientAuth(nextAuth);
+    setClientAuthLoaded(true);
+    return nextAuth;
+  }
+
   async function loadClientSources() {
     const data = await clientApi<{ sources: SourceSubscription[] }>('/sources');
     const nextSources = arrayOrEmpty(data.sources);
@@ -692,16 +738,7 @@ export function App() {
 
   async function loadClientSettings() {
     const data = await clientApi<{ settings: ClientSettings }>('/settings');
-    const defaultSettings: ClientSettings = {
-      clientTitle: '',
-      commentDisplayName: '',
-      defaultPageSize: DEFAULT_CLIENT_PAGE_SIZE,
-      autoSyncEnabled: false,
-      autoSyncIntervalMinutes: 60,
-      syncOnStartup: false,
-      installSuccessDismissSeconds: DEFAULT_INSTALL_SUCCESS_DISMISS_SECONDS,
-    };
-    const nextSettings = { ...defaultSettings, ...(data.settings || {}) };
+    const nextSettings = { ...defaultClientSettings(), ...(data.settings || {}) };
     setClientSettings(nextSettings);
     return nextSettings;
   }
@@ -728,6 +765,17 @@ export function App() {
     setUser(null);
     setSourceAppsLoaded(false);
     try {
+      const auth = await loadClientAuth();
+      if (auth.oidcEnabled && !auth.authenticated) {
+        setSources([]);
+        setSourceApps([]);
+        setSourceAppsLoaded(true);
+        setInstalledApps([]);
+        setInstallHistory([]);
+        setInstallHistoryPagination(DEFAULT_HISTORY_PAGINATION);
+        setClientSettings(defaultClientSettings());
+        return;
+      }
       await Promise.all([loadClientSources(), loadClientSettings()]);
       void loadInstallHistory();
     } catch (error) {
@@ -1114,6 +1162,42 @@ export function App() {
                     </div>
                   ) : HAS_API ? (
                     <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => openLogin('/')} />
+                  ) : clientAccountUser ? (
+                    <div className="account-menu">
+                      <XDropdownMenu
+                        button={{
+                          label: clientAccountName,
+                          variant: 'secondary',
+                          className: 'account-trigger',
+                          children: (
+                            <span className="account-trigger-content">
+                              <UserAvatar user={clientAccountUser} size={32} className="account-avatar" />
+                              <span className="account-trigger-name">{clientAccountName}</span>
+                            </span>
+                          ),
+                        }}
+                        menuWidth={210}
+                        items={[
+                          {
+                            label: t('clientAuth.signedInWithLazyCat'),
+                            icon: <UserRound size={16} />,
+                            onClick: () => navigateTo('profile'),
+                          },
+                          ...(clientAuth.user?.source === 'oidc'
+                            ? [{
+                                label: t('auth.logout'),
+                                icon: <LogOut size={16} />,
+                                onClick: () =>
+                                  void runAction(setToast, t('toast.logoutFailed'), async () => {
+                                    await logoutClientIdentity();
+                                  }),
+                              }]
+                            : []),
+                        ]}
+                      />
+                    </div>
+                  ) : clientAuth.oidcEnabled ? (
+                    <XButton type="button" variant="secondary" label={t('clientAuth.loginWithLazyCat')} icon={<LogIn size={16} />} onClick={startClientOIDCLogin} />
                   ) : null}
                 </div>
               )}
@@ -1163,7 +1247,16 @@ export function App() {
                 }}
               />
             )}
-            {HAS_API && selectedApp ? (
+            {!HAS_API && clientAuth.oidcEnabled && !clientAuth.authenticated ? (
+              <section className="page-grid">
+                <EmptyState
+                  icon={LogIn}
+                  title={t('clientAuth.loginRequired')}
+                  body={t('clientAuth.loginRequiredBody')}
+                  action={{ label: t('clientAuth.loginWithLazyCat'), icon: LogIn, onClick: startClientOIDCLogin }}
+                />
+              </section>
+            ) : HAS_API && selectedApp ? (
               <AppDrawer
                 app={selectedApp}
                 mode={selectedAppMode}

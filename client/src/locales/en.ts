@@ -167,6 +167,13 @@ const en = {
         syncAllSources: 'Sync all sources',
         login: 'Log in',
       },
+      clientAuth: {
+        lazyCatUser: 'LazyCat user',
+        loginWithLazyCat: 'Sign in with LazyCat OIDC',
+        loginRequired: 'LazyCat identity required',
+        loginRequiredBody: 'Sign in to load software sources, client settings, and install history for your LazyCat account.',
+        signedInWithLazyCat: 'LazyCat identity',
+      },
       toast: {
         apiMissing: 'Server API is not configured',
         invalidApiResponse: 'Invalid API response format',

@@ -298,6 +298,20 @@ export type ClientSettings = {
   lastAutoSyncError?: string;
 };
 
+export type ClientIdentity = {
+  id: string;
+  displayName: string;
+  email?: string;
+  avatarUrl?: string;
+  source: 'header' | 'oidc' | 'local' | string;
+};
+
+export type ClientAuthStatus = {
+  authenticated: boolean;
+  oidcEnabled: boolean;
+  user?: ClientIdentity | null;
+};
+
 export type CommentNotification = {
   id: number;
   appId: number;

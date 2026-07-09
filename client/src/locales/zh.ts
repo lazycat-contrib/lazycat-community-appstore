@@ -167,6 +167,13 @@ const zh = {
         syncAllSources: '同步所有软件源',
         login: '登录',
       },
+      clientAuth: {
+        lazyCatUser: '懒猫用户',
+        loginWithLazyCat: '使用懒猫 OIDC 登录',
+        loginRequired: '需要懒猫身份',
+        loginRequiredBody: '登录后会按你的懒猫账号读取软件源、客户端设置和安装历史。',
+        signedInWithLazyCat: '懒猫身份',
+      },
       toast: {
         apiMissing: '未配置服务端 API',
         invalidApiResponse: 'API 响应格式异常',

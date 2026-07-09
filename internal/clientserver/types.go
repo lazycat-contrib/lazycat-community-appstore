@@ -76,6 +76,20 @@ type ErrorResponse struct {
 	} `json:"error"`
 }
 
+type ClientIdentityDTO struct {
+	ID          string `json:"id"`
+	DisplayName string `json:"displayName"`
+	Email       string `json:"email,omitempty"`
+	AvatarURL   string `json:"avatarUrl,omitempty"`
+	Source      string `json:"source"`
+}
+
+type ClientAuthStatusDTO struct {
+	Authenticated bool               `json:"authenticated"`
+	OIDCEnabled   bool               `json:"oidcEnabled"`
+	User          *ClientIdentityDTO `json:"user,omitempty"`
+}
+
 type VersionDTO struct {
 	Version             string `json:"version"`
 	DownloadURL         string `json:"downloadUrl"`

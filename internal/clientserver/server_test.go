@@ -80,6 +80,66 @@ func TestSourceCRUDIsUserScoped(t *testing.T) {
 	}
 }
 
+func TestClientOIDCSessionScopesSources(t *testing.T) {
+	app := testServer(t)
+	aliceCookie := app.sessionCookie(t, clientSessionClaims{
+		UserID:      "alice",
+		DisplayName: "Alice",
+		Expiry:      time.Now().Add(time.Hour).Unix(),
+	})
+
+	create := app.requestWithCookies("POST", "/api/client/v1/sources", `{"name":"A","url":"https://a.example/source/v1/index.json"}`, "", []*http.Cookie{aliceCookie})
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create with OIDC session = %d %s", create.Code, create.Body.String())
+	}
+	list := app.requestWithCookies("GET", "/api/client/v1/sources", ``, "", []*http.Cookie{aliceCookie})
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "a.example") {
+		t.Fatalf("alice source missing with OIDC session: status=%d body=%s", list.Code, list.Body.String())
+	}
+	localList := app.request("GET", "/api/client/v1/sources", ``, "")
+	if strings.Contains(localList.Body.String(), "a.example") {
+		t.Fatalf("local user saw OIDC source: %s", localList.Body.String())
+	}
+}
+
+func TestClientHeaderIdentityOverridesOIDCSession(t *testing.T) {
+	app := testServer(t)
+	aliceCookie := app.sessionCookie(t, clientSessionClaims{
+		UserID: "alice",
+		Expiry: time.Now().Add(time.Hour).Unix(),
+	})
+	create := app.requestWithCookies("POST", "/api/client/v1/sources", `{"name":"B","url":"https://b.example/source/v1/index.json"}`, "bob", []*http.Cookie{aliceCookie})
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create with header and session = %d %s", create.Code, create.Body.String())
+	}
+	bobList := app.request("GET", "/api/client/v1/sources", ``, "bob")
+	if !strings.Contains(bobList.Body.String(), "b.example") {
+		t.Fatalf("header user did not own source: %s", bobList.Body.String())
+	}
+	aliceList := app.requestWithCookies("GET", "/api/client/v1/sources", ``, "", []*http.Cookie{aliceCookie})
+	if strings.Contains(aliceList.Body.String(), "b.example") {
+		t.Fatalf("OIDC session user saw header-owned source: %s", aliceList.Body.String())
+	}
+}
+
+func TestClientOIDCEnabledRequiresIdentity(t *testing.T) {
+	app := testServer(t)
+	app.server.auth.oidc = &clientOIDCRuntime{}
+
+	rec := app.request("GET", "/api/client/v1/sources", ``, "")
+	if rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), "CLIENT_AUTH_REQUIRED") {
+		t.Fatalf("expected auth requirement, got %d %s", rec.Code, rec.Body.String())
+	}
+	me := app.request("GET", "/api/client/v1/auth/me", ``, "")
+	if me.Code != http.StatusOK || !strings.Contains(me.Body.String(), `"oidcEnabled":true`) || !strings.Contains(me.Body.String(), `"authenticated":false`) {
+		t.Fatalf("auth status mismatch: %d %s", me.Code, me.Body.String())
+	}
+	header := app.request("GET", "/api/client/v1/sources", ``, "alice")
+	if header.Code != http.StatusOK {
+		t.Fatalf("header identity should bypass explicit OIDC login: %d %s", header.Code, header.Body.String())
+	}
+}
+
 func TestSourceDuplicateURLForUserFails(t *testing.T) {
 	app := testServer(t)
 	body := `{"name":"A","url":"https://a.example/source/v1/index.json"}`
@@ -578,6 +638,10 @@ func testServer(t *testing.T) *clientTestServer {
 }
 
 func (a *clientTestServer) request(method, target, body, userID string) *httptest.ResponseRecorder {
+	return a.requestWithCookies(method, target, body, userID, nil)
+}
+
+func (a *clientTestServer) requestWithCookies(method, target, body, userID string, cookies []*http.Cookie) *httptest.ResponseRecorder {
 	a.t.Helper()
 	req := httptest.NewRequest(method, target, strings.NewReader(body))
 	if body != "" {
@@ -586,9 +650,21 @@ func (a *clientTestServer) request(method, target, body, userID string) *httptes
 	if userID != "" {
 		req.Header.Set("x-hc-user-id", userID)
 	}
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
 	rec := httptest.NewRecorder()
 	a.handler.ServeHTTP(rec, req)
 	return rec
+}
+
+func (a *clientTestServer) sessionCookie(t *testing.T, claims clientSessionClaims) *http.Cookie {
+	t.Helper()
+	value, err := a.server.auth.signJSON(claims)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &http.Cookie{Name: clientSessionCookie, Value: value, Path: "/"}
 }
 
 func testClient(t *testing.T) *ent.Client {

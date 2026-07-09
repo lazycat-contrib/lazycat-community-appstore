@@ -5,6 +5,7 @@ usage: |
 application:
   subdomain: lazycat-appstore
   background_task: true
+  oidc_redirect_path: /auth/oidc/callback
   public_path:
     - /
   upstreams:
@@ -14,6 +15,12 @@ application:
   environment:
     - CLIENT_ADDR=127.0.0.1:8090
     - CLIENT_DB_DSN=/lzcapp/var/data/client.db
+    - CLIENT_SESSION_SECRET={{ stable_secret "client_session_secret_v1" }}
+    - CLIENT_OIDC_ENABLED=true
+    - CLIENT_OIDC_ISSUER_URL=${LAZYCAT_AUTH_OIDC_ISSUER_URI}
+    - CLIENT_OIDC_CLIENT_ID=${LAZYCAT_AUTH_OIDC_CLIENT_ID}
+    - CLIENT_OIDC_CLIENT_SECRET=${LAZYCAT_AUTH_OIDC_CLIENT_SECRET}
+    - CLIENT_OIDC_REDIRECT_URL=https://${LAZYCAT_APP_DOMAIN}/auth/oidc/callback
   health_check:
     test_url: http://127.0.0.1:8090/healthz
     start_period: 10s
