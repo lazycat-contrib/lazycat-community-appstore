@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Copy, Plus, RefreshCw, Trash2, Users, X } from 'lucide-react';
+import { Copy, Pencil, Plus, RefreshCw, Trash2, Users, X } from 'lucide-react';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
@@ -14,7 +14,6 @@ import { ModalLayer } from '../../shared/components/ModalLayer';
 import type { Group, Toast } from '../../shared/types';
 import { errorMessage, runAction } from '../../shared/utils';
 import { GroupCodeManager } from './GroupCodeManager';
-import { GroupMemberManager } from './GroupMemberManager';
 
 type GroupDraft = { name: string; description: string };
 
@@ -28,9 +27,10 @@ export function AdminGroupsPanel({
   const { t } = useTranslation();
   const [groups, setGroups] = useState<Group[]>([]);
   const [draft, setDraft] = useState<GroupDraft>({ name: '', description: '' });
+  const [editDraft, setEditDraft] = useState<GroupDraft>({ name: '', description: '' });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [expandedGroupID, setExpandedGroupID] = useState<number | null>(null);
   const [selectedGroupIDs, setSelectedGroupIDs] = useState<number[]>([]);
+  const [groupToEdit, setGroupToEdit] = useState<Group | null>(null);
   const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
   const [groupCodeToRotate, setGroupCodeToRotate] = useState<Group | null>(null);
   const [generatedConfig, setGeneratedConfig] = useState<{ encoded: string; config: { sourceUrl: string; groupCodes: string[]; groups: Array<{ name: string; code?: string }> } } | null>(null);
@@ -58,6 +58,18 @@ export function AdminGroupsPanel({
     });
   }
 
+  async function updateGroup(event: FormEvent) {
+    event.preventDefault();
+    if (!groupToEdit) return;
+    await runAction(setToast, t('groups.updateFailed'), async () => {
+      await api(`/api/v1/groups/${groupToEdit.id}`, { method: 'PATCH', body: JSON.stringify(editDraft) });
+      setGroupToEdit(null);
+      setEditDraft({ name: '', description: '' });
+      setToast({ tone: 'success', message: t('groups.updated') });
+      await loadGroups();
+    });
+  }
+
   async function deleteGroup(group: Group) {
     await runAction(setToast, t('groups.deleteFailed'), async () => {
       await api(`/api/v1/groups/${group.id}`, { method: 'DELETE' });
@@ -72,22 +84,6 @@ export function AdminGroupsPanel({
       await api(`/api/v1/groups/${group.id}/code:rotate`, { method: 'POST' });
       setGroupCodeToRotate(null);
       setToast({ tone: 'success', message: t('admin.groups.rotated') });
-      await loadGroups();
-    });
-  }
-
-  async function addMember(groupID: number, userID: number) {
-    await runAction(setToast, t('groups.addMemberFailed'), async () => {
-      await api(`/api/v1/groups/${groupID}/members/${userID}`, { method: 'POST' });
-      setToast({ tone: 'success', message: t('groups.memberAdded') });
-      await loadGroups();
-    });
-  }
-
-  async function removeMember(groupID: number, userID: number) {
-    await runAction(setToast, t('groups.removeMemberFailed'), async () => {
-      await api(`/api/v1/groups/${groupID}/members/${userID}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: t('groups.memberRemoved') });
       await loadGroups();
     });
   }
@@ -114,6 +110,11 @@ export function AdminGroupsPanel({
 
   function toggleSelected(groupID: number, checked: boolean) {
     setSelectedGroupIDs((current) => checked ? Array.from(new Set([...current, groupID])) : current.filter((id) => id !== groupID));
+  }
+
+  function openGroupEditor(group: Group) {
+    setGroupToEdit(group);
+    setEditDraft({ name: group.name, description: group.description || '' });
   }
 
   return (
@@ -148,26 +149,15 @@ export function AdminGroupsPanel({
                 description={group.description || group.slug}
                 endContent={(
                   <div className="row-actions">
-                    <XBadge label={t('admin.groups.memberCount', { count: group.memberCount || 0 })} variant="neutral" />
                     <XBadge label={t('admin.groups.appCount', { count: group.attachedAppCount || 0 })} variant={(group.attachedAppCount || 0) > 0 ? 'info' : 'neutral'} />
                     <GroupCodeManager group={group} onRotate={setGroupCodeToRotate} setToast={setToast} />
-                    <XIconButton type="button" variant="ghost" size="sm" label={expandedGroupID === group.id ? t('groups.hideManagement') : t('groups.manage')} icon={<Users size={16} />} onClick={() => setExpandedGroupID(expandedGroupID === group.id ? null : group.id)} />
+                    <XIconButton type="button" variant="ghost" size="sm" label={t('groups.editGroup')} icon={<Pencil size={16} />} onClick={() => openGroupEditor(group)} />
                     <XIconButton type="button" variant="destructive" size="sm" label={t('groups.deleteGroup')} icon={<Trash2 size={16} />} onClick={() => setGroupToDelete(group)} />
                   </div>
                 )}
               />
             ))}
           </XList>
-        )}
-        {expandedGroupID && (
-          <div className="group-management-panel">
-            <SectionTitle icon={Users} title={t('groups.memberManagement')} />
-            <GroupMemberManager
-              group={groups.find((group) => group.id === expandedGroupID)!}
-              onAddMember={addMember}
-              onRemoveMember={removeMember}
-            />
-          </div>
         )}
       </section>
 
@@ -196,6 +186,23 @@ export function AdminGroupsPanel({
             <div className="dialog-actions">
               <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setIsCreateOpen(false)} />
               <XButton type="submit" variant="primary" label={t('groups.create')} icon={<Plus size={17} />} />
+            </div>
+          </form>
+        </ModalLayer>
+      )}
+
+      {groupToEdit && (
+        <ModalLayer onClose={() => setGroupToEdit(null)} purpose="form">
+          <form className="modal-panel form-panel group-dialog" aria-label={t('groups.editGroup')} onSubmit={updateGroup}>
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setGroupToEdit(null)} />
+            <SectionTitle icon={Pencil} title={t('groups.editGroup')} />
+            <XFormLayout>
+              <XTextInput label={t('groups.name')} value={editDraft.name} onChange={(value) => setEditDraft({ ...editDraft, name: value })} />
+              <XTextInput label={t('groups.description')} value={editDraft.description} onChange={(value) => setEditDraft({ ...editDraft, description: value })} />
+            </XFormLayout>
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setGroupToEdit(null)} />
+              <XButton type="submit" variant="primary" label={t('groups.saveChanges')} icon={<Pencil size={17} />} />
             </div>
           </form>
         </ModalLayer>

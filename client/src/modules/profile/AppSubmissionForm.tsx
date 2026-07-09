@@ -1,6 +1,7 @@
 import type { FormEvent, RefObject } from 'react';
-import { AlertCircle, Check, ChevronRight, Link, ShieldCheck, Upload, X } from 'lucide-react';
+import { AlertCircle, Check, ChevronRight, HelpCircle, Link, ShieldCheck, Upload, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
@@ -358,13 +359,24 @@ export function AppSubmissionForm({
           width="100%"
           onChange={(checked) => onDraftChange({ ...draft, emailNotificationsEnabled: checked })}
         />
-        <XSwitch
-          label={t('submitApp.allowUnreviewedUpdates')}
-          value={draft.allowUnreviewedUpdates}
-          labelSpacing="spread"
-          width="100%"
-          onChange={(checked) => onDraftChange({ ...draft, allowUnreviewedUpdates: checked })}
-        />
+        <div className="switch-help-row">
+          <XSwitch
+            label={t('submitApp.allowUnreviewedUpdates')}
+            value={draft.allowUnreviewedUpdates}
+            labelSpacing="spread"
+            width="100%"
+            onChange={(checked) => onDraftChange({ ...draft, allowUnreviewedUpdates: checked })}
+          />
+          <XIconButton
+            type="button"
+            variant="ghost"
+            size="sm"
+            label={t('submitApp.allowUnreviewedUpdatesHelpButton')}
+            tooltip={t('submitApp.allowUnreviewedUpdatesHelp')}
+            icon={<HelpCircle size={16} />}
+          />
+        </div>
+        <p className="field-help">{t('submitApp.allowUnreviewedUpdatesHelp')}</p>
         {submissionProgress && (
           <div className="submit-progress" role="status" aria-live="polite">
             <div className="submit-progress-row">

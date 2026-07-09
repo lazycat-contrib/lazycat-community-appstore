@@ -715,6 +715,7 @@ export function AppDrawer({
               />
               <XCheckboxInput
                 label={t('submitApp.allowUnreviewedUpdates')}
+                description={t('submitApp.allowUnreviewedUpdatesHelp')}
                 value={appForm.allowUnreviewedUpdates}
                 onChange={(allowUnreviewedUpdates) => setAppForm((current) => ({ ...current, allowUnreviewedUpdates }))}
               />

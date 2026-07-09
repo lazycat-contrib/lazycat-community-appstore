@@ -79,6 +79,43 @@ func (s *Server) handleCreateGroup(w http.ResponseWriter, r *http.Request, u *en
 	writeJSON(w, http.StatusCreated, map[string]any{"group": dto})
 }
 
+func (s *Server) handleUpdateGroup(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	groupID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		badRequest(w, err)
+		return
+	}
+	if !s.canManageGroup(r, groupID, u) {
+		writeError(w, http.StatusForbidden, "FORBIDDEN", "You cannot manage this group", nil)
+		return
+	}
+	var input groupRequest
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Group name is required", nil)
+		return
+	}
+	record, err := s.db.UserGroup.UpdateOneID(groupID).
+		SetName(name).
+		SetSlug(slugify(name)).
+		SetDescription(strings.TrimSpace(input.Description)).
+		Save(r.Context())
+	if err != nil {
+		writeError(w, http.StatusConflict, "GROUP_UPDATE_FAILED", "Could not update group", nil)
+		return
+	}
+	dto, err := s.groupDTO(r, record)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "GROUP_UPDATE_FAILED", "Could not update group", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"group": dto})
+}
+
 func (s *Server) handleDeleteGroup(w http.ResponseWriter, r *http.Request, u *entgo.User) {
 	groupID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {

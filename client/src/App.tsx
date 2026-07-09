@@ -99,6 +99,7 @@ const AdminPanel = lazy(() => import('./modules/admin/AdminPanel').then((module)
 const LoginPage = lazy(() => import('./modules/auth/LoginPage').then((module) => ({ default: module.LoginPage })));
 const SetupWizard = lazy(() => import('./modules/auth/SetupWizard').then((module) => ({ default: module.SetupWizard })));
 const ProfileSettingsDialog = lazy(() => import('./modules/profile/ProfileSettingsDialog').then((module) => ({ default: module.ProfileSettingsDialog })));
+const SecuritySettingsDialog = lazy(() => import('./modules/profile/SecuritySettingsDialog').then((module) => ({ default: module.SecuritySettingsDialog })));
 const ProfileView = lazy(() => import('./modules/profile/ProfileView').then((module) => ({ default: module.ProfileView })));
 const SearchView = lazy(() => import('./modules/search/SearchView').then((module) => ({ default: module.SearchView })));
 const AppDrawer = lazy(() => import('./modules/storefront/AppDrawer').then((module) => ({ default: module.AppDrawer })));
@@ -246,6 +247,7 @@ export function App() {
   const [loading, setLoading] = useState(true);
   const [setupRequired, setSetupRequired] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
+  const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [openSubmitSignal, setOpenSubmitSignal] = useState(0);
   const acceptedCollaborationInviteRef = useRef('');
   const defaultSourceCheckedRef = useRef(false);
@@ -616,6 +618,7 @@ export function App() {
     setSelectedApp(null);
     setSelectedAppMode('detail');
     setIsProfileDialogOpen(false);
+    setIsSecurityDialogOpen(false);
   }
 
   async function logoutCurrentUser() {
@@ -1142,6 +1145,11 @@ export function App() {
                             icon: <UserRound size={16} />,
                             onClick: () => setIsProfileDialogOpen(true),
                           },
+                          {
+                            label: t('profile.securityOptions'),
+                            icon: <ShieldCheck size={16} />,
+                            onClick: () => setIsSecurityDialogOpen(true),
+                          },
                           ...(serverChatVisible
                             ? [{
                                 label: t('nav.chat'),
@@ -1211,11 +1219,25 @@ export function App() {
             <ProfileSettingsDialog
               user={user}
               storageOptions={storageOptions}
-              twoFactorAvailable={Boolean(siteProfile.security?.twoFactorAuthEnabled)}
               onClose={() => setIsProfileDialogOpen(false)}
               onSaved={(nextUser) => {
                 setUser(nextUser);
                 setIsProfileDialogOpen(false);
+                void refreshAll({ silent: true });
+              }}
+              setToast={setToast}
+            />
+          </Suspense>
+        )}
+
+        {HAS_API && user && isSecurityDialogOpen && (
+          <Suspense fallback={null}>
+            <SecuritySettingsDialog
+              user={user}
+              twoFactorAvailable={Boolean(siteProfile.security?.twoFactorAuthEnabled)}
+              onClose={() => setIsSecurityDialogOpen(false)}
+              onSaved={(nextUser) => {
+                setUser(nextUser);
                 void refreshAll({ silent: true });
               }}
               setToast={setToast}

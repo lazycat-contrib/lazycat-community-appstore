@@ -2649,6 +2649,41 @@ func TestSourceFeedIncludesGroupAppsOnlyWithValidCode(t *testing.T) {
 	}
 }
 
+func TestSourceFeedDeduplicatesAppsAcrossGroupCodes(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	alpha := app.server.db.UserGroup.Create().SetOwnerID(admin.ID).SetName("Alpha").SetSlug("alpha").SetCode("ABC111").SaveX(ctx)
+	beta := app.server.db.UserGroup.Create().SetOwnerID(admin.ID).SetName("Beta").SetSlug("beta").SetCode("DEF222").SaveX(ctx)
+	privateApp := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.group-dedup").
+		SetName("Group Dedup").
+		SetSlug("group-dedup").
+		SetSummary("Private").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	app.server.db.AppVisibility.Create().SetAppID(privateApp.ID).SetGroupID(alpha.ID).SaveX(ctx)
+	app.server.db.AppVisibility.Create().SetAppID(privateApp.ID).SetGroupID(beta.ID).SaveX(ctx)
+	app.server.db.AppVersion.Create().
+		SetAppID(privateApp.ID).
+		SetUploaderID(admin.ID).
+		SetVersion("1.0.0").
+		SetStatus(appversion.StatusAPPROVED).
+		SetSourceType(appversion.SourceTypeGITHUB).
+		SetDownloadURL("https://github.com/acme/dedup/releases/download/v1/app.lpk").
+		SaveX(ctx)
+
+	rec := app.do(http.MethodGet, "/source/v1/index.json?groupCodes=ABC111,DEF222", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("group feed status = %d body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if count := strings.Count(body, `"packageId":"cloud.lazycat.test.group-dedup"`); count != 1 {
+		t.Fatalf("group app appeared %d times, body = %s", count, body)
+	}
+}
+
 func TestGroupBoundDownloadRequiresValidGroupCode(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()
@@ -2713,6 +2748,49 @@ func TestGroupMembershipAndVisibilityRejectInvalidAssignments(t *testing.T) {
 	ids := app.server.visibleGroupIDs(ctx, record.ID)
 	if len(ids) != 1 || ids[0] != ownedGroup.ID {
 		t.Fatalf("visibility changed after rejected request: %#v", ids)
+	}
+}
+
+func TestGroupUpdateRenamesGroupWithAuthorization(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	owner := app.server.db.User.Create().SetUsername("group-edit-owner").SetPasswordHash("x").SaveX(ctx)
+	otherOwner := app.server.db.User.Create().SetUsername("group-edit-other").SetPasswordHash("x").SaveX(ctx)
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	ownedGroup := app.server.db.UserGroup.Create().SetOwnerID(owner.ID).SetName("Old Team").SetSlug("old-team").SetDescription("old note").SaveX(ctx)
+	otherGroup := app.server.db.UserGroup.Create().SetOwnerID(otherOwner.ID).SetName("Other Team").SetSlug("other-team").SaveX(ctx)
+
+	app.cookies = []*http.Cookie{app.serverCookieFor(owner.ID)}
+	rec := app.do(http.MethodPatch, fmt.Sprintf("/api/v1/groups/%d", ownedGroup.ID), map[string]string{
+		"name":        "Research Team",
+		"description": "private beta testers",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update owned group status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"name":"Research Team"`) || !strings.Contains(rec.Body.String(), `"slug":"research-team"`) || !strings.Contains(rec.Body.String(), `"description":"private beta testers"`) {
+		t.Fatalf("update response missing renamed fields: %s", rec.Body.String())
+	}
+	updated := app.server.db.UserGroup.GetX(ctx, ownedGroup.ID)
+	if updated.Name != "Research Team" || updated.Slug != "research-team" || updated.Description != "private beta testers" {
+		t.Fatalf("updated group = name:%q slug:%q description:%q", updated.Name, updated.Slug, updated.Description)
+	}
+
+	rec = app.do(http.MethodPatch, fmt.Sprintf("/api/v1/groups/%d", otherGroup.ID), map[string]string{"name": "Stolen"})
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("update foreign group status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := app.server.db.UserGroup.GetX(ctx, otherGroup.ID).Name; got != "Other Team" {
+		t.Fatalf("foreign group name changed to %q", got)
+	}
+
+	app.cookies = []*http.Cookie{app.serverCookieFor(admin.ID)}
+	rec = app.do(http.MethodPatch, fmt.Sprintf("/api/v1/groups/%d", otherGroup.ID), map[string]string{
+		"name":        "Admin Managed",
+		"description": "renamed by admin",
+	})
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"name":"Admin Managed"`) {
+		t.Fatalf("admin update group status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
 

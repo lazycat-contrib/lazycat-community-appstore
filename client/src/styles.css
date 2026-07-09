@@ -912,6 +912,10 @@ body,
   width: min(620px, 100%);
 }
 
+.security-dialog {
+  width: min(620px, 100%);
+}
+
 .profile-dialog-head {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
@@ -962,6 +966,26 @@ body,
   color: var(--muted);
   font-size: 13px;
   line-height: 1.4;
+}
+
+.security-password-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.security-two-factor-panel {
+  align-items: start;
+}
+
+.security-two-factor-actions {
+  min-width: min(240px, 100%);
+  display: grid;
+  gap: 10px;
 }
 
 .storage-settings-panel {
@@ -2132,6 +2156,14 @@ body,
   font-size: 12px;
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+.switch-help-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
 }
 
 .form-error {
@@ -4290,6 +4322,10 @@ code {
   .profile-security-panel > button {
     width: 100%;
     justify-content: center;
+  }
+
+  .security-two-factor-actions {
+    width: 100%;
   }
 
   .site-settings-panel {

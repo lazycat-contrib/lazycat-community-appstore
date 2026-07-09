@@ -253,6 +253,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/visibility", s.withAuth(s.handleSetAppVisibility))
 	s.mux.HandleFunc("GET /api/v1/groups", s.withAuth(s.handleListGroups))
 	s.mux.HandleFunc("POST /api/v1/groups", s.withAuth(s.handleCreateGroup))
+	s.mux.HandleFunc("PATCH /api/v1/groups/{id}", s.withAuth(s.handleUpdateGroup))
 	s.mux.HandleFunc("POST /api/v1/groups/client-config", s.withAuth(s.handleGroupClientConfig))
 	s.mux.HandleFunc("POST /api/v1/groups/{id}/code:rotate", s.withAuth(s.handleRotateGroupCode))
 	s.mux.HandleFunc("DELETE /api/v1/groups/{id}", s.withAuth(s.handleDeleteGroup))
