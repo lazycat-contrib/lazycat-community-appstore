@@ -196,6 +196,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/auth/register", s.handleRegister)
 	s.mux.HandleFunc("POST /api/v1/auth/verify-email", s.handleVerifyEmail)
 	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
+	s.mux.HandleFunc("POST /api/v1/auth/password-reset/request", s.handleRequestPasswordReset)
+	s.mux.HandleFunc("POST /api/v1/auth/password-reset/confirm", s.handleConfirmPasswordReset)
 	s.mux.HandleFunc("POST /api/v1/auth/logout", s.handleLogout)
 	s.mux.HandleFunc("GET /api/v1/setup/status", s.handleSetupStatus)
 	s.mux.HandleFunc("POST /api/v1/setup", s.handleSetup)
@@ -203,6 +205,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/auth/me", s.withAuth(s.handleMe))
 	s.mux.HandleFunc("PATCH /api/v1/me/profile", s.withAuth(s.handleUpdateMyProfile))
 	s.mux.HandleFunc("POST /api/v1/me/avatar", s.withAuth(s.handleUploadMyAvatar))
+	s.mux.HandleFunc("POST /api/v1/me/2fa/setup", s.withAuth(s.handleTwoFactorSetup))
+	s.mux.HandleFunc("POST /api/v1/me/2fa/enable", s.withAuth(s.handleTwoFactorEnable))
+	s.mux.HandleFunc("POST /api/v1/me/2fa/disable", s.withAuth(s.handleTwoFactorDisable))
 	s.mux.HandleFunc("GET /api/v1/me/tokens", s.withAuth(s.handleListTokens))
 	s.mux.HandleFunc("POST /api/v1/me/tokens", s.withAuth(s.handleCreateToken))
 	s.mux.HandleFunc("DELETE /api/v1/me/tokens/{id}", s.withAuth(s.handleDeleteToken))
@@ -284,6 +289,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/admin/users", s.withRole(userRoleSiteAdmin)(s.handleAdminListUsers))
 	s.mux.HandleFunc("POST /api/v1/admin/users", s.withRole(userRoleSiteAdmin)(s.handleAdminCreateUser))
 	s.mux.HandleFunc("PATCH /api/v1/admin/users/{id}", s.withRole(userRoleSiteAdmin)(s.handleAdminUpdateUser))
+	s.mux.HandleFunc("POST /api/v1/admin/users/{id}/2fa/reset", s.withRole(userRoleSiteAdmin)(s.handleAdminResetUserTwoFactor))
 	s.mux.HandleFunc("DELETE /api/v1/admin/users/{id}", s.withRole(userRoleSiteAdmin)(s.handleAdminDeleteUser))
 	s.mux.HandleFunc("GET /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleGetSettings))
 	s.mux.HandleFunc("PATCH /api/v1/admin/settings", s.withRole(userRoleSiteAdmin)(s.handleUpdateSettings))
@@ -410,7 +416,7 @@ func (h spaFileServer) serveAppConfig(w http.ResponseWriter, r *http.Request) {
 	configJSON, err := json.Marshal(map[string]string{
 		"apiBaseURL":        "",
 		"defaultSourceURL":  strings.TrimRight(h.cfg.BaseURL, "/") + "/source/v2/index.json",
-		"defaultSourceName": "懒猫私有商店",
+		"defaultSourceName": "喵喵私有商店",
 		"appVersion":        buildinfo.Version,
 	})
 	if err != nil {

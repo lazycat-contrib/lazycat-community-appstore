@@ -197,6 +197,7 @@ export function AdminPanel({
     { key: 'comments_enabled', label: t('admin.settings.commentsEnabled'), help: t('admin.settingsHelp.commentsEnabled'), type: 'boolean' },
     { key: 'chat_enabled', label: t('admin.settings.chatEnabled'), help: t('admin.settingsHelp.chatEnabled'), type: 'boolean' },
     { key: 'chat_retention_days', label: t('admin.settings.chatRetentionDays'), help: t('admin.settingsHelp.chatRetentionDays'), inputMode: 'numeric' },
+    { key: 'two_factor_auth_enabled', label: t('admin.settings.twoFactorAuthEnabled'), help: t('admin.settingsHelp.twoFactorAuthEnabled'), type: 'boolean' },
     { key: 'allow_manual_outdated_clear', label: t('admin.settings.allowManualOutdatedClear'), help: t('admin.settingsHelp.allowManualOutdatedClear'), type: 'boolean' },
     { key: 'min_client_version', label: t('admin.settings.minClientVersion'), help: t('admin.settingsHelp.minClientVersion') },
     { key: 'min_client_version_message', label: t('admin.settings.minClientVersionMessage'), help: t('admin.settingsHelp.minClientVersionMessage'), type: 'textarea' },

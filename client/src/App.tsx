@@ -210,6 +210,7 @@ export function App() {
   const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
   const [sources, setSources] = useState<SourceSubscription[]>([]);
   const [clientSettings, setClientSettings] = useState<ClientSettings>({
+    clientTitle: '',
     commentDisplayName: '',
     defaultPageSize: DEFAULT_CLIENT_PAGE_SIZE,
     autoSyncEnabled: false,
@@ -250,7 +251,7 @@ export function App() {
     serverChatVisible,
     clientChatVisible,
   });
-  const siteTitle = HAS_API ? siteProfile.title : t('appName');
+  const siteTitle = HAS_API ? siteProfile.title : clientSettings.clientTitle?.trim() || t('appName');
   const footerYear = new Date().getFullYear();
   const siteFooterName = siteProfile.title || siteTitle;
   const siteVersionTip = siteProfile.version ? t('site.serverVersion', { version: siteProfile.version }) : undefined;
@@ -692,6 +693,7 @@ export function App() {
   async function loadClientSettings() {
     const data = await clientApi<{ settings: ClientSettings }>('/settings');
     const defaultSettings: ClientSettings = {
+      clientTitle: '',
       commentDisplayName: '',
       defaultPageSize: DEFAULT_CLIENT_PAGE_SIZE,
       autoSyncEnabled: false,
@@ -1125,6 +1127,7 @@ export function App() {
             <ProfileSettingsDialog
               user={user}
               storageOptions={storageOptions}
+              twoFactorAvailable={Boolean(siteProfile.security?.twoFactorAuthEnabled)}
               onClose={() => setIsProfileDialogOpen(false)}
               onSaved={(nextUser) => {
                 setUser(nextUser);

@@ -219,7 +219,7 @@ func pseudonymousClientUserID(sourceURL, userID string) string {
 
 func requireLazyCatClient(w http.ResponseWriter, r *http.Request, action string) bool {
 	if currentUserID(r) == "local" || strings.TrimSpace(r.Header.Get("x-hc-device-id")) == "" {
-		writeError(w, http.StatusForbidden, "LAZYCAT_CLIENT_REQUIRED", action+" require the LazyCat client")
+		writeError(w, http.StatusForbidden, "LAZYCAT_CLIENT_REQUIRED", action+" require the app store client")
 		return false
 	}
 	return true

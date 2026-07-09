@@ -1415,9 +1415,9 @@ func (s *Server) commentDTO(r *http.Request, record *entgo.Comment, actor commen
 		if record.AuthorType == commentpkg.AuthorTypeCLIENT {
 			clientID := trimRunes(record.ClientUserID, 12)
 			if clientID == "" {
-				username = "LazyCat Client"
+				username = "App Store Client"
 			} else {
-				username = "LazyCat " + clientID
+				username = "MiaoMiao " + clientID
 			}
 		} else if record.UserID > 0 {
 			username = fmt.Sprintf("User #%d", record.UserID)

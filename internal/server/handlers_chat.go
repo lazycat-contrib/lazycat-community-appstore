@@ -525,7 +525,7 @@ func (s *Server) chatActorFromRequest(w http.ResponseWriter, r *http.Request) (c
 	}
 	displayName := sanitizeDisplayName(r.Header.Get("X-LazyCat-Client-Display-Name"))
 	if displayName == "" {
-		displayName = "LazyCat " + trimRunes(clientUserID, 12)
+		displayName = "MiaoMiao " + trimRunes(clientUserID, 12)
 	}
 	return chatActor{ClientUserID: clientUserID, DisplayName: displayName, IsClient: true}, true
 }

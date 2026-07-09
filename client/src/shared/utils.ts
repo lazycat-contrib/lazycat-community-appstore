@@ -192,6 +192,7 @@ export function defaultSiteProfile(title: string): SiteProfile {
     registration: { mode: 'open' },
     clientPolicy: {},
     chat: { enabled: true, retentionDays: 0 },
+    security: { twoFactorAuthEnabled: false },
   };
 }
 

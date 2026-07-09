@@ -242,7 +242,7 @@ func (s *Server) resolveCommentActor(r *http.Request) (commentActor, int, string
 		return commentActor{User: u, UserID: u.ID, DisplayName: userDisplayName(u)}, 0, "", ""
 	}
 	if !s.cfg.TrustLazyCatClientComments || r.Header.Get("X-LazyCat-Client-Proxy") != "lazycat-appstore-client" || sanitizeIdentity(r.Header.Get("X-LazyCat-Client-Device-ID")) == "" {
-		return commentActor{}, http.StatusUnauthorized, "LAZYCAT_CLIENT_REQUIRED", "Comments from clients require the LazyCat app store client"
+		return commentActor{}, http.StatusUnauthorized, "LAZYCAT_CLIENT_REQUIRED", "Comments from clients require the MiaoMiao app store client"
 	}
 	clientUserID := sanitizeIdentity(r.Header.Get("X-LazyCat-Client-User-ID"))
 	if clientUserID == "" {
@@ -253,7 +253,7 @@ func (s *Server) resolveCommentActor(r *http.Request) (commentActor, int, string
 	}
 	displayName := sanitizeDisplayName(r.Header.Get("X-LazyCat-Client-Display-Name"))
 	if displayName == "" {
-		displayName = "LazyCat " + trimRunes(clientUserID, 12)
+		displayName = "MiaoMiao " + trimRunes(clientUserID, 12)
 	}
 	return commentActor{UserID: 0, ClientUserID: clientUserID, DisplayName: displayName, IsClient: true}, 0, "", ""
 }
@@ -324,6 +324,19 @@ func (s *Server) emailAppOwnerNotification(r *http.Request, appRecord *entgo.App
 		"From: " + actorName + "\n\n" +
 		message + "\n\n" +
 		"Open the store backend to review this app:\n" + appURL + "\n"
+	if strings.HasPrefix(subject, "Update requested for ") {
+		renderedSubject, textBody, htmlBody, err := s.renderMail(r.Context(), mailKindOutdated, mailRenderData{
+			RecipientName: userDisplayName(owner),
+			Language:      r.Header.Get("Accept-Language"),
+			AppName:       appRecord.Name,
+			ActorName:     actorName,
+			Message:       message,
+		})
+		if err == nil {
+			_ = s.sendRenderedEmail(r.Context(), *owner.Email, renderedSubject, textBody, htmlBody)
+			return
+		}
+	}
 	_ = s.sendEmail(r.Context(), *owner.Email, subject, mailBody)
 }
 
@@ -588,7 +601,7 @@ func (s *Server) resolveOutdatedActor(r *http.Request) (commentActor, int, strin
 		return commentActor{User: u, UserID: u.ID, DisplayName: userDisplayName(u)}, 0, "", ""
 	}
 	if !s.cfg.TrustLazyCatClientComments || r.Header.Get("X-LazyCat-Client-Proxy") != "lazycat-appstore-client" || sanitizeIdentity(r.Header.Get("X-LazyCat-Client-Device-ID")) == "" {
-		return commentActor{}, http.StatusUnauthorized, "LAZYCAT_CLIENT_REQUIRED", "Outdated marks require the LazyCat app store client"
+		return commentActor{}, http.StatusUnauthorized, "LAZYCAT_CLIENT_REQUIRED", "Outdated marks require the MiaoMiao app store client"
 	}
 	clientUserID := sanitizeIdentity(r.Header.Get("X-LazyCat-Client-User-ID"))
 	if clientUserID == "" {
@@ -599,7 +612,7 @@ func (s *Server) resolveOutdatedActor(r *http.Request) (commentActor, int, strin
 	}
 	displayName := sanitizeDisplayName(r.Header.Get("X-LazyCat-Client-Display-Name"))
 	if displayName == "" {
-		displayName = "LazyCat " + trimRunes(clientUserID, 12)
+		displayName = "MiaoMiao " + trimRunes(clientUserID, 12)
 	}
 	return commentActor{UserID: outdatedClientUserID(clientUserID), ClientUserID: clientUserID, DisplayName: displayName, IsClient: true}, 0, "", ""
 }
@@ -1149,8 +1162,8 @@ func (s *Server) collaboratorInviteURL(ctx context.Context, token string) string
 }
 
 func (s *Server) sendCollaboratorInviteEmail(ctx context.Context, to, appName, inviteURL string) error {
-	body := fmt.Sprintf("You have been invited to collaborate on %s in LazyCat Private Store.\n\nOpen this link to accept the invitation:\n\n%s\n\nIf you did not expect this invitation, ignore this email.\n", appName, inviteURL)
-	return s.sendEmail(ctx, to, "LazyCat app collaborator invite", body)
+	body := fmt.Sprintf("You have been invited to collaborate on %s in MiaoMiao Private Store.\n\nOpen this link to accept the invitation:\n\n%s\n\nIf you did not expect this invitation, ignore this email.\n", appName, inviteURL)
+	return s.sendEmail(ctx, to, "MiaoMiao app collaborator invite", body)
 }
 
 func emailString(value *string) string {

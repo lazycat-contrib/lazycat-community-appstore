@@ -132,6 +132,40 @@ func (_u *UserUpdate) SetNillablePasswordHash(v *string) *UserUpdate {
 	return _u
 }
 
+// SetTotpSecret sets the "totp_secret" field.
+func (_u *UserUpdate) SetTotpSecret(v string) *UserUpdate {
+	_u.mutation.SetTotpSecret(v)
+	return _u
+}
+
+// SetNillableTotpSecret sets the "totp_secret" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableTotpSecret(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetTotpSecret(*v)
+	}
+	return _u
+}
+
+// ClearTotpSecret clears the value of the "totp_secret" field.
+func (_u *UserUpdate) ClearTotpSecret() *UserUpdate {
+	_u.mutation.ClearTotpSecret()
+	return _u
+}
+
+// SetTotpEnabled sets the "totp_enabled" field.
+func (_u *UserUpdate) SetTotpEnabled(v bool) *UserUpdate {
+	_u.mutation.SetTotpEnabled(v)
+	return _u
+}
+
+// SetNillableTotpEnabled sets the "totp_enabled" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableTotpEnabled(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetTotpEnabled(*v)
+	}
+	return _u
+}
+
 // SetRole sets the "role" field.
 func (_u *UserUpdate) SetRole(v user.Role) *UserUpdate {
 	_u.mutation.SetRole(v)
@@ -286,6 +320,15 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.TotpSecret(); ok {
+		_spec.SetField(user.FieldTotpSecret, field.TypeString, value)
+	}
+	if _u.mutation.TotpSecretCleared() {
+		_spec.ClearField(user.FieldTotpSecret, field.TypeString)
+	}
+	if value, ok := _u.mutation.TotpEnabled(); ok {
+		_spec.SetField(user.FieldTotpEnabled, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeEnum, value)
 	}
@@ -421,6 +464,40 @@ func (_u *UserUpdateOne) SetPasswordHash(v string) *UserUpdateOne {
 func (_u *UserUpdateOne) SetNillablePasswordHash(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetPasswordHash(*v)
+	}
+	return _u
+}
+
+// SetTotpSecret sets the "totp_secret" field.
+func (_u *UserUpdateOne) SetTotpSecret(v string) *UserUpdateOne {
+	_u.mutation.SetTotpSecret(v)
+	return _u
+}
+
+// SetNillableTotpSecret sets the "totp_secret" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableTotpSecret(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetTotpSecret(*v)
+	}
+	return _u
+}
+
+// ClearTotpSecret clears the value of the "totp_secret" field.
+func (_u *UserUpdateOne) ClearTotpSecret() *UserUpdateOne {
+	_u.mutation.ClearTotpSecret()
+	return _u
+}
+
+// SetTotpEnabled sets the "totp_enabled" field.
+func (_u *UserUpdateOne) SetTotpEnabled(v bool) *UserUpdateOne {
+	_u.mutation.SetTotpEnabled(v)
+	return _u
+}
+
+// SetNillableTotpEnabled sets the "totp_enabled" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableTotpEnabled(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetTotpEnabled(*v)
 	}
 	return _u
 }
@@ -608,6 +685,15 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.TotpSecret(); ok {
+		_spec.SetField(user.FieldTotpSecret, field.TypeString, value)
+	}
+	if _u.mutation.TotpSecretCleared() {
+		_spec.ClearField(user.FieldTotpSecret, field.TypeString)
+	}
+	if value, ok := _u.mutation.TotpEnabled(); ok {
+		_spec.SetField(user.FieldTotpEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeEnum, value)

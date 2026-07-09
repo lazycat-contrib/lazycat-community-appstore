@@ -1,8 +1,8 @@
 package: community.lazycat.app-store-server
-version: 0.1.18
-name: 懒猫私有商店服务端
-description: 带嵌入式 Web 控制台的自托管 LazyCat LPK 应用商店服务端。
-author: Lazycat Community
+version: 0.1.19
+name: 喵喵私有商店服务端
+description: 带嵌入式 Web 控制台的自托管 LPK 应用商店服务端。
+author: czyt
 license: MIT
 homepage: https://github.com/lazycat-contrib/lazycat-community-appstore
 min_os_version: 1.5.2
@@ -11,8 +11,8 @@ permissions:
     - net.internet
 locales:
   zh:
-    name: 懒猫私有商店服务端
-    description: 带嵌入式 Web 控制台的自托管 LazyCat LPK 应用商店服务端。
+    name: 喵喵私有商店服务端
+    description: 带嵌入式 Web 控制台的自托管 LPK 应用商店服务端。
   en:
-    name: LazyCat Private Store Server
-    description: Self-hosted LazyCat LPK app store server with embedded web console.
+    name: MiaoMiao Private Store Server
+    description: Self-hosted LPK app store server with embedded web console.

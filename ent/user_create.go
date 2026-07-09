@@ -102,6 +102,34 @@ func (_c *UserCreate) SetPasswordHash(v string) *UserCreate {
 	return _c
 }
 
+// SetTotpSecret sets the "totp_secret" field.
+func (_c *UserCreate) SetTotpSecret(v string) *UserCreate {
+	_c.mutation.SetTotpSecret(v)
+	return _c
+}
+
+// SetNillableTotpSecret sets the "totp_secret" field if the given value is not nil.
+func (_c *UserCreate) SetNillableTotpSecret(v *string) *UserCreate {
+	if v != nil {
+		_c.SetTotpSecret(*v)
+	}
+	return _c
+}
+
+// SetTotpEnabled sets the "totp_enabled" field.
+func (_c *UserCreate) SetTotpEnabled(v bool) *UserCreate {
+	_c.mutation.SetTotpEnabled(v)
+	return _c
+}
+
+// SetNillableTotpEnabled sets the "totp_enabled" field if the given value is not nil.
+func (_c *UserCreate) SetNillableTotpEnabled(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetTotpEnabled(*v)
+	}
+	return _c
+}
+
 // SetRole sets the "role" field.
 func (_c *UserCreate) SetRole(v user.Role) *UserCreate {
 	_c.mutation.SetRole(v)
@@ -223,6 +251,10 @@ func (_c *UserCreate) defaults() {
 		v := user.DefaultAvatarStoragePath
 		_c.mutation.SetAvatarStoragePath(v)
 	}
+	if _, ok := _c.mutation.TotpEnabled(); !ok {
+		v := user.DefaultTotpEnabled
+		_c.mutation.SetTotpEnabled(v)
+	}
 	if _, ok := _c.mutation.Role(); !ok {
 		v := user.DefaultRole
 		_c.mutation.SetRole(v)
@@ -269,6 +301,9 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.PasswordHash(); !ok {
 		return &ValidationError{Name: "password_hash", err: errors.New(`ent: missing required field "User.password_hash"`)}
+	}
+	if _, ok := _c.mutation.TotpEnabled(); !ok {
+		return &ValidationError{Name: "totp_enabled", err: errors.New(`ent: missing required field "User.totp_enabled"`)}
 	}
 	if _, ok := _c.mutation.Role(); !ok {
 		return &ValidationError{Name: "role", err: errors.New(`ent: missing required field "User.role"`)}
@@ -343,6 +378,14 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
 		_node.PasswordHash = value
+	}
+	if value, ok := _c.mutation.TotpSecret(); ok {
+		_spec.SetField(user.FieldTotpSecret, field.TypeString, value)
+		_node.TotpSecret = &value
+	}
+	if value, ok := _c.mutation.TotpEnabled(); ok {
+		_spec.SetField(user.FieldTotpEnabled, field.TypeBool, value)
+		_node.TotpEnabled = value
 	}
 	if value, ok := _c.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeEnum, value)

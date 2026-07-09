@@ -516,6 +516,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingCommentsEnabled:          "true",
 		settingChatEnabled:              "true",
 		settingChatRetentionDays:        "0",
+		settingTwoFactorAuthEnabled:     "false",
 		settingAllowManualOutdatedClear: "false",
 		settingGitHubDownloadMirrors:    s.cfg.GitHubDownloadMirrors,
 		settingGitHubRawMirrors:         s.cfg.GitHubRawMirrors,
@@ -649,14 +650,20 @@ func (s *Server) handleSendTestEmail(w http.ResponseWriter, r *http.Request, u *
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "SMTP from address must be valid", nil)
 		return
 	}
-	subject := "LazyCat private store test email"
-	body := "This is a test email from LazyCat private store.\n\nIf you received this message, SMTP delivery is configured correctly.\n"
+	subject, textBody, htmlBody, err := s.renderMail(r.Context(), mailKindTest, mailRenderData{
+		RecipientName: to,
+		Language:      r.Header.Get("Accept-Language"),
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "TEST_EMAIL_FAILED", "Could not render test email", nil)
+		return
+	}
 	if mailer, ok := s.mailer.(smtpMailer); ok {
-		if err := mailer.SendWithConfig(r.Context(), cfg, to, subject, body); err != nil {
+		if err := mailer.SendMessageWithConfig(r.Context(), cfg, to, subject, textBody, htmlBody); err != nil {
 			writeError(w, http.StatusBadGateway, "TEST_EMAIL_FAILED", err.Error(), nil)
 			return
 		}
-	} else if err := s.mailer.Send(r.Context(), to, subject, body); err != nil {
+	} else if err := s.mailer.Send(r.Context(), to, subject, textBody); err != nil {
 		writeError(w, http.StatusBadGateway, "TEST_EMAIL_FAILED", err.Error(), nil)
 		return
 	}
@@ -720,7 +727,7 @@ func validateSetting(key, value string) error {
 		if key == settingDefaultPageSize && parsed > 200 {
 			return fmt.Errorf("%s must be at most 200", key)
 		}
-	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingChatEnabled, settingAllowManualOutdatedClear, settingSourceV1Enabled:
+	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingChatEnabled, settingTwoFactorAuthEnabled, settingAllowManualOutdatedClear, settingSourceV1Enabled:
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("%s must be a boolean", key)
 		}
@@ -805,6 +812,7 @@ func isPublicSetting(key string) bool {
 		settingCommentsEnabled,
 		settingChatEnabled,
 		settingChatRetentionDays,
+		settingTwoFactorAuthEnabled,
 		settingAllowManualOutdatedClear,
 		settingGitHubDownloadMirrors,
 		settingGitHubRawMirrors,

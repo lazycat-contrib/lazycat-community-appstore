@@ -31,6 +31,10 @@ type User struct {
 	Email *string `json:"email,omitempty"`
 	// PasswordHash holds the value of the "password_hash" field.
 	PasswordHash string `json:"-"`
+	// TotpSecret holds the value of the "totp_secret" field.
+	TotpSecret *string `json:"-"`
+	// TotpEnabled holds the value of the "totp_enabled" field.
+	TotpEnabled bool `json:"totp_enabled,omitempty"`
 	// Role holds the value of the "role" field.
 	Role user.Role `json:"role,omitempty"`
 	// EmailVerified holds the value of the "email_verified" field.
@@ -49,11 +53,11 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldEmailVerified, user.FieldDisabled:
+		case user.FieldTotpEnabled, user.FieldEmailVerified, user.FieldDisabled:
 			values[i] = new(sql.NullBool)
 		case user.FieldID:
 			values[i] = new(sql.NullInt64)
-		case user.FieldUsername, user.FieldNickname, user.FieldAvatarURL, user.FieldAvatarStorageKey, user.FieldAvatarStoragePath, user.FieldEmail, user.FieldPasswordHash, user.FieldRole:
+		case user.FieldUsername, user.FieldNickname, user.FieldAvatarURL, user.FieldAvatarStorageKey, user.FieldAvatarStoragePath, user.FieldEmail, user.FieldPasswordHash, user.FieldTotpSecret, user.FieldRole:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -120,6 +124,19 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field password_hash", values[i])
 			} else if value.Valid {
 				_m.PasswordHash = value.String
+			}
+		case user.FieldTotpSecret:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field totp_secret", values[i])
+			} else if value.Valid {
+				_m.TotpSecret = new(string)
+				*_m.TotpSecret = value.String
+			}
+		case user.FieldTotpEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field totp_enabled", values[i])
+			} else if value.Valid {
+				_m.TotpEnabled = value.Bool
 			}
 		case user.FieldRole:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -208,6 +225,11 @@ func (_m *User) String() string {
 	}
 	builder.WriteString(", ")
 	builder.WriteString("password_hash=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("totp_secret=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("totp_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TotpEnabled))
 	builder.WriteString(", ")
 	builder.WriteString("role=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Role))

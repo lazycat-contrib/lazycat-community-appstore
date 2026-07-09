@@ -182,6 +182,7 @@ type CommentInput struct {
 }
 
 type ClientSettingsDTO struct {
+	ClientTitle                  string     `json:"clientTitle"`
 	CommentDisplayName           string     `json:"commentDisplayName"`
 	DefaultPageSize              int        `json:"defaultPageSize"`
 	AutoSyncEnabled              bool       `json:"autoSyncEnabled"`
@@ -194,6 +195,7 @@ type ClientSettingsDTO struct {
 }
 
 type ClientSettingsUpdateDTO struct {
+	ClientTitle                  string `json:"clientTitle"`
 	CommentDisplayName           string `json:"commentDisplayName"`
 	DefaultPageSize              int    `json:"defaultPageSize"`
 	AutoSyncEnabled              bool   `json:"autoSyncEnabled"`

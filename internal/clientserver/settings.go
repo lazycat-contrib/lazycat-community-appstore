@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	settingClientTitle                  = "client_title"
 	settingCommentDisplayName           = "comment_display_name"
 	settingDefaultPageSize              = "default_page_size"
 	settingInstallSuccessDismissSeconds = "install_success_dismiss_seconds"
@@ -43,8 +44,13 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON request body")
 		return
 	}
+	clientTitle := sanitizeClientSetting(input.ClientTitle, 80)
 	displayName := sanitizeClientSetting(input.CommentDisplayName, 40)
 	userID := currentUserID(r)
+	if err := s.setClientSetting(r, settingClientTitle, clientTitle); err != nil {
+		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
+		return
+	}
 	if err := s.setClientSetting(r, settingCommentDisplayName, displayName); err != nil {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
@@ -67,10 +73,11 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettingsDTO(displayName, defaultPageSize, installSuccessDismissSeconds, syncSetting)})
+	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettingsDTO(clientTitle, displayName, defaultPageSize, installSuccessDismissSeconds, syncSetting)})
 }
 
 func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSettingsDTO, error) {
+	clientTitle := strings.TrimSpace(s.clientSetting(ctx, userID, settingClientTitle))
 	commentDisplayName := strings.TrimSpace(s.clientSetting(ctx, userID, settingCommentDisplayName))
 	defaultPageSize := s.clientDefaultPageSize(ctx, userID, pagination.DefaultPageSize, 100)
 	installSuccessDismissSeconds := s.clientInstallSuccessDismissSeconds(ctx, userID)
@@ -78,11 +85,12 @@ func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSetti
 	if err != nil {
 		return ClientSettingsDTO{}, err
 	}
-	return s.clientSettingsDTO(commentDisplayName, defaultPageSize, installSuccessDismissSeconds, syncSetting), nil
+	return s.clientSettingsDTO(clientTitle, commentDisplayName, defaultPageSize, installSuccessDismissSeconds, syncSetting), nil
 }
 
-func (s *Server) clientSettingsDTO(commentDisplayName string, defaultPageSize int, installSuccessDismissSeconds int, syncSetting *ent.ClientSyncSetting) ClientSettingsDTO {
+func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string, defaultPageSize int, installSuccessDismissSeconds int, syncSetting *ent.ClientSyncSetting) ClientSettingsDTO {
 	dto := ClientSettingsDTO{
+		ClientTitle:                  clientTitle,
 		CommentDisplayName:           commentDisplayName,
 		DefaultPageSize:              pagination.ClampPageSize(defaultPageSize, pagination.DefaultPageSize, 100),
 		AutoSyncIntervalMinutes:      defaultAutoSyncIntervalMinutes,
@@ -133,9 +141,9 @@ func (s *Server) clientCommentDisplayName(r *http.Request) string {
 func defaultClientCommentDisplayName(r *http.Request) string {
 	language := strings.ToLower(r.Header.Get("Accept-Language"))
 	if strings.HasPrefix(language, "zh") || strings.Contains(language, "zh-") || strings.Contains(language, "zh_") {
-		return "懒猫用户"
+		return "喵喵用户"
 	}
-	return "LazyCat user"
+	return "MiaoMiao user"
 }
 
 func (s *Server) clientSetting(ctx context.Context, userID, key string) string {

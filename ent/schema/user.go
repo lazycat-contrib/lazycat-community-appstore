@@ -21,6 +21,8 @@ func (User) Fields() []ent.Field {
 		field.String("avatar_storage_path").Default(""),
 		field.String("email").Optional().Nillable(),
 		field.String("password_hash").Sensitive(),
+		field.String("totp_secret").Optional().Nillable().Sensitive(),
+		field.Bool("totp_enabled").Default(false),
 		field.Enum("role").Values("USER", "SOFTWARE_ADMIN", "SITE_ADMIN").Default("USER"),
 		field.Bool("email_verified").Default(false),
 		field.Bool("disabled").Default(false),

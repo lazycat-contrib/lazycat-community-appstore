@@ -24,8 +24,8 @@ params:
     optional: false
   - id: trust_lazycat_client_chat
     type: bool
-    name: "Trust LazyCat Client Chat"
-    description: "Allow the standalone LazyCat client app to proxy private message requests to this server"
+    name: "Trust App Store Client Chat"
+    description: "Allow the standalone app store client app to proxy private message requests to this server"
     default_value: "true"
     optional: false
   - id: db_driver
@@ -67,7 +67,7 @@ locales:
       description: "保留 /source/v1/index.json 以兼容旧客户端"
     trust_lazycat_client_chat:
       name: "信任客户端私信代理"
-      description: "允许独立 LazyCat 客户端应用将私信请求代理到当前服务端"
+      description: "允许独立客户端应用将私信请求代理到当前服务端"
     db_driver:
       name: "数据库类型"
       description: "数据库驱动：sqlite3、postgres 或 mysql"

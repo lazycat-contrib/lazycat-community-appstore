@@ -10,8 +10,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/lib-x/entsqlite v0.2.3
+	github.com/lib-x/mailingo v0.1.0
 	github.com/lib-x/timewheel v0.4.0
 	github.com/lib/pq v1.12.3
+	github.com/modelcontextprotocol/go-sdk v1.6.1
+	github.com/pquerna/otp v1.5.0
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.53.0
 	golang.org/x/sync v0.21.0
@@ -35,6 +38,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.29 // indirect
 	github.com/aws/smithy-go v1.27.1 // indirect
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
+	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/containerd/cgroups/v3 v3.0.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect
@@ -45,8 +49,8 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.47 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
-	github.com/modelcontextprotocol/go-sdk v1.6.1 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
+	github.com/nicksnyder/go-i18n/v2 v2.6.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect

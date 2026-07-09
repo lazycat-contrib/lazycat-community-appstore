@@ -27092,6 +27092,8 @@ type UserMutation struct {
 	avatar_storage_path *string
 	email               *string
 	password_hash       *string
+	totp_secret         *string
+	totp_enabled        *bool
 	role                *user.Role
 	email_verified      *bool
 	disabled            *bool
@@ -27466,6 +27468,91 @@ func (m *UserMutation) ResetPasswordHash() {
 	m.password_hash = nil
 }
 
+// SetTotpSecret sets the "totp_secret" field.
+func (m *UserMutation) SetTotpSecret(s string) {
+	m.totp_secret = &s
+}
+
+// TotpSecret returns the value of the "totp_secret" field in the mutation.
+func (m *UserMutation) TotpSecret() (r string, exists bool) {
+	v := m.totp_secret
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotpSecret returns the old "totp_secret" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldTotpSecret(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotpSecret is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotpSecret requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotpSecret: %w", err)
+	}
+	return oldValue.TotpSecret, nil
+}
+
+// ClearTotpSecret clears the value of the "totp_secret" field.
+func (m *UserMutation) ClearTotpSecret() {
+	m.totp_secret = nil
+	m.clearedFields[user.FieldTotpSecret] = struct{}{}
+}
+
+// TotpSecretCleared returns if the "totp_secret" field was cleared in this mutation.
+func (m *UserMutation) TotpSecretCleared() bool {
+	_, ok := m.clearedFields[user.FieldTotpSecret]
+	return ok
+}
+
+// ResetTotpSecret resets all changes to the "totp_secret" field.
+func (m *UserMutation) ResetTotpSecret() {
+	m.totp_secret = nil
+	delete(m.clearedFields, user.FieldTotpSecret)
+}
+
+// SetTotpEnabled sets the "totp_enabled" field.
+func (m *UserMutation) SetTotpEnabled(b bool) {
+	m.totp_enabled = &b
+}
+
+// TotpEnabled returns the value of the "totp_enabled" field in the mutation.
+func (m *UserMutation) TotpEnabled() (r bool, exists bool) {
+	v := m.totp_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTotpEnabled returns the old "totp_enabled" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldTotpEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTotpEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTotpEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTotpEnabled: %w", err)
+	}
+	return oldValue.TotpEnabled, nil
+}
+
+// ResetTotpEnabled resets all changes to the "totp_enabled" field.
+func (m *UserMutation) ResetTotpEnabled() {
+	m.totp_enabled = nil
+}
+
 // SetRole sets the "role" field.
 func (m *UserMutation) SetRole(u user.Role) {
 	m.role = &u
@@ -27680,7 +27767,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 14)
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
 	}
@@ -27701,6 +27788,12 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.password_hash != nil {
 		fields = append(fields, user.FieldPasswordHash)
+	}
+	if m.totp_secret != nil {
+		fields = append(fields, user.FieldTotpSecret)
+	}
+	if m.totp_enabled != nil {
+		fields = append(fields, user.FieldTotpEnabled)
 	}
 	if m.role != nil {
 		fields = append(fields, user.FieldRole)
@@ -27739,6 +27832,10 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Email()
 	case user.FieldPasswordHash:
 		return m.PasswordHash()
+	case user.FieldTotpSecret:
+		return m.TotpSecret()
+	case user.FieldTotpEnabled:
+		return m.TotpEnabled()
 	case user.FieldRole:
 		return m.Role()
 	case user.FieldEmailVerified:
@@ -27772,6 +27869,10 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldEmail(ctx)
 	case user.FieldPasswordHash:
 		return m.OldPasswordHash(ctx)
+	case user.FieldTotpSecret:
+		return m.OldTotpSecret(ctx)
+	case user.FieldTotpEnabled:
+		return m.OldTotpEnabled(ctx)
 	case user.FieldRole:
 		return m.OldRole(ctx)
 	case user.FieldEmailVerified:
@@ -27839,6 +27940,20 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPasswordHash(v)
+		return nil
+	case user.FieldTotpSecret:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotpSecret(v)
+		return nil
+	case user.FieldTotpEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTotpEnabled(v)
 		return nil
 	case user.FieldRole:
 		v, ok := value.(user.Role)
@@ -27908,6 +28023,9 @@ func (m *UserMutation) ClearedFields() []string {
 	if m.FieldCleared(user.FieldEmail) {
 		fields = append(fields, user.FieldEmail)
 	}
+	if m.FieldCleared(user.FieldTotpSecret) {
+		fields = append(fields, user.FieldTotpSecret)
+	}
 	return fields
 }
 
@@ -27924,6 +28042,9 @@ func (m *UserMutation) ClearField(name string) error {
 	switch name {
 	case user.FieldEmail:
 		m.ClearEmail()
+		return nil
+	case user.FieldTotpSecret:
+		m.ClearTotpSecret()
 		return nil
 	}
 	return fmt.Errorf("unknown User nullable field %s", name)
@@ -27953,6 +28074,12 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldPasswordHash:
 		m.ResetPasswordHash()
+		return nil
+	case user.FieldTotpSecret:
+		m.ResetTotpSecret()
+		return nil
+	case user.FieldTotpEnabled:
+		m.ResetTotpEnabled()
 		return nil
 	case user.FieldRole:
 		m.ResetRole()

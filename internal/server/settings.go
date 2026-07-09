@@ -24,6 +24,7 @@ const (
 	settingCommentsEnabled          = "comments_enabled"
 	settingChatEnabled              = "chat_enabled"
 	settingChatRetentionDays        = "chat_retention_days"
+	settingTwoFactorAuthEnabled     = "two_factor_auth_enabled"
 	settingAllowManualOutdatedClear = "allow_manual_outdated_clear"
 	settingGitHubDownloadMirrors    = "github_download_mirrors"
 	settingGitHubRawMirrors         = "github_raw_mirrors"
@@ -165,6 +166,10 @@ func (s *Server) chatEnabled(ctx context.Context) bool {
 	return s.settingBool(ctx, settingChatEnabled, true)
 }
 
+func (s *Server) twoFactorAuthEnabled(ctx context.Context) bool {
+	return s.settingBool(ctx, settingTwoFactorAuthEnabled, false)
+}
+
 func (s *Server) chatRetentionDays(ctx context.Context) int {
 	days := s.settingInt(ctx, settingChatRetentionDays, 0)
 	if days < 0 {
@@ -189,7 +194,7 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 	publicURL := s.sitePublicURL(ctx)
 	title := strings.TrimSpace(s.setting(ctx, settingSiteTitle, ""))
 	if title == "" {
-		title = "懒猫私有商店服务端"
+		title = "喵喵私有商店服务端"
 	}
 	level := strings.TrimSpace(s.setting(ctx, settingAnnouncementLevel, "info"))
 	if !validAnnouncementLevel(level) {
@@ -213,6 +218,7 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 		Registration:    siteRegistration{Mode: s.registrationMode(ctx)},
 		ClientPolicy:    s.clientPolicy(ctx),
 		Chat:            siteChat{Enabled: s.chatEnabled(ctx), RetentionDays: s.chatRetentionDays(ctx)},
+		Security:        siteSecurity{TwoFactorAuthEnabled: s.twoFactorAuthEnabled(ctx)},
 	}
 }
 

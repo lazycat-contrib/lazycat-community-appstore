@@ -920,6 +920,50 @@ body,
   padding-right: 44px;
 }
 
+.profile-security-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.profile-security-panel > div:first-child {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.profile-security-panel > div:first-child > svg {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--status-success-line);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--status-success-ink);
+  background: var(--status-success-bg);
+}
+
+.profile-security-panel strong,
+.profile-security-panel span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.profile-security-panel span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .storage-settings-panel {
   background: transparent;
 }
@@ -2981,6 +3025,57 @@ body,
   right: 12px;
 }
 
+.password-reset-dialog,
+.two-factor-dialog {
+  width: min(520px, 100%);
+}
+
+.two-factor-dialog {
+  gap: 14px;
+}
+
+.two-factor-qr {
+  width: min(236px, 100%);
+  aspect-ratio: 1;
+  justify-self: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--color-white, #fff);
+  padding: 8px;
+  display: grid;
+  place-items: center;
+}
+
+.two-factor-qr img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.two-factor-secret {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  padding: 10px 12px;
+  display: grid;
+  gap: 5px;
+}
+
+.two-factor-secret span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.two-factor-secret code {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
 .install-password-head {
   display: grid;
   grid-template-columns: 44px 1fr;
@@ -4187,8 +4282,14 @@ code {
   .storage-admin-grid,
   .announcement-banner,
   .install-center-head,
-  .install-center-metrics {
+  .install-center-metrics,
+  .profile-security-panel {
     grid-template-columns: 1fr;
+  }
+
+  .profile-security-panel > button {
+    width: 100%;
+    justify-content: center;
   }
 
   .site-settings-panel {

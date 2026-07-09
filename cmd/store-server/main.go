@@ -32,7 +32,7 @@ func main() {
 			log.Printf("shutdown after migration import: %v", err)
 		}
 	})
-	log.Printf("LazyCat Private Store server listening on %s", cfg.Addr)
+	log.Printf("MiaoMiao Private Store server listening on %s", cfg.Addr)
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

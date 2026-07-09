@@ -1,6 +1,6 @@
-# LazyCat Community App Store
+# MiaoMiao Community App Store
 
-Self-hosted app store for LazyCat LPK packages. The project ships as two independent LazyCat bare apps:
+Self-hosted app store for LPK packages. The project ships as two independent bare apps:
 
 - `lazycat/server`: Go API server with the Vite web console embedded into the binary.
 - `lazycat/client`: standalone source browser and installer client. It can be deployed without the server and subscribe to any compatible `/source/v1/index.json`.
@@ -36,7 +36,7 @@ cp -R client/dist/. web/dist/
 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o dist/store-server ./cmd/store-server
 ```
 
-The LazyCat server package does this automatically from `lazycat/server/build.sh`.
+The server package does this automatically from `lazycat/server/build.sh`.
 
 ## Client
 
@@ -48,9 +48,9 @@ go run ./cmd/store-client
 
 Default client URL: `http://127.0.0.1:8090`
 
-The standalone client now runs as a Go app with the React UI embedded into the binary. Source subscriptions and synced source apps are stored in SQLite, so they persist on the LazyCat device instead of browser `localStorage`. Browser storage is only used for UI preferences such as theme and language.
+The standalone client now runs as a Go app with the React UI embedded into the binary. Source subscriptions and synced source apps are stored in SQLite, so they persist on the app device instead of browser `localStorage`. Browser storage is only used for UI preferences such as theme and language.
 
-Default local database path: `./data/client.db`. In the LazyCat client LPK it uses `/lzcapp/var/data/client.db`.
+Default local database path: `./data/client.db`. In the app store client LPK it uses `/lzcapp/var/data/client.db`.
 
 For frontend-only development, run Vite separately:
 
@@ -60,7 +60,7 @@ npm install
 npm run dev
 ```
 
-Users can open the Software Sources page, add a source URL, sync it, and install LPKs through the LazyCat Go SDK-backed client API. Installs initiated through the client are recorded in the client SQLite database, including the source, package ID, selected version, result, and error message when an install fails. The client can also show older versions from a synced source and install a selected older version for rollback.
+Users can open the Software Sources page, add a source URL, sync it, and install LPKs through the system Go SDK-backed client API. Installs initiated through the client are recorded in the client SQLite database, including the source, package ID, selected version, result, and error message when an install fails. The client can also show older versions from a synced source and install a selected older version for rollback.
 
 Optional runtime config is loaded from `app-config.js`:
 
@@ -74,7 +74,7 @@ window.LAZYCAT_APPSTORE_CONFIG = {
 
 When `apiBaseURL` is empty, server-backed features such as login, submission, and admin review are hidden or disabled.
 
-## LazyCat Bare Apps
+## Bare App Packages
 
 Build server LPK:
 

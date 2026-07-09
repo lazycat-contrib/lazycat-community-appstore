@@ -215,7 +215,7 @@ func (s *Server) touchMCPTokenLastUsedAt(ctx context.Context, tokenID int, now t
 
 func (s *Server) newMCPServer(ctx context.Context, principalType mcptoken.PrincipalType) *mcp.Server {
 	server := mcp.NewServer(s.mcpImplementation(ctx), &mcp.ServerOptions{
-		Instructions: "Use these tools to publish and update LazyCat LPK apps in this app store. Tool permissions are scoped by the MCP token type and the bound user.",
+		Instructions: "Use these tools to publish and update LPK apps in this app store. Tool permissions are scoped by the MCP token type and the bound user.",
 	})
 	s.registerUserMCPTools(server)
 	if principalType == mcptoken.PrincipalTypeADMIN {
@@ -227,7 +227,7 @@ func (s *Server) newMCPServer(ctx context.Context, principalType mcptoken.Princi
 func (s *Server) mcpImplementation(ctx context.Context) *mcp.Implementation {
 	return &mcp.Implementation{
 		Name:       "lazycat-community-appstore",
-		Title:      "LazyCat Community App Store",
+		Title:      "MiaoMiao Community App Store",
 		Version:    appVersion(),
 		WebsiteURL: s.sitePublicURL(ctx),
 	}
@@ -419,7 +419,7 @@ func (s *Server) mcpAdminListApps(ctx context.Context, req *mcp.CallToolRequest,
 
 type mcpCreateAppFromURLInput struct {
 	Name                      string   `json:"name,omitempty" jsonschema:"app display name; inferred from LPK metadata when omitted"`
-	PackageID                 string   `json:"packageId,omitempty" jsonschema:"LazyCat package ID; inferred from LPK metadata when omitted"`
+	PackageID                 string   `json:"packageId,omitempty" jsonschema:"LPK package ID; inferred from LPK metadata when omitted"`
 	Slug                      string   `json:"slug,omitempty" jsonschema:"optional app slug"`
 	Summary                   string   `json:"summary,omitempty" jsonschema:"short summary; inferred from LPK metadata when omitted"`
 	Description               string   `json:"description,omitempty" jsonschema:"full description; inferred from LPK metadata when omitted"`
@@ -506,7 +506,7 @@ func (s *Server) mcpCreateAppFromURL(ctx context.Context, req *mcp.CallToolReque
 
 type mcpPublishVersionFromURLInput struct {
 	AppID             int    `json:"appId,omitempty" jsonschema:"app database ID; either appId or packageId is required"`
-	PackageID         string `json:"packageId,omitempty" jsonschema:"LazyCat package ID; either appId or packageId is required"`
+	PackageID         string `json:"packageId,omitempty" jsonschema:"LPK package ID; either appId or packageId is required"`
 	Version           string `json:"version,omitempty" jsonschema:"version; inferred from LPK metadata when omitted"`
 	Changelog         string `json:"changelog,omitempty" jsonschema:"optional changelog"`
 	DownloadURL       string `json:"downloadUrl" jsonschema:"remote LPK URL; GitHub raw and release URLs are supported"`

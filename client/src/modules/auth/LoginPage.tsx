@@ -12,8 +12,9 @@ import { api, ApiRequestError } from '../../shared/api';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { SiteProfile, ThemeMode, Toast, User } from '../../shared/types';
 import { errorMessage, runAction } from '../../shared/utils';
+import { ForgotPasswordDialog, PasswordResetForm, passwordResetTokenFromURL } from './PasswordReset';
 
-type AuthMode = 'login' | 'register' | 'verify';
+type AuthMode = 'login' | 'register' | 'verify' | 'reset';
 
 function verificationTokenFromURL() {
   const params = new URLSearchParams(window.location.search);
@@ -24,8 +25,9 @@ function verificationTokenFromURL() {
 
 function authModeFromURL(): AuthMode {
   if (verificationTokenFromURL()) return 'verify';
+  if (passwordResetTokenFromURL()) return 'reset';
   const mode = new URLSearchParams(window.location.search).get('mode');
-  return mode === 'register' || mode === 'verify' ? mode : 'login';
+  return mode === 'register' || mode === 'verify' || mode === 'reset' ? mode : 'login';
 }
 
 export function LoginPage({
@@ -103,21 +105,26 @@ function AuthGateway({
 }) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<AuthMode>(authModeFromURL);
-  const [authForm, setAuthForm] = useState({ username: '', password: '', email: '', inviteCode: '' });
+  const [authForm, setAuthForm] = useState({ username: '', password: '', email: '', inviteCode: '', totpCode: '' });
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
+  const [resetToken, setResetToken] = useState(passwordResetTokenFromURL);
+  const [forgotOpen, setForgotOpen] = useState(false);
   const [captchaRequired, setCaptchaRequired] = useState(false);
   const [captchaVerified, setCaptchaVerified] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
+  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
   const registrationMode = siteProfile.registration?.mode || 'open';
   const registrationOpen = registrationMode !== 'closed';
   const inviteRegistration = registrationMode === 'invite';
-  const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verify');
-  const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : t('auth.verifyEmail');
+  const authModeLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : mode === 'reset' ? t('auth.resetPassword') : t('auth.verify');
+  const authSubmitLabel = mode === 'login' ? t('auth.login') : mode === 'register' ? t('auth.register') : mode === 'reset' ? t('auth.resetPassword') : t('auth.verifyEmail');
   const authHint = mode === 'login'
     ? t('auth.loginHint')
     : mode === 'register'
       ? t(inviteRegistration ? 'auth.registerInviteHint' : 'auth.registerHint')
-      : t('auth.verifyHint');
+      : mode === 'reset'
+        ? t('auth.resetPasswordBody')
+        : t('auth.verifyHint');
   const AuthSubmitIcon = mode === 'verify' ? Check : mode === 'register' ? Plus : LogIn;
 
   useEffect(() => {
@@ -131,10 +138,15 @@ function AuthGateway({
   }, [verifyToken]);
 
   useEffect(() => {
+    if (resetToken) setMode('reset');
+  }, [resetToken]);
+
+  useEffect(() => {
     if (mode !== 'login') {
       setCaptchaRequired(false);
       setCaptchaVerified(false);
       setFailedAttempts(0);
+      setTwoFactorRequired(false);
     }
   }, [mode]);
 
@@ -168,6 +180,7 @@ function AuthGateway({
       password: formString(formData, 'password', authForm.password),
       email: formString(formData, 'email', authForm.email),
       inviteCode: formString(formData, 'inviteCode', authForm.inviteCode),
+      totpCode: formString(formData, 'totpCode', authForm.totpCode),
     };
     if (mode === 'login') {
       if (captchaRequired && !captchaVerified) {
@@ -177,11 +190,12 @@ function AuthGateway({
       try {
         const data = await api<{ user: User }>('/api/v1/auth/login', {
           method: 'POST',
-          body: JSON.stringify({ username: submittedForm.username, password: submittedForm.password }),
+          body: JSON.stringify({ username: submittedForm.username, password: submittedForm.password, totpCode: submittedForm.totpCode }),
         });
         setCaptchaRequired(false);
         setCaptchaVerified(false);
         setFailedAttempts(0);
+        setTwoFactorRequired(false);
         setUser(data.user);
         if (data.user.emailVerified === false) {
           setMode('verify');
@@ -199,6 +213,11 @@ function AuthGateway({
         if (details?.captchaRequired) {
           setCaptchaRequired(true);
           setCaptchaVerified(false);
+        }
+        if (error instanceof ApiRequestError && (error.code === 'TWO_FACTOR_REQUIRED' || error.code === 'INVALID_TOTP')) {
+          setTwoFactorRequired(true);
+          setToast({ tone: error.code === 'INVALID_TOTP' ? 'error' : 'neutral', message: errorMessage(error, t('auth.twoFactorRequired')) });
+          return;
         }
         setToast({ tone: 'error', message: errorMessage(error, t('auth.loginFailed')) });
       }
@@ -229,7 +248,7 @@ function AuthGateway({
         <p>{t('auth.entryBody')}</p>
       </div>
       <div className="split auth-split">
-        <form className="panel form-panel profile-panel auth-panel" onSubmit={submitAuth}>
+        <form className="panel form-panel profile-panel auth-panel" onSubmit={mode === 'reset' ? (event) => event.preventDefault() : submitAuth}>
           <SectionTitle icon={KeyRound} title={mode === 'verify' ? t('auth.verifyEmail') : authModeLabel} />
           <p className="inline-note">{authHint}</p>
           <XToggleButtonGroup value={mode} onChange={(value) => value && setMode(value as AuthMode)} label={t('auth.modeSwitch')} size="sm">
@@ -237,7 +256,16 @@ function AuthGateway({
             {registrationOpen && <XToggleButton value="register" label={t('auth.register')} />}
             <XToggleButton value="verify" label={t('auth.verify')} />
           </XToggleButtonGroup>
-          {mode === 'verify' ? (
+          {mode === 'reset' ? (
+            <PasswordResetForm
+              token={resetToken}
+              setToast={setToast}
+              onComplete={() => {
+                setResetToken('');
+                setMode('login');
+              }}
+            />
+          ) : mode === 'verify' ? (
             <XTextInput htmlName="token" label={t('auth.verifyToken')} value={verifyToken} isRequired onChange={setVerifyToken} />
           ) : (
             <>
@@ -257,6 +285,16 @@ function AuthGateway({
                 isRequired
                 onChange={(value) => setAuthForm({ ...authForm, password: value })}
               />
+              {mode === 'login' && twoFactorRequired && (
+                <XTextInput
+                  htmlName="totpCode"
+                  label={t('auth.twoFactorCode')}
+                  description={t('auth.twoFactorCodeHelp')}
+                  value={authForm.totpCode}
+                  isRequired
+                  onChange={(value) => setAuthForm({ ...authForm, totpCode: value.replace(/\D/g, '').slice(0, 6) })}
+                />
+              )}
               {mode === 'login' && captchaRequired && (
                 <div className="captcha-panel" role="group" aria-label={t('auth.captchaTitle')}>
                   {!captchaVerified && <ClawCaptcha title={t('auth.captchaTitle')} onVerify={() => setCaptchaVerified(true)} />}
@@ -268,7 +306,10 @@ function AuthGateway({
               )}
             </>
           )}
-          <XButton type="submit" variant="primary" label={authSubmitLabel} icon={<AuthSubmitIcon size={18} />} isDisabled={mode === 'login' && captchaRequired && !captchaVerified} />
+          {mode === 'login' && (
+            <XButton type="button" variant="ghost" label={t('auth.forgotPassword')} onClick={() => setForgotOpen(true)} />
+          )}
+          {mode !== 'reset' && <XButton type="submit" variant="primary" label={authSubmitLabel} icon={<AuthSubmitIcon size={18} />} isDisabled={mode === 'login' && captchaRequired && !captchaVerified} />}
         </form>
 
         <section className="panel auth-path-panel">
@@ -303,6 +344,7 @@ function AuthGateway({
           </div>
         </section>
       </div>
+      {forgotOpen && <ForgotPasswordDialog onClose={() => setForgotOpen(false)} setToast={setToast} />}
     </section>
   );
 }

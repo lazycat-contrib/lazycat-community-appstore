@@ -35,7 +35,7 @@ func New(cfg Config) (*Server, error) {
 }
 
 func newTestServer(db *ent.Client) *Server {
-	s := &Server{cfg: Config{DefaultSourceName: "懒猫私有商店"}, db: db, pkg: unavailablePackageManager{}, mux: http.NewServeMux()}
+	s := &Server{cfg: Config{DefaultSourceName: "喵喵私有商店"}, db: db, pkg: unavailablePackageManager{}, mux: http.NewServeMux()}
 	s.routes()
 	return s
 }

@@ -28,6 +28,10 @@ const (
 	FieldEmail = "email"
 	// FieldPasswordHash holds the string denoting the password_hash field in the database.
 	FieldPasswordHash = "password_hash"
+	// FieldTotpSecret holds the string denoting the totp_secret field in the database.
+	FieldTotpSecret = "totp_secret"
+	// FieldTotpEnabled holds the string denoting the totp_enabled field in the database.
+	FieldTotpEnabled = "totp_enabled"
 	// FieldRole holds the string denoting the role field in the database.
 	FieldRole = "role"
 	// FieldEmailVerified holds the string denoting the email_verified field in the database.
@@ -52,6 +56,8 @@ var Columns = []string{
 	FieldAvatarStoragePath,
 	FieldEmail,
 	FieldPasswordHash,
+	FieldTotpSecret,
+	FieldTotpEnabled,
 	FieldRole,
 	FieldEmailVerified,
 	FieldDisabled,
@@ -80,6 +86,8 @@ var (
 	DefaultAvatarStorageKey string
 	// DefaultAvatarStoragePath holds the default value on creation for the "avatar_storage_path" field.
 	DefaultAvatarStoragePath string
+	// DefaultTotpEnabled holds the default value on creation for the "totp_enabled" field.
+	DefaultTotpEnabled bool
 	// DefaultEmailVerified holds the default value on creation for the "email_verified" field.
 	DefaultEmailVerified bool
 	// DefaultDisabled holds the default value on creation for the "disabled" field.
@@ -160,6 +168,16 @@ func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 // ByPasswordHash orders the results by the password_hash field.
 func ByPasswordHash(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPasswordHash, opts...).ToFunc()
+}
+
+// ByTotpSecret orders the results by the totp_secret field.
+func ByTotpSecret(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotpSecret, opts...).ToFunc()
+}
+
+// ByTotpEnabled orders the results by the totp_enabled field.
+func ByTotpEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTotpEnabled, opts...).ToFunc()
 }
 
 // ByRole orders the results by the role field.

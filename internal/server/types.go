@@ -11,28 +11,30 @@ import (
 )
 
 type publicUser struct {
-	ID            int       `json:"id"`
-	Username      string    `json:"username"`
-	Nickname      string    `json:"nickname"`
-	AvatarURL     string    `json:"avatarUrl,omitempty"`
-	Email         *string   `json:"email,omitempty"`
-	Role          string    `json:"role"`
-	EmailVerified bool      `json:"emailVerified"`
-	Disabled      bool      `json:"disabled"`
-	CreatedAt     time.Time `json:"createdAt"`
+	ID               int       `json:"id"`
+	Username         string    `json:"username"`
+	Nickname         string    `json:"nickname"`
+	AvatarURL        string    `json:"avatarUrl,omitempty"`
+	Email            *string   `json:"email,omitempty"`
+	Role             string    `json:"role"`
+	EmailVerified    bool      `json:"emailVerified"`
+	TwoFactorEnabled bool      `json:"twoFactorEnabled"`
+	Disabled         bool      `json:"disabled"`
+	CreatedAt        time.Time `json:"createdAt"`
 }
 
 func toPublicUser(u *ent.User) publicUser {
 	return publicUser{
-		ID:            u.ID,
-		Username:      u.Username,
-		Nickname:      u.Nickname,
-		AvatarURL:     u.AvatarURL,
-		Email:         u.Email,
-		Role:          string(u.Role),
-		EmailVerified: u.EmailVerified,
-		Disabled:      u.Disabled,
-		CreatedAt:     u.CreatedAt,
+		ID:               u.ID,
+		Username:         u.Username,
+		Nickname:         u.Nickname,
+		AvatarURL:        u.AvatarURL,
+		Email:            u.Email,
+		Role:             string(u.Role),
+		EmailVerified:    u.EmailVerified,
+		TwoFactorEnabled: u.TotpEnabled,
+		Disabled:         u.Disabled,
+		CreatedAt:        u.CreatedAt,
 	}
 }
 
@@ -59,6 +61,7 @@ type siteProfile struct {
 	Registration    siteRegistration   `json:"registration"`
 	ClientPolicy    siteClientPolicy   `json:"clientPolicy,omitempty"`
 	Chat            siteChat           `json:"chat"`
+	Security        siteSecurity       `json:"security"`
 }
 
 func appVersion() string {
@@ -80,6 +83,10 @@ type siteClientPolicy struct {
 type siteChat struct {
 	Enabled       bool `json:"enabled"`
 	RetentionDays int  `json:"retentionDays"`
+}
+
+type siteSecurity struct {
+	TwoFactorAuthEnabled bool `json:"twoFactorAuthEnabled"`
 }
 
 type siteAnnouncement struct {

@@ -31,6 +31,7 @@ export function ClientSettingsView({
 
   useEffect(() => {
     setDraft({
+      clientTitle: settings.clientTitle || '',
       commentDisplayName: settings.commentDisplayName || '',
       defaultPageSize: settings.defaultPageSize || 24,
       autoSyncEnabled: Boolean(settings.autoSyncEnabled),
@@ -44,6 +45,7 @@ export function ClientSettingsView({
   }, [
     settings.autoSyncEnabled,
     settings.autoSyncIntervalMinutes,
+    settings.clientTitle,
     settings.commentDisplayName,
     settings.defaultPageSize,
     settings.installSuccessDismissSeconds,
@@ -70,6 +72,7 @@ export function ClientSettingsView({
     try {
       await onSave({
         ...draft,
+        clientTitle: draft.clientTitle.trim(),
         commentDisplayName: draft.commentDisplayName.trim(),
         defaultPageSize: Number(draft.defaultPageSize) || 24,
         autoSyncIntervalMinutes: Number(intervalValue) || 60,
@@ -175,6 +178,13 @@ export function ClientSettingsView({
             <StatusBadge tone="synced" label={t('clientSettings.localOnly')} />
           </div>
           <p className="muted-text">{t('clientSettings.identityBody')}</p>
+          <XTextInput
+            label={t('clientSettings.clientTitle')}
+            description={t('clientSettings.clientTitleHelp', { name: t('appName') })}
+            value={draft.clientTitle}
+            placeholder={t('appName')}
+            onChange={(value) => setDraft({ ...draft, clientTitle: value })}
+          />
           <XTextInput
             label={t('clientSettings.commentDisplayName')}
             description={t('clientSettings.commentDisplayNameHelp', { name: t('clientSettings.defaultCommentDisplayName') })}

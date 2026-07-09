@@ -5,6 +5,7 @@ export type User = {
   email?: string;
   role: 'USER' | 'SOFTWARE_ADMIN' | 'SITE_ADMIN';
   emailVerified?: boolean;
+  twoFactorEnabled?: boolean;
   avatarUrl?: string;
   disabled?: boolean;
 };
@@ -285,6 +286,7 @@ export type SourceInput = Pick<
 >;
 
 export type ClientSettings = {
+  clientTitle: string;
   commentDisplayName: string;
   defaultPageSize: number;
   autoSyncEnabled: boolean;
@@ -381,6 +383,10 @@ export type SiteChat = {
   retentionDays: number;
 };
 
+export type SiteSecurity = {
+  twoFactorAuthEnabled: boolean;
+};
+
 export type SiteProfile = {
   title: string;
   subtitle?: string;
@@ -394,6 +400,7 @@ export type SiteProfile = {
   registration: SiteRegistration;
   clientPolicy?: ClientPolicy;
   chat: SiteChat;
+  security: SiteSecurity;
 };
 
 export type Toast = {

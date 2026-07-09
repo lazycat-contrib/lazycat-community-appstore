@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: LazyCat Private Store Server API
+  title: MiaoMiao Private Store Server API
   version: 0.1.0
-  description: REST API for the self-hosted LazyCat LPK app store server.
+  description: REST API for the self-hosted LPK app store server.
 servers:
   - url: http://localhost:8080
 security:
@@ -1045,7 +1045,7 @@ paths:
     get:
       tags: [Client]
       summary: List software sources stored by the standalone client
-      description: Client endpoints use the optional x-hc-user-id header supplied by the LazyCat runtime. When it is absent, data is scoped to the local user.
+      description: Client endpoints use the optional x-hc-user-id header supplied by the app runtime. When it is absent, data is scoped to the local user.
       security: []
       responses:
         "200":
@@ -1287,12 +1287,12 @@ paths:
   /api/client/v1/installed:
     get:
       tags: [Client]
-      summary: Query apps installed on the current LazyCat device
+      summary: Query apps installed on the current app device
       description: This endpoint is local to the standalone client. The server storefront never receives or stores this device inventory.
       security: []
       responses:
         "200":
-          description: Installed LazyCat applications.
+          description: Installed applications.
           content:
             application/json:
               schema:
@@ -1309,7 +1309,7 @@ paths:
   /api/client/v1/install:
     post:
       tags: [Client]
-      summary: Install a cached source app through the LazyCat Go SDK
+      summary: Install a cached source app through the system Go SDK
       description: If version is omitted, the latest source version is installed. Supplying version lets the client install an older synced version for rollback.
       security: []
       requestBody:
@@ -1661,7 +1661,7 @@ components:
           type: integer
         packageId:
           type: string
-          description: LazyCat package identity from V2 package.yml package.
+          description: LPK package identity from V2 package.yml package.
         name:
           type: string
         nameI18n:
@@ -1823,7 +1823,7 @@ components:
           type: string
         packageId:
           type: string
-          description: LazyCat package identity used to match installed apps and install history.
+          description: LPK package identity used to match installed apps and install history.
         name:
           type: string
         nameI18n:
@@ -1873,7 +1873,7 @@ components:
       properties:
         appid:
           type: string
-          description: Package ID reported by the LazyCat runtime.
+          description: Package ID reported by the app runtime.
         title:
           type: string
         version:
@@ -2034,7 +2034,7 @@ components:
           $ref: "#/components/schemas/LocalizedText"
         packageId:
           type: string
-          description: LazyCat package identity from V2 package.yml package. This is the stable install identity; slug is only the storefront route/display identifier.
+          description: LPK package identity from V2 package.yml package. This is the stable install identity; slug is only the storefront route/display identifier.
         name:
           type: string
         nameI18n:

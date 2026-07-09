@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pquerna/otp/totp"
+
 	apppkg "lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
@@ -123,6 +125,117 @@ func TestAdminLoginRequiresCaptchaAfterThreeFailures(t *testing.T) {
 			t.Fatalf("captcha missing after third failure: %s", rec.Body.String())
 		}
 	}
+}
+
+func TestPasswordResetEmailTokenResetsPasswordOnce(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	mailer := &captureMailer{}
+	app.server.mailer = mailer
+	if err := app.server.setSetting(ctx, settingSMTPHost, "smtp.test"); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.server.setSetting(ctx, settingSMTPFrom, "store@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	hash, err := appauth.HashPassword("old-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.server.db.User.Create().
+		SetUsername("reset-user").
+		SetEmail("reset@example.com").
+		SetPasswordHash(hash).
+		SetEmailVerified(true).
+		SaveX(ctx)
+
+	rec := app.do(http.MethodPost, "/api/v1/auth/password-reset/request", map[string]string{"email": "reset@example.com"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("password reset request status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if mailer.to != "reset@example.com" || !strings.Contains(mailer.subject, "Reset your") {
+		t.Fatalf("unexpected reset mail: to=%q subject=%q body=%q", mailer.to, mailer.subject, mailer.body)
+	}
+	token := tokenFromMailBody(t, mailer.body)
+	if token == "" || strings.Contains(mailer.body, tokenHash(token)) {
+		t.Fatalf("reset mail token extraction failed or leaked hash: token=%q body=%q", token, mailer.body)
+	}
+	if exists := app.server.db.SiteSetting.Query().Where(sitesetting.KeyEQ(passwordResetSettingPrefix + tokenHash(token))).ExistX(ctx); !exists {
+		t.Fatalf("password reset token was not stored by hash")
+	}
+
+	rec = app.do(http.MethodPost, "/api/v1/auth/password-reset/confirm", map[string]string{"token": token, "newPassword": "new-password"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("password reset confirm status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	app.login("reset-user", "new-password")
+	rec = app.do(http.MethodPost, "/api/v1/auth/password-reset/confirm", map[string]string{"token": token, "newPassword": "second-password"})
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("password reset token reused status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestTwoFactorSetupLoginAndAdminReset(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	if err := app.server.setSetting(ctx, settingTwoFactorAuthEnabled, "true"); err != nil {
+		t.Fatal(err)
+	}
+	hash, err := appauth.HashPassword("password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bob := app.server.db.User.Create().
+		SetUsername("totp-user").
+		SetPasswordHash(hash).
+		SetEmailVerified(true).
+		SaveX(ctx)
+
+	app.cookies = []*http.Cookie{app.serverCookieFor(bob.ID)}
+	rec := app.do(http.MethodPost, "/api/v1/me/2fa/setup", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("2fa setup status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var setupResp struct {
+		Setup twoFactorSetupResponse `json:"setup"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &setupResp); err != nil {
+		t.Fatalf("decode 2fa setup: %v", err)
+	}
+	if setupResp.Setup.Secret == "" || !strings.HasPrefix(setupResp.Setup.QRDataURL, "data:image/png;base64,") || !strings.HasPrefix(setupResp.Setup.OTPAuthURL, "otpauth://") {
+		t.Fatalf("bad 2fa setup response: %+v", setupResp.Setup)
+	}
+	code, err := totp.GenerateCode(setupResp.Setup.Secret, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec = app.do(http.MethodPost, "/api/v1/me/2fa/enable", map[string]string{"secret": setupResp.Setup.Secret, "code": code})
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"twoFactorEnabled":true`) {
+		t.Fatalf("2fa enable status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	app.cookies = nil
+	rec = app.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "totp-user", "password": "password123"})
+	if rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), "TWO_FACTOR_REQUIRED") {
+		t.Fatalf("login without totp status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	code, err = totp.GenerateCode(setupResp.Setup.Secret, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec = app.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"username": "totp-user", "password": "password123", "totpCode": code})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login with totp status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	app.cookies = nil
+	app.login("admin", "changeme")
+	rec = app.do(http.MethodPost, fmt.Sprintf("/api/v1/admin/users/%d/2fa/reset", bob.ID), nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"twoFactorEnabled":false`) {
+		t.Fatalf("admin 2fa reset status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	app.cookies = nil
+	app.login("totp-user", "password123")
 }
 
 func TestEmbeddedAppConfigUsesSameOriginAPI(t *testing.T) {
@@ -233,7 +346,7 @@ func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("site profile status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"title":"懒猫私有商店服务端"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"http://store.test/source/v2/index.json"`) {
+	if !strings.Contains(rec.Body.String(), `"title":"喵喵私有商店服务端"`) || !strings.Contains(rec.Body.String(), `"sourceUrl":"http://store.test/source/v2/index.json"`) {
 		t.Fatalf("default site profile body = %s", rec.Body.String())
 	}
 	var defaultProfile struct {
@@ -3050,4 +3163,17 @@ func (m *captureMailer) Send(_ context.Context, to, subject, body string) error 
 	m.subject = subject
 	m.body = body
 	return nil
+}
+
+func tokenFromMailBody(t *testing.T, body string) string {
+	t.Helper()
+	idx := strings.Index(body, "token=")
+	if idx < 0 {
+		t.Fatalf("mail body missing token link: %q", body)
+	}
+	fields := strings.Fields(body[idx+len("token="):])
+	if len(fields) == 0 {
+		t.Fatalf("mail body token is empty: %q", body)
+	}
+	return strings.TrimRight(fields[0], ".,)")
 }

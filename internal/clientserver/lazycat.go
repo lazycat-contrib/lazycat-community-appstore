@@ -84,9 +84,9 @@ func (lazyCatPackageManager) InstallLPK(ctx context.Context, userID string, req 
 }
 
 func (unavailablePackageManager) QueryInstalled(context.Context, string) ([]InstalledApplicationDTO, error) {
-	return nil, errors.New("LazyCat SDK is unavailable")
+	return nil, errors.New("system SDK is unavailable")
 }
 
 func (unavailablePackageManager) InstallLPK(context.Context, string, InstallRequestDTO) (InstallResultDTO, error) {
-	return InstallResultDTO{}, errors.New("LazyCat SDK is unavailable")
+	return InstallResultDTO{}, errors.New("system SDK is unavailable")
 }

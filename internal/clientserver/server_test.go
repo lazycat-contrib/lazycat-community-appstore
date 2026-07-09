@@ -136,11 +136,11 @@ func TestSyncRemovesInvalidGroupCodesAndKeepsSource(t *testing.T) {
 
 func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
 	app := testServer(t)
-	rec := app.request("PATCH", "/api/client/v1/settings", `{"commentDisplayName":"  Alice  Cat  ","autoSyncEnabled":true,"autoSyncIntervalMinutes":1,"syncOnStartup":true}`, "alice")
+	rec := app.request("PATCH", "/api/client/v1/settings", `{"clientTitle":"  Alice Store  ","commentDisplayName":"  Alice  Cat  ","autoSyncEnabled":true,"autoSyncIntervalMinutes":1,"syncOnStartup":true}`, "alice")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("settings save = %d %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"commentDisplayName":"Alice Cat"`) || !strings.Contains(rec.Body.String(), `"defaultPageSize":24`) || !strings.Contains(rec.Body.String(), `"autoSyncIntervalMinutes":5`) || !strings.Contains(rec.Body.String(), `"installSuccessDismissSeconds":3`) {
+	if !strings.Contains(rec.Body.String(), `"clientTitle":"Alice Store"`) || !strings.Contains(rec.Body.String(), `"commentDisplayName":"Alice Cat"`) || !strings.Contains(rec.Body.String(), `"defaultPageSize":24`) || !strings.Contains(rec.Body.String(), `"autoSyncIntervalMinutes":5`) || !strings.Contains(rec.Body.String(), `"installSuccessDismissSeconds":3`) {
 		t.Fatalf("settings response not normalized: %s", rec.Body.String())
 	}
 	setting, err := app.server.db.ClientSyncSetting.Query().
@@ -152,7 +152,7 @@ func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
 	if !setting.AutoSyncEnabled || !setting.SyncOnStartup || setting.AutoSyncIntervalMinutes != 5 {
 		t.Fatalf("bad sync setting: %#v", setting)
 	}
-	if count, err := app.server.db.ClientSetting.Query().Count(context.Background()); err != nil || count != 3 {
+	if count, err := app.server.db.ClientSetting.Query().Count(context.Background()); err != nil || count != 4 {
 		t.Fatalf("client_settings count = %d, err = %v", count, err)
 	}
 	rec = app.request("PATCH", "/api/client/v1/settings", `{"installSuccessDismissSeconds":999}`, "alice")

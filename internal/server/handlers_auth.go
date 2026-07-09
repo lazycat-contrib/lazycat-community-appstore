@@ -1,13 +1,22 @@
 package server
 
 import (
+	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"image/png"
 	"net"
 	"net/http"
+	"net/mail"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
 
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/apitoken"
@@ -21,6 +30,8 @@ import (
 var errInvalidRegistrationInvite = errors.New("invalid registration invite")
 
 const emailVerificationSettingPrefix = "email_verify:"
+const passwordResetSettingPrefix = "password_reset:"
+const passwordResetTTL = 30 * time.Minute
 const adminCaptchaFailedAttempts = 3
 
 type registerRequest struct {
@@ -99,7 +110,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if requireEmailVerify && input.Email != "" {
-			if err := s.sendVerificationEmail(r.Context(), input.Email, token); err != nil {
+			if err := s.sendVerificationEmail(r.Context(), input.Email, u.Username, token, r.Header.Get("Accept-Language")); err != nil {
 				writeError(w, http.StatusInternalServerError, "EMAIL_SEND_FAILED", "Could not send verification email", nil)
 				return
 			}
@@ -125,7 +136,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			_ = s.setSetting(r.Context(), emailVerificationSettingPrefix+u.Username, token)
 			if input.Email != "" {
-				if err := s.sendVerificationEmail(r.Context(), input.Email, token); err != nil {
+				if err := s.sendVerificationEmail(r.Context(), input.Email, u.Username, token, r.Header.Get("Accept-Language")); err != nil {
 					writeError(w, http.StatusInternalServerError, "EMAIL_SEND_FAILED", "Could not send verification email", nil)
 					return
 				}
@@ -243,11 +254,16 @@ func (s *Server) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 type loginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	TOTPCode string `json:"totpCode"`
 }
 
 type loginFailureDetails struct {
 	FailedAttempts  int  `json:"failedAttempts"`
 	CaptchaRequired bool `json:"captchaRequired"`
+}
+
+type twoFactorRequiredDetails struct {
+	TwoFactorRequired bool `json:"twoFactorRequired"`
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -282,11 +298,236 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "EMAIL_NOT_VERIFIED", "Email verification is required before login", nil)
 		return
 	}
+	if s.userRequiresTOTP(r.Context(), u) {
+		code := strings.TrimSpace(input.TOTPCode)
+		if code == "" {
+			writeError(w, http.StatusUnauthorized, "TWO_FACTOR_REQUIRED", "Two-factor authentication code is required", twoFactorRequiredDetails{TwoFactorRequired: true})
+			return
+		}
+		if !totp.Validate(code, *u.TotpSecret) {
+			writeError(w, http.StatusUnauthorized, "INVALID_TOTP", "Two-factor authentication code is invalid", twoFactorRequiredDetails{TwoFactorRequired: true})
+			return
+		}
+	}
 	if isAdmin(u) {
 		s.clearAdminLoginFailures(r, username)
 	}
 	s.setSession(w, u.ID)
 	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(u)})
+}
+
+func (s *Server) userRequiresTOTP(ctx context.Context, u *ent.User) bool {
+	return u != nil && s.twoFactorAuthEnabled(ctx) && u.TotpEnabled && u.TotpSecret != nil && strings.TrimSpace(*u.TotpSecret) != ""
+}
+
+type passwordResetRequest struct {
+	Email string `json:"email"`
+}
+
+type passwordResetConfirmRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"newPassword"`
+}
+
+type passwordResetRecord struct {
+	UserID    int       `json:"userId"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+func (s *Server) handleRequestPasswordReset(w http.ResponseWriter, r *http.Request) {
+	var input passwordResetRequest
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	email := strings.TrimSpace(input.Email)
+	parsedEmail, err := mail.ParseAddress(email)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "A valid email is required", nil)
+		return
+	}
+	email = strings.TrimSpace(parsedEmail.Address)
+	u, err := s.db.User.Query().Where(user.EmailEQ(email)).Only(r.Context())
+	if err == nil && !u.Disabled {
+		_ = s.createAndSendPasswordReset(r, u)
+	}
+	writeJSON(w, http.StatusOK, okResponse{OK: true})
+}
+
+func (s *Server) createAndSendPasswordReset(r *http.Request, u *ent.User) error {
+	if u.Email == nil || strings.TrimSpace(*u.Email) == "" {
+		return nil
+	}
+	token, err := emailVerificationToken()
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(passwordResetRecord{UserID: u.ID, ExpiresAt: time.Now().UTC().Add(passwordResetTTL)})
+	if err != nil {
+		return err
+	}
+	if err := s.setSetting(r.Context(), passwordResetSettingPrefix+tokenHash(token), string(payload)); err != nil {
+		return err
+	}
+	resetURL := strings.TrimRight(s.sitePublicURL(r.Context()), "/") + "/login?mode=reset&token=" + token
+	subject, textBody, htmlBody, err := s.renderMail(r.Context(), mailKindPasswordReset, mailRenderData{
+		RecipientName: userDisplayName(u),
+		ActionURL:     resetURL,
+		Language:      r.Header.Get("Accept-Language"),
+	})
+	if err != nil {
+		return err
+	}
+	return s.sendRenderedEmail(r.Context(), *u.Email, subject, textBody, htmlBody)
+}
+
+func (s *Server) handleConfirmPasswordReset(w http.ResponseWriter, r *http.Request) {
+	var input passwordResetConfirmRequest
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	token := strings.TrimSpace(input.Token)
+	password := strings.TrimSpace(input.NewPassword)
+	if token == "" || len(password) < 8 {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Token and a password of at least 8 characters are required", nil)
+		return
+	}
+	key := passwordResetSettingPrefix + tokenHash(token)
+	record, err := s.db.SiteSetting.Query().Where(sitesetting.KeyEQ(key)).Only(r.Context())
+	if err != nil {
+		writeError(w, http.StatusNotFound, "TOKEN_NOT_FOUND", "Password reset token not found or expired", nil)
+		return
+	}
+	var payload passwordResetRecord
+	if err := json.Unmarshal([]byte(record.Value), &payload); err != nil || payload.UserID <= 0 || time.Now().UTC().After(payload.ExpiresAt) {
+		_ = s.db.SiteSetting.DeleteOneID(record.ID).Exec(r.Context())
+		writeError(w, http.StatusNotFound, "TOKEN_NOT_FOUND", "Password reset token not found or expired", nil)
+		return
+	}
+	hash, err := auth.HashPassword(password)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "PASSWORD_HASH_FAILED", "Could not reset password", nil)
+		return
+	}
+	if _, err := s.db.User.UpdateOneID(payload.UserID).SetPasswordHash(hash).Save(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "PASSWORD_RESET_FAILED", "Could not reset password", nil)
+		return
+	}
+	_ = s.db.SiteSetting.DeleteOneID(record.ID).Exec(r.Context())
+	writeJSON(w, http.StatusOK, okResponse{OK: true})
+}
+
+type twoFactorSetupResponse struct {
+	Secret     string `json:"secret"`
+	OTPAuthURL string `json:"otpAuthUrl"`
+	QRDataURL  string `json:"qrDataUrl"`
+}
+
+type twoFactorEnableRequest struct {
+	Secret string `json:"secret"`
+	Code   string `json:"code"`
+}
+
+type twoFactorDisableRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+}
+
+func (s *Server) handleTwoFactorSetup(w http.ResponseWriter, r *http.Request, u *ent.User) {
+	if !s.twoFactorAuthEnabled(r.Context()) {
+		writeError(w, http.StatusForbidden, "TWO_FACTOR_DISABLED", "Two-factor authentication is disabled for this site", nil)
+		return
+	}
+	accountName := u.Username
+	if u.Email != nil && strings.TrimSpace(*u.Email) != "" {
+		accountName = strings.TrimSpace(*u.Email)
+	}
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      s.siteProfile(r.Context()).Title,
+		AccountName: accountName,
+		Period:      30,
+		SecretSize:  20,
+		Digits:      otp.DigitsSix,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "TWO_FACTOR_SETUP_FAILED", "Could not create two-factor setup", nil)
+		return
+	}
+	qr, err := key.Image(220, 220)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "TWO_FACTOR_SETUP_FAILED", "Could not create two-factor QR code", nil)
+		return
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, qr); err != nil {
+		writeError(w, http.StatusInternalServerError, "TWO_FACTOR_SETUP_FAILED", "Could not encode two-factor QR code", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"setup": twoFactorSetupResponse{
+		Secret:     key.Secret(),
+		OTPAuthURL: key.URL(),
+		QRDataURL:  "data:image/png;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()),
+	}})
+}
+
+func (s *Server) handleTwoFactorEnable(w http.ResponseWriter, r *http.Request, u *ent.User) {
+	if !s.twoFactorAuthEnabled(r.Context()) {
+		writeError(w, http.StatusForbidden, "TWO_FACTOR_DISABLED", "Two-factor authentication is disabled for this site", nil)
+		return
+	}
+	var input twoFactorEnableRequest
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	secret := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(input.Secret), " ", ""))
+	code := strings.TrimSpace(input.Code)
+	if secret == "" || code == "" {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Secret and verification code are required", nil)
+		return
+	}
+	if !totp.Validate(code, secret) {
+		writeError(w, http.StatusUnprocessableEntity, "INVALID_TOTP", "Two-factor authentication code is invalid", nil)
+		return
+	}
+	updated, err := s.db.User.UpdateOneID(u.ID).SetTotpSecret(secret).SetTotpEnabled(true).Save(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "TWO_FACTOR_ENABLE_FAILED", "Could not enable two-factor authentication", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(updated)})
+}
+
+func (s *Server) handleTwoFactorDisable(w http.ResponseWriter, r *http.Request, u *ent.User) {
+	var input twoFactorDisableRequest
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	if !auth.CheckPassword(u.PasswordHash, input.CurrentPassword) {
+		writeError(w, http.StatusForbidden, "INVALID_PASSWORD", "Current password is incorrect", nil)
+		return
+	}
+	updated, err := s.db.User.UpdateOneID(u.ID).SetTotpEnabled(false).ClearTotpSecret().Save(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "TWO_FACTOR_DISABLE_FAILED", "Could not disable two-factor authentication", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(updated)})
+}
+
+func (s *Server) handleAdminResetUserTwoFactor(w http.ResponseWriter, r *http.Request, _ *ent.User) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		badRequest(w, err)
+		return
+	}
+	updated, err := s.db.User.UpdateOneID(id).SetTotpEnabled(false).ClearTotpSecret().Save(r.Context())
+	if err != nil {
+		writeError(w, http.StatusNotFound, "USER_NOT_FOUND", "User not found", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(updated)})
 }
 
 func (s *Server) recordAdminLoginFailure(r *http.Request, username string) int {

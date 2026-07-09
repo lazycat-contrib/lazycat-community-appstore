@@ -146,7 +146,7 @@ const tokenPublishVersionCurlExample = [
 ].join('\n');
 
 const tokenGithubActionsExample = [
-  'name: Publish LazyCat LPK',
+  'name: Publish LPK',
   '',
   'on:',
   '  release:',

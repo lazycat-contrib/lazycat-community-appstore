@@ -19,7 +19,7 @@ func LoadConfig() Config {
 		Addr:              env("CLIENT_ADDR", "127.0.0.1:8090"),
 		DBDSN:             env("CLIENT_DB_DSN", "./data/client.db"),
 		DefaultSourceURL:  strings.TrimSpace(os.Getenv("CLIENT_DEFAULT_SOURCE_URL")),
-		DefaultSourceName: env("CLIENT_DEFAULT_SOURCE_NAME", "懒猫私有商店"),
+		DefaultSourceName: env("CLIENT_DEFAULT_SOURCE_NAME", "喵喵私有商店"),
 		SyncTimeout:       20 * time.Second,
 	}
 }

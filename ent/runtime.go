@@ -976,20 +976,24 @@ func init() {
 	userDescAvatarStoragePath := userFields[4].Descriptor()
 	// user.DefaultAvatarStoragePath holds the default value on creation for the avatar_storage_path field.
 	user.DefaultAvatarStoragePath = userDescAvatarStoragePath.Default.(string)
+	// userDescTotpEnabled is the schema descriptor for totp_enabled field.
+	userDescTotpEnabled := userFields[8].Descriptor()
+	// user.DefaultTotpEnabled holds the default value on creation for the totp_enabled field.
+	user.DefaultTotpEnabled = userDescTotpEnabled.Default.(bool)
 	// userDescEmailVerified is the schema descriptor for email_verified field.
-	userDescEmailVerified := userFields[8].Descriptor()
+	userDescEmailVerified := userFields[10].Descriptor()
 	// user.DefaultEmailVerified holds the default value on creation for the email_verified field.
 	user.DefaultEmailVerified = userDescEmailVerified.Default.(bool)
 	// userDescDisabled is the schema descriptor for disabled field.
-	userDescDisabled := userFields[9].Descriptor()
+	userDescDisabled := userFields[11].Descriptor()
 	// user.DefaultDisabled holds the default value on creation for the disabled field.
 	user.DefaultDisabled = userDescDisabled.Default.(bool)
 	// userDescCreatedAt is the schema descriptor for created_at field.
-	userDescCreatedAt := userFields[10].Descriptor()
+	userDescCreatedAt := userFields[12].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
 	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
 	// userDescUpdatedAt is the schema descriptor for updated_at field.
-	userDescUpdatedAt := userFields[11].Descriptor()
+	userDescUpdatedAt := userFields[13].Descriptor()
 	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
 	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

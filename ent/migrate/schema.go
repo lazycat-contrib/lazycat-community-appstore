@@ -1115,6 +1115,8 @@ var (
 		{Name: "avatar_storage_path", Type: field.TypeString, Default: ""},
 		{Name: "email", Type: field.TypeString, Nullable: true},
 		{Name: "password_hash", Type: field.TypeString},
+		{Name: "totp_secret", Type: field.TypeString, Nullable: true},
+		{Name: "totp_enabled", Type: field.TypeBool, Default: false},
 		{Name: "role", Type: field.TypeEnum, Enums: []string{"USER", "SOFTWARE_ADMIN", "SITE_ADMIN"}, Default: "USER"},
 		{Name: "email_verified", Type: field.TypeBool, Default: false},
 		{Name: "disabled", Type: field.TypeBool, Default: false},

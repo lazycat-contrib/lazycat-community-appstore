@@ -20,7 +20,7 @@ func main() {
 		Addr:    cfg.Addr,
 		Handler: app.Handler(),
 	}
-	log.Printf("LazyCat Private Store client listening on %s", cfg.Addr)
+	log.Printf("MiaoMiao Private Store client listening on %s", cfg.Addr)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
