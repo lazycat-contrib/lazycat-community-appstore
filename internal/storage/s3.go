@@ -105,6 +105,41 @@ func (b *S3Backend) Delete(ctx context.Context, objectPath string) error {
 	return err
 }
 
+func (b *S3Backend) ListObjects(ctx context.Context, prefix string) ([]ObjectInfo, error) {
+	cleanedPrefix := cleanObjectPrefix(prefix)
+	keyPrefix := b.objectKey(cleanedPrefix)
+	if keyPrefix != "" && !strings.HasSuffix(keyPrefix, "/") {
+		keyPrefix += "/"
+	}
+	paginator := awss3.NewListObjectsV2Paginator(b.client, &awss3.ListObjectsV2Input{
+		Bucket: aws.String(b.bucket),
+		Prefix: aws.String(keyPrefix),
+	})
+	objects := []ObjectInfo{}
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range page.Contents {
+			rel, ok := b.relativeObjectPath(aws.ToString(item.Key))
+			if !ok {
+				continue
+			}
+			modTime := time.Time{}
+			if item.LastModified != nil {
+				modTime = *item.LastModified
+			}
+			size := int64(0)
+			if item.Size != nil {
+				size = *item.Size
+			}
+			objects = append(objects, ObjectInfo{Path: rel, Size: size, ModTime: modTime})
+		}
+	}
+	return objects, nil
+}
+
 func (b *S3Backend) PublicURL(objectPath string) string {
 	if b.publicURL != "" {
 		return b.publicURL + "/" + strings.TrimLeft(path.Clean(objectPath), "/")
@@ -159,6 +194,29 @@ func (b *S3Backend) objectKey(objectPath string) string {
 		return b.rootPrefix
 	}
 	return path.Join(b.rootPrefix, cleaned)
+}
+
+func (b *S3Backend) relativeObjectPath(key string) (string, bool) {
+	cleaned := strings.TrimLeft(path.Clean(key), "/")
+	if cleaned == "" || cleaned == "." {
+		return "", false
+	}
+	if b.rootPrefix == "" {
+		return cleaned, true
+	}
+	root := strings.TrimRight(b.rootPrefix, "/")
+	if cleaned == root {
+		return "", false
+	}
+	prefix := root + "/"
+	if !strings.HasPrefix(cleaned, prefix) {
+		return "", false
+	}
+	rel := strings.TrimPrefix(cleaned, prefix)
+	if rel == "" || rel == "." {
+		return "", false
+	}
+	return rel, true
 }
 
 func normalizeS3Endpoint(endpoint string, useSSL bool) string {

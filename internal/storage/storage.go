@@ -33,6 +33,12 @@ type Reader struct {
 	ContentType string
 }
 
+type ObjectInfo struct {
+	Path    string
+	Size    int64
+	ModTime time.Time
+}
+
 type Backend interface {
 	Save(ctx context.Context, filename string, r io.Reader) (Object, error)
 	Delete(ctx context.Context, path string) error
@@ -42,6 +48,10 @@ type Backend interface {
 
 type ObjectWriter interface {
 	SaveObject(ctx context.Context, objectPath string, r io.Reader) (Object, error)
+}
+
+type ObjectLister interface {
+	ListObjects(ctx context.Context, prefix string) ([]ObjectInfo, error)
 }
 
 func CleanObjectPath(objectPath string) (string, error) {

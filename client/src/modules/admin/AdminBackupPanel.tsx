@@ -6,6 +6,7 @@ import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInpu
 import { EmptyState as XEmptyState } from '@astryxdesign/core/EmptyState';
 import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
 import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
+import { NumberInput as XNumberInput } from '@astryxdesign/core/NumberInput';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { TimeInput as XTimeInput, type ISOTimeString } from '@astryxdesign/core/TimeInput';
@@ -18,6 +19,7 @@ import type { StorageSettings } from './StorageSettingsPanel';
 type BackupDraft = {
   enabled: boolean;
   scheduleTime: string;
+  retentionCount: number;
   storageKeys: string[];
   targets: BackupTargetSettings[];
 };
@@ -27,6 +29,7 @@ const defaultBackupDirectory = 'backups/appstore';
 const defaultBackupSettings: BackupSettings = {
   enabled: false,
   scheduleTime: '03:00',
+  retentionCount: 0,
   storageKeys: [],
   targets: [],
   isRunning: false,
@@ -39,6 +42,7 @@ function draftFromSettings(settings: BackupSettings): BackupDraft {
   return {
     enabled: Boolean(settings.enabled),
     scheduleTime: settings.scheduleTime || '03:00',
+    retentionCount: settings.retentionCount ?? 0,
     storageKeys: targets.map((target) => target.storageKey),
     targets: targets.map((target) => ({ storageKey: target.storageKey, directory: target.directory || defaultBackupDirectory })),
   };
@@ -206,6 +210,17 @@ export function AdminBackupPanel({
           increment={5}
           width="100%"
           onChange={(scheduleTime) => setDraft((current) => ({ ...current, scheduleTime: scheduleTime || '03:00' }))}
+        />
+        <XNumberInput
+          label={t('admin.backup.retentionCount')}
+          description={t('admin.backup.retentionCountHelp')}
+          value={draft.retentionCount}
+          min={0}
+          max={100}
+          step={1}
+          isIntegerOnly
+          width="100%"
+          onChange={(retentionCount) => setDraft((current) => ({ ...current, retentionCount }))}
         />
       </XFormLayout>
 

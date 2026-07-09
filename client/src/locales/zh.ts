@@ -1224,6 +1224,8 @@ const zh = {
           enabledHelp: '开启后服务端会每天在设定时间生成一次备份包；默认关闭。',
           scheduleTime: '每日备份时间',
           scheduleTimeHelp: '使用服务端本地时间，格式为 24 小时制。',
+          retentionCount: '保留最近备份数量',
+          retentionCountHelp: '0 表示不自动清理历史备份；只会清理当前备份目录下的 appstore-backup-*.zip。',
           sensitiveWarningBody: '备份包会复用迁移导出内容，可能包含密码哈希、Token 哈希、群组码、SMTP 密码和存储密钥，请只选择可信存储。',
           targets: '备份目标',
           targetsBody: '已选择 {{count}} 个存储；建议至少选择一个远端存储。',

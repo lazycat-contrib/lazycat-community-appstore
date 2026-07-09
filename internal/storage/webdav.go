@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"bytes"
 	"context"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"mime"
@@ -9,6 +11,7 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -91,6 +94,59 @@ func (b *WebDAVBackend) Delete(ctx context.Context, objectPath string) error {
 		return nil
 	}
 	return fmt.Errorf("webdav delete failed: %s", resp.Status)
+}
+
+func (b *WebDAVBackend) ListObjects(ctx context.Context, prefix string) ([]ObjectInfo, error) {
+	cleanedPrefix := cleanObjectPrefix(prefix)
+	body := bytes.NewBufferString(`<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:getlastmodified/><d:getcontentlength/><d:resourcetype/></d:prop></d:propfind>`)
+	req, err := http.NewRequestWithContext(ctx, "PROPFIND", b.objectURL(cleanedPrefix), body)
+	if err != nil {
+		return nil, err
+	}
+	b.auth(req)
+	req.Header.Set("Depth", "1")
+	req.Header.Set("Content-Type", "application/xml; charset=utf-8")
+	resp, err := b.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("webdav propfind failed: %s", resp.Status)
+	}
+
+	var listing webDAVMultiStatus
+	if err := xml.NewDecoder(resp.Body).Decode(&listing); err != nil {
+		return nil, err
+	}
+	objects := make([]ObjectInfo, 0, len(listing.Responses))
+	for _, response := range listing.Responses {
+		prop, ok := response.okProp()
+		if !ok || prop.ResourceType.Collection != nil {
+			continue
+		}
+		rel, ok := b.relativeObjectPathFromHref(response.Href, cleanedPrefix)
+		if !ok || rel == "" || rel == cleanedPrefix {
+			continue
+		}
+		size := int64(0)
+		if raw := strings.TrimSpace(prop.ContentLength); raw != "" {
+			if parsed, err := strconv.ParseInt(raw, 10, 64); err == nil {
+				size = parsed
+			}
+		}
+		modTime := time.Time{}
+		if raw := strings.TrimSpace(prop.LastModified); raw != "" {
+			if parsed, err := http.ParseTime(raw); err == nil {
+				modTime = parsed
+			}
+		}
+		objects = append(objects, ObjectInfo{Path: rel, Size: size, ModTime: modTime})
+	}
+	return objects, nil
 }
 
 func (b *WebDAVBackend) PublicURL(objectPath string) string {
@@ -183,10 +239,99 @@ func (b *WebDAVBackend) objectPath(objectPath string) string {
 	return path.Join(b.rootPrefix, cleaned)
 }
 
+func (b *WebDAVBackend) relativeObjectPathFromHref(href, fallbackPrefix string) (string, bool) {
+	href = strings.TrimSpace(href)
+	if href == "" {
+		return "", false
+	}
+	parsedHref, err := url.Parse(href)
+	if err == nil && !parsedHref.IsAbs() && !strings.HasPrefix(parsedHref.Path, "/") {
+		rel := cleanObjectPrefix(parsedHref.Path)
+		if rel == "" {
+			return "", true
+		}
+		if fallbackPrefix != "" {
+			return path.Join(fallbackPrefix, rel), true
+		}
+		return rel, true
+	}
+	if err != nil {
+		return "", false
+	}
+	hrefPath := parsedHref.Path
+	if unescaped, err := url.PathUnescape(hrefPath); err == nil {
+		hrefPath = unescaped
+	}
+	hrefPath = path.Clean("/" + strings.TrimLeft(hrefPath, "/"))
+
+	base, err := url.Parse(b.baseURL)
+	if err != nil {
+		return "", false
+	}
+	basePath := base.Path
+	if unescaped, err := url.PathUnescape(basePath); err == nil {
+		basePath = unescaped
+	}
+	rootPath := path.Clean("/" + strings.TrimLeft(path.Join(basePath, b.rootPrefix), "/"))
+	if rootPath == "/" {
+		rel := strings.TrimLeft(hrefPath, "/")
+		if rel == "" || rel == "." {
+			return "", true
+		}
+		return path.Clean(rel), true
+	}
+	if hrefPath == rootPath {
+		return "", true
+	}
+	prefix := strings.TrimRight(rootPath, "/") + "/"
+	if !strings.HasPrefix(hrefPath, prefix) {
+		return "", false
+	}
+	rel := strings.TrimPrefix(hrefPath, prefix)
+	if rel == "" || rel == "." {
+		return "", true
+	}
+	return path.Clean(rel), true
+}
+
 func (b *WebDAVBackend) auth(req *http.Request) {
 	if b.username != "" || b.password != "" {
 		req.SetBasicAuth(b.username, b.password)
 	}
+}
+
+type webDAVMultiStatus struct {
+	Responses []webDAVResponse `xml:"response"`
+}
+
+type webDAVResponse struct {
+	Href      string           `xml:"href"`
+	PropStats []webDAVPropStat `xml:"propstat"`
+}
+
+type webDAVPropStat struct {
+	Status string     `xml:"status"`
+	Prop   webDAVProp `xml:"prop"`
+}
+
+type webDAVProp struct {
+	LastModified  string             `xml:"getlastmodified"`
+	ContentLength string             `xml:"getcontentlength"`
+	ResourceType  webDAVResourceType `xml:"resourcetype"`
+}
+
+type webDAVResourceType struct {
+	Collection *struct{} `xml:"collection"`
+}
+
+func (r webDAVResponse) okProp() (webDAVProp, bool) {
+	for _, propStat := range r.PropStats {
+		status := strings.TrimSpace(propStat.Status)
+		if status == "" || strings.Contains(status, " 200 ") || strings.HasSuffix(status, " 200") || strings.HasSuffix(status, " 200 OK") {
+			return propStat.Prop, true
+		}
+	}
+	return webDAVProp{}, false
 }
 
 type countingReader struct {

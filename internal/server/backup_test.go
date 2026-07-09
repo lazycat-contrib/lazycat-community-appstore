@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -115,6 +116,91 @@ func TestBackupRunWritesToCustomTargetDirectories(t *testing.T) {
 	}
 }
 
+func TestBackupRetentionKeepsLatestBackupsInTargetDirectory(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	root := t.TempDir()
+	if err := app.server.saveStorageConfig(ctx, appStorageConfig{
+		Key:          "backup-a",
+		Name:         "Backup A",
+		Provider:     storageProviderLocal,
+		DeliveryMode: storageDeliveryServer,
+		LocalPath:    root,
+	}); err != nil {
+		t.Fatalf("save storage: %v", err)
+	}
+	if err := app.server.setSetting(ctx, settingBackupRetentionCount, "2"); err != nil {
+		t.Fatalf("set retention count: %v", err)
+	}
+	backupDir := filepath.Join(root, "backups", "appstore")
+	if err := os.MkdirAll(backupDir, 0o755); err != nil {
+		t.Fatalf("create backup dir: %v", err)
+	}
+	for _, name := range []string{
+		"appstore-backup-20000101-010000.000000000.zip",
+		"appstore-backup-20000102-010000.000000000.zip",
+		"appstore-backup-20000103-010000.000000000.zip",
+		"notes.txt",
+	} {
+		if err := os.WriteFile(filepath.Join(backupDir, name), []byte("old"), 0o644); err != nil {
+			t.Fatalf("write fixture %s: %v", name, err)
+		}
+	}
+	otherDir := filepath.Join(root, "backups", "other")
+	if err := os.MkdirAll(otherDir, 0o755); err != nil {
+		t.Fatalf("create other backup dir: %v", err)
+	}
+	otherBackup := filepath.Join(otherDir, "appstore-backup-20000101-010000.000000000.zip")
+	if err := os.WriteFile(otherBackup, []byte("other"), 0o644); err != nil {
+		t.Fatalf("write other backup: %v", err)
+	}
+
+	result, err := app.server.runBackup(ctx, "manual", []string{"backup-a"})
+	if err != nil {
+		t.Fatalf("runBackup returned error: %v", err)
+	}
+	if result.Status != backupStatusSuccess {
+		t.Fatalf("backup status = %q, error = %q", result.Status, result.Error)
+	}
+	if len(result.Warnings) != 0 {
+		t.Fatalf("backup warnings = %v, want none", result.Warnings)
+	}
+
+	entries, err := os.ReadDir(backupDir)
+	if err != nil {
+		t.Fatalf("read backup dir: %v", err)
+	}
+	backupNames := map[string]bool{}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "appstore-backup-") && strings.HasSuffix(entry.Name(), ".zip") {
+			backupNames[entry.Name()] = true
+		}
+	}
+	if len(backupNames) != 2 {
+		t.Fatalf("backup files = %v, want 2 retained backups", backupNames)
+	}
+	if !backupNames[path.Base(result.ObjectPath)] {
+		t.Fatalf("latest backup %q was not retained: %v", path.Base(result.ObjectPath), backupNames)
+	}
+	if !backupNames["appstore-backup-20000103-010000.000000000.zip"] {
+		t.Fatalf("newest historical backup was not retained: %v", backupNames)
+	}
+	for _, removed := range []string{
+		"appstore-backup-20000101-010000.000000000.zip",
+		"appstore-backup-20000102-010000.000000000.zip",
+	} {
+		if _, err := os.Stat(filepath.Join(backupDir, removed)); !os.IsNotExist(err) {
+			t.Fatalf("%s still exists or stat failed unexpectedly: %v", removed, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(backupDir, "notes.txt")); err != nil {
+		t.Fatalf("non-backup file was touched: %v", err)
+	}
+	if _, err := os.Stat(otherBackup); err != nil {
+		t.Fatalf("backup in another directory was touched: %v", err)
+	}
+}
+
 func TestBackupSettingsAcceptTargetDirectories(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()
@@ -131,8 +217,9 @@ func TestBackupSettingsAcceptTargetDirectories(t *testing.T) {
 	app.login("admin", "changeme")
 
 	rec := app.do(http.MethodPatch, "/api/v1/admin/backups/settings", map[string]any{
-		"enabled":      true,
-		"scheduleTime": "04:30",
+		"enabled":        true,
+		"scheduleTime":   "04:30",
+		"retentionCount": 7,
 		"targets": []map[string]string{
 			{"storageKey": "backup-a", "directory": "custom/site"},
 		},
@@ -140,9 +227,23 @@ func TestBackupSettingsAcceptTargetDirectories(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("update backup settings = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	for _, want := range []string{`"storageKeys":["backup-a"]`, `"storageKey":"backup-a"`, `"directory":"custom/site"`} {
+	for _, want := range []string{`"storageKeys":["backup-a"]`, `"storageKey":"backup-a"`, `"directory":"custom/site"`, `"retentionCount":7`} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Fatalf("backup settings response missing %s: %s", want, rec.Body.String())
+		}
+	}
+}
+
+func TestBackupSettingsRejectInvalidRetentionCount(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	for _, value := range []int{-1, maxBackupRetentionCount + 1} {
+		rec := app.do(http.MethodPatch, "/api/v1/admin/backups/settings", map[string]any{
+			"retentionCount": value,
+		})
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("retentionCount %d response = %d, body = %s", value, rec.Code, rec.Body.String())
 		}
 	}
 }

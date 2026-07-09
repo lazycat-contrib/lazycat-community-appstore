@@ -471,6 +471,7 @@ export type BackupTargetSettings = {
 export type BackupSettings = {
   enabled: boolean;
   scheduleTime: string;
+  retentionCount: number;
   storageKeys: string[];
   targets?: BackupTargetSettings[];
   lastRun?: BackupRunResult;

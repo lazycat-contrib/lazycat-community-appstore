@@ -1225,6 +1225,8 @@ const en = {
           enabledHelp: 'When enabled, the server creates one backup package per day at the configured time. It is off by default.',
           scheduleTime: 'Daily backup time',
           scheduleTimeHelp: 'Uses the server local time in 24-hour format.',
+          retentionCount: 'Backups to keep',
+          retentionCountHelp: 'Use 0 to keep all historical backups. Cleanup only removes appstore-backup-*.zip in the current backup directory.',
           sensitiveWarningBody: 'Backup packages reuse the migration export and may contain password hashes, token hashes, group codes, SMTP passwords, and storage keys. Select trusted storage targets only.',
           targets: 'Backup targets',
           targetsBody: '{{count}} storage targets selected. At least one remote storage is recommended.',

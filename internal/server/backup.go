@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +23,7 @@ import (
 const (
 	defaultBackupScheduleTime = "03:00"
 	defaultBackupDirectory    = "backups/appstore"
+	maxBackupRetentionCount   = 100
 	backupStatusSuccess       = "success"
 	backupStatusPartial       = "partial"
 	backupStatusFailed        = "failed"
@@ -29,19 +32,21 @@ const (
 var errBackupAlreadyRunning = errors.New("backup is already running")
 
 type backupSettingsDTO struct {
-	Enabled      bool                 `json:"enabled"`
-	ScheduleTime string               `json:"scheduleTime"`
-	StorageKeys  []string             `json:"storageKeys"`
-	Targets      []backupTargetConfig `json:"targets"`
-	LastRun      *backupRunResult     `json:"lastRun,omitempty"`
-	IsRunning    bool                 `json:"isRunning"`
+	Enabled        bool                 `json:"enabled"`
+	ScheduleTime   string               `json:"scheduleTime"`
+	RetentionCount int                  `json:"retentionCount"`
+	StorageKeys    []string             `json:"storageKeys"`
+	Targets        []backupTargetConfig `json:"targets"`
+	LastRun        *backupRunResult     `json:"lastRun,omitempty"`
+	IsRunning      bool                 `json:"isRunning"`
 }
 
 type backupSettingsInput struct {
-	Enabled      *bool                 `json:"enabled"`
-	ScheduleTime *string               `json:"scheduleTime"`
-	StorageKeys  *[]string             `json:"storageKeys"`
-	Targets      *[]backupTargetConfig `json:"targets"`
+	Enabled        *bool                 `json:"enabled"`
+	ScheduleTime   *string               `json:"scheduleTime"`
+	RetentionCount *int                  `json:"retentionCount"`
+	StorageKeys    *[]string             `json:"storageKeys"`
+	Targets        *[]backupTargetConfig `json:"targets"`
 }
 
 type backupTargetConfig struct {
@@ -77,6 +82,7 @@ type backupTarget struct {
 	key       string
 	name      string
 	directory string
+	backend   storage.Backend
 	writer    storage.ObjectWriter
 }
 
@@ -107,6 +113,9 @@ func (s *Server) handleUpdateBackupSettings(w http.ResponseWriter, r *http.Reque
 	if input.ScheduleTime != nil {
 		next.ScheduleTime = strings.TrimSpace(*input.ScheduleTime)
 	}
+	if input.RetentionCount != nil {
+		next.RetentionCount = *input.RetentionCount
+	}
 	if input.StorageKeys != nil {
 		next.StorageKeys = *input.StorageKeys
 		next.Targets = backupTargetsFromKeys(*input.StorageKeys)
@@ -120,12 +129,18 @@ func (s *Server) handleUpdateBackupSettings(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
 		return
 	}
+	retentionCount, err := normalizeBackupRetentionCount(next.RetentionCount)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
 	targets, err := s.normalizeBackupTargets(r.Context(), next.Targets, next.Enabled)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
 		return
 	}
 	next.ScheduleTime = scheduleTime
+	next.RetentionCount = retentionCount
 	next.Targets = targets
 	next.StorageKeys = backupStorageKeysFromTargets(targets)
 	if err := s.saveBackupSettings(r.Context(), next); err != nil {
@@ -169,9 +184,10 @@ func (s *Server) loadBackupSettings(ctx context.Context) (backupSettingsDTO, err
 		scheduleTime = defaultBackupScheduleTime
 	}
 	settings := backupSettingsDTO{
-		Enabled:      s.settingBool(ctx, settingBackupEnabled, false),
-		ScheduleTime: scheduleTime,
-		IsRunning:    s.isBackupRunning(),
+		Enabled:        s.settingBool(ctx, settingBackupEnabled, false),
+		ScheduleTime:   scheduleTime,
+		RetentionCount: s.backupRetentionCount(ctx),
+		IsRunning:      s.isBackupRunning(),
 	}
 	settings.StorageKeys = decodeBackupStorageKeys(s.setting(ctx, settingBackupStorageKeys, ""))
 	settings.Targets = decodeBackupTargets(s.setting(ctx, settingBackupTargets, ""), settings.StorageKeys)
@@ -200,10 +216,21 @@ func (s *Server) saveBackupSettings(ctx context.Context, settings backupSettings
 	if err := s.setSetting(ctx, settingBackupScheduleTime, settings.ScheduleTime); err != nil {
 		return err
 	}
+	if err := s.setSetting(ctx, settingBackupRetentionCount, strconv.Itoa(settings.RetentionCount)); err != nil {
+		return err
+	}
 	if err := s.setSetting(ctx, settingBackupStorageKeys, string(keys)); err != nil {
 		return err
 	}
 	return s.setSetting(ctx, settingBackupTargets, string(targets))
+}
+
+func (s *Server) backupRetentionCount(ctx context.Context) int {
+	retentionCount, err := normalizeBackupRetentionCount(s.settingInt(ctx, settingBackupRetentionCount, 0))
+	if err != nil {
+		return 0
+	}
+	return retentionCount
 }
 
 func (s *Server) setBackupLastRun(ctx context.Context, result backupRunResult) error {
@@ -279,6 +306,7 @@ func (s *Server) runBackupWithTargets(ctx context.Context, trigger string, targe
 
 	startedAt := time.Now().UTC()
 	fileName := fmt.Sprintf("appstore-backup-%s.zip", startedAt.Format("20060102-150405.000000000"))
+	retentionCount := s.backupRetentionCount(ctx)
 	result := backupRunResult{
 		StartedAt:  startedAt.Format(time.RFC3339),
 		Trigger:    trigger,
@@ -329,6 +357,9 @@ func (s *Server) runBackupWithTargets(ctx context.Context, trigger string, targe
 		targetResult.DownloadURL = s.absoluteURL(ctx, obj.DownloadURL)
 		result.Targets = append(result.Targets, targetResult)
 		successCount++
+		if err := cleanupBackupRetention(ctx, target, retentionCount); err != nil {
+			result.Warnings = append(result.Warnings, fmt.Sprintf("retention cleanup for %s: %v", target.key, err))
+		}
 	}
 	switch {
 	case successCount == len(targets):
@@ -362,7 +393,7 @@ func (s *Server) resolveBackupTargets(ctx context.Context, targetConfigs []backu
 		if !ok {
 			return nil, fmt.Errorf("storage %q does not support writing backup objects", targetConfig.StorageKey)
 		}
-		targets = append(targets, backupTarget{key: targetConfig.StorageKey, name: storageDisplayName(cfg), directory: targetConfig.Directory, writer: writer})
+		targets = append(targets, backupTarget{key: targetConfig.StorageKey, name: storageDisplayName(cfg), directory: targetConfig.Directory, backend: backend, writer: writer})
 	}
 	return targets, nil
 }
@@ -447,6 +478,81 @@ func normalizeBackupDirectory(value string) (string, error) {
 		return "", fmt.Errorf("backup directory is too long")
 	}
 	return cleaned, nil
+}
+
+func normalizeBackupRetentionCount(value int) (int, error) {
+	if value < 0 || value > maxBackupRetentionCount {
+		return 0, fmt.Errorf("retentionCount must be between 0 and %d", maxBackupRetentionCount)
+	}
+	return value, nil
+}
+
+func cleanupBackupRetention(ctx context.Context, target backupTarget, keep int) error {
+	if keep <= 0 {
+		return nil
+	}
+	lister, ok := target.backend.(storage.ObjectLister)
+	if !ok {
+		return fmt.Errorf("storage does not support listing backup objects")
+	}
+	objects, err := lister.ListObjects(ctx, target.directory)
+	if err != nil {
+		return err
+	}
+	candidates := backupRetentionCandidates(target.directory, objects)
+	if len(candidates) <= keep {
+		return nil
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if !candidates[i].createdAt.Equal(candidates[j].createdAt) {
+			return candidates[i].createdAt.After(candidates[j].createdAt)
+		}
+		return candidates[i].path > candidates[j].path
+	})
+	for _, candidate := range candidates[keep:] {
+		if err := target.backend.Delete(ctx, candidate.path); err != nil {
+			return fmt.Errorf("delete %s: %w", candidate.path, err)
+		}
+	}
+	return nil
+}
+
+type backupRetentionObject struct {
+	path      string
+	createdAt time.Time
+}
+
+func backupRetentionCandidates(directory string, objects []storage.ObjectInfo) []backupRetentionObject {
+	candidates := make([]backupRetentionObject, 0, len(objects))
+	for _, object := range objects {
+		objectPath, err := storage.CleanObjectPath(object.Path)
+		if err != nil {
+			continue
+		}
+		if path.Dir(objectPath) != directory {
+			continue
+		}
+		createdAt, ok := backupTimestampFromObject(objectPath, object.ModTime)
+		if !ok {
+			continue
+		}
+		candidates = append(candidates, backupRetentionObject{path: objectPath, createdAt: createdAt})
+	}
+	return candidates
+}
+
+func backupTimestampFromObject(objectPath string, modTime time.Time) (time.Time, bool) {
+	name := path.Base(objectPath)
+	if !strings.HasPrefix(name, "appstore-backup-") || !strings.HasSuffix(name, ".zip") {
+		return time.Time{}, false
+	}
+	raw := strings.TrimSuffix(strings.TrimPrefix(name, "appstore-backup-"), ".zip")
+	for _, layout := range []string{"20060102-150405.000000000", "20060102-150405"} {
+		if parsed, err := time.Parse(layout, raw); err == nil {
+			return parsed, true
+		}
+	}
+	return modTime, true
 }
 
 func decodeBackupStorageKeys(raw string) []string {

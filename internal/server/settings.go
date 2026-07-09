@@ -51,6 +51,7 @@ const (
 	settingSMTPFromName             = "smtp_from_name"
 	settingBackupEnabled            = "backup_enabled"
 	settingBackupScheduleTime       = "backup_schedule_time"
+	settingBackupRetentionCount     = "backup_retention_count"
 	settingBackupStorageKeys        = "backup_storage_keys"
 	settingBackupTargets            = "backup_targets"
 	settingBackupLastRun            = "backup_last_run"

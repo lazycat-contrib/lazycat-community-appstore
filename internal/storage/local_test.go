@@ -114,3 +114,42 @@ func TestLocalSaveObjectWritesRequestedRelativePath(t *testing.T) {
 		t.Fatalf("stored content = %q, want zip", string(data))
 	}
 }
+
+func TestLocalListObjectsReturnsRelativeObjects(t *testing.T) {
+	root := t.TempDir()
+	backend := NewLocalBackend(root, "/files/")
+	for _, objectPath := range []string{
+		"backups/appstore/a.zip",
+		"backups/appstore/nested/b.zip",
+		"other/c.zip",
+	} {
+		if _, err := backend.SaveObject(context.Background(), objectPath, strings.NewReader("zip")); err != nil {
+			t.Fatalf("SaveObject(%q) returned error: %v", objectPath, err)
+		}
+	}
+
+	objects, err := backend.ListObjects(context.Background(), "backups/appstore")
+	if err != nil {
+		t.Fatalf("ListObjects returned error: %v", err)
+	}
+	paths := map[string]bool{}
+	for _, object := range objects {
+		paths[object.Path] = true
+	}
+	for _, want := range []string{"backups/appstore/a.zip", "backups/appstore/nested/b.zip"} {
+		if !paths[want] {
+			t.Fatalf("ListObjects missing %q: %+v", want, objects)
+		}
+	}
+	if paths["other/c.zip"] {
+		t.Fatalf("ListObjects included object outside prefix: %+v", objects)
+	}
+
+	objects, err = backend.ListObjects(context.Background(), "missing")
+	if err != nil {
+		t.Fatalf("ListObjects missing prefix returned error: %v", err)
+	}
+	if len(objects) != 0 {
+		t.Fatalf("ListObjects missing prefix returned %d objects, want 0", len(objects))
+	}
+}

@@ -77,6 +77,60 @@ func (b *LocalBackend) Delete(ctx context.Context, path string) error {
 	return os.Remove(full)
 }
 
+func (b *LocalBackend) ListObjects(ctx context.Context, prefix string) ([]ObjectInfo, error) {
+	root, err := filepath.Abs(b.root)
+	if err != nil {
+		return nil, err
+	}
+	cleanedPrefix := cleanObjectPrefix(prefix)
+	start := root
+	if cleanedPrefix != "" {
+		start, err = b.safePath(cleanedPrefix)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	objects := []ObjectInfo{}
+	err = filepath.WalkDir(start, func(fullPath string, entry os.DirEntry, walkErr error) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		if walkErr != nil {
+			if os.IsNotExist(walkErr) {
+				return nil
+			}
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+		rel, err := filepath.Rel(root, fullPath)
+		if err != nil {
+			return err
+		}
+		objects = append(objects, ObjectInfo{
+			Path:    filepath.ToSlash(rel),
+			Size:    info.Size(),
+			ModTime: info.ModTime(),
+		})
+		return nil
+	})
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	return objects, err
+}
+
 func (b *LocalBackend) PublicURL(path string) string {
 	return b.urlPrefix + strings.TrimLeft(filepath.ToSlash(path), "/")
 }
