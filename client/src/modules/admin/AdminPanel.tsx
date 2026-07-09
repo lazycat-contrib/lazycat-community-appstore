@@ -78,6 +78,27 @@ function storageSelectOptions(storages: StorageOption[]) {
   }));
 }
 
+function storageSettingsPayload(storage: StorageSettings) {
+  return {
+    key: storage.key,
+    name: storage.name,
+    provider: storage.provider,
+    deliveryMode: storage.deliveryMode,
+    localPath: storage.localPath,
+    endpointUrl: storage.endpointUrl,
+    bucketName: storage.bucketName,
+    region: storage.region,
+    pathStyle: storage.pathStyle,
+    accountId: storage.accountId,
+    rootPrefix: storage.rootPrefix,
+    accessKeyId: storage.accessKeyId,
+    secretAccessKey: storage.secretAccessKey || '',
+    webdavUsername: storage.webdavUsername,
+    webdavPassword: storage.webdavPassword || '',
+    publicBaseUrl: storage.publicBaseUrl,
+  };
+}
+
 function defaultUploadStorageKey(storages: StorageOption[]) {
   return storages.find((storage) => storage.isDefault)?.key || storages[0]?.key || 'primary';
 }
@@ -427,7 +448,7 @@ export function AdminPanel({
     await runAction(setToast, t('admin.storageSaveFailed'), async () => {
       const data = await api<{ storage: StorageSettings }>(`/api/v1/admin/storage/${encodeURIComponent(storageDraft.key)}`, {
         method: 'PATCH',
-        body: JSON.stringify(storageDraft),
+        body: JSON.stringify(storageSettingsPayload(storageDraft)),
       });
       setStorageRecords((current) => current.map((item) => (item.key === data.storage.key ? normalizeStorageRecord(data.storage) : item)));
       setToast({ tone: 'success', message: t('admin.storageSaved') });
@@ -439,7 +460,7 @@ export function AdminPanel({
     await runAction(setToast, t('admin.storageTestFailed'), async () => {
       await api('/api/v1/admin/storage/test', {
         method: 'POST',
-        body: JSON.stringify(storageDraft),
+        body: JSON.stringify(storageSettingsPayload(storageDraft)),
       });
       setToast({ tone: 'success', message: t('admin.storageTested') });
     });
@@ -449,7 +470,7 @@ export function AdminPanel({
     await runAction(setToast, t('admin.storageSaveFailed'), async () => {
       const data = await api<{ storage: StorageSettings }>('/api/v1/admin/storage', {
         method: 'POST',
-        body: JSON.stringify(storageCreateDraft),
+        body: JSON.stringify(storageSettingsPayload(storageCreateDraft)),
       });
       const next = normalizeStorageRecord(data.storage);
       setStorageRecords((current) => [next, ...current.filter((item) => item.key !== next.key)]);

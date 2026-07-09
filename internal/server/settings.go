@@ -52,6 +52,7 @@ const (
 	settingBackupEnabled            = "backup_enabled"
 	settingBackupScheduleTime       = "backup_schedule_time"
 	settingBackupStorageKeys        = "backup_storage_keys"
+	settingBackupTargets            = "backup_targets"
 	settingBackupLastRun            = "backup_last_run"
 )
 

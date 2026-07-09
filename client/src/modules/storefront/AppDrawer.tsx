@@ -141,6 +141,7 @@ export function AppDrawer({
   const versionFileInputRef = useRef<HTMLInputElement>(null);
   const drawerTitleId = `app-drawer-title-${app.id}`;
   const latestVersion = app.latestVersion;
+  const latestChangelog = latestVersion?.changelog?.trim() || '';
   const appName = localizedAppName(app);
   const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
   const installable = hasInstallableVersion(app);
@@ -666,6 +667,21 @@ export function AppDrawer({
     );
   }
 
+  function renderLatestChangelog() {
+    if (!latestChangelog) return null;
+    return (
+      <section className="release-notes-panel">
+        <div className="section-title">
+          <History size={19} />
+          <h3>{t('drawer.releaseNotes')}</h3>
+        </div>
+        <XCard className="release-notes-card" padding={4}>
+          <p>{latestChangelog}</p>
+        </XCard>
+      </section>
+    );
+  }
+
   function renderManagementDialogs() {
     if (!managementDialog) return null;
 
@@ -1137,6 +1153,7 @@ export function AppDrawer({
             {renderManagementMetadataCard()}
           </XCard>
         )}
+        {renderLatestChangelog()}
         {isManageMode && (canMaintain || canUploadVersion) && (
           <section className="management-actions">
             <SectionTitle icon={Settings} title={t('drawer.managementActions')} />

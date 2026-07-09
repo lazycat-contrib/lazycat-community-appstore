@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 
 const (
 	defaultBackupScheduleTime = "03:00"
+	defaultBackupDirectory    = "backups/appstore"
 	backupStatusSuccess       = "success"
 	backupStatusPartial       = "partial"
 	backupStatusFailed        = "failed"
@@ -27,17 +29,24 @@ const (
 var errBackupAlreadyRunning = errors.New("backup is already running")
 
 type backupSettingsDTO struct {
-	Enabled      bool             `json:"enabled"`
-	ScheduleTime string           `json:"scheduleTime"`
-	StorageKeys  []string         `json:"storageKeys"`
-	LastRun      *backupRunResult `json:"lastRun,omitempty"`
-	IsRunning    bool             `json:"isRunning"`
+	Enabled      bool                 `json:"enabled"`
+	ScheduleTime string               `json:"scheduleTime"`
+	StorageKeys  []string             `json:"storageKeys"`
+	Targets      []backupTargetConfig `json:"targets"`
+	LastRun      *backupRunResult     `json:"lastRun,omitempty"`
+	IsRunning    bool                 `json:"isRunning"`
 }
 
 type backupSettingsInput struct {
-	Enabled      *bool     `json:"enabled"`
-	ScheduleTime *string   `json:"scheduleTime"`
-	StorageKeys  *[]string `json:"storageKeys"`
+	Enabled      *bool                 `json:"enabled"`
+	ScheduleTime *string               `json:"scheduleTime"`
+	StorageKeys  *[]string             `json:"storageKeys"`
+	Targets      *[]backupTargetConfig `json:"targets"`
+}
+
+type backupTargetConfig struct {
+	StorageKey string `json:"storageKey"`
+	Directory  string `json:"directory"`
 }
 
 type backupRunResult struct {
@@ -57,6 +66,7 @@ type backupRunResult struct {
 type backupTargetResult struct {
 	StorageKey  string `json:"storageKey"`
 	StorageName string `json:"storageName"`
+	Directory   string `json:"directory,omitempty"`
 	ObjectPath  string `json:"objectPath,omitempty"`
 	DownloadURL string `json:"downloadUrl,omitempty"`
 	Status      string `json:"status"`
@@ -64,9 +74,10 @@ type backupTargetResult struct {
 }
 
 type backupTarget struct {
-	key    string
-	name   string
-	writer storage.ObjectWriter
+	key       string
+	name      string
+	directory string
+	writer    storage.ObjectWriter
 }
 
 func (s *Server) handleGetBackupSettings(w http.ResponseWriter, r *http.Request, _ *ent.User) {
@@ -98,19 +109,25 @@ func (s *Server) handleUpdateBackupSettings(w http.ResponseWriter, r *http.Reque
 	}
 	if input.StorageKeys != nil {
 		next.StorageKeys = *input.StorageKeys
+		next.Targets = backupTargetsFromKeys(*input.StorageKeys)
+	}
+	if input.Targets != nil {
+		next.Targets = *input.Targets
+		next.StorageKeys = backupStorageKeysFromTargets(*input.Targets)
 	}
 	scheduleTime, err := normalizeBackupScheduleTime(next.ScheduleTime)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
 		return
 	}
-	keys, err := s.normalizeBackupStorageKeys(r.Context(), next.StorageKeys, next.Enabled)
+	targets, err := s.normalizeBackupTargets(r.Context(), next.Targets, next.Enabled)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
 		return
 	}
 	next.ScheduleTime = scheduleTime
-	next.StorageKeys = keys
+	next.Targets = targets
+	next.StorageKeys = backupStorageKeysFromTargets(targets)
 	if err := s.saveBackupSettings(r.Context(), next); err != nil {
 		writeError(w, http.StatusInternalServerError, "BACKUP_SETTINGS_SAVE_FAILED", "Could not save backup settings", nil)
 		return
@@ -129,7 +146,7 @@ func (s *Server) handleRunBackup(w http.ResponseWriter, r *http.Request, _ *ent.
 		writeError(w, http.StatusInternalServerError, "BACKUP_SETTINGS_FAILED", "Could not load backup settings", nil)
 		return
 	}
-	result, err := s.runBackup(r.Context(), "manual", settings.StorageKeys)
+	result, err := s.runBackupWithTargets(r.Context(), "manual", settings.Targets)
 	if errors.Is(err, errBackupAlreadyRunning) {
 		writeError(w, http.StatusConflict, "BACKUP_ALREADY_RUNNING", "A backup is already running", nil)
 		return
@@ -154,9 +171,11 @@ func (s *Server) loadBackupSettings(ctx context.Context) (backupSettingsDTO, err
 	settings := backupSettingsDTO{
 		Enabled:      s.settingBool(ctx, settingBackupEnabled, false),
 		ScheduleTime: scheduleTime,
-		StorageKeys:  decodeBackupStorageKeys(s.setting(ctx, settingBackupStorageKeys, "")),
 		IsRunning:    s.isBackupRunning(),
 	}
+	settings.StorageKeys = decodeBackupStorageKeys(s.setting(ctx, settingBackupStorageKeys, ""))
+	settings.Targets = decodeBackupTargets(s.setting(ctx, settingBackupTargets, ""), settings.StorageKeys)
+	settings.StorageKeys = backupStorageKeysFromTargets(settings.Targets)
 	if raw := strings.TrimSpace(s.setting(ctx, settingBackupLastRun, "")); raw != "" {
 		var result backupRunResult
 		if err := json.Unmarshal([]byte(raw), &result); err == nil && result.StartedAt != "" {
@@ -171,13 +190,20 @@ func (s *Server) saveBackupSettings(ctx context.Context, settings backupSettings
 	if err != nil {
 		return err
 	}
+	targets, err := json.Marshal(settings.Targets)
+	if err != nil {
+		return err
+	}
 	if err := s.setSetting(ctx, settingBackupEnabled, fmt.Sprintf("%t", settings.Enabled)); err != nil {
 		return err
 	}
 	if err := s.setSetting(ctx, settingBackupScheduleTime, settings.ScheduleTime); err != nil {
 		return err
 	}
-	return s.setSetting(ctx, settingBackupStorageKeys, string(keys))
+	if err := s.setSetting(ctx, settingBackupStorageKeys, string(keys)); err != nil {
+		return err
+	}
+	return s.setSetting(ctx, settingBackupTargets, string(targets))
 }
 
 func (s *Server) setBackupLastRun(ctx context.Context, result backupRunResult) error {
@@ -213,13 +239,13 @@ func (s *Server) runBackupSchedulerTick() {
 	ctx, cancel := context.WithTimeout(s.backupCtx, 6*time.Hour)
 	defer cancel()
 	settings, err := s.loadBackupSettings(ctx)
-	if err != nil || !settings.Enabled || len(settings.StorageKeys) == 0 {
+	if err != nil || !settings.Enabled || len(settings.Targets) == 0 {
 		return
 	}
 	if !shouldRunScheduledBackup(time.Now(), settings.ScheduleTime, settings.LastRun) {
 		return
 	}
-	_, _ = s.runBackup(ctx, "scheduled", settings.StorageKeys)
+	_, _ = s.runBackupWithTargets(ctx, "scheduled", settings.Targets)
 }
 
 func shouldRunScheduledBackup(now time.Time, scheduleTime string, lastRun *backupRunResult) bool {
@@ -242,17 +268,22 @@ func shouldRunScheduledBackup(now time.Time, scheduleTime string, lastRun *backu
 }
 
 func (s *Server) runBackup(ctx context.Context, trigger string, storageKeys []string) (*backupRunResult, error) {
+	return s.runBackupWithTargets(ctx, trigger, backupTargetsFromKeys(storageKeys))
+}
+
+func (s *Server) runBackupWithTargets(ctx context.Context, trigger string, targetConfigs []backupTargetConfig) (*backupRunResult, error) {
 	if !s.beginBackupRun() {
 		return nil, errBackupAlreadyRunning
 	}
 	defer s.finishBackupRun()
 
 	startedAt := time.Now().UTC()
+	fileName := fmt.Sprintf("appstore-backup-%s.zip", startedAt.Format("20060102-150405.000000000"))
 	result := backupRunResult{
 		StartedAt:  startedAt.Format(time.RFC3339),
 		Trigger:    trigger,
 		Status:     backupStatusFailed,
-		ObjectPath: fmt.Sprintf("backups/appstore/appstore-backup-%s.zip", startedAt.Format("20060102-150405.000000000")),
+		ObjectPath: path.Join(defaultBackupDirectory, fileName),
 	}
 	finish := func() *backupRunResult {
 		result.FinishedAt = time.Now().UTC().Format(time.RFC3339)
@@ -260,7 +291,7 @@ func (s *Server) runBackup(ctx context.Context, trigger string, storageKeys []st
 		return &result
 	}
 
-	targets, err := s.resolveBackupTargets(ctx, storageKeys)
+	targets, err := s.resolveBackupTargets(ctx, targetConfigs)
 	if err != nil {
 		result.Error = err.Error()
 		return finish(), nil
@@ -283,9 +314,11 @@ func (s *Server) runBackup(ctx context.Context, trigger string, storageKeys []st
 		targetResult := backupTargetResult{
 			StorageKey:  target.key,
 			StorageName: target.name,
+			Directory:   target.directory,
 			Status:      backupStatusFailed,
 		}
-		obj, err := target.writer.SaveObject(ctx, result.ObjectPath, bytes.NewReader(buf.Bytes()))
+		objectPath := path.Join(target.directory, fileName)
+		obj, err := target.writer.SaveObject(ctx, objectPath, bytes.NewReader(buf.Bytes()))
 		if err != nil {
 			targetResult.Error = err.Error()
 			result.Targets = append(result.Targets, targetResult)
@@ -310,40 +343,52 @@ func (s *Server) runBackup(ctx context.Context, trigger string, storageKeys []st
 	return finish(), nil
 }
 
-func (s *Server) resolveBackupTargets(ctx context.Context, storageKeys []string) ([]backupTarget, error) {
-	keys, err := s.normalizeBackupStorageKeys(ctx, storageKeys, true)
+func (s *Server) resolveBackupTargets(ctx context.Context, targetConfigs []backupTargetConfig) ([]backupTarget, error) {
+	targetConfigs, err := s.normalizeBackupTargets(ctx, targetConfigs, true)
 	if err != nil {
 		return nil, err
 	}
-	targets := make([]backupTarget, 0, len(keys))
-	for _, key := range keys {
-		cfg, err := s.effectiveStorageConfigByKey(ctx, key)
+	targets := make([]backupTarget, 0, len(targetConfigs))
+	for _, targetConfig := range targetConfigs {
+		cfg, err := s.effectiveStorageConfigByKey(ctx, targetConfig.StorageKey)
 		if err != nil {
-			return nil, fmt.Errorf("storage %q is not configured", key)
+			return nil, fmt.Errorf("storage %q is not configured", targetConfig.StorageKey)
 		}
 		backend, err := storageBackendFromConfig(cfg)
 		if err != nil {
-			return nil, fmt.Errorf("storage %q is invalid: %w", key, err)
+			return nil, fmt.Errorf("storage %q is invalid: %w", targetConfig.StorageKey, err)
 		}
 		writer, ok := backend.(storage.ObjectWriter)
 		if !ok {
-			return nil, fmt.Errorf("storage %q does not support writing backup objects", key)
+			return nil, fmt.Errorf("storage %q does not support writing backup objects", targetConfig.StorageKey)
 		}
-		targets = append(targets, backupTarget{key: key, name: storageDisplayName(cfg), writer: writer})
+		targets = append(targets, backupTarget{key: targetConfig.StorageKey, name: storageDisplayName(cfg), directory: targetConfig.Directory, writer: writer})
 	}
 	return targets, nil
 }
 
 func (s *Server) normalizeBackupStorageKeys(ctx context.Context, raw []string, require bool) ([]string, error) {
+	targets, err := s.normalizeBackupTargets(ctx, backupTargetsFromKeys(raw), require)
+	if err != nil {
+		return nil, err
+	}
+	return backupStorageKeysFromTargets(targets), nil
+}
+
+func (s *Server) normalizeBackupTargets(ctx context.Context, raw []backupTargetConfig, require bool) ([]backupTargetConfig, error) {
 	seen := map[string]struct{}{}
-	keys := make([]string, 0, len(raw))
+	targets := make([]backupTargetConfig, 0, len(raw))
 	for _, item := range raw {
-		key := normalizeStorageKey(item)
+		key := normalizeStorageKey(item.StorageKey)
 		if key == "" {
-			return nil, fmt.Errorf("backup storage key %q is invalid", item)
+			return nil, fmt.Errorf("backup storage key %q is invalid", item.StorageKey)
 		}
 		if _, ok := seen[key]; ok {
 			continue
+		}
+		directory, err := normalizeBackupDirectory(item.Directory)
+		if err != nil {
+			return nil, err
 		}
 		backend, err := s.storageBackendForKey(ctx, key)
 		if err != nil {
@@ -353,15 +398,15 @@ func (s *Server) normalizeBackupStorageKeys(ctx context.Context, raw []string, r
 			return nil, fmt.Errorf("storage %q does not support writing backup objects", key)
 		}
 		seen[key] = struct{}{}
-		keys = append(keys, key)
+		targets = append(targets, backupTargetConfig{StorageKey: key, Directory: directory})
 	}
-	if len(keys) > 8 {
+	if len(targets) > 8 {
 		return nil, fmt.Errorf("at most 8 backup storages can be selected")
 	}
-	if require && len(keys) == 0 {
+	if require && len(targets) == 0 {
 		return nil, fmt.Errorf("at least one backup storage is required")
 	}
-	return keys, nil
+	return targets, nil
 }
 
 func normalizeBackupScheduleTime(value string) (string, error) {
@@ -376,6 +421,34 @@ func normalizeBackupScheduleTime(value string) (string, error) {
 	return parsed.Format("15:04"), nil
 }
 
+func normalizeBackupDirectory(value string) (string, error) {
+	value = strings.TrimSpace(strings.ReplaceAll(value, "\\", "/"))
+	if value == "" {
+		return defaultBackupDirectory, nil
+	}
+	if strings.HasPrefix(value, "/") {
+		return "", fmt.Errorf("backup directory must be a relative path")
+	}
+	value = strings.TrimSuffix(value, "/")
+	if value == "" {
+		return "", fmt.Errorf("backup directory must be a relative path")
+	}
+	parts := strings.Split(value, "/")
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." {
+			return "", fmt.Errorf("backup directory contains an invalid segment")
+		}
+	}
+	cleaned := path.Clean(value)
+	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return "", fmt.Errorf("backup directory must stay inside storage root")
+	}
+	if len(cleaned) > 240 {
+		return "", fmt.Errorf("backup directory is too long")
+	}
+	return cleaned, nil
+}
+
 func decodeBackupStorageKeys(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -384,6 +457,53 @@ func decodeBackupStorageKeys(raw string) []string {
 	var keys []string
 	if err := json.Unmarshal([]byte(raw), &keys); err != nil {
 		return nil
+	}
+	return keys
+}
+
+func decodeBackupTargets(raw string, fallbackKeys []string) []backupTargetConfig {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return backupTargetsFromKeys(fallbackKeys)
+	}
+	var targets []backupTargetConfig
+	if err := json.Unmarshal([]byte(raw), &targets); err != nil || len(targets) == 0 {
+		return backupTargetsFromKeys(fallbackKeys)
+	}
+	for index := range targets {
+		key := normalizeStorageKey(targets[index].StorageKey)
+		if key == "" {
+			return backupTargetsFromKeys(fallbackKeys)
+		}
+		directory, err := normalizeBackupDirectory(targets[index].Directory)
+		if err != nil {
+			return backupTargetsFromKeys(fallbackKeys)
+		}
+		targets[index] = backupTargetConfig{StorageKey: key, Directory: directory}
+	}
+	return targets
+}
+
+func backupTargetsFromKeys(keys []string) []backupTargetConfig {
+	targets := make([]backupTargetConfig, 0, len(keys))
+	for _, key := range keys {
+		key = normalizeStorageKey(key)
+		if key == "" {
+			continue
+		}
+		targets = append(targets, backupTargetConfig{StorageKey: key, Directory: defaultBackupDirectory})
+	}
+	return targets
+}
+
+func backupStorageKeysFromTargets(targets []backupTargetConfig) []string {
+	keys := make([]string, 0, len(targets))
+	for _, target := range targets {
+		key := normalizeStorageKey(target.StorageKey)
+		if key == "" {
+			continue
+		}
+		keys = append(keys, key)
 	}
 	return keys
 }

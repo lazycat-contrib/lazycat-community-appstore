@@ -100,6 +100,7 @@ export function StorageSettingsPanel({
 }: StorageSettingsPanelProps) {
   const { t } = useTranslation();
   const selectedStorage = storages.find((storage) => storage.key === selectedKey) || storages[0];
+  const defaultStorageOptions = storages.map((storage) => ({ value: storage.key, label: storage.name || storage.key }));
 
   return (
     <div className="settings-section storage-settings-panel">
@@ -110,6 +111,23 @@ export function StorageSettingsPanel({
         </div>
         <XButton type="button" variant="primary" size="sm" label={t('admin.createStorage')} icon={<Plus size={17} />} onClick={onOpenCreate} />
       </div>
+
+      {defaultStorageOptions.length > 0 && (
+        <div className="storage-default-control">
+          <XSelector
+            label={t('admin.defaultStoragePicker')}
+            description={t('admin.defaultStoragePickerHelp')}
+            value={defaultKey}
+            options={defaultStorageOptions}
+            onChange={(nextKey) => {
+              const storage = storages.find((item) => item.key === nextKey);
+              if (storage && storage.key !== defaultKey) {
+                void onSetDefault(storage);
+              }
+            }}
+          />
+        </div>
+      )}
 
       <div className="storage-admin-grid">
         <div className="storage-config-list" role="list" aria-label={t('admin.storageConfigs')}>
@@ -187,6 +205,7 @@ function StorageFields({ storage, onChange, mode }: { storage: StorageSettings; 
   const isR2 = storage.provider === 'CLOUDFLARE_R2';
   const isWebDAV = storage.provider === 'WEBDAV';
   const usesDirectURL = storage.deliveryMode === 'DIRECT';
+  const deliveryPreviewURL = usesDirectURL ? storage.publicBaseUrl.trim() : (storage.serverProxyBaseUrl || '/api/v1/files/');
 
   function update<K extends keyof StorageSettings>(key: K, value: StorageSettings[K]) {
     onChange({ ...storage, [key]: value });
@@ -383,8 +402,8 @@ function StorageFields({ storage, onChange, mode }: { storage: StorageSettings; 
         )}
         <div className="source-url-preview">
           <span>{t(usesDirectURL ? 'admin.storageDirectLink' : 'admin.storageServerProxy')}</span>
-          <code>{usesDirectURL ? storage.publicBaseUrl || t('admin.storageDirectLinkEmpty') : storage.serverProxyBaseUrl || '/api/v1/files/'}</code>
-          <Copy size={15} aria-hidden="true" />
+          <code>{deliveryPreviewURL || t('admin.storageDirectLinkEmpty')}</code>
+          {deliveryPreviewURL && <Copy size={15} aria-hidden="true" />}
         </div>
       </section>
     </div>

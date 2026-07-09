@@ -48,22 +48,27 @@ type storageConfigDTO struct {
 }
 
 type storageConfigInput struct {
-	Key             string `json:"key"`
-	Name            string `json:"name"`
-	Provider        string `json:"provider"`
-	DeliveryMode    string `json:"deliveryMode"`
-	LocalPath       string `json:"localPath"`
-	EndpointURL     string `json:"endpointUrl"`
-	BucketName      string `json:"bucketName"`
-	Region          string `json:"region"`
-	PathStyle       bool   `json:"pathStyle"`
-	AccountID       string `json:"accountId"`
-	RootPrefix      string `json:"rootPrefix"`
-	AccessKeyID     string `json:"accessKeyId"`
-	SecretAccessKey string `json:"secretAccessKey"`
-	WebDAVUsername  string `json:"webdavUsername"`
-	WebDAVPassword  string `json:"webdavPassword"`
-	PublicBaseURL   string `json:"publicBaseUrl"`
+	Key                  string `json:"key"`
+	Name                 string `json:"name"`
+	IsDefault            bool   `json:"isDefault"`
+	Provider             string `json:"provider"`
+	DeliveryMode         string `json:"deliveryMode"`
+	LocalPath            string `json:"localPath"`
+	EndpointURL          string `json:"endpointUrl"`
+	BucketName           string `json:"bucketName"`
+	Region               string `json:"region"`
+	PathStyle            bool   `json:"pathStyle"`
+	AccountID            string `json:"accountId"`
+	RootPrefix           string `json:"rootPrefix"`
+	AccessKeyID          string `json:"accessKeyId"`
+	SecretAccessKey      string `json:"secretAccessKey"`
+	SecretAccessKeySet   bool   `json:"secretAccessKeySet"`
+	WebDAVUsername       string `json:"webdavUsername"`
+	WebDAVPassword       string `json:"webdavPassword"`
+	WebDAVPasswordSet    bool   `json:"webdavPasswordSet"`
+	PublicBaseURL        string `json:"publicBaseUrl"`
+	ServerProxyBaseURL   string `json:"serverProxyBaseUrl"`
+	EffectiveFileURLMode string `json:"effectiveFileUrlMode"`
 }
 
 type appStorageConfig struct {

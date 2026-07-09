@@ -329,6 +329,7 @@ export type CommentNotification = {
 
 export type SourceVersion = {
   version: string;
+  changelog?: string;
   downloadUrl: string;
   upstreamDownloadUrl?: string;
   sourceType?: string;
@@ -441,6 +442,7 @@ export type SiteProfile = {
 export type BackupTargetResult = {
   storageKey: string;
   storageName: string;
+  directory?: string;
   objectPath?: string;
   downloadUrl?: string;
   status: 'success' | 'partial' | 'failed' | string;
@@ -461,10 +463,16 @@ export type BackupRunResult = {
   error?: string;
 };
 
+export type BackupTargetSettings = {
+  storageKey: string;
+  directory: string;
+};
+
 export type BackupSettings = {
   enabled: boolean;
   scheduleTime: string;
   storageKeys: string[];
+  targets?: BackupTargetSettings[];
   lastRun?: BackupRunResult;
   isRunning: boolean;
 };

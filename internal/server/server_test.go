@@ -2245,6 +2245,40 @@ func TestAdminStorageConfigCanBeManagedAndTested(t *testing.T) {
 	}
 }
 
+func TestAdminStorageConfigAcceptsR2DTOFieldsOnCreate(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodPost, "/api/v1/admin/storage", map[string]any{
+		"key":                  "r2-backup",
+		"name":                 "R2 Backup",
+		"isDefault":            false,
+		"provider":             "CLOUDFLARE_R2",
+		"deliveryMode":         "SERVER",
+		"endpointUrl":          "https://example-account.r2.cloudflarestorage.com",
+		"bucketName":           "apps",
+		"region":               "auto",
+		"pathStyle":            true,
+		"accountId":            "example-account",
+		"rootPrefix":           "appstore",
+		"accessKeyId":          "ak",
+		"secretAccessKey":      "sk",
+		"secretAccessKeySet":   false,
+		"webdavPasswordSet":    false,
+		"publicBaseUrl":        "",
+		"serverProxyBaseUrl":   "https://store.example.com/api/v1/files/r2-backup/",
+		"effectiveFileUrlMode": "SERVER",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("r2 storage create status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	for _, want := range []string{`"key":"r2-backup"`, `"provider":"CLOUDFLARE_R2"`, `"secretAccessKeySet":true`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("r2 storage response missing %s: %s", want, rec.Body.String())
+		}
+	}
+}
+
 func TestAdminStorageConfigRejectsIncompleteSettings(t *testing.T) {
 	app := newTestApp(t)
 	app.login("admin", "changeme")

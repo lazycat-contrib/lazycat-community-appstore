@@ -109,6 +109,7 @@ type ClientAuthStatusDTO struct {
 
 type VersionDTO struct {
 	Version             string `json:"version"`
+	Changelog           string `json:"changelog,omitempty"`
 	DownloadURL         string `json:"downloadUrl"`
 	UpstreamDownloadURL string `json:"upstreamDownloadUrl,omitempty"`
 	SourceType          string `json:"sourceType,omitempty"`

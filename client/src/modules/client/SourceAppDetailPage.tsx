@@ -72,6 +72,7 @@ export function SourceAppDetailPage({
   });
   const preferredScreenshotDevice = usePreferredScreenshotDevice();
   const latestVersion = app.latestVersion;
+  const latestChangelog = latestVersion?.changelog?.trim() || '';
   const sourceVersions = app.versions && app.versions.length > 0 ? app.versions : latestVersion ? [latestVersion] : [];
   const sourceScreenshots = orderedScreenshots(app.screenshots, preferredScreenshotDevice);
   const appName = localizedAppName(app);
@@ -343,6 +344,18 @@ export function SourceAppDetailPage({
             </XMetadataListItem>
           </XMetadataList>
         </XCard>
+
+        {latestChangelog && (
+          <section className="release-notes-panel">
+            <div className="section-title">
+              <History size={19} />
+              <h3>{t('drawer.releaseNotes')}</h3>
+            </div>
+            <XCard className="release-notes-card" padding={4}>
+              <p>{latestChangelog}</p>
+            </XCard>
+          </section>
+        )}
 
         <section>
           <div className="section-title">

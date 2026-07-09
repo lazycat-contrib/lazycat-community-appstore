@@ -7,10 +7,11 @@ import { EmptyState as XEmptyState } from '@astryxdesign/core/EmptyState';
 import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
 import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
+import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { TimeInput as XTimeInput, type ISOTimeString } from '@astryxdesign/core/TimeInput';
 import { useTranslation } from 'react-i18next';
 import { api } from '../../shared/api';
-import type { BackupRunResult, BackupSettings, Toast } from '../../shared/types';
+import type { BackupRunResult, BackupSettings, BackupTargetSettings, Toast } from '../../shared/types';
 import { errorMessage, formatBytes, formatDate } from '../../shared/utils';
 import type { StorageSettings } from './StorageSettingsPanel';
 
@@ -18,20 +19,28 @@ type BackupDraft = {
   enabled: boolean;
   scheduleTime: string;
   storageKeys: string[];
+  targets: BackupTargetSettings[];
 };
+
+const defaultBackupDirectory = 'backups/appstore';
 
 const defaultBackupSettings: BackupSettings = {
   enabled: false,
   scheduleTime: '03:00',
   storageKeys: [],
+  targets: [],
   isRunning: false,
 };
 
 function draftFromSettings(settings: BackupSettings): BackupDraft {
+  const targets = settings.targets && settings.targets.length > 0
+    ? settings.targets
+    : (settings.storageKeys || []).map((storageKey) => ({ storageKey, directory: defaultBackupDirectory }));
   return {
     enabled: Boolean(settings.enabled),
     scheduleTime: settings.scheduleTime || '03:00',
-    storageKeys: settings.storageKeys || [],
+    storageKeys: targets.map((target) => target.storageKey),
+    targets: targets.map((target) => ({ storageKey: target.storageKey, directory: target.directory || defaultBackupDirectory })),
   };
 }
 
@@ -78,6 +87,7 @@ export function AdminBackupPanel({
 
   const selectedCount = draft.storageKeys.length;
   const selectedStorages = useMemo(() => new Set(draft.storageKeys), [draft.storageKeys]);
+  const targetByStorage = useMemo(() => new Map(draft.targets.map((target) => [target.storageKey, target])), [draft.targets]);
   const lastRun = settings.lastRun;
 
   useEffect(() => {
@@ -101,21 +111,37 @@ export function AdminBackupPanel({
   function toggleStorage(key: string, checked: boolean) {
     setDraft((current) => {
       const keys = new Set(current.storageKeys);
+      let targets = current.targets;
       if (checked) {
         keys.add(key);
+        if (!targets.some((target) => target.storageKey === key)) {
+          targets = [...targets, { storageKey: key, directory: defaultBackupDirectory }];
+        }
       } else {
         keys.delete(key);
+        targets = targets.filter((target) => target.storageKey !== key);
       }
-      return { ...current, storageKeys: Array.from(keys) };
+      return { ...current, storageKeys: Array.from(keys), targets };
     });
+  }
+
+  function updateTargetDirectory(key: string, directory: string) {
+    setDraft((current) => ({
+      ...current,
+      targets: current.targets.map((target) => (target.storageKey === key ? { ...target, directory } : target)),
+    }));
   }
 
   async function saveSettings() {
     setIsSaving(true);
     try {
+      const payload = {
+        ...draft,
+        storageKeys: draft.targets.map((target) => target.storageKey),
+      };
       const data = await api<{ settings: BackupSettings }>('/api/v1/admin/backups/settings', {
         method: 'PATCH',
-        body: JSON.stringify(draft),
+        body: JSON.stringify(payload),
       });
       const next = data.settings || defaultBackupSettings;
       setSettings(next);
@@ -207,6 +233,15 @@ export function AdminBackupPanel({
                   width="100%"
                   onChange={(checked) => toggleStorage(storage.key, checked)}
                 />
+                {selectedStorages.has(storage.key) && (
+                  <XTextInput
+                    label={t('admin.backup.targetDirectory')}
+                    description={t('admin.backup.targetDirectoryHelp')}
+                    value={targetByStorage.get(storage.key)?.directory || defaultBackupDirectory}
+                    width="100%"
+                    onChange={(directory) => updateTargetDirectory(storage.key, directory)}
+                  />
+                )}
               </div>
             ))}
           </div>

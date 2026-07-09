@@ -1005,6 +1005,14 @@ body,
   background: transparent;
 }
 
+.storage-default-control {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 12px;
+  max-width: 520px;
+}
+
 .storage-admin-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
@@ -1131,16 +1139,18 @@ body,
 }
 
 .storage-editor-actions > button {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   width: auto !important;
   max-width: 100%;
-  min-width: 36px;
+  min-width: 104px;
   min-height: 36px;
+  justify-content: center;
 }
 
 .storage-settings-panel .storage-action-button {
-  width: auto !important;
+  width: max-content !important;
   white-space: nowrap;
+  overflow: visible;
 }
 
 .storage-settings-panel .storage-action-button:active {
@@ -1168,6 +1178,11 @@ body,
     width: 100%;
     justify-content: flex-start;
     justify-self: start;
+  }
+
+  .storage-editor-actions > button,
+  .storage-settings-panel .storage-action-button {
+    width: 100% !important;
   }
 }
 
@@ -3020,6 +3035,24 @@ body,
 .source-version-panel {
   display: grid;
   gap: 10px;
+}
+
+.release-notes-panel {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.release-notes-card {
+  min-width: 0;
+}
+
+.release-notes-card p {
+  color: var(--ink);
+  line-height: 1.6;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .modal-dialog-shell {
