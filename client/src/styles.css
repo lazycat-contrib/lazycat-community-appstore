@@ -1010,24 +1010,29 @@ body,
   border-radius: 8px;
   background: var(--surface);
   padding: 12px;
-  max-width: 520px;
+  max-width: 640px;
 }
 
 .storage-admin-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  grid-template-columns: 1fr;
   gap: 14px;
   align-items: start;
 }
 
 .storage-config-list {
   min-width: 0;
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 10px;
 }
 
 .storage-config-row {
+  flex: 1 1 280px;
+  max-width: 420px;
   min-width: 0;
+  min-height: 64px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--field);
@@ -1101,6 +1106,12 @@ body,
   font-size: 12px;
 }
 
+.storage-config-meta {
+  min-width: 0;
+  display: inline-flex;
+  justify-content: flex-end;
+}
+
 .storage-config-actions {
   min-height: 36px;
   display: flex;
@@ -1110,6 +1121,7 @@ body,
 
 .storage-editor-panel {
   min-width: 0;
+  width: 100%;
   container: storage-editor / inline-size;
   border: 1px solid var(--line);
   border-radius: 8px;
