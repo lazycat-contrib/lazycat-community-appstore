@@ -3,7 +3,9 @@ package server
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -13,12 +15,12 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
-	"entgo.io/ent/dialect"
+	"time"
 
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/internal/buildinfo"
 	"lazycat.community/appstore/internal/config"
+	"lazycat.community/appstore/internal/dbpool"
 	"lazycat.community/appstore/internal/storage"
 	"lazycat.community/appstore/web"
 
@@ -31,6 +33,9 @@ import (
 type Server struct {
 	cfg                     config.Config
 	db                      *ent.Client
+	sqlDB                   *sql.DB
+	metricsSQL              queryContextExecutor
+	now                     func() time.Time
 	storage                 storage.Backend
 	mailer                  Mailer
 	mux                     *http.ServeMux
@@ -38,15 +43,26 @@ type Server struct {
 	chatHub                 *chatHub
 	allowPrivateLPKURLHosts bool
 	adminLoginFailuresMu    sync.Mutex
-	adminLoginFailures      map[string]int
-	restartAfterImportOnce  sync.Once
-	restartAfterImport      func()
-	backupCtx               context.Context
-	backupCancel            context.CancelFunc
+	adminLoginFailures      map[string]adminLoginFailure
+	authNow                 func() time.Time
+	restartRequestedOnce    sync.Once
+	restartRequested        chan struct{}
 	backupWG                sync.WaitGroup
 	backupRunMu             sync.Mutex
 	backupRunning           bool
 	firstLoadGroup          singleflight.Group
+	sourcePasswordMu        sync.Mutex
+	ctx                     context.Context
+	cancel                  context.CancelFunc
+	backgroundMu            sync.Mutex
+	backgroundWG            sync.WaitGroup
+	stopping                bool
+	stopOnce                sync.Once
+	stopDone                chan struct{}
+	stopErr                 error
+	closeOnce               sync.Once
+	closeDone               chan struct{}
+	closeErr                error
 }
 
 func New(cfg config.Config) (*Server, error) {
@@ -54,7 +70,7 @@ func New(cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 
-	client, err := openEnt(cfg)
+	client, sqlDB, err := openEnt(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -68,26 +84,32 @@ func New(cfg config.Config) (*Server, error) {
 		_ = client.Close()
 		return nil, err
 	}
-	backupCtx, backupCancel := context.WithCancel(context.Background())
+	appCtx, appCancel := context.WithCancel(context.Background())
 	s := &Server{
 		cfg:                cfg,
 		db:                 client,
+		sqlDB:              sqlDB,
+		metricsSQL:         sqlDB,
+		now:                time.Now,
 		storage:            backend,
 		mailer:             newSMTPMailer(cfg),
 		mux:                http.NewServeMux(),
 		chatHub:            newChatHub(),
-		adminLoginFailures: map[string]int{},
-		backupCtx:          backupCtx,
-		backupCancel:       backupCancel,
+		adminLoginFailures: map[string]adminLoginFailure{},
+		restartRequested:   make(chan struct{}),
+		ctx:                appCtx,
+		cancel:             appCancel,
+		stopDone:           make(chan struct{}),
+		closeDone:          make(chan struct{}),
 	}
 	s.web = embeddedWebHandler(cfg)
 	if err := s.bootstrap(context.Background()); err != nil {
-		backupCancel()
+		appCancel()
 		_ = client.Close()
 		return nil, err
 	}
 	if err := s.migrateSchema(context.Background()); err != nil {
-		backupCancel()
+		appCancel()
 		_ = client.Close()
 		return nil, err
 	}
@@ -127,32 +149,116 @@ func newStorageBackend(cfg config.Config) (storage.Backend, error) {
 }
 
 func (s *Server) Close() error {
-	if s.backupCancel != nil {
-		s.backupCancel()
+	timeout := s.cfg.ShutdownTimeout
+	if timeout <= 0 {
+		timeout = 10 * time.Second
 	}
-	s.backupWG.Wait()
-	return s.db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return s.CloseContext(ctx)
+}
+
+func (s *Server) CloseContext(ctx context.Context) error {
+	s.startClose()
+	select {
+	case <-s.closeDone:
+		return s.closeErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *Server) Stop(ctx context.Context) error {
+	s.startStop()
+	select {
+	case <-s.stopDone:
+		return s.stopErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *Server) startStop() {
+	s.stopOnce.Do(func() {
+		if s.stopDone == nil {
+			s.stopDone = make(chan struct{})
+		}
+		s.backgroundMu.Lock()
+		s.stopping = true
+		s.backgroundMu.Unlock()
+		if s.cancel != nil {
+			s.cancel()
+		}
+		go func() {
+			s.backupWG.Wait()
+			s.backgroundWG.Wait()
+			close(s.stopDone)
+		}()
+	})
+}
+
+func (s *Server) startClose() {
+	s.closeOnce.Do(func() {
+		if s.closeDone == nil {
+			s.closeDone = make(chan struct{})
+		}
+		go func() {
+			stopErr := s.Stop(context.Background())
+			var dbErr error
+			if s.db != nil {
+				dbErr = s.db.Close()
+			}
+			s.closeErr = errors.Join(stopErr, dbErr)
+			close(s.closeDone)
+		}()
+	})
+}
+
+func (s *Server) beginBackground() bool {
+	s.backgroundMu.Lock()
+	defer s.backgroundMu.Unlock()
+	if s.stopping {
+		return false
+	}
+	s.backgroundWG.Add(1)
+	return true
+}
+
+func (s *Server) endBackground() {
+	s.backgroundWG.Done()
 }
 
 func (s *Server) Handler() http.Handler {
 	return securityHeaders(s.cors(s.mux))
 }
 
-func (s *Server) SetRestartAfterImport(fn func()) {
-	s.restartAfterImport = fn
+func (s *Server) RestartRequested() <-chan struct{} {
+	return s.restartRequested
 }
 
-func openEnt(cfg config.Config) (*ent.Client, error) {
-	switch cfg.DBDriver {
-	case "sqlite3":
-		return ent.Open(dialect.SQLite, sqliteDSN(cfg.DBDSN))
-	case "postgres":
-		return ent.Open(dialect.Postgres, cfg.DBDSN)
-	case "mysql":
-		return ent.Open(dialect.MySQL, cfg.DBDSN)
-	default:
-		return nil, fmt.Errorf("unsupported DB_DRIVER %q", cfg.DBDriver)
+func (s *Server) requestRestart() {
+	s.restartRequestedOnce.Do(func() {
+		close(s.restartRequested)
+	})
+}
+
+func openEnt(cfg config.Config) (*ent.Client, *sql.DB, error) {
+	dsn := cfg.DBDSN
+	if cfg.DBDriver == "sqlite3" {
+		dsn = sqliteDSN(dsn)
 	}
+	sqlDB, driver, err := dbpool.Open(dbpool.Config{
+		Driver:      cfg.DBDriver,
+		DSN:         dsn,
+		MaxOpen:     cfg.DBMaxOpenConns,
+		MaxIdle:     cfg.DBMaxIdleConns,
+		MaxLifetime: cfg.DBConnMaxLifetime,
+		MaxIdleTime: cfg.DBConnMaxIdleTime,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return ent.NewClient(ent.Driver(driver)), sqlDB, nil
 }
 
 func sqliteDSN(dsn string) string {
@@ -252,6 +358,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}", s.withAuth(s.handleDeleteApp))
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/unlist", s.withAuth(s.handleUnlistApp))
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/versions", s.withAuth(s.handleCreateVersion))
+	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/version-retention", s.withAuth(s.handleUpdateVersionRetention))
+	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/versions/{versionId}", s.withAuth(s.handleDeleteVersion))
 	s.mux.HandleFunc("GET /api/v1/apps/{id}/versions/{versionId}/download", s.handleDownloadVersion)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/screenshots", s.withAuth(s.handleUploadScreenshot))
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/screenshots/reorder", s.withAuth(s.handleReorderScreenshots))
@@ -262,6 +370,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/v1/comments/{id}", s.handleDeleteComment)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/chat", s.handleCreateAppChatConversation)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/favorites", s.withAuth(s.handleToggleFavorite))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/rating", s.withAuth(s.handleRateApp))
+	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/rating", s.withAuth(s.handleClearAppRating))
 	s.mux.HandleFunc("POST /api/v1/submitters/{id}/favorites", s.withAuth(s.handleToggleSubmitterFavorite))
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/outdated-marks", s.handleMarkOutdated)
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/outdated-marks", s.handleClearOutdated)
@@ -429,7 +539,7 @@ func (h spaFileServer) serveName(w http.ResponseWriter, r *http.Request, name st
 		http.NotFound(w, r)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	info, err := file.Stat()
 	if err != nil || info.IsDir() {
 		http.NotFound(w, r)
@@ -470,7 +580,7 @@ func (s *Server) handleLocalFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "FILE_NOT_FOUND", "File not found", nil)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	info, err := file.Stat()
 	if err != nil || info.IsDir() {
 		writeError(w, http.StatusNotFound, "FILE_NOT_FOUND", "File not found", nil)

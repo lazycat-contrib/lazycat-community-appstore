@@ -186,6 +186,7 @@ export function defaultSiteProfile(title: string): SiteProfile {
     subtitle: '',
     publicUrl,
     sourceUrl: `${publicUrl}/source/v2/index.json`,
+    timeZone: 'Asia/Shanghai',
     defaultPageSize: 24,
     announcement: { enabled: false, level: 'info' },
     announcements: [],

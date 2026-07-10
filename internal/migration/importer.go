@@ -14,10 +14,12 @@ import (
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	apppkg "lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/appdownload"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
 	versionpkg "lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/appvote"
 	"lazycat.community/appstore/ent/asset"
 	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
@@ -40,19 +42,19 @@ func NewImporter(db *ent.Client, storage StorageResolver) *Importer {
 	return &Importer{db: db, storage: storage}
 }
 
-func (i *Importer) Preview(ctx context.Context, r io.Reader, size int64) (*Preview, error) {
+func (i *Importer) Preview(ctx context.Context, r io.ReaderAt, size int64) (*Preview, error) {
 	_ = ctx
 	if i == nil {
 		return nil, fmt.Errorf("migration importer is not configured")
 	}
-	manifest, err := readManifestFromReader(r, size)
+	manifest, err := readManifestFromReaderAt(r, size)
 	if err != nil {
 		return nil, err
 	}
 	return previewFromManifest(manifest), nil
 }
 
-func (i *Importer) Import(ctx context.Context, r io.Reader, size int64, options ImportOptions) (*ImportResult, error) {
+func (i *Importer) Import(ctx context.Context, r io.ReaderAt, size int64, options ImportOptions) (*ImportResult, error) {
 	if i == nil || i.db == nil {
 		return nil, fmt.Errorf("migration importer is not configured")
 	}
@@ -93,7 +95,7 @@ func (i *Importer) Import(ctx context.Context, r io.Reader, size int64, options 
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	client := tx.Client()
 	result := &ImportResult{Mode: options.Mode, Warnings: warnings}
 	if options.Mode == ImportModeReplace {
@@ -123,8 +125,8 @@ func (i *Importer) Import(ctx context.Context, r io.Reader, size int64, options 
 	return result, nil
 }
 
-func readImportPackage(r io.Reader, size int64) (*zip.Reader, Manifest, SiteData, PeopleData, AppsData, error) {
-	zr, err := zipReaderFromReader(r, size)
+func readImportPackage(r io.ReaderAt, size int64) (*zip.Reader, Manifest, SiteData, PeopleData, AppsData, error) {
+	zr, err := zipReaderFromReaderAt(r, size)
 	if err != nil {
 		return nil, Manifest{}, SiteData{}, PeopleData{}, AppsData{}, err
 	}
@@ -190,6 +192,12 @@ func replaceSelectedData(ctx context.Context, db *ent.Client, options ImportOpti
 		if _, err := db.AppScreenshot.Delete().Exec(ctx); err != nil {
 			return err
 		}
+		if _, err := db.AppDownload.Delete().Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := db.AppVote.Delete().Exec(ctx); err != nil {
+			return err
+		}
 		if _, err := db.AppVersion.Delete().Exec(ctx); err != nil {
 			return err
 		}
@@ -204,6 +212,9 @@ func replaceSelectedData(ctx context.Context, db *ent.Client, options ImportOpti
 		}
 	}
 	if options.IncludePeople {
+		if _, err := db.AppVote.Delete().Exec(ctx); err != nil {
+			return err
+		}
 		if _, err := db.GroupMember.Delete().Exec(ctx); err != nil {
 			return err
 		}
@@ -570,6 +581,11 @@ func importAppsData(ctx context.Context, db *ent.Client, data AppsData, maps *im
 			} else {
 				update.SetCategoryID(*categoryID)
 			}
+			if record.VersionRetentionCount == nil {
+				update.ClearVersionRetentionCount()
+			} else {
+				update.SetVersionRetentionCount(*record.VersionRetentionCount)
+			}
 			if _, err := update.Save(ctx); err != nil {
 				return err
 			}
@@ -580,7 +596,7 @@ func importAppsData(ctx context.Context, db *ent.Client, data AppsData, maps *im
 		if !ent.IsNotFound(err) {
 			return err
 		}
-		create := db.App.Create().SetOwnerID(ownerID).SetPackageID(record.PackageID).SetName(record.Name).SetNameI18nJSON(record.NameI18nJSON).SetSlug(record.Slug).SetSummary(record.Summary).SetSummaryI18nJSON(record.SummaryI18nJSON).SetDescription(record.Description).SetDescriptionI18nJSON(record.DescriptionI18nJSON).SetNillableIconURL(iconURL).SetStatus(apppkg.Status(record.Status)).SetAllowUnreviewedUpdates(record.AllowUnreviewedUpdates).SetCommentsEnabled(record.CommentsEnabled).SetEmailNotificationsEnabled(record.EmailNotificationsEnabled).SetInstallPasswordHash(record.InstallPasswordHash).SetDownloadCount(record.DownloadCount).SetCreatedAt(record.CreatedAt).SetUpdatedAt(record.UpdatedAt)
+		create := db.App.Create().SetOwnerID(ownerID).SetPackageID(record.PackageID).SetName(record.Name).SetNameI18nJSON(record.NameI18nJSON).SetSlug(record.Slug).SetSummary(record.Summary).SetSummaryI18nJSON(record.SummaryI18nJSON).SetDescription(record.Description).SetDescriptionI18nJSON(record.DescriptionI18nJSON).SetNillableIconURL(iconURL).SetStatus(apppkg.Status(record.Status)).SetAllowUnreviewedUpdates(record.AllowUnreviewedUpdates).SetCommentsEnabled(record.CommentsEnabled).SetEmailNotificationsEnabled(record.EmailNotificationsEnabled).SetInstallPasswordHash(record.InstallPasswordHash).SetDownloadCount(record.DownloadCount).SetNillableVersionRetentionCount(record.VersionRetentionCount).SetCreatedAt(record.CreatedAt).SetUpdatedAt(record.UpdatedAt)
 		if categoryID != nil {
 			create.SetCategoryID(*categoryID)
 		}
@@ -625,6 +641,39 @@ func importAppsData(ctx context.Context, db *ent.Client, data AppsData, maps *im
 			return err
 		}
 		maps.versions[record.ID] = created.ID
+		result.Created++
+	}
+	legacyVersionNames := make(map[int]string, len(data.AppVersions))
+	for _, record := range data.AppVersions {
+		legacyVersionNames[record.ID] = record.Version
+	}
+	for _, record := range data.AppDownloads {
+		appID, appOK := maps.apps[record.AppID]
+		if !appOK {
+			result.Skipped++
+			continue
+		}
+		version := strings.TrimSpace(record.Version)
+		if version == "" && record.LegacyVersionID > 0 {
+			version = legacyVersionNames[record.LegacyVersionID]
+		}
+		exists, err := db.AppDownload.Query().
+			Where(appdownload.AppIDEQ(appID), appdownload.VersionEQ(version), appdownload.CreatedAtEQ(record.CreatedAt)).
+			Exist(ctx)
+		if err != nil {
+			return err
+		}
+		if exists {
+			result.Skipped++
+			continue
+		}
+		if _, err := db.AppDownload.Create().
+			SetAppID(appID).
+			SetVersion(version).
+			SetCreatedAt(record.CreatedAt).
+			Save(ctx); err != nil {
+			return err
+		}
 		result.Created++
 	}
 	for _, record := range data.AppScreenshots {
@@ -687,6 +736,45 @@ func importAppsData(ctx context.Context, db *ent.Client, data AppsData, maps *im
 			continue
 		}
 		if _, err := db.AppVisibility.Create().SetAppID(appID).SetGroupID(groupID).SetCreatedAt(record.CreatedAt).Save(ctx); err != nil {
+			return err
+		}
+		result.Created++
+	}
+	for _, record := range data.AppVotes {
+		appID, appOK := maps.apps[record.AppID]
+		userID, userOK := maps.users[record.UserID]
+		if !appOK || !userOK {
+			result.Skipped++
+			continue
+		}
+		value := record.Value
+		if value == 0 {
+			value = 1
+		}
+		existing, err := db.AppVote.Query().
+			Where(appvote.AppIDEQ(appID), appvote.UserIDEQ(userID)).
+			Only(ctx)
+		if err == nil {
+			if _, err := db.AppVote.UpdateOneID(existing.ID).
+				SetValue(value).
+				SetCreatedAt(record.CreatedAt).
+				SetUpdatedAt(record.UpdatedAt).
+				Save(ctx); err != nil {
+				return err
+			}
+			result.Updated++
+			continue
+		}
+		if !ent.IsNotFound(err) {
+			return err
+		}
+		if _, err := db.AppVote.Create().
+			SetAppID(appID).
+			SetUserID(userID).
+			SetValue(value).
+			SetCreatedAt(record.CreatedAt).
+			SetUpdatedAt(record.UpdatedAt).
+			Save(ctx); err != nil {
 			return err
 		}
 		result.Created++

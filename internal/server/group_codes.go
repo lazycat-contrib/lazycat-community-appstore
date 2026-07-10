@@ -8,7 +8,6 @@ import (
 	"errors"
 	"math/big"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
@@ -191,10 +190,4 @@ func encodeGroupClientConfig(config groupClientConfig) (string, error) {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(raw), nil
-}
-
-func sortedGroupIDs(ids []int) []int {
-	out := append([]int(nil), ids...)
-	sort.Ints(out)
-	return out
 }

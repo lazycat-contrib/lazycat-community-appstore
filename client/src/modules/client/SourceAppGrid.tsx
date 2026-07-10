@@ -1,10 +1,11 @@
-import { Archive, Check, ChevronRight, Cloud, Download, KeyRound, Link, Plus, RefreshCw, ShieldCheck, Star, Tag } from 'lucide-react';
+import { Archive, ChevronRight, Cloud, Download, Plus, RefreshCw, Tag } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { AppIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
+import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { InstalledApplication, SourceApp } from '../../shared/types';
 import {
   findInstalledApplication,
@@ -26,17 +27,31 @@ export function SourceAppGrid({
   showEmptyAction = true,
   emptyTitle,
   emptyBody,
+  activeInstallKey,
 }: {
   apps: SourceApp[];
   installedApps: InstalledApplication[];
   onOpen: (app: SourceApp) => void;
-  onInstall: (app: SourceApp) => void;
+  onInstall: (app: SourceApp) => void | Promise<void>;
   onGoSources: () => void;
   showEmptyAction?: boolean;
   emptyTitle?: string;
   emptyBody?: string;
+  activeInstallKey?: string;
 }) {
   const { t } = useTranslation();
+  const [pendingAppKey, setPendingAppKey] = useState('');
+
+  async function runInstall(app: SourceApp, appKey: string) {
+    if (pendingAppKey || activeInstallKey) return;
+    setPendingAppKey(appKey);
+    try {
+      await Promise.resolve(onInstall(app));
+    } finally {
+      setPendingAppKey('');
+    }
+  }
+
   if (apps.length === 0) {
     return (
       <EmptyState
@@ -51,17 +66,18 @@ export function SourceAppGrid({
     <div className="source-app-grid">
       {apps.map((app) => {
         const installable = hasInstallableVersion(app);
-        const hasChecksum = Boolean(app.latestVersion?.sha256);
-        const hasSize = Boolean(app.latestVersion?.size && app.latestVersion.size > 0);
         const installedMatch = findInstalledApplication(app, installedApps);
         const installAction = sourceInstallAction(app, installedMatch);
+        const actionLabel = sourceActionLabel(t, installAction);
         const isUpdateAvailable = installAction === 'update';
         const appName = localizedAppName(app);
         const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
+        const appKey = `${app.sourceId ?? app.sourceName}:${app.id}`;
+        const isPending = pendingAppKey === appKey || activeInstallKey === appKey;
         return (
           <XClickableCard
-            className="source-app-card"
-            key={`${app.sourceId || app.sourceName}-${app.id}`}
+            className="source-app-card client-source-app-card"
+            key={appKey}
             label={t('app.open', { name: appName })}
             onClick={() => onOpen(app)}
             padding={3}
@@ -74,43 +90,28 @@ export function SourceAppGrid({
               </div>
               <ChevronRight size={18} />
             </div>
-            <div className="app-meta">
+            <div className="client-app-facts">
               <span><Cloud size={14} /> {app.sourceName}</span>
-              <XBadge variant="neutral" icon={<Tag size={13} />} label={localizedCategory(app, t('common.uncategorized'))} />
-              <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
-              {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
+              <span><Tag size={14} /> {localizedCategory(app, t('common.uncategorized'))}</span>
+              <span><Archive size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
             </div>
-            <div className="app-readiness" aria-label={t('app.installSignals')}>
-              <XBadge
-                variant={installable ? 'success' : 'error'}
-                icon={<Download size={13} />}
-                label={installable ? t('app.installReady') : t('app.installMissingVersion')}
+            {installedMatch && (
+              <StatusBadge
+                tone={isUpdateAvailable ? 'stale' : 'synced'}
+                label={isUpdateAvailable ? t('app.updateAvailable') : t('app.installed')}
               />
-              <XBadge
-                variant={hasChecksum ? 'success' : 'warning'}
-                icon={<ShieldCheck size={13} />}
-                label={hasChecksum ? t('app.checksumReady') : t('app.checksumMissing')}
-              />
-              {app.installProtected && (
-                <XBadge variant="warning" icon={<KeyRound size={13} />} label={t('app.installPasswordRequired')} />
-              )}
-              <XBadge variant={hasSize ? 'success' : 'warning'} icon={<Archive size={13} />} label={hasSize ? t('app.sizeReady') : t('app.sizeMissing')} />
-              {installedMatch && (
-                <XBadge
-                  variant={isUpdateAvailable ? 'warning' : 'success'}
-                  icon={isUpdateAvailable ? <RefreshCw size={13} /> : <Check size={13} />}
-                  label={isUpdateAvailable ? t('app.updateAvailable') : t('app.installed')}
-                />
-              )}
-            </div>
+            )}
             <XButton
               type="button"
               variant="primary"
-              label={sourceActionLabel(t, installAction)}
-              icon={isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
-              isDisabled={!installable}
-              onClick={() => void onInstall(app)}
-              aria-label={installable ? t('app.install', { name: appName }) : t('app.installUnavailable', { name: appName })}
+              label={isPending ? t('installActivity.status.running') : actionLabel}
+              icon={isPending ? <RefreshCw size={17} className="spin" /> : isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
+              isDisabled={!installable || Boolean(pendingAppKey) || Boolean(activeInstallKey)}
+              onClick={(event) => {
+                event.stopPropagation();
+                void runInstall(app, appKey);
+              }}
+              aria-label={installable ? `${actionLabel}: ${appName}` : t('app.installUnavailable', { name: appName })}
             />
           </XClickableCard>
         );

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"image/png"
+	"math"
 	"net"
 	"net/http"
 	"net/mail"
@@ -33,6 +34,19 @@ const emailVerificationSettingPrefix = "email_verify:"
 const passwordResetSettingPrefix = "password_reset:"
 const passwordResetTTL = 30 * time.Minute
 const adminCaptchaFailedAttempts = 3
+
+const (
+	adminLoginFailureTTL     = 15 * time.Minute
+	adminLoginBlockDuration  = 30 * time.Second
+	adminLoginBlockThreshold = 6
+	maxAdminLoginFailureKeys = 4096
+)
+
+type adminLoginFailure struct {
+	Attempts     int
+	ExpiresAt    time.Time
+	BlockedUntil time.Time
+}
 
 type registerRequest struct {
 	Username   string `json:"username"`
@@ -278,13 +292,25 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Invalid username or password", nil)
 		return
 	}
+	if isAdmin(u) {
+		now := s.adminLoginNow()
+		if state, ok := s.adminLoginFailureForRequest(r, username); ok && state.BlockedUntil.After(now) {
+			writeAdminLoginRateLimit(w, state.BlockedUntil.Sub(now), state)
+			return
+		}
+	}
 	if !auth.CheckPassword(u.PasswordHash, input.Password) {
 		var details any
 		if isAdmin(u) {
-			attempts := s.recordAdminLoginFailure(r, username)
+			state := s.recordAdminLoginFailure(r, username)
+			now := s.adminLoginNow()
+			if state.BlockedUntil.After(now) {
+				writeAdminLoginRateLimit(w, state.BlockedUntil.Sub(now), state)
+				return
+			}
 			details = loginFailureDetails{
-				FailedAttempts:  attempts,
-				CaptchaRequired: attempts >= adminCaptchaFailedAttempts,
+				FailedAttempts:  state.Attempts,
+				CaptchaRequired: state.Attempts >= adminCaptchaFailedAttempts,
 			}
 		}
 		writeError(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Invalid username or password", details)
@@ -530,15 +556,65 @@ func (s *Server) handleAdminResetUserTwoFactor(w http.ResponseWriter, r *http.Re
 	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(updated)})
 }
 
-func (s *Server) recordAdminLoginFailure(r *http.Request, username string) int {
+func (s *Server) adminLoginNow() time.Time {
+	if s.authNow != nil {
+		return s.authNow().UTC()
+	}
+	return time.Now().UTC()
+}
+
+func (s *Server) recordAdminLoginFailure(r *http.Request, username string) adminLoginFailure {
 	key := adminLoginFailureKey(r, username)
+	now := s.adminLoginNow()
 	s.adminLoginFailuresMu.Lock()
 	defer s.adminLoginFailuresMu.Unlock()
 	if s.adminLoginFailures == nil {
-		s.adminLoginFailures = map[string]int{}
+		s.adminLoginFailures = map[string]adminLoginFailure{}
 	}
-	s.adminLoginFailures[key]++
-	return s.adminLoginFailures[key]
+	s.pruneAdminLoginFailuresLocked(now)
+	if _, exists := s.adminLoginFailures[key]; !exists && len(s.adminLoginFailures) >= maxAdminLoginFailureKeys {
+		s.evictAdminLoginFailureLocked()
+	}
+	state := s.adminLoginFailures[key]
+	state.Attempts++
+	state.ExpiresAt = now.Add(adminLoginFailureTTL)
+	if state.Attempts >= adminLoginBlockThreshold {
+		state.BlockedUntil = now.Add(adminLoginBlockDuration)
+	}
+	s.adminLoginFailures[key] = state
+	return state
+}
+
+func (s *Server) adminLoginFailureForRequest(r *http.Request, username string) (adminLoginFailure, bool) {
+	key := adminLoginFailureKey(r, username)
+	now := s.adminLoginNow()
+	s.adminLoginFailuresMu.Lock()
+	defer s.adminLoginFailuresMu.Unlock()
+	s.pruneAdminLoginFailuresLocked(now)
+	state, ok := s.adminLoginFailures[key]
+	return state, ok
+}
+
+func (s *Server) pruneAdminLoginFailuresLocked(now time.Time) {
+	for key, state := range s.adminLoginFailures {
+		if !state.ExpiresAt.After(now) {
+			delete(s.adminLoginFailures, key)
+		}
+	}
+}
+
+func (s *Server) evictAdminLoginFailureLocked() {
+	oldestKey := ""
+	var oldestExpiry time.Time
+	for key, state := range s.adminLoginFailures {
+		if oldestKey == "" || state.ExpiresAt.Before(oldestExpiry) || (state.ExpiresAt.Equal(oldestExpiry) && key < oldestKey) {
+			oldestKey = key
+			oldestExpiry = state.ExpiresAt
+		}
+	}
+	if oldestKey != "" {
+		delete(s.adminLoginFailures, oldestKey)
+	}
 }
 
 func (s *Server) clearAdminLoginFailures(r *http.Request, username string) {
@@ -546,6 +622,15 @@ func (s *Server) clearAdminLoginFailures(r *http.Request, username string) {
 	s.adminLoginFailuresMu.Lock()
 	defer s.adminLoginFailuresMu.Unlock()
 	delete(s.adminLoginFailures, key)
+}
+
+func writeAdminLoginRateLimit(w http.ResponseWriter, remaining time.Duration, state adminLoginFailure) {
+	retryAfter := max(1, int(math.Ceil(remaining.Seconds())))
+	w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+	writeError(w, http.StatusTooManyRequests, "LOGIN_RATE_LIMITED", "Too many administrator login attempts", loginFailureDetails{
+		FailedAttempts:  state.Attempts,
+		CaptchaRequired: true,
+	})
 }
 
 func adminLoginFailureKey(r *http.Request, username string) string {
@@ -642,7 +727,7 @@ func (s *Server) handleUploadMyAvatar(w http.ResponseWriter, r *http.Request, u 
 		badRequest(w, err)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	if err := validateUploadedImage(file, header, maxAvatarImageSize); err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
 		return

@@ -28,6 +28,8 @@ type appSummaryPreload struct {
 	collaboratorAppIDs map[int]struct{}
 	appFavorites       map[int]bool
 	submitterFavorites map[int]bool
+	downloadStats      map[int]downloadStats
+	ratings            map[int]ratingSummary
 	commentsEnabled    bool
 }
 
@@ -108,6 +110,8 @@ func (s *Server) preloadAppSummaries(ctx context.Context, apps []*entgo.App, u *
 		collaboratorAppIDs: map[int]struct{}{},
 		appFavorites:       map[int]bool{},
 		submitterFavorites: map[int]bool{},
+		downloadStats:      map[int]downloadStats{},
+		ratings:            map[int]ratingSummary{},
 	}
 	if len(apps) == 0 {
 		return data, nil
@@ -136,6 +140,12 @@ func (s *Server) preloadAppSummaries(ctx context.Context, apps []*entgo.App, u *
 		return data, err
 	}
 	if err := s.loadAppSummaryLatestVersions(ctx, appIDs, data.latestVersions); err != nil {
+		return data, err
+	}
+	if err := s.loadAppSummaryDownloadStats(ctx, appIDs, data.downloadStats); err != nil {
+		return data, err
+	}
+	if err := s.loadAppSummaryRatings(ctx, appIDs, u, data.ratings); err != nil {
 		return data, err
 	}
 	if u != nil {
@@ -292,6 +302,8 @@ func (s *Server) appSummaryDTOFromPreload(ctx context.Context, record *entgo.App
 		EmailNotificationsEnabled: record.EmailNotificationsEnabled,
 		InstallProtected:          record.InstallPasswordHash != "",
 		DownloadCount:             record.DownloadCount,
+		DownloadStats:             preload.downloadStats[record.ID],
+		Rating:                    preload.ratings[record.ID],
 		CreatedAt:                 record.CreatedAt,
 		UpdatedAt:                 record.UpdatedAt,
 		Tags:                      preload.tags[record.ID],
@@ -301,6 +313,7 @@ func (s *Server) appSummaryDTOFromPreload(ctx context.Context, record *entgo.App
 	if dto.Tags == nil {
 		dto.Tags = []string{}
 	}
+	dto.DownloadStats.Total = record.DownloadCount
 	if u != nil {
 		_, isCollaborator := preload.collaboratorAppIDs[record.ID]
 		dto.CanManageApp = isAdmin(u) || record.OwnerID == u.ID

@@ -21,14 +21,24 @@ type sourceSyncScheduler struct {
 	server *Server
 	wheel  *timewheel.TimeWheel[string]
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx       context.Context
+	cancel    context.CancelFunc
+	wg        sync.WaitGroup
+	closeOnce sync.Once
+	closeDone chan struct{}
+	closeErr  error
+
+	startupSync func(context.Context)
 
 	mu      sync.Mutex
 	running map[string]struct{}
 }
 
 func newSourceSyncScheduler(server *Server) (*sourceSyncScheduler, error) {
+	return newSourceSyncSchedulerWithStartup(server, nil)
+}
+
+func newSourceSyncSchedulerWithStartup(server *Server, startup func(context.Context)) (*sourceSyncScheduler, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	wheel, err := timewheel.New[string](
 		sourceSyncScanInterval,
@@ -41,11 +51,17 @@ func newSourceSyncScheduler(server *Server) (*sourceSyncScheduler, error) {
 		return nil, err
 	}
 	scheduler := &sourceSyncScheduler{
-		server:  server,
-		wheel:   wheel,
-		ctx:     ctx,
-		cancel:  cancel,
-		running: make(map[string]struct{}),
+		server:    server,
+		wheel:     wheel,
+		ctx:       ctx,
+		cancel:    cancel,
+		running:   make(map[string]struct{}),
+		closeDone: make(chan struct{}),
+	}
+	if startup == nil {
+		scheduler.startupSync = scheduler.runStartupSyncs
+	} else {
+		scheduler.startupSync = startup
 	}
 	if err := wheel.Start(ctx); err != nil {
 		cancel()
@@ -62,13 +78,49 @@ func newSourceSyncScheduler(server *Server) (*sourceSyncScheduler, error) {
 		_ = wheel.Close()
 		return nil, err
 	}
-	go scheduler.runStartupSyncs()
+	scheduler.startStartupSyncs()
 	return scheduler, nil
 }
 
 func (s *sourceSyncScheduler) Close() error {
-	s.cancel()
-	return s.wheel.Close()
+	return s.CloseContext(context.Background())
+}
+
+func (s *sourceSyncScheduler) Stop() {
+	if s.cancel != nil {
+		s.cancel()
+	}
+}
+
+func (s *sourceSyncScheduler) CloseContext(ctx context.Context) error {
+	s.closeOnce.Do(func() {
+		if s.closeDone == nil {
+			s.closeDone = make(chan struct{})
+		}
+		s.Stop()
+		go func() {
+			if s.wheel != nil {
+				s.closeErr = s.wheel.Close()
+			}
+			s.wg.Wait()
+			close(s.closeDone)
+		}()
+	})
+	select {
+	case <-s.closeDone:
+		return s.closeErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *sourceSyncScheduler) startStartupSyncs() {
+	if s.startupSync == nil {
+		return
+	}
+	s.wg.Go(func() {
+		s.startupSync(s.ctx)
+	})
 }
 
 func (s *sourceSyncScheduler) runDueAutoSyncs(ctx context.Context, _ string) error {
@@ -91,18 +143,18 @@ func (s *sourceSyncScheduler) runDueAutoSyncs(ctx context.Context, _ string) err
 	return nil
 }
 
-func (s *sourceSyncScheduler) runStartupSyncs() {
+func (s *sourceSyncScheduler) runStartupSyncs(ctx context.Context) {
 	settings, err := s.server.db.ClientSyncSetting.Query().
 		Where(clientsyncsetting.SyncOnStartupEQ(true)).
-		All(s.ctx)
+		All(ctx)
 	if err != nil {
 		return
 	}
 	for _, setting := range settings {
-		if s.ctx.Err() != nil {
+		if ctx.Err() != nil {
 			return
 		}
-		s.syncUser(s.ctx, setting.UserID)
+		s.syncUser(ctx, setting.UserID)
 	}
 }
 

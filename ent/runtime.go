@@ -9,10 +9,12 @@ import (
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/appdownload"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/appvote"
 	"lazycat.community/appstore/ent/asset"
 	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
@@ -200,15 +202,25 @@ func init() {
 	// app.DefaultDownloadCount holds the default value on creation for the download_count field.
 	app.DefaultDownloadCount = appDescDownloadCount.Default.(int)
 	// appDescCreatedAt is the schema descriptor for created_at field.
-	appDescCreatedAt := appFields[17].Descriptor()
+	appDescCreatedAt := appFields[18].Descriptor()
 	// app.DefaultCreatedAt holds the default value on creation for the created_at field.
 	app.DefaultCreatedAt = appDescCreatedAt.Default.(func() time.Time)
 	// appDescUpdatedAt is the schema descriptor for updated_at field.
-	appDescUpdatedAt := appFields[18].Descriptor()
+	appDescUpdatedAt := appFields[19].Descriptor()
 	// app.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	app.DefaultUpdatedAt = appDescUpdatedAt.Default.(func() time.Time)
 	// app.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	app.UpdateDefaultUpdatedAt = appDescUpdatedAt.UpdateDefault.(func() time.Time)
+	appdownloadFields := schema.AppDownload{}.Fields()
+	_ = appdownloadFields
+	// appdownloadDescVersion is the schema descriptor for version field.
+	appdownloadDescVersion := appdownloadFields[1].Descriptor()
+	// appdownload.DefaultVersion holds the default value on creation for the version field.
+	appdownload.DefaultVersion = appdownloadDescVersion.Default.(string)
+	// appdownloadDescCreatedAt is the schema descriptor for created_at field.
+	appdownloadDescCreatedAt := appdownloadFields[2].Descriptor()
+	// appdownload.DefaultCreatedAt holds the default value on creation for the created_at field.
+	appdownload.DefaultCreatedAt = appdownloadDescCreatedAt.Default.(func() time.Time)
 	appscreenshotFields := schema.AppScreenshot{}.Fields()
 	_ = appscreenshotFields
 	// appscreenshotDescImageURL is the schema descriptor for image_url field.
@@ -287,6 +299,22 @@ func init() {
 	appvisibilityDescCreatedAt := appvisibilityFields[2].Descriptor()
 	// appvisibility.DefaultCreatedAt holds the default value on creation for the created_at field.
 	appvisibility.DefaultCreatedAt = appvisibilityDescCreatedAt.Default.(func() time.Time)
+	appvoteFields := schema.AppVote{}.Fields()
+	_ = appvoteFields
+	// appvoteDescValue is the schema descriptor for value field.
+	appvoteDescValue := appvoteFields[2].Descriptor()
+	// appvote.DefaultValue holds the default value on creation for the value field.
+	appvote.DefaultValue = appvoteDescValue.Default.(int)
+	// appvoteDescCreatedAt is the schema descriptor for created_at field.
+	appvoteDescCreatedAt := appvoteFields[3].Descriptor()
+	// appvote.DefaultCreatedAt holds the default value on creation for the created_at field.
+	appvote.DefaultCreatedAt = appvoteDescCreatedAt.Default.(func() time.Time)
+	// appvoteDescUpdatedAt is the schema descriptor for updated_at field.
+	appvoteDescUpdatedAt := appvoteFields[4].Descriptor()
+	// appvote.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	appvote.DefaultUpdatedAt = appvoteDescUpdatedAt.Default.(func() time.Time)
+	// appvote.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	appvote.UpdateDefaultUpdatedAt = appvoteDescUpdatedAt.UpdateDefault.(func() time.Time)
 	assetFields := schema.Asset{}.Fields()
 	_ = assetFields
 	// assetDescSha256 is the schema descriptor for sha256 field.

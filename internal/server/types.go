@@ -54,6 +54,7 @@ type siteProfile struct {
 	IconURL         string             `json:"iconUrl,omitempty"`
 	PublicURL       string             `json:"publicUrl"`
 	SourceURL       string             `json:"sourceUrl"`
+	TimeZone        string             `json:"timeZone"`
 	Version         string             `json:"version"`
 	DefaultPageSize int                `json:"defaultPageSize"`
 	Announcement    siteAnnouncement   `json:"announcement"`
@@ -143,6 +144,8 @@ type appSummary struct {
 	EmailNotificationsEnabled bool              `json:"emailNotificationsEnabled"`
 	InstallProtected          bool              `json:"installProtected"`
 	DownloadCount             int               `json:"downloadCount"`
+	DownloadStats             downloadStats     `json:"downloadStats"`
+	Rating                    ratingSummary     `json:"rating"`
 	Tags                      []string          `json:"tags"`
 	VisibleGroupIDs           []int             `json:"visibleGroupIds"`
 	AppFavorited              bool              `json:"appFavorited"`
@@ -152,6 +155,20 @@ type appSummary struct {
 	LatestVersion             *version          `json:"latestVersion,omitempty"`
 	CreatedAt                 time.Time         `json:"createdAt"`
 	UpdatedAt                 time.Time         `json:"updatedAt"`
+}
+
+type downloadStats struct {
+	Total int `json:"total"`
+	Day   int `json:"day"`
+	Week  int `json:"week"`
+	Month int `json:"month"`
+	Year  int `json:"year"`
+}
+
+type ratingSummary struct {
+	Score     float64 `json:"score"`
+	VoteCount int     `json:"voteCount"`
+	Voted     bool    `json:"voted"`
 }
 
 type categoryDTO struct {
@@ -176,15 +193,16 @@ type tagDTO struct {
 
 type appDetail struct {
 	appSummary
-	Versions              []version    `json:"versions"`
-	Screenshots           []screenshot `json:"screenshots"`
-	Comments              []comment    `json:"comments"`
-	Favorites             int          `json:"favorites"`
-	OutdatedMarks         int          `json:"outdatedMarks"`
-	OutdatedMarked        bool         `json:"outdatedMarked"`
-	CanManageApp          bool         `json:"canManageApp"`
-	CanUploadVersion      bool         `json:"canUploadVersion"`
-	CanClearOutdatedMarks bool         `json:"canClearOutdatedMarks"`
+	Versions              []version               `json:"versions"`
+	Screenshots           []screenshot            `json:"screenshots"`
+	Comments              []comment               `json:"comments"`
+	Favorites             int                     `json:"favorites"`
+	OutdatedMarks         int                     `json:"outdatedMarks"`
+	OutdatedMarked        bool                    `json:"outdatedMarked"`
+	CanManageApp          bool                    `json:"canManageApp"`
+	CanUploadVersion      bool                    `json:"canUploadVersion"`
+	CanClearOutdatedMarks bool                    `json:"canClearOutdatedMarks"`
+	VersionRetention      *versionRetentionPolicy `json:"versionRetention,omitzero"`
 }
 
 type screenshot struct {

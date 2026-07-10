@@ -33,6 +33,7 @@ export function AdminGroupsPanel({
   const [groupToEdit, setGroupToEdit] = useState<Group | null>(null);
   const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
   const [groupCodeToRotate, setGroupCodeToRotate] = useState<Group | null>(null);
+  const [pendingAction, setPendingAction] = useState<'delete' | 'rotate' | null>(null);
   const [generatedConfig, setGeneratedConfig] = useState<{ encoded: string; config: { sourceUrl: string; groupCodes: string[]; groups: Array<{ name: string; code?: string }> } } | null>(null);
   const selectedGroups = useMemo(() => groups.filter((group) => selectedGroupIDs.includes(group.id)), [groups, selectedGroupIDs]);
 
@@ -71,21 +72,33 @@ export function AdminGroupsPanel({
   }
 
   async function deleteGroup(group: Group) {
-    await runAction(setToast, t('groups.deleteFailed'), async () => {
-      await api(`/api/v1/groups/${group.id}`, { method: 'DELETE' });
-      setGroupToDelete(null);
-      setToast({ tone: 'neutral', message: t('groups.deleted') });
-      await loadGroups();
-    });
+    if (pendingAction) return;
+    setPendingAction('delete');
+    try {
+      await runAction(setToast, t('groups.deleteFailed'), async () => {
+        await api(`/api/v1/groups/${group.id}`, { method: 'DELETE' });
+        setGroupToDelete(null);
+        setToast({ tone: 'neutral', message: t('groups.deleted') });
+        await loadGroups();
+      });
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function rotateGroupCode(group: Group) {
-    await runAction(setToast, t('admin.groups.rotateFailed'), async () => {
-      await api(`/api/v1/groups/${group.id}/code:rotate`, { method: 'POST' });
-      setGroupCodeToRotate(null);
-      setToast({ tone: 'success', message: t('admin.groups.rotated') });
-      await loadGroups();
-    });
+    if (pendingAction) return;
+    setPendingAction('rotate');
+    try {
+      await runAction(setToast, t('admin.groups.rotateFailed'), async () => {
+        await api(`/api/v1/groups/${group.id}/code:rotate`, { method: 'POST' });
+        setGroupCodeToRotate(null);
+        setToast({ tone: 'success', message: t('admin.groups.rotated') });
+        await loadGroups();
+      });
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   async function generateConfig() {
@@ -229,28 +242,28 @@ export function AdminGroupsPanel({
       )}
 
       {groupCodeToRotate && (
-        <ModalLayer onClose={() => setGroupCodeToRotate(null)} purpose="required">
+        <ModalLayer onClose={() => { if (!pendingAction) setGroupCodeToRotate(null); }} purpose="required">
           <div className="modal-panel form-panel confirm-dialog">
-            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setGroupCodeToRotate(null)} />
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} isDisabled={pendingAction !== null} onClick={() => setGroupCodeToRotate(null)} />
             <SectionTitle icon={RefreshCw} title={t('admin.groups.rotateCode')} />
             <p className="inline-note">{t('admin.groups.rotateConfirm', { name: groupCodeToRotate.name })}</p>
             <div className="dialog-actions">
-              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setGroupCodeToRotate(null)} />
-              <XButton type="button" variant="primary" label={t('admin.groups.rotateCode')} icon={<RefreshCw size={17} />} onClick={() => void rotateGroupCode(groupCodeToRotate)} />
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} isDisabled={pendingAction !== null} onClick={() => setGroupCodeToRotate(null)} />
+              <XButton type="button" variant="primary" label={t('admin.groups.rotateCode')} icon={<RefreshCw size={17} />} isDisabled={pendingAction !== null} isLoading={pendingAction === 'rotate'} onClick={() => void rotateGroupCode(groupCodeToRotate)} />
             </div>
           </div>
         </ModalLayer>
       )}
 
       {groupToDelete && (
-        <ModalLayer onClose={() => setGroupToDelete(null)} purpose="required">
+        <ModalLayer onClose={() => { if (!pendingAction) setGroupToDelete(null); }} purpose="required">
           <div className="modal-panel form-panel confirm-dialog">
-            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setGroupToDelete(null)} />
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} isDisabled={pendingAction !== null} onClick={() => setGroupToDelete(null)} />
             <SectionTitle icon={Trash2} title={t('groups.deleteGroup')} />
             <p className="inline-note">{t('groups.deleteConfirm', { name: groupToDelete.name })}</p>
             <div className="dialog-actions">
-              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setGroupToDelete(null)} />
-              <XButton type="button" variant="destructive" label={t('groups.deleteGroup')} icon={<Trash2 size={17} />} onClick={() => void deleteGroup(groupToDelete)} />
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} isDisabled={pendingAction !== null} onClick={() => setGroupToDelete(null)} />
+              <XButton type="button" variant="destructive" label={t('groups.deleteGroup')} icon={<Trash2 size={17} />} isDisabled={pendingAction !== null} isLoading={pendingAction === 'delete'} onClick={() => void deleteGroup(groupToDelete)} />
             </div>
           </div>
         </ModalLayer>

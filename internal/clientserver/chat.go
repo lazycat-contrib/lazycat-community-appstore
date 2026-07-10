@@ -2,11 +2,14 @@ package clientserver
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientsource"
@@ -36,8 +39,12 @@ func (s *Server) handleCreateAppChatConversation(w http.ResponseWriter, r *http.
 	if !ok {
 		return
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	body, err := readLimitedBody(r.Body, 1<<20)
 	if err != nil {
+		if _, ok := errors.AsType[*responseTooLargeError](err); ok {
+			writeError(w, http.StatusRequestEntityTooLarge, "REQUEST_TOO_LARGE", "Request body is too large")
+			return
+		}
 		writeError(w, http.StatusBadRequest, "INVALID_BODY", "Invalid request body")
 		return
 	}
@@ -79,8 +86,12 @@ func (s *Server) handleCreateChatMessage(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	body, err := readLimitedBody(r.Body, 1<<20)
 	if err != nil {
+		if _, ok := errors.AsType[*responseTooLargeError](err); ok {
+			writeError(w, http.StatusRequestEntityTooLarge, "REQUEST_TOO_LARGE", "Request body is too large")
+			return
+		}
 		writeError(w, http.StatusBadRequest, "INVALID_BODY", "Invalid request body")
 		return
 	}
@@ -123,6 +134,7 @@ func (s *Server) proxyChatConversationAction(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *Server) handleChatEvents(w http.ResponseWriter, r *http.Request) {
+	s.ensureHTTPClients()
 	if !requireLazyCatClient(w, r, "Chat") {
 		return
 	}
@@ -140,12 +152,12 @@ func (s *Server) handleChatEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	applySourceProxyHeaders(req, r, source, s.clientCommentDisplayName(r))
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.streamClient.Do(req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "SOURCE_CHAT_FAILED", "Could not reach source chat")
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	for key, values := range resp.Header {
 		if strings.EqualFold(key, "Content-Length") {
 			continue
@@ -158,7 +170,41 @@ func (s *Server) handleChatEvents(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 	}
 	w.WriteHeader(resp.StatusCode)
-	_, _ = io.Copy(w, resp.Body)
+	if err := copySSE(r.Context(), w, resp.Body, 30*time.Second); err != nil {
+		return
+	}
+}
+
+func copySSE(ctx context.Context, w http.ResponseWriter, src io.Reader, deadline time.Duration) error {
+	controller := http.NewResponseController(w)
+	buf := make([]byte, 32<<10)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		n, readErr := src.Read(buf)
+		if n > 0 {
+			if deadline > 0 {
+				if err := controller.SetWriteDeadline(time.Now().Add(deadline)); err != nil && !errors.Is(err, http.ErrNotSupported) {
+					return err
+				}
+			}
+			if _, err := w.Write(buf[:n]); err != nil {
+				return err
+			}
+			if err := controller.Flush(); err != nil && !errors.Is(err, http.ErrNotSupported) {
+				return err
+			}
+		}
+		if errors.Is(readErr, io.EOF) {
+			return nil
+		}
+		if readErr != nil {
+			return readErr
+		}
+	}
 }
 
 func (s *Server) sourceForClientChat(w http.ResponseWriter, r *http.Request) (*ent.ClientSource, bool) {
@@ -234,6 +280,7 @@ func sourceChatEndpoint(w http.ResponseWriter, sourceURL, apiPath string) (strin
 }
 
 func (s *Server) proxySourceChatRequest(w http.ResponseWriter, r *http.Request, source *ent.ClientSource, method, endpoint string, body io.Reader) {
+	s.ensureHTTPClients()
 	req, err := http.NewRequestWithContext(r.Context(), method, endpoint, body)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "SOURCE_URL_INVALID", "Source URL is invalid")
@@ -243,18 +290,20 @@ func (s *Server) proxySourceChatRequest(w http.ResponseWriter, r *http.Request, 
 		req.Header.Set("Content-Type", "application/json")
 	}
 	applySourceProxyHeaders(req, r, source, s.clientCommentDisplayName(r))
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "SOURCE_CHAT_FAILED", "Could not reach source chat")
 		return
 	}
-	defer resp.Body.Close()
-	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
-	if w.Header().Get("Content-Type") == "" {
-		w.Header().Set("Content-Type", "application/json")
+	defer func() { _ = resp.Body.Close() }()
+	err = writeBoundedSourceResponse(w, resp, maxSourceProxyResponseBytes)
+	if _, ok := errors.AsType[*responseTooLargeError](err); ok {
+		writeError(w, http.StatusBadGateway, "SOURCE_RESPONSE_TOO_LARGE", "Source response is too large")
+		return
 	}
-	w.WriteHeader(resp.StatusCode)
-	_, _ = io.Copy(w, resp.Body)
+	if err != nil {
+		return
+	}
 }
 
 func applySourceProxyHeaders(req *http.Request, r *http.Request, source *ent.ClientSource, displayName string) {

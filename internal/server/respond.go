@@ -3,8 +3,12 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 )
+
+const maxJSONBodyBytes int64 = 1 << 20
 
 type errorBody struct {
 	Error apiError `json:"error"`
@@ -29,16 +33,27 @@ func writeError(w http.ResponseWriter, status int, code, message string, details
 }
 
 func decodeJSON(r *http.Request, out any) error {
-	decoder := json.NewDecoder(r.Body)
+	limited := &io.LimitedReader{R: r.Body, N: maxJSONBodyBytes + 1}
+	decoder := json.NewDecoder(limited)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(out); err != nil {
+		if limited.N == 0 {
+			return &http.MaxBytesError{Limit: maxJSONBodyBytes}
+		}
 		return err
 	}
+	var extra any
+	err := decoder.Decode(&extra)
+	if limited.N == 0 {
+		return &http.MaxBytesError{Limit: maxJSONBodyBytes}
+	}
+	if !errors.Is(err, io.EOF) {
+		if err == nil {
+			return errors.New("request body must contain a single JSON value")
+		}
+		return fmt.Errorf("request body must contain a single JSON value: %w", err)
+	}
 	return nil
-}
-
-func methodNotAllowed(w http.ResponseWriter) {
-	writeError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed", nil)
 }
 
 func badRequest(w http.ResponseWriter, err error) {

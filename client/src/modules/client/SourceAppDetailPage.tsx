@@ -43,6 +43,7 @@ export function SourceAppDetailPage({
   onLoadInstalled,
   onRefreshSourceApp,
   setToast,
+  isInstallPending = false,
 }: {
   app: SourceApp;
   source?: SourceSubscription;
@@ -54,6 +55,7 @@ export function SourceAppDetailPage({
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
   onRefreshSourceApp: () => Promise<void>;
   setToast: (toast: Toast) => void;
+  isInstallPending?: boolean;
 }) {
   const { t } = useTranslation();
   const backButtonRef = useRef<HTMLButtonElement>(null);
@@ -244,14 +246,16 @@ export function SourceAppDetailPage({
           </div>
           <div className="source-detail-actions">
             <XButton
+              className="source-detail-primary-action"
               type="button"
               variant="primary"
-              label={sourceActionLabel(t, installAction)}
-              icon={isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
-              isDisabled={!installable}
+              label={isInstallPending ? t('installActivity.status.running') : sourceActionLabel(t, installAction)}
+              icon={isInstallPending ? <RefreshCw size={17} className="spin" /> : isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
+              isDisabled={!installable || isInstallPending}
               onClick={() => void onInstall(app)}
             />
             <XButton
+              className="source-detail-secondary-action"
               type="button"
               variant="secondary"
               label={installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}
@@ -261,6 +265,7 @@ export function SourceAppDetailPage({
             />
             {canContactPublisher && (
               <XButton
+                className="source-detail-secondary-action"
                 type="button"
                 variant="secondary"
                 label={t('sourceDetail.contactPublisher')}

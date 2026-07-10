@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -343,18 +342,14 @@ func (s *Server) handleChatEvents(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		writeError(w, http.StatusInternalServerError, "SSE_UNSUPPORTED", "Streaming is not supported", nil)
-		return
-	}
 	events, unsubscribe := s.chatHub.subscribe()
 	defer unsubscribe()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	fmt.Fprint(w, ": connected\n\n")
-	flusher.Flush()
+	if err := writeSSE(w, 30*time.Second, ": connected\n\n"); err != nil {
+		return
+	}
 	heartbeat := time.NewTicker(25 * time.Second)
 	defer heartbeat.Stop()
 	for {
@@ -362,18 +357,25 @@ func (s *Server) handleChatEvents(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case <-heartbeat.C:
-			fmt.Fprint(w, ": heartbeat\n\n")
-			flusher.Flush()
-		case event := <-events:
+			if err := writeSSE(w, 30*time.Second, ": heartbeat\n\n"); err != nil {
+				return
+			}
+		case event, open := <-events:
+			if !open {
+				return
+			}
 			if event.ConversationID > 0 {
 				if _, visible := s.chatParticipantForActor(r.Context(), event.ConversationID, actor); !visible {
 					continue
 				}
 			}
-			raw, _ := json.Marshal(event)
-			fmt.Fprintf(w, "event: chat\n")
-			fmt.Fprintf(w, "data: %s\n\n", raw)
-			flusher.Flush()
+			raw, err := json.Marshal(event)
+			if err != nil {
+				return
+			}
+			if err := writeSSE(w, 30*time.Second, "event: chat\ndata: "+string(raw)+"\n\n"); err != nil {
+				return
+			}
 		}
 	}
 }

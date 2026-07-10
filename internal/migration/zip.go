@@ -2,7 +2,6 @@ package migration
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -19,8 +18,8 @@ const (
 	maxJSONEntryBytes    = 64 << 20
 )
 
-func PreviewPackage(_ context.Context, r io.Reader, size int64) (*Preview, error) {
-	manifest, err := readManifestFromReader(r, size)
+func PreviewPackage(_ context.Context, r io.ReaderAt, size int64) (*Preview, error) {
+	manifest, err := readManifestFromReaderAt(r, size)
 	if err != nil {
 		return nil, err
 	}
@@ -39,29 +38,22 @@ func previewFromManifest(manifest Manifest) *Preview {
 	}
 }
 
-func readManifestFromReader(r io.Reader, size int64) (Manifest, error) {
-	zr, err := zipReaderFromReader(r, size)
+func readManifestFromReaderAt(r io.ReaderAt, size int64) (Manifest, error) {
+	zr, err := zipReaderFromReaderAt(r, size)
 	if err != nil {
 		return Manifest{}, err
 	}
 	return readManifest(zr)
 }
 
-func zipReaderFromReader(r io.Reader, size int64) (*zip.Reader, error) {
-	if size < 0 {
-		size = maxCompressedBytes + 1
+func zipReaderFromReaderAt(r io.ReaderAt, size int64) (*zip.Reader, error) {
+	if r == nil {
+		return nil, fmt.Errorf("migration package reader is required")
 	}
-	if size > maxCompressedBytes {
+	if size < 0 || size > maxCompressedBytes {
 		return nil, fmt.Errorf("migration package is too large")
 	}
-	data, err := io.ReadAll(io.LimitReader(r, maxCompressedBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("read migration package: %w", err)
-	}
-	if int64(len(data)) > maxCompressedBytes {
-		return nil, fmt.Errorf("migration package is too large")
-	}
-	return zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	return zip.NewReader(r, size)
 }
 
 func readManifest(zr *zip.Reader) (Manifest, error) {
@@ -145,7 +137,7 @@ func readZipEntry(zr *zip.Reader, name string, maxBytes int64) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer rc.Close()
+		defer func() { _ = rc.Close() }()
 		data, err := io.ReadAll(io.LimitReader(rc, maxBytes+1))
 		if err != nil {
 			return nil, err

@@ -9,6 +9,7 @@ import type { MigrationModuleOptions } from './types';
 export function MigrationExportCard({
   options,
   isExporting,
+  isBusy,
   hasSelection,
   t,
   onOptionChange,
@@ -16,6 +17,7 @@ export function MigrationExportCard({
 }: {
   options: MigrationModuleOptions;
   isExporting: boolean;
+  isBusy: boolean;
   hasSelection: boolean;
   t: (key: string, options?: any) => string;
   onOptionChange: (key: keyof MigrationModuleOptions, value: boolean) => void;
@@ -32,10 +34,10 @@ export function MigrationExportCard({
         </div>
         <XButton
           type="button"
-          variant="primary"
+          variant="secondary"
           label={t('admin.migration.exportAction')}
           icon={<Download size={17} />}
-          isDisabled={!hasSelection || isExporting}
+          isDisabled={!hasSelection || isBusy}
           isLoading={isExporting}
           onClick={onExport}
         />
@@ -52,6 +54,7 @@ export function MigrationExportCard({
                 labelIcon={<Icon size={18} />}
                 width="100%"
                 value={Boolean(options[item.optionKey])}
+                isDisabled={isBusy}
                 onChange={(checked) => onOptionChange(item.optionKey, checked)}
               />
             </div>

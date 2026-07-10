@@ -67,7 +67,7 @@ func ParseFile(filename string) (Metadata, error) {
 	if err != nil {
 		return Metadata{}, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	info, err := file.Stat()
 	if err != nil {
 		return Metadata{}, err
@@ -81,10 +81,8 @@ func ParseReaderAt(r io.ReaderAt, size int64) (Metadata, error) {
 	}
 	if meta, err := parseZip(r, size); err == nil {
 		return meta, nil
-	} else if !errors.Is(err, ErrPackageNotFound) {
-		// If the data is not a zip archive, fall through to tar. Other zip
-		// errors may still be caused by reading tar bytes through zip.NewReader.
 	}
+	// Zip errors may be caused by reading tar bytes through zip.NewReader.
 	return parseTar(io.NewSectionReader(r, 0, size))
 }
 
@@ -139,7 +137,7 @@ func parseTar(r io.Reader) (Metadata, error) {
 		if err != nil {
 			return Metadata{}, err
 		}
-		if header.Typeflag != tar.TypeReg && header.Typeflag != tar.TypeRegA {
+		if header.Typeflag != tar.TypeReg {
 			continue
 		}
 		name := cleanArchiveName(header.Name)

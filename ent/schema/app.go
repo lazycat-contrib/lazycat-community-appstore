@@ -31,6 +31,7 @@ func (App) Fields() []ent.Field {
 		field.Bool("email_notifications_enabled").Default(true),
 		field.String("install_password_hash").Default(""),
 		field.Int("download_count").Default(0),
+		field.Int("version_retention_count").Optional().Nillable(),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}

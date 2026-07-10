@@ -18,6 +18,16 @@ jobs:
           go-version-file: go.mod
       - name: Test
         run: go test ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Race
+        run: go test -race ./...
+      - name: Verify tidy
+        run: go mod tidy -diff
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+          args: --timeout=5m
 
   client:
     name: Client

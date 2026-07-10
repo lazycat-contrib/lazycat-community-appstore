@@ -36,6 +36,11 @@ func currentUserID(r *http.Request) string {
 	return clientIdentityLocal
 }
 
+func currentClientIdentity(r *http.Request) (clientIdentity, bool) {
+	identity, ok := r.Context().Value(clientIdentityContextKey{}).(clientIdentity)
+	return identity, ok
+}
+
 func withClientIdentity(ctx context.Context, identity clientIdentity) context.Context {
 	return context.WithValue(ctx, clientIdentityContextKey{}, identity)
 }

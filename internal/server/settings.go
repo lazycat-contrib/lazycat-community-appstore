@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/sitesetting"
 	"lazycat.community/appstore/internal/buildinfo"
 	"lazycat.community/appstore/internal/mirror"
@@ -20,6 +21,7 @@ const (
 	settingRequireEmailVerify       = "require_email_verify"
 	settingSourcePassword           = "source_password"
 	settingSourcePasswordRotation   = "source_password_rotation"
+	sourcePasswordRotatedAtSetting  = "source_password_rotated_at"
 	settingSourceV1Enabled          = "source_v1_enabled"
 	settingCommentsEnabled          = "comments_enabled"
 	settingChatEnabled              = "chat_enabled"
@@ -32,6 +34,7 @@ const (
 	settingSiteSubtitle             = "site_subtitle"
 	settingSiteIconURL              = "site_icon_url"
 	settingSitePublicURL            = "site_public_url"
+	settingSiteTimeZone             = "site_timezone"
 	settingDefaultStorageKey        = "default_storage_key"
 	settingMinClientVersion         = "min_client_version"
 	settingMinClientVersionMessage  = "min_client_version_message"
@@ -57,6 +60,8 @@ const (
 	settingBackupLastRun            = "backup_last_run"
 	settingSchemaVersion            = "schema_version"
 )
+
+const defaultSiteTimeZone = "Asia/Shanghai"
 
 const (
 	registrationModeOpen   = "open"
@@ -95,28 +100,77 @@ func (s *Server) setSetting(ctx context.Context, key, value string) error {
 }
 
 func (s *Server) sourcePassword(ctx context.Context) string {
-	password := s.setting(ctx, settingSourcePassword, s.cfg.SourcePassword)
-	rotationDays := s.settingInt(ctx, settingSourcePasswordRotation, s.cfg.SourcePasswordRotation)
+	s.sourcePasswordMu.Lock()
+	defer s.sourcePasswordMu.Unlock()
+
+	fallbackCtx, fallbackCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	current := s.setting(fallbackCtx, settingSourcePassword, s.cfg.SourcePassword)
+	fallbackCancel()
+	tx, err := s.db.Tx(ctx)
+	if err != nil {
+		return current
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	password, err := settingValueTx(ctx, tx, settingSourcePassword, current)
+	if err != nil {
+		return current
+	}
+	rotationRaw, err := settingValueTx(ctx, tx, settingSourcePasswordRotation, strconv.Itoa(s.cfg.SourcePasswordRotation))
+	if err != nil {
+		return password
+	}
+	rotationDays, err := strconv.Atoi(rotationRaw)
+	if err != nil {
+		return password
+	}
 	if rotationDays <= 0 || password == "" {
 		return password
 	}
 
-	rotatedAtRaw := s.setting(ctx, "source_password_rotated_at", "")
-	rotatedAt, err := time.Parse(time.RFC3339, rotatedAtRaw)
+	rotatedAtRaw, err := settingValueTx(ctx, tx, sourcePasswordRotatedAtSetting, "")
 	if err != nil {
-		_ = s.setSetting(ctx, "source_password_rotated_at", time.Now().UTC().Format(time.RFC3339))
 		return password
 	}
-	if time.Since(rotatedAt) < time.Duration(rotationDays)*24*time.Hour {
+	now := time.Now().UTC()
+	rotatedAt, err := time.Parse(time.RFC3339, rotatedAtRaw)
+	if err != nil {
+		if err := setSettingTx(ctx, tx, sourcePasswordRotatedAtSetting, now.Format(time.RFC3339)); err != nil {
+			return password
+		}
+		if err := tx.Commit(); err != nil {
+			return password
+		}
+		return password
+	}
+	if now.Sub(rotatedAt) < time.Duration(rotationDays)*24*time.Hour {
 		return password
 	}
 	token, err := randomToken()
 	if err != nil {
 		return password
 	}
-	_ = s.setSetting(ctx, settingSourcePassword, token)
-	_ = s.setSetting(ctx, "source_password_rotated_at", time.Now().UTC().Format(time.RFC3339))
+	if err := setSettingTx(ctx, tx, settingSourcePassword, token); err != nil {
+		return password
+	}
+	if err := setSettingTx(ctx, tx, sourcePasswordRotatedAtSetting, now.Format(time.RFC3339)); err != nil {
+		return password
+	}
+	if err := tx.Commit(); err != nil {
+		return password
+	}
 	return token
+}
+
+func settingValueTx(ctx context.Context, tx *entgo.Tx, key, fallback string) (string, error) {
+	record, err := tx.SiteSetting.Query().Where(sitesetting.KeyEQ(key)).Only(ctx)
+	if entgo.IsNotFound(err) {
+		return fallback, nil
+	}
+	if err != nil {
+		return fallback, err
+	}
+	return record.Value, nil
 }
 
 func (s *Server) sourceV1Enabled(ctx context.Context) bool {
@@ -218,6 +272,7 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 		IconURL:         cleanURLSetting(s.setting(ctx, settingSiteIconURL, "")),
 		PublicURL:       publicURL,
 		SourceURL:       sourceFeedURL(publicURL, 2),
+		TimeZone:        s.siteTimeZone(ctx),
 		Version:         appVersion(),
 		DefaultPageSize: s.effectiveDefaultPageSize(ctx, pagination.DefaultPageSize, 100),
 		Announcement:    announcement,
@@ -228,6 +283,18 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 		Chat:            siteChat{Enabled: s.chatEnabled(ctx), RetentionDays: s.chatRetentionDays(ctx)},
 		Security:        siteSecurity{TwoFactorAuthEnabled: s.twoFactorAuthEnabled(ctx)},
 	}
+}
+
+func (s *Server) siteTimeZone(ctx context.Context) string {
+	return normalizeSiteTimeZone(s.setting(ctx, settingSiteTimeZone, defaultSiteTimeZone))
+}
+
+func (s *Server) siteLocation(ctx context.Context) *time.Location {
+	location, err := time.LoadLocation(s.siteTimeZone(ctx))
+	if err != nil {
+		return time.UTC
+	}
+	return location
 }
 
 func (s *Server) clientPolicy(ctx context.Context) siteClientPolicy {
@@ -279,6 +346,14 @@ func sourceFeedURL(publicURL string, version int) string {
 		path = "/source/v1/index.json"
 	}
 	return strings.TrimRight(publicURL, "/") + path
+}
+
+func normalizeSiteTimeZone(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return defaultSiteTimeZone
+	}
+	return value
 }
 
 func (s *Server) settingBool(ctx context.Context, key string, fallback bool) bool {

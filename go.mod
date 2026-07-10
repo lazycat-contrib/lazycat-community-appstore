@@ -16,6 +16,7 @@ require (
 	github.com/lib/pq v1.12.3
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/pquerna/otp v1.5.0
+	go.uber.org/goleak v1.3.0
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.53.0
 	golang.org/x/image v0.43.0

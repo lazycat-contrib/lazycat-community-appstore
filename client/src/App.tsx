@@ -197,13 +197,17 @@ function knownAppTags(apps: StoreApp[], catalogTags: TagRecord[] = []) {
   return out.sort((a, b) => a.localeCompare(b));
 }
 
+function installKeyForApp(app: StoreApp | SourceApp) {
+	return 'sourceName' in app ? `${app.sourceId ?? app.sourceName}:${app.id}` : `store:${app.id}`;
+}
+
 export function App() {
   const { t } = useTranslation();
   const [routeLocation, setRouteLocation] = useState(currentRoute);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readThemeMode);
   const [astryxThemeName, setAstryxThemeName] = useState(readAstryxThemeName);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(readSystemTheme);
-  const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() || collaborationInviteTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'sources'));
+	const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() || collaborationInviteTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'search'));
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [storeAppTotal, setStoreAppTotal] = useState(0);
   const [storeAppsComplete, setStoreAppsComplete] = useState(false);
@@ -251,8 +255,11 @@ export function App() {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [openSubmitSignal, setOpenSubmitSignal] = useState(0);
-  const acceptedCollaborationInviteRef = useRef('');
-  const defaultSourceCheckedRef = useRef(false);
+	const acceptedCollaborationInviteRef = useRef('');
+	const defaultSourceCheckedRef = useRef(false);
+	const clientLandingResolvedRef = useRef(false);
+	const installInFlightRef = useRef(false);
+	const lastInstallRequestRef = useRef<{ app: StoreApp | SourceApp; options: InstallOptions } | null>(null);
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const serverChatVisible = HAS_API && Boolean(user && siteProfile.chat?.enabled);
   const clientChatVisible = !HAS_API && sources.some((source) => source.chatAvailable && source.chatEnabled !== false);
@@ -331,13 +338,13 @@ export function App() {
     };
   }, [clientAuth.user]);
 
-  useEffect(() => {
+	useEffect(() => {
     if (!installActivity || installActivity.status !== 'success') return;
     const seconds = Number(clientSettings.installSuccessDismissSeconds ?? DEFAULT_INSTALL_SUCCESS_DISMISS_SECONDS);
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     const timer = window.setTimeout(() => {
       setInstallActivity((current) => (
-        current?.status === 'success' && current.title === installActivity.title ? null : current
+		current?.status === 'success' && current.appKey === installActivity.appKey && current.version === installActivity.version ? null : current
       ));
     }, seconds * 1000);
     return () => window.clearTimeout(timer);
@@ -393,14 +400,15 @@ export function App() {
     setTab(returnTo.startsWith('/profile') ? 'profile' : returnTo.startsWith('/admin') ? 'admin' : 'home');
   }
 
-  function navigateTo(nextTab: TabKey) {
+	function navigateTo(nextTab: TabKey) {
     if (isLoginRoute) {
       navigateRoute('/');
     }
     setSelectedApp(null);
     setSelectedAppMode('detail');
-    setSelectedSourceApp(null);
-    setTab(nextTab);
+		setSelectedSourceApp(null);
+		if (!HAS_API) clientLandingResolvedRef.current = true;
+		setTab(nextTab);
   }
 
   function openSubmitApp() {
@@ -721,6 +729,12 @@ export function App() {
     return nextAuth;
   }
 
+  function resolveClientLanding(nextSources: SourceSubscription[]) {
+	if (HAS_API || clientLandingResolvedRef.current) return;
+	clientLandingResolvedRef.current = true;
+	setTab(nextSources.length > 0 ? 'search' : 'sources');
+  }
+
   async function loadClientSources() {
     const data = await clientApi<{ sources: SourceSubscription[] }>('/sources');
     const nextSources = arrayOrEmpty(data.sources);
@@ -731,10 +745,12 @@ export function App() {
         body: JSON.stringify({ name: DEFAULT_SOURCE_NAME, url: DEFAULT_SOURCE_URL, password: '', defaultDownloadMirrorId: '', defaultRawMirrorId: '' }),
       });
       setSources([created.source]);
+	  resolveClientLanding([created.source]);
       return [created.source];
     }
     defaultSourceCheckedRef.current = true;
     setSources(nextSources);
+	resolveClientLanding(nextSources);
     return nextSources;
   }
 
@@ -855,6 +871,10 @@ export function App() {
   }
 
   async function installApp(app: StoreApp | SourceApp, options: InstallOptions = {}) {
+	if (installInFlightRef.current) {
+	  setToast({ tone: 'neutral', message: t('installActivity.status.running') });
+	  return;
+	}
     const isSourceApp = 'sourceName' in app;
     const version = isSourceApp ? selectedSourceVersion(app, options.version) : selectedStoreVersion(app, options.version);
     const appName = localizedAppName(app);
@@ -862,74 +882,82 @@ export function App() {
       setToast({ tone: 'error', message: t('toast.noInstallableVersion') });
       return;
     }
-    const source = isSourceApp ? sourceForApp(app, sources) : undefined;
-    const availableMirrors = isSourceApp ? applicableMirrorsForVersion(source, version) : [];
+	const sourceSubscription = isSourceApp ? sourceForApp(app, sources) : undefined;
+	const availableMirrors = isSourceApp ? applicableMirrorsForVersion(sourceSubscription, version) : [];
     const needsPassword = app.installProtected && !options.installPassword;
     const needsMirrorChoice = isSourceApp && availableMirrors.length > 0 && !Object.prototype.hasOwnProperty.call(options, 'mirrorId');
     if (needsPassword || needsMirrorChoice) {
       setInstallPasswordRequest({ app, version: version.version });
       return;
     }
-    await runAction(setToast, t('toast.installFailed'), async () => {
-      const source = isSourceApp ? app.sourceName : t('search.localStore');
-      const checksum = version.sha256 ? shortSHA(version.sha256) : t('app.checksumMissing');
-      setInstallActivity({
-        title: `${appName} ${version.version}`,
-        source,
-        checksum,
-        status: 'running',
-        progress: 12,
-        stageKey: 'installActivity.stagePrepare',
-      });
-      await new Promise((resolve) => window.setTimeout(resolve, 180));
-      setInstallActivity((current) =>
-        current && current.title === `${appName} ${version.version}`
-          ? { ...current, progress: 42, stageKey: version.sha256 ? 'installActivity.stageVerify' : 'installActivity.stageHandoff' }
-          : current,
-      );
-      const result =
-        isSourceApp
-          ? await clientApi<ClientInstallResult>('/install', {
-              method: 'POST',
-              body: JSON.stringify({
-                appId: app.id,
-                version: version.version,
-                installPassword: options.installPassword,
-                mirrorId: options.mirrorId || '',
-              }),
-            }).then((value) => ({
-              mode: value.mode || 'lazycat-go-sdk',
-              messageKey: 'installResult.sdkInstalled',
-              messageParams: value.taskId ? { taskId: value.taskId } : undefined,
-            }))
-          : await Promise.resolve().then(() => {
-              const downloadUrl = `${API_BASE}/api/v1/apps/${app.id}/versions/${(version as Version).id}/download`;
-              const protectedDownloadUrl = withInstallPassword(downloadUrl, options.installPassword);
-              window.open(protectedDownloadUrl, '_blank', 'noopener,noreferrer');
-              return { mode: 'download', messageKey: 'installResult.downloadOpened', messageParams: undefined };
-            });
-      const success = result.mode === 'lazycat-go-sdk' || result.mode === 'download';
-      setInstallActivity({
-        title: `${appName} ${version.version}`,
-        source,
-        checksum,
-        status: success ? 'success' : 'error',
-        progress: 100,
-        stageKey: success ? 'installActivity.stageDone' : 'installActivity.stageFailed',
-        resultMode: result.mode,
-        messageKey: result.messageKey,
-        messageParams: result.messageParams,
-      });
-      if (result.mode === 'lazycat-go-sdk') {
-        void loadInstalledApps({ quiet: true });
-        void loadInstallHistory();
-      }
-      setToast({
-        tone: success ? 'success' : 'error',
-        message: t(result.messageKey, result.messageParams),
-      });
-    });
-    if (isSourceApp) void loadInstallHistory();
+	const appKey = installKeyForApp(app);
+	const activitySource = isSourceApp ? app.sourceName : t('search.localStore');
+	const checksum = version.sha256 ? shortSHA(version.sha256) : t('app.checksumMissing');
+	const activityBase = {
+	  appKey,
+	  appId: app.id,
+	  version: version.version,
+	  title: `${appName} ${version.version}`,
+	  source: activitySource,
+	  checksum,
+	};
+	installInFlightRef.current = true;
+	lastInstallRequestRef.current = { app, options: { ...options, version: version.version } };
+	setInstallActivity({ ...activityBase, status: 'running', progress: 0, stageKey: 'installActivity.stageQueued' });
+	try {
+	  setInstallActivity({ ...activityBase, status: 'running', progress: 0, stageKey: 'installActivity.stagePrepare' });
+	  setInstallActivity({ ...activityBase, status: 'running', progress: 0, stageKey: 'installActivity.stageSystem' });
+	  let result: { mode: string; messageKey: string; messageParams?: Record<string, string | number> };
+	  if (isSourceApp) {
+		const value = await clientApi<ClientInstallResult>('/install', {
+		  method: 'POST',
+		  body: JSON.stringify({
+			appId: app.id,
+			version: version.version,
+			installPassword: options.installPassword,
+			mirrorId: options.mirrorId || '',
+		  }),
+		});
+		result = {
+		  mode: value.mode || 'lazycat-go-sdk',
+		  messageKey: 'installResult.sdkInstalled',
+		  messageParams: value.taskId ? { taskId: value.taskId } : undefined,
+		};
+	  } else {
+		const downloadUrl = `${API_BASE}/api/v1/apps/${app.id}/versions/${(version as Version).id}/download`;
+		window.open(withInstallPassword(downloadUrl, options.installPassword), '_blank', 'noopener,noreferrer');
+		result = { mode: 'download', messageKey: 'installResult.downloadOpened' };
+	  }
+	  const success = result.mode === 'lazycat-go-sdk' || result.mode === 'download';
+	  setInstallActivity({
+		...activityBase,
+		status: success ? 'success' : 'error',
+		progress: 100,
+		stageKey: success ? 'installActivity.stageDone' : 'installActivity.stageFailed',
+		resultMode: result.mode,
+		messageKey: result.messageKey,
+		messageParams: result.messageParams,
+	  });
+	  if (result.mode === 'lazycat-go-sdk') {
+		void loadInstalledApps({ quiet: true });
+		void loadInstallHistory();
+	  }
+	  setToast({ tone: success ? 'success' : 'error', message: t(result.messageKey, result.messageParams) });
+	} catch (error) {
+	  const message = errorMessage(error, t('toast.installFailed'));
+	  setInstallActivity({
+		...activityBase,
+		status: 'error',
+		progress: 100,
+		stageKey: 'installActivity.stageFailed',
+		messageKey: 'installActivity.failureMessage',
+		messageParams: { message },
+	  });
+	  setToast({ tone: 'error', message });
+	} finally {
+	  installInFlightRef.current = false;
+	}
+	if (isSourceApp) void loadInstallHistory();
   }
 
   async function approveReview(review: Review, approve: boolean) {
@@ -946,7 +974,7 @@ export function App() {
   async function syncSource(source: SourceSubscription, options: { quiet?: boolean } = {}) {
     try {
       await clientApi<{ source: SourceSubscription }>(`/sources/${source.id}/sync`, { method: 'POST' });
-      await refreshClientData({ silent: true });
+      void refreshClientData({ silent: true });
       if (!options.quiet) setToast({ tone: 'success', message: t('toast.sourceSynced') });
     } catch (error) {
       const message = errorMessage(error, t('toast.sourceSyncFailed'));
@@ -955,31 +983,30 @@ export function App() {
     }
   }
 
-  async function syncAllSources() {
+  async function syncAllSources(): Promise<{ success: number; failed: number }> {
     if (sources.length === 0) {
       navigateTo('sources');
       setToast({ tone: 'neutral', message: t('toast.addSourceFirst') });
-      return;
+	  return { success: 0, failed: 0 };
     }
     let success = 0;
     let failed = 0;
     try {
       const data = await clientApi<{ result: { success: number; failed: number } }>('/sources/sync', { method: 'POST' });
-      await refreshClientData({ silent: true });
       success = data.result.success;
       failed = data.result.failed;
+      void refreshClientData({ silent: true });
     } catch (error) {
-      setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSyncFailed')) });
-      return;
+	  const message = errorMessage(error, t('toast.sourceSyncFailed'));
+	  setToast({ tone: 'error', message });
+	  throw new Error(message, { cause: error });
     }
     if (failed > 0) {
       setToast({ tone: success > 0 ? 'neutral' : 'error', message: t('toast.sourcesSyncPartial', { success, failed }) });
     } else {
       setToast({ tone: 'success', message: t('toast.allSourcesSynced', { count: sources.length }) });
     }
-    if (success > 0) {
-      navigateTo('search');
-    }
+	return { success, failed };
   }
 
   async function addClientSource(input: SourceInput) {
@@ -987,7 +1014,7 @@ export function App() {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    await refreshClientData({ silent: true });
+    void refreshClientData({ silent: true });
   }
 
   async function updateClientSource(source: SourceSubscription) {
@@ -1004,7 +1031,7 @@ export function App() {
         adsPreference: source.adsPreference || 'unset',
       }),
     });
-    await refreshClientData({ silent: true });
+    void refreshClientData({ silent: true });
   }
 
   async function setSourceAdsPreference(source: SourceSubscription, adsPreference: 'enabled' | 'disabled') {
@@ -1019,7 +1046,7 @@ export function App() {
   async function deleteClientSource(source: SourceSubscription) {
     await clientApi(`/sources/${source.id}`, { method: 'DELETE' });
     setSelectedSourceApp((current) => (current && belongsToSource(current, source) ? null : current));
-    await refreshClientData({ silent: true });
+    void refreshClientData({ silent: true });
   }
 
   async function saveClientSettings(nextSettings: ClientSettings) {
@@ -1145,7 +1172,7 @@ export function App() {
                     variant="ghost"
                     label={HAS_API ? t('topbar.refreshStore') : t('topbar.syncAllSources')}
                     icon={<RefreshCw size={18} />}
-                    onClick={() => void (HAS_API ? refreshAll() : syncAllSources())}
+					onClick={() => void (HAS_API ? refreshAll() : syncAllSources().catch(() => undefined))}
                   />
                   {HAS_API && user ? (
                     <div className="account-menu">
@@ -1335,6 +1362,7 @@ export function App() {
                 onInstall={installApp}
                 onContactPublisher={contactSourcePublisher}
                 onLoadInstalled={loadInstalledApps}
+				isInstallPending={installActivity?.status === 'running' && installActivity.appKey === installKeyForApp(selectedSourceApp)}
                 onRefreshSourceApp={async () => {
                   const data = await clientApi<{ app: SourceApp }>(`/apps/${selectedSourceApp.id}`);
                   setSelectedSourceApp(data.app);
@@ -1383,6 +1411,7 @@ export function App() {
                 onInstall={installApp}
                 onGoSources={() => navigateTo('sources')}
                 defaultPageSize={HAS_API ? siteProfile.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE : clientSettings.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE}
+				activeInstallKey={installActivity?.status === 'running' ? installActivity.appKey : undefined}
               />
             )}
             {tab === 'chat' && (
@@ -1445,8 +1474,8 @@ export function App() {
                 history={installHistory}
                 pagination={installHistoryPagination}
                 sourceApps={sourceApps}
-                onRefresh={() => void loadInstallHistory(installHistoryPagination.page || 1, installHistoryPagination.pageSize)}
-                onPageChange={(page, pageSize) => void loadInstallHistory(page, pageSize)}
+                onRefresh={async () => { await loadInstallHistory(installHistoryPagination.page || 1, installHistoryPagination.pageSize); }}
+                onPageChange={async (page, pageSize) => { await loadInstallHistory(page, pageSize); }}
                 onOpenSource={setSelectedSourceApp}
               />
             )}
@@ -1499,11 +1528,11 @@ export function App() {
                 : selectedStoreVersion(installPasswordRequest.app, installPasswordRequest.version)
             }
             onCancel={() => setInstallPasswordRequest(null)}
-            onSubmit={(options) => {
+			onSubmit={async (options) => {
               const target = installPasswordRequest.app;
               const targetVersion = installPasswordRequest.version;
-              setInstallPasswordRequest(null);
-              void installApp(target, { ...options, version: targetVersion });
+			  await installApp(target, { ...options, version: targetVersion });
+			  setInstallPasswordRequest(null);
             }}
           />
         </Suspense>
@@ -1558,7 +1587,17 @@ export function App() {
 
       {installActivity && (
         <Suspense fallback={null}>
-          <InstallActivityPanel activity={installActivity} onDismiss={() => setInstallActivity(null)} />
+		  <InstallActivityPanel
+			activity={installActivity}
+			onDismiss={() => setInstallActivity(null)}
+			onRetry={installActivity.status === 'error' && lastInstallRequestRef.current
+			  ? () => {
+				  const request = lastInstallRequestRef.current;
+				  if (request) void installApp(request.app, request.options);
+				}
+			  : undefined}
+			onOpenHistory={!HAS_API ? () => navigateTo('history') : undefined}
+		  />
         </Suspense>
       )}
 

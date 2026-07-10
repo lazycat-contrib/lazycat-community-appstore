@@ -17,6 +17,7 @@ export function MigrationImportCard({
   result,
   isPreviewing,
   isImporting,
+  isBusy,
   t,
   onFileChange,
   onPreview,
@@ -31,6 +32,7 @@ export function MigrationImportCard({
   result: MigrationImportResult | null;
   isPreviewing: boolean;
   isImporting: boolean;
+  isBusy: boolean;
   t: (key: string, options?: any) => string;
   onFileChange: (file: File | null) => void;
   onPreview: () => void;
@@ -54,7 +56,7 @@ export function MigrationImportCard({
           help={t('admin.migration.pickPackageHelp')}
           value={file}
           accept=".zip"
-          disabled={isPreviewing || isImporting}
+          disabled={isBusy}
           onChange={(nextFile) => onFileChange(Array.isArray(nextFile) ? nextFile[0] || null : nextFile)}
         />
         <div className="migration-import-actions">
@@ -63,7 +65,7 @@ export function MigrationImportCard({
             variant="secondary"
             label={t('admin.migration.previewAction')}
             icon={<Upload size={17} />}
-            isDisabled={!file || isPreviewing || isImporting}
+            isDisabled={!file || isBusy}
             isLoading={isPreviewing}
             onClick={onPreview}
           />
@@ -78,6 +80,7 @@ export function MigrationImportCard({
               label={t('admin.migration.importMode')}
               value={mode}
               options={importModeOptions.map((item) => ({ value: item.value, label: t(item.labelKey) }))}
+              isDisabled={isBusy}
               onChange={(value) => onModeChange(value as MigrationImportMode)}
             />
             <p className="migration-import-note">{t('admin.migration.importModeHelp')}</p>
@@ -89,6 +92,7 @@ export function MigrationImportCard({
                     key={item.key}
                     label={t(item.labelKey)}
                     value={Boolean(options[item.optionKey])}
+                    isDisabled={isBusy}
                     onChange={(checked) => onOptionChange(item.optionKey, checked)}
                   />
                 ))}
@@ -98,7 +102,7 @@ export function MigrationImportCard({
               variant={mode === 'replace' ? 'destructive' : 'primary'}
               label={mode === 'replace' ? t('admin.migration.replaceApplyAction') : t('admin.migration.mergeApplyAction')}
               icon={<RotateCcw size={17} />}
-              isDisabled={isImporting}
+              isDisabled={isBusy}
               isLoading={isImporting}
               onClick={onApply}
             />

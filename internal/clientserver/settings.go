@@ -2,7 +2,6 @@ package clientserver
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -40,7 +39,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var input ClientSettingsUpdateDTO
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	if err := decodeJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON request body")
 		return
 	}

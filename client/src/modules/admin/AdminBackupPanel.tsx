@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, CloudUpload, Database, HardDrive, Play, RefreshCw, Save, Server, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle2, CloudUpload, Database, HardDrive, Play, RefreshCw, Server, XCircle } from 'lucide-react';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
@@ -14,7 +14,10 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../shared/api';
 import type { BackupRunResult, BackupSettings, BackupTargetSettings, Toast } from '../../shared/types';
 import { errorMessage, formatBytes, formatDate } from '../../shared/utils';
+import { AdminOperationResultPanel } from './AdminOperationResult';
+import { AdminSaveBar } from './AdminSaveBar';
 import type { StorageSettings } from './StorageSettingsPanel';
+import { areAdminDraftsEqual, type AdminOperationResult, type AdminSaveStatus } from './adminState';
 
 type BackupDraft = {
   enabled: boolean;
@@ -85,35 +88,59 @@ export function AdminBackupPanel({
   const { t } = useTranslation();
   const [settings, setSettings] = useState<BackupSettings>(defaultBackupSettings);
   const [draft, setDraft] = useState<BackupDraft>(draftFromSettings(defaultBackupSettings));
+  const [savedDraft, setSavedDraft] = useState<BackupDraft>(draftFromSettings(defaultBackupSettings));
+  const [saveStatus, setSaveStatus] = useState<AdminSaveStatus>('idle');
+  const [operationResult, setOperationResult] = useState<AdminOperationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const draftRef = useRef<BackupDraft>(draftFromSettings(defaultBackupSettings));
+  const savedDraftRef = useRef<BackupDraft>(draftFromSettings(defaultBackupSettings));
+  const draftRevisionRef = useRef(0);
+  const activeActionRef = useRef<'load' | 'save' | 'run' | null>(null);
 
   const selectedCount = draft.storageKeys.length;
   const selectedStorages = useMemo(() => new Set(draft.storageKeys), [draft.storageKeys]);
   const targetByStorage = useMemo(() => new Map(draft.targets.map((target) => [target.storageKey, target])), [draft.targets]);
   const lastRun = settings.lastRun;
+  const isDirty = !areAdminDraftsEqual(draft, savedDraft);
 
   useEffect(() => {
     void loadSettings();
   }, []);
 
   async function loadSettings() {
+    if (activeActionRef.current || !areAdminDraftsEqual(draftRef.current, savedDraftRef.current)) return;
+    activeActionRef.current = 'load';
     setIsLoading(true);
     try {
       const data = await api<{ settings: BackupSettings }>('/api/v1/admin/backups/settings');
       const next = data.settings || defaultBackupSettings;
+      const nextDraft = draftFromSettings(next);
       setSettings(next);
-      setDraft(draftFromSettings(next));
+      draftRef.current = nextDraft;
+      savedDraftRef.current = nextDraft;
+      setDraft(nextDraft);
+      setSavedDraft(nextDraft);
+      setSaveStatus('idle');
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('admin.backup.loadFailed')) });
     } finally {
       setIsLoading(false);
+      activeActionRef.current = null;
     }
   }
 
+  function editDraft(update: (current: BackupDraft) => BackupDraft) {
+    const next = update(draftRef.current);
+    draftRevisionRef.current += 1;
+    draftRef.current = next;
+    setSaveStatus('dirty');
+    setDraft(next);
+  }
+
   function toggleStorage(key: string, checked: boolean) {
-    setDraft((current) => {
+    editDraft((current) => {
       const keys = new Set(current.storageKeys);
       let targets = current.targets;
       if (checked) {
@@ -130,41 +157,74 @@ export function AdminBackupPanel({
   }
 
   function updateTargetDirectory(key: string, directory: string) {
-    setDraft((current) => ({
+    editDraft((current) => ({
       ...current,
       targets: current.targets.map((target) => (target.storageKey === key ? { ...target, directory } : target)),
     }));
   }
 
   async function saveSettings() {
+    if (areAdminDraftsEqual(draftRef.current, savedDraftRef.current) || activeActionRef.current) return;
+    activeActionRef.current = 'save';
+    const draftSnapshot = draftRef.current;
+    const draftRevision = draftRevisionRef.current;
     setIsSaving(true);
+    setSaveStatus('saving');
     try {
       const payload = {
-        ...draft,
-        storageKeys: draft.targets.map((target) => target.storageKey),
+        ...draftSnapshot,
+        storageKeys: draftSnapshot.targets.map((target) => target.storageKey),
       };
       const data = await api<{ settings: BackupSettings }>('/api/v1/admin/backups/settings', {
         method: 'PATCH',
         body: JSON.stringify(payload),
       });
       const next = data.settings || defaultBackupSettings;
+      const nextDraft = draftFromSettings(next);
       setSettings(next);
-      setDraft(draftFromSettings(next));
+      savedDraftRef.current = nextDraft;
+      setSavedDraft(nextDraft);
+      if (draftRevision === draftRevisionRef.current) {
+        draftRef.current = nextDraft;
+        setDraft(nextDraft);
+        setSaveStatus('saved');
+      } else {
+        setSaveStatus('dirty');
+      }
+      setOperationResult({ variant: 'success', title: t('admin.backup.title'), message: t('admin.backup.saved'), occurredAt: new Date().toISOString() });
       setToast({ tone: 'success', message: t('admin.backup.saved') });
     } catch (error) {
-      setToast({ tone: 'error', message: errorMessage(error, t('admin.backup.saveFailed')) });
+      const message = errorMessage(error, t('admin.backup.saveFailed'));
+      setSaveStatus(draftRevision === draftRevisionRef.current ? 'error' : 'dirty');
+      setOperationResult({ variant: 'error', title: t('admin.backup.title'), message, occurredAt: new Date().toISOString() });
+      setToast({ tone: 'error', message });
     } finally {
       setIsSaving(false);
+      activeActionRef.current = null;
     }
   }
 
   async function runBackup() {
+    if (!areAdminDraftsEqual(draftRef.current, savedDraftRef.current) || activeActionRef.current) return;
+    activeActionRef.current = 'run';
     setIsRunning(true);
     try {
       const data = await api<{ result: BackupRunResult; settings: BackupSettings }>('/api/v1/admin/backups/run', { method: 'POST' });
       const next = data.settings || { ...settings, lastRun: data.result };
       setSettings(next);
-      setDraft(draftFromSettings(next));
+      const variant = data.result.status === 'success' ? 'success' : data.result.status === 'partial' ? 'warning' : 'error';
+      const message = data.result.status === 'success'
+        ? t('admin.backup.runSucceeded')
+        : data.result.status === 'partial'
+          ? t('admin.backup.runPartial')
+          : t('admin.backup.runFailed');
+      setOperationResult({
+        variant,
+        title: t('admin.backup.lastRun'),
+        message,
+        occurredAt: data.result.startedAt || new Date().toISOString(),
+        target: data.result.targets?.map((target) => target.storageName || target.storageKey).join(', '),
+      });
       if (data.result.status === 'success') {
         setToast({ tone: 'success', message: t('admin.backup.runSucceeded') });
       } else if (data.result.status === 'partial') {
@@ -173,9 +233,13 @@ export function AdminBackupPanel({
         setToast({ tone: 'error', message: t('admin.backup.runFailed') });
       }
     } catch (error) {
-      setToast({ tone: 'error', message: errorMessage(error, t('admin.backup.runFailed')) });
+      const message = errorMessage(error, t('admin.backup.runFailed'));
+      const target = storages.filter((storage) => selectedStorages.has(storage.key)).map((storage) => storage.name || storage.key).join(', ');
+      setOperationResult({ variant: 'error', title: t('admin.backup.lastRun'), message, occurredAt: new Date().toISOString(), target });
+      setToast({ tone: 'error', message });
     } finally {
       setIsRunning(false);
+      activeActionRef.current = null;
     }
   }
 
@@ -187,8 +251,8 @@ export function AdminBackupPanel({
           <span>{t('admin.backup.body')}</span>
         </div>
         <div className="backup-head-actions">
-          <XButton type="button" variant="secondary" size="sm" label={t('common.refresh')} icon={<RefreshCw size={16} />} isDisabled={isLoading || isSaving || isRunning} isLoading={isLoading} onClick={() => void loadSettings()} />
-          <XButton type="button" variant="primary" size="sm" label={t('admin.backup.runNow')} icon={<Play size={16} />} isDisabled={isRunning || settings.isRunning || selectedCount === 0} isLoading={isRunning || settings.isRunning} onClick={() => void runBackup()} />
+          <XButton type="button" variant="secondary" size="sm" label={t('common.refresh')} icon={<RefreshCw size={16} />} isDisabled={isLoading || isSaving || isRunning || isDirty} isLoading={isLoading} onClick={() => void loadSettings()} />
+          <XButton type="button" variant="primary" size="sm" label={t('admin.backup.runNow')} icon={<Play size={16} />} isDisabled={isLoading || isSaving || isRunning || settings.isRunning || selectedCount === 0 || isDirty} isLoading={isRunning || settings.isRunning} onClick={() => void runBackup()} />
         </div>
       </div>
 
@@ -200,7 +264,7 @@ export function AdminBackupPanel({
           labelPosition="start"
           labelSpacing="spread"
           width="100%"
-          onChange={(enabled) => setDraft((current) => ({ ...current, enabled }))}
+          onChange={(enabled) => editDraft((current) => ({ ...current, enabled }))}
         />
         <XTimeInput
           label={t('admin.backup.scheduleTime')}
@@ -209,7 +273,7 @@ export function AdminBackupPanel({
           hourFormat="24h"
           increment={5}
           width="100%"
-          onChange={(scheduleTime) => setDraft((current) => ({ ...current, scheduleTime: scheduleTime || '03:00' }))}
+          onChange={(scheduleTime) => editDraft((current) => ({ ...current, scheduleTime: scheduleTime || '03:00' }))}
         />
         <XNumberInput
           label={t('admin.backup.retentionCount')}
@@ -220,7 +284,7 @@ export function AdminBackupPanel({
           step={1}
           isIntegerOnly
           width="100%"
-          onChange={(retentionCount) => setDraft((current) => ({ ...current, retentionCount }))}
+          onChange={(retentionCount) => editDraft((current) => ({ ...current, retentionCount }))}
         />
       </XFormLayout>
 
@@ -263,10 +327,8 @@ export function AdminBackupPanel({
         )}
       </div>
 
-      <div className="settings-form-actions backup-form-actions">
-        <XButton type="button" variant="primary" label={t('admin.backup.save')} icon={<Save size={17} />} isDisabled={isSaving || isRunning} isLoading={isSaving} onClick={() => void saveSettings()} />
-      </div>
-
+      <AdminSaveBar status={saveStatus} isDirty={isDirty} saveLabel={t('admin.backup.save')} isDisabled={isRunning} onSave={() => void saveSettings()} />
+      <AdminOperationResultPanel result={operationResult} retryLabel={!isDirty ? t('admin.backup.runNow') : undefined} isRetrying={isRunning} isRetryDisabled={isLoading || isSaving || isRunning || isDirty} onRetry={!isDirty ? () => void runBackup() : undefined} />
       <BackupLastRun lastRun={lastRun} />
     </div>
   );

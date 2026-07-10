@@ -22,6 +22,7 @@ export function SearchView({
   onInstall,
   onGoSources,
   defaultPageSize,
+  activeInstallKey,
 }: {
   apps: StoreApp[];
   sourceApps: SourceApp[];
@@ -41,6 +42,7 @@ export function SearchView({
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
   defaultPageSize: number;
+  activeInstallKey?: string;
 }) {
 
   if (mode === 'client') {
@@ -54,6 +56,7 @@ export function SearchView({
         onInstall={onInstall}
         onGoSources={onGoSources}
         defaultPageSize={defaultPageSize}
+        activeInstallKey={activeInstallKey}
       />
     );
   }

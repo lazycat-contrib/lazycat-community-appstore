@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -51,9 +52,10 @@ func (b *LocalBackend) saveAt(ctx context.Context, rel string, r io.Reader) (Obj
 	if err != nil {
 		return Object{}, err
 	}
-	defer out.Close()
 
-	size, err := io.Copy(out, readerWithContext{ctx: ctx, reader: r})
+	size, copyErr := io.Copy(out, readerWithContext{ctx: ctx, reader: r})
+	closeErr := out.Close()
+	err = errors.Join(copyErr, closeErr)
 	if err != nil {
 		_ = os.Remove(full)
 		return Object{}, err

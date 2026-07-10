@@ -19,10 +19,12 @@ import (
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/appdownload"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/appvote"
 	"lazycat.community/appstore/ent/asset"
 	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
@@ -69,6 +71,8 @@ type Client struct {
 	Announcement *AnnouncementClient
 	// App is the client for interacting with the App builders.
 	App *AppClient
+	// AppDownload is the client for interacting with the AppDownload builders.
+	AppDownload *AppDownloadClient
 	// AppScreenshot is the client for interacting with the AppScreenshot builders.
 	AppScreenshot *AppScreenshotClient
 	// AppTag is the client for interacting with the AppTag builders.
@@ -77,6 +81,8 @@ type Client struct {
 	AppVersion *AppVersionClient
 	// AppVisibility is the client for interacting with the AppVisibility builders.
 	AppVisibility *AppVisibilityClient
+	// AppVote is the client for interacting with the AppVote builders.
+	AppVote *AppVoteClient
 	// Asset is the client for interacting with the Asset builders.
 	Asset *AssetClient
 	// AssetLink is the client for interacting with the AssetLink builders.
@@ -154,10 +160,12 @@ func (c *Client) init() {
 	c.Ad = NewAdClient(c.config)
 	c.Announcement = NewAnnouncementClient(c.config)
 	c.App = NewAppClient(c.config)
+	c.AppDownload = NewAppDownloadClient(c.config)
 	c.AppScreenshot = NewAppScreenshotClient(c.config)
 	c.AppTag = NewAppTagClient(c.config)
 	c.AppVersion = NewAppVersionClient(c.config)
 	c.AppVisibility = NewAppVisibilityClient(c.config)
+	c.AppVote = NewAppVoteClient(c.config)
 	c.Asset = NewAssetClient(c.config)
 	c.AssetLink = NewAssetLinkClient(c.config)
 	c.Category = NewCategoryClient(c.config)
@@ -285,10 +293,12 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Ad:                   NewAdClient(cfg),
 		Announcement:         NewAnnouncementClient(cfg),
 		App:                  NewAppClient(cfg),
+		AppDownload:          NewAppDownloadClient(cfg),
 		AppScreenshot:        NewAppScreenshotClient(cfg),
 		AppTag:               NewAppTagClient(cfg),
 		AppVersion:           NewAppVersionClient(cfg),
 		AppVisibility:        NewAppVisibilityClient(cfg),
+		AppVote:              NewAppVoteClient(cfg),
 		Asset:                NewAssetClient(cfg),
 		AssetLink:            NewAssetLinkClient(cfg),
 		Category:             NewCategoryClient(cfg),
@@ -343,10 +353,12 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Ad:                   NewAdClient(cfg),
 		Announcement:         NewAnnouncementClient(cfg),
 		App:                  NewAppClient(cfg),
+		AppDownload:          NewAppDownloadClient(cfg),
 		AppScreenshot:        NewAppScreenshotClient(cfg),
 		AppTag:               NewAppTagClient(cfg),
 		AppVersion:           NewAppVersionClient(cfg),
 		AppVisibility:        NewAppVisibilityClient(cfg),
+		AppVote:              NewAppVoteClient(cfg),
 		Asset:                NewAssetClient(cfg),
 		AssetLink:            NewAssetLinkClient(cfg),
 		Category:             NewCategoryClient(cfg),
@@ -407,15 +419,15 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.APIToken, c.Ad, c.Announcement, c.App, c.AppScreenshot, c.AppTag,
-		c.AppVersion, c.AppVisibility, c.Asset, c.AssetLink, c.Category,
-		c.ChatConversation, c.ChatMessage, c.ChatParticipant, c.ClientAsset,
-		c.ClientAssetLink, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
-		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
-		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
-		c.CommentNotification, c.Favorite, c.GroupMember, c.MCPToken, c.OutdatedMark,
-		c.RegistrationInvite, c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag,
-		c.User, c.UserGroup,
+		c.APIToken, c.Ad, c.Announcement, c.App, c.AppDownload, c.AppScreenshot,
+		c.AppTag, c.AppVersion, c.AppVisibility, c.AppVote, c.Asset, c.AssetLink,
+		c.Category, c.ChatConversation, c.ChatMessage, c.ChatParticipant,
+		c.ClientAsset, c.ClientAssetLink, c.ClientInstallHistory, c.ClientSetting,
+		c.ClientSource, c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator,
+		c.CollaboratorInvite, c.CollaboratorRequest, c.Collection, c.CollectionApp,
+		c.Comment, c.CommentNotification, c.Favorite, c.GroupMember, c.MCPToken,
+		c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest, c.SiteSetting,
+		c.StorageConfig, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -425,15 +437,15 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.APIToken, c.Ad, c.Announcement, c.App, c.AppScreenshot, c.AppTag,
-		c.AppVersion, c.AppVisibility, c.Asset, c.AssetLink, c.Category,
-		c.ChatConversation, c.ChatMessage, c.ChatParticipant, c.ClientAsset,
-		c.ClientAssetLink, c.ClientInstallHistory, c.ClientSetting, c.ClientSource,
-		c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
-		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
-		c.CommentNotification, c.Favorite, c.GroupMember, c.MCPToken, c.OutdatedMark,
-		c.RegistrationInvite, c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag,
-		c.User, c.UserGroup,
+		c.APIToken, c.Ad, c.Announcement, c.App, c.AppDownload, c.AppScreenshot,
+		c.AppTag, c.AppVersion, c.AppVisibility, c.AppVote, c.Asset, c.AssetLink,
+		c.Category, c.ChatConversation, c.ChatMessage, c.ChatParticipant,
+		c.ClientAsset, c.ClientAssetLink, c.ClientInstallHistory, c.ClientSetting,
+		c.ClientSource, c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator,
+		c.CollaboratorInvite, c.CollaboratorRequest, c.Collection, c.CollectionApp,
+		c.Comment, c.CommentNotification, c.Favorite, c.GroupMember, c.MCPToken,
+		c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest, c.SiteSetting,
+		c.StorageConfig, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -450,6 +462,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Announcement.mutate(ctx, m)
 	case *AppMutation:
 		return c.App.mutate(ctx, m)
+	case *AppDownloadMutation:
+		return c.AppDownload.mutate(ctx, m)
 	case *AppScreenshotMutation:
 		return c.AppScreenshot.mutate(ctx, m)
 	case *AppTagMutation:
@@ -458,6 +472,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AppVersion.mutate(ctx, m)
 	case *AppVisibilityMutation:
 		return c.AppVisibility.mutate(ctx, m)
+	case *AppVoteMutation:
+		return c.AppVote.mutate(ctx, m)
 	case *AssetMutation:
 		return c.Asset.mutate(ctx, m)
 	case *AssetLinkMutation:
@@ -1057,6 +1073,139 @@ func (c *AppClient) mutate(ctx context.Context, m *AppMutation) (Value, error) {
 	}
 }
 
+// AppDownloadClient is a client for the AppDownload schema.
+type AppDownloadClient struct {
+	config
+}
+
+// NewAppDownloadClient returns a client for the AppDownload from the given config.
+func NewAppDownloadClient(c config) *AppDownloadClient {
+	return &AppDownloadClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `appdownload.Hooks(f(g(h())))`.
+func (c *AppDownloadClient) Use(hooks ...Hook) {
+	c.hooks.AppDownload = append(c.hooks.AppDownload, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `appdownload.Intercept(f(g(h())))`.
+func (c *AppDownloadClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AppDownload = append(c.inters.AppDownload, interceptors...)
+}
+
+// Create returns a builder for creating a AppDownload entity.
+func (c *AppDownloadClient) Create() *AppDownloadCreate {
+	mutation := newAppDownloadMutation(c.config, OpCreate)
+	return &AppDownloadCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AppDownload entities.
+func (c *AppDownloadClient) CreateBulk(builders ...*AppDownloadCreate) *AppDownloadCreateBulk {
+	return &AppDownloadCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AppDownloadClient) MapCreateBulk(slice any, setFunc func(*AppDownloadCreate, int)) *AppDownloadCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AppDownloadCreateBulk{err: fmt.Errorf("calling to AppDownloadClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AppDownloadCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AppDownloadCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AppDownload.
+func (c *AppDownloadClient) Update() *AppDownloadUpdate {
+	mutation := newAppDownloadMutation(c.config, OpUpdate)
+	return &AppDownloadUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AppDownloadClient) UpdateOne(_m *AppDownload) *AppDownloadUpdateOne {
+	mutation := newAppDownloadMutation(c.config, OpUpdateOne, withAppDownload(_m))
+	return &AppDownloadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AppDownloadClient) UpdateOneID(id int) *AppDownloadUpdateOne {
+	mutation := newAppDownloadMutation(c.config, OpUpdateOne, withAppDownloadID(id))
+	return &AppDownloadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AppDownload.
+func (c *AppDownloadClient) Delete() *AppDownloadDelete {
+	mutation := newAppDownloadMutation(c.config, OpDelete)
+	return &AppDownloadDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AppDownloadClient) DeleteOne(_m *AppDownload) *AppDownloadDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AppDownloadClient) DeleteOneID(id int) *AppDownloadDeleteOne {
+	builder := c.Delete().Where(appdownload.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AppDownloadDeleteOne{builder}
+}
+
+// Query returns a query builder for AppDownload.
+func (c *AppDownloadClient) Query() *AppDownloadQuery {
+	return &AppDownloadQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAppDownload},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AppDownload entity by its id.
+func (c *AppDownloadClient) Get(ctx context.Context, id int) (*AppDownload, error) {
+	return c.Query().Where(appdownload.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AppDownloadClient) GetX(ctx context.Context, id int) *AppDownload {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AppDownloadClient) Hooks() []Hook {
+	return c.hooks.AppDownload
+}
+
+// Interceptors returns the client interceptors.
+func (c *AppDownloadClient) Interceptors() []Interceptor {
+	return c.inters.AppDownload
+}
+
+func (c *AppDownloadClient) mutate(ctx context.Context, m *AppDownloadMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AppDownloadCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AppDownloadUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AppDownloadUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AppDownloadDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AppDownload mutation op: %q", m.Op())
+	}
+}
+
 // AppScreenshotClient is a client for the AppScreenshot schema.
 type AppScreenshotClient struct {
 	config
@@ -1586,6 +1735,139 @@ func (c *AppVisibilityClient) mutate(ctx context.Context, m *AppVisibilityMutati
 		return (&AppVisibilityDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown AppVisibility mutation op: %q", m.Op())
+	}
+}
+
+// AppVoteClient is a client for the AppVote schema.
+type AppVoteClient struct {
+	config
+}
+
+// NewAppVoteClient returns a client for the AppVote from the given config.
+func NewAppVoteClient(c config) *AppVoteClient {
+	return &AppVoteClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `appvote.Hooks(f(g(h())))`.
+func (c *AppVoteClient) Use(hooks ...Hook) {
+	c.hooks.AppVote = append(c.hooks.AppVote, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `appvote.Intercept(f(g(h())))`.
+func (c *AppVoteClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AppVote = append(c.inters.AppVote, interceptors...)
+}
+
+// Create returns a builder for creating a AppVote entity.
+func (c *AppVoteClient) Create() *AppVoteCreate {
+	mutation := newAppVoteMutation(c.config, OpCreate)
+	return &AppVoteCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AppVote entities.
+func (c *AppVoteClient) CreateBulk(builders ...*AppVoteCreate) *AppVoteCreateBulk {
+	return &AppVoteCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AppVoteClient) MapCreateBulk(slice any, setFunc func(*AppVoteCreate, int)) *AppVoteCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AppVoteCreateBulk{err: fmt.Errorf("calling to AppVoteClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AppVoteCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AppVoteCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AppVote.
+func (c *AppVoteClient) Update() *AppVoteUpdate {
+	mutation := newAppVoteMutation(c.config, OpUpdate)
+	return &AppVoteUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AppVoteClient) UpdateOne(_m *AppVote) *AppVoteUpdateOne {
+	mutation := newAppVoteMutation(c.config, OpUpdateOne, withAppVote(_m))
+	return &AppVoteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AppVoteClient) UpdateOneID(id int) *AppVoteUpdateOne {
+	mutation := newAppVoteMutation(c.config, OpUpdateOne, withAppVoteID(id))
+	return &AppVoteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AppVote.
+func (c *AppVoteClient) Delete() *AppVoteDelete {
+	mutation := newAppVoteMutation(c.config, OpDelete)
+	return &AppVoteDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AppVoteClient) DeleteOne(_m *AppVote) *AppVoteDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AppVoteClient) DeleteOneID(id int) *AppVoteDeleteOne {
+	builder := c.Delete().Where(appvote.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AppVoteDeleteOne{builder}
+}
+
+// Query returns a query builder for AppVote.
+func (c *AppVoteClient) Query() *AppVoteQuery {
+	return &AppVoteQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAppVote},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AppVote entity by its id.
+func (c *AppVoteClient) Get(ctx context.Context, id int) (*AppVote, error) {
+	return c.Query().Where(appvote.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AppVoteClient) GetX(ctx context.Context, id int) *AppVote {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AppVoteClient) Hooks() []Hook {
+	return c.hooks.AppVote
+}
+
+// Interceptors returns the client interceptors.
+func (c *AppVoteClient) Interceptors() []Interceptor {
+	return c.inters.AppVote
+}
+
+func (c *AppVoteClient) mutate(ctx context.Context, m *AppVoteMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AppVoteCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AppVoteUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AppVoteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AppVoteDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AppVote mutation op: %q", m.Op())
 	}
 }
 
@@ -5747,23 +6029,23 @@ func (c *UserGroupClient) mutate(ctx context.Context, m *UserGroupMutation) (Val
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		APIToken, Ad, Announcement, App, AppScreenshot, AppTag, AppVersion,
-		AppVisibility, Asset, AssetLink, Category, ChatConversation, ChatMessage,
-		ChatParticipant, ClientAsset, ClientAssetLink, ClientInstallHistory,
-		ClientSetting, ClientSource, ClientSourceApp, ClientSyncSetting, Collaborator,
-		CollaboratorInvite, CollaboratorRequest, Collection, CollectionApp, Comment,
-		CommentNotification, Favorite, GroupMember, MCPToken, OutdatedMark,
-		RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
-		UserGroup []ent.Hook
+		APIToken, Ad, Announcement, App, AppDownload, AppScreenshot, AppTag, AppVersion,
+		AppVisibility, AppVote, Asset, AssetLink, Category, ChatConversation,
+		ChatMessage, ChatParticipant, ClientAsset, ClientAssetLink,
+		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
+		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
+		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
+		MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting,
+		StorageConfig, Tag, User, UserGroup []ent.Hook
 	}
 	inters struct {
-		APIToken, Ad, Announcement, App, AppScreenshot, AppTag, AppVersion,
-		AppVisibility, Asset, AssetLink, Category, ChatConversation, ChatMessage,
-		ChatParticipant, ClientAsset, ClientAssetLink, ClientInstallHistory,
-		ClientSetting, ClientSource, ClientSourceApp, ClientSyncSetting, Collaborator,
-		CollaboratorInvite, CollaboratorRequest, Collection, CollectionApp, Comment,
-		CommentNotification, Favorite, GroupMember, MCPToken, OutdatedMark,
-		RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
-		UserGroup []ent.Interceptor
+		APIToken, Ad, Announcement, App, AppDownload, AppScreenshot, AppTag, AppVersion,
+		AppVisibility, AppVote, Asset, AssetLink, Category, ChatConversation,
+		ChatMessage, ChatParticipant, ClientAsset, ClientAssetLink,
+		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
+		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
+		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
+		MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting,
+		StorageConfig, Tag, User, UserGroup []ent.Interceptor
 	}
 )

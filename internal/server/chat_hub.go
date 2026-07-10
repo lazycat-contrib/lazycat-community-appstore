@@ -1,6 +1,9 @@
 package server
 
-import "sync"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 type chatEvent struct {
 	Type           string `json:"type"`
@@ -10,6 +13,11 @@ type chatEvent struct {
 type chatHub struct {
 	mu      sync.Mutex
 	clients map[chan chatEvent]struct{}
+	dropped atomic.Uint64
+}
+
+func (h *chatHub) droppedEvents() uint64 {
+	return h.dropped.Load()
 }
 
 func newChatHub() *chatHub {
@@ -31,6 +39,8 @@ func (h *chatHub) subscribe() (chan chatEvent, func()) {
 	}
 }
 
+// broadcast sends invalidation hints only. A slow subscriber may lose a hint;
+// every received hint causes the client to reload authoritative state.
 func (h *chatHub) broadcast(event chatEvent) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -38,6 +48,7 @@ func (h *chatHub) broadcast(event chatEvent) {
 		select {
 		case ch <- event:
 		default:
+			h.dropped.Add(1)
 		}
 	}
 }

@@ -420,6 +420,7 @@ func sourceAppCreateBuilder(tx *ent.Tx, sourceID int, row sourceAppCacheRow) *en
 }
 
 func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) ([]feedApp, []mirror.Entry, []SourceCategoryDTO, []SourceAnnouncementDTO, []SourceAdDTO, SourceClientPolicyDTO, []SourceGroupDTO, []string, bool, error) {
+	s.ensureHTTPClients()
 	timeout := s.cfg.SyncTimeout
 	if timeout == 0 {
 		timeout = 20 * time.Second
@@ -445,11 +446,11 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	if codes := decodeStringSlice(source.GroupCodesJSON); len(codes) > 0 {
 		req.Header.Set("X-Group-Codes", strings.Join(codes, ","))
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, nil, nil, nil, nil, SourceClientPolicyDTO{}, nil, nil, false, sourceSyncError{code: "network", status: http.StatusBadGateway, message: "Could not reach source"}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, nil, nil, nil, nil, SourceClientPolicyDTO{}, nil, nil, false, sourceSyncError{code: "auth", status: http.StatusUnauthorized, message: "Source password is invalid"}
 	}
@@ -457,7 +458,7 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 		return nil, nil, nil, nil, nil, SourceClientPolicyDTO{}, nil, nil, false, sourceSyncError{code: "http", status: http.StatusBadGateway, message: fmt.Sprintf("Source returned HTTP %d", resp.StatusCode)}
 	}
 	var root feedIndex
-	if err := json.NewDecoder(resp.Body).Decode(&root); err != nil {
+	if err := decodeLimitedJSON(resp.Body, maxSourceFeedBytes, &root); err != nil {
 		return nil, nil, nil, nil, nil, SourceClientPolicyDTO{}, nil, nil, false, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed is not valid JSON"}
 	}
 	if len(root.Apps) == 0 || strings.TrimSpace(string(root.Apps)) == "null" {
@@ -505,7 +506,7 @@ func normalizeFeedMirrors(input []mirror.Entry) ([]mirror.Entry, error) {
 	for _, entry := range input {
 		kind := mirror.CleanKind(entry.Kind)
 		if kind == "" {
-			return nil, fmt.Errorf("Source feed mirror %q has an invalid kind", strings.TrimSpace(entry.Name))
+			return nil, fmt.Errorf("source feed mirror %q has an invalid kind", strings.TrimSpace(entry.Name))
 		}
 		linesByKind[kind] = append(linesByKind[kind], strings.TrimSpace(entry.Name)+"=>"+strings.TrimSpace(entry.URL))
 	}

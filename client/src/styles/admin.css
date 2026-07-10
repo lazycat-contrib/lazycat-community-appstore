@@ -227,3 +227,305 @@
     justify-content: flex-start;
   }
 }
+
+.admin-shell,
+.admin-task-workspace {
+  min-width: 0;
+}
+
+.admin-task-workspace {
+  display: grid;
+  gap: 14px;
+  max-width: 1100px;
+}
+
+.admin-task-header {
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 14px;
+}
+
+.admin-task-heading {
+  align-items: flex-start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 36px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.admin-task-icon {
+  align-items: center;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--green-strong);
+  display: inline-flex;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.admin-task-heading h2,
+.admin-task-heading p {
+  margin: 0;
+}
+
+.admin-task-heading h2 {
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.admin-task-heading p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.admin-task-header-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.admin-shell .settings-tab-panel {
+  transform: none;
+  transition: none;
+}
+
+@starting-style {
+  .admin-shell .settings-tab-panel {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.admin-save-bar {
+  align-items: center;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  bottom: 10px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px;
+  position: sticky;
+  z-index: 4;
+}
+
+@media (max-width: 720px) {
+  .admin-save-bar {
+    bottom: 0;
+    margin: 0 -14px -14px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    border-bottom: 0;
+    border-inline: 0;
+    border-radius: 0 0 8px 8px;
+  }
+
+  .admin-save-bar > button {
+    min-width: 132px;
+  }
+}
+
+@media (max-width: 360px) {
+  .admin-save-bar {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .admin-save-bar > button {
+    width: 100%;
+  }
+}
+
+.admin-operation-result {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.admin-operation-result-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.admin-operation-result-head > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-operation-result time {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-operation-result code {
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+  padding: 6px 8px;
+}
+
+.admin-operation-result-message {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-operation-result[data-variant='success'] {
+  border-color: var(--status-success-line);
+}
+
+.admin-operation-result[data-variant='success'] .admin-operation-result-icon {
+  color: var(--status-success-ink);
+}
+
+.admin-operation-result[data-variant='warning'] {
+  border-color: var(--status-warning-line);
+}
+
+.admin-operation-result[data-variant='warning'] .admin-operation-result-icon {
+  color: var(--status-warning-ink);
+}
+
+.admin-operation-result[data-variant='error'] {
+  border-color: var(--status-danger-line);
+}
+
+.admin-operation-result[data-variant='error'] .admin-operation-result-icon {
+  color: var(--status-danger-ink);
+}
+
+.admin-operation-result[data-variant='info'] {
+  border-color: var(--status-info-line);
+}
+
+.admin-operation-result[data-variant='info'] .admin-operation-result-icon {
+  color: var(--status-info-ink);
+}
+
+.admin-delete-dialog {
+  display: grid;
+  gap: 14px;
+  width: min(520px, 100%);
+}
+
+.admin-delete-copy {
+  background: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-line);
+  border-radius: 8px;
+  color: var(--status-danger-ink);
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.admin-delete-copy p {
+  line-height: 1.5;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-shell :is(.astryx-button, .astryx-icon-button, .storage-config-main) {
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.admin-shell :is(.astryx-button, .astryx-icon-button, .storage-config-main):active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.admin-shell .row-actions,
+.admin-shell .storage-config-actions {
+  opacity: 1;
+  transform: none;
+}
+
+.admin-shell :is(.row-actions, .storage-config-actions) > button {
+  min-height: 40px;
+  min-width: 40px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .admin-shell .admin-task-header-actions :is(.astryx-button, .astryx-icon-button):hover {
+    border-color: color-mix(in srgb, var(--green) 38%, var(--line));
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-task-header,
+  .admin-operation-result-head {
+    display: grid;
+  }
+
+  .admin-task-header-actions,
+  .admin-operation-result-head {
+    justify-content: flex-start;
+  }
+
+  .admin-shell :is(.row-actions, .storage-config-actions) {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+@media (max-width: 375px) {
+  .admin-task-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-task-icon {
+    height: 32px;
+    width: 32px;
+  }
+
+  .admin-task-header-actions,
+  .admin-task-header-actions > button,
+  .admin-operation-result > button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell *,
+  .admin-shell *::before,
+  .admin-shell *::after {
+    scroll-behavior: auto !important;
+  }
+
+  .admin-shell :is(.astryx-button, .astryx-icon-button, .storage-config-main) {
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease,
+      opacity 120ms ease;
+  }
+
+  .admin-shell :is(.astryx-button, .astryx-icon-button, .storage-config-main):active:not(:disabled) {
+    transform: none;
+  }
+}

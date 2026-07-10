@@ -77,7 +77,8 @@ func (s *Server) materializeSourceIcon(ctx context.Context, sourceURL, sourcePas
 	}
 	iconCtx, cancel := context.WithTimeout(ctx, clientAssetFetchTimeout)
 	defer cancel()
-	payload, err := fetchSourceIcon(iconCtx, icon.String(), sourcePassword, clientAssetMaxImageSize)
+	s.ensureHTTPClients()
+	payload, err := fetchSourceIcon(iconCtx, noRedirectClient(s.httpClient), icon.String(), sourcePassword, clientAssetMaxImageSize)
 	if err != nil {
 		return iconURL, 0, nil
 	}
@@ -203,7 +204,7 @@ func sameOriginIconURL(sourceURL, iconURL string) (*url.URL, bool) {
 	return icon, strings.EqualFold(icon.Scheme, base.Scheme) && strings.EqualFold(icon.Host, base.Host)
 }
 
-func fetchSourceIcon(ctx context.Context, iconURL, sourcePassword string, maxBytes int64) (assetdata.Payload, error) {
+func fetchSourceIcon(ctx context.Context, client *http.Client, iconURL, sourcePassword string, maxBytes int64) (assetdata.Payload, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, iconURL, nil)
 	if err != nil {
 		return assetdata.Payload{}, err
@@ -211,16 +212,11 @@ func fetchSourceIcon(ctx context.Context, iconURL, sourcePassword string, maxByt
 	if sourcePassword != "" {
 		req.Header.Set("X-Source-Password", sourcePassword)
 	}
-	client := http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return assetdata.Payload{}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return assetdata.Payload{}, fmt.Errorf("source icon returned HTTP %d", resp.StatusCode)
 	}

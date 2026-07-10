@@ -1,5 +1,5 @@
 import { AlertCircle, Check, ChevronRight, History, RefreshCw } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
@@ -21,11 +21,13 @@ export function ClientHistoryView({
   history: InstallHistoryEntry[];
   pagination: PaginationMeta;
   sourceApps: SourceApp[];
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
   onPageChange: (page: number, pageSize?: number) => void | Promise<void>;
   onOpenSource: (app: SourceApp) => void;
 }) {
   const { t } = useTranslation();
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState('');
   const sourceAppByPackage = useMemo(() => {
     const map = new Map<string, SourceApp>();
     sourceApps.forEach((app) => {
@@ -37,6 +39,19 @@ export function ClientHistoryView({
   const successCount = history.filter((item) => item.result === 'SUCCESS').length;
   const failedCount = history.filter((item) => item.result === 'FAILED').length;
 
+  async function refreshHistory() {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshError('');
+    try {
+      await Promise.resolve(onRefresh());
+    } catch (error) {
+      setRefreshError(error instanceof Error ? error.message : t('history.refreshFailed'));
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   return (
     <section className="page-grid">
       <div className="page-heading with-action">
@@ -45,7 +60,14 @@ export function ClientHistoryView({
           <h1>{t('history.title')}</h1>
           <p>{t('history.body')}</p>
         </div>
-        <XButton type="button" variant="primary" label={t('common.refresh')} icon={<RefreshCw size={18} />} onClick={onRefresh} />
+        <XButton
+          type="button"
+          variant="primary"
+          label={refreshing ? t('common.loading') : t('common.refresh')}
+          icon={<RefreshCw size={18} className={refreshing ? 'spin' : undefined} />}
+          isDisabled={refreshing}
+          onClick={() => void refreshHistory()}
+        />
       </div>
       <div className="client-summary-grid" aria-label={t('history.summary')}>
         <div>
@@ -53,14 +75,20 @@ export function ClientHistoryView({
           <strong>{pagination.totalItems || history.length}</strong>
         </div>
         <div>
-          <span>{t('history.success')}</span>
+          <span>{t('history.currentPageSuccess')}</span>
           <strong>{successCount}</strong>
         </div>
         <div className={cx(failedCount > 0 && 'warning')}>
-          <span>{t('history.failed')}</span>
+          <span>{t('history.currentPageFailed')}</span>
           <strong>{failedCount}</strong>
         </div>
       </div>
+      {refreshError && (
+        <p className="inline-alert" role="alert">
+          <AlertCircle size={15} />
+          <span>{refreshError}</span>
+        </p>
+      )}
       <section className="panel">
         <SectionTitle icon={History} title={t('history.events')} />
         <div className="history-list">

@@ -132,6 +132,7 @@ export function AdminAnnouncementsPanel({
   const [draft, setDraft] = useState<AnnouncementDraft>(emptyDraft);
   const [deleteTarget, setDeleteTarget] = useState<SiteAnnouncement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const levelOptions = [
     { value: 'info', label: t('site.announcementLevels.info') },
@@ -189,15 +190,22 @@ export function AdminAnnouncementsPanel({
   }
 
   async function deleteAnnouncement() {
-    if (!deleteTarget?.id) return;
+    if (!deleteTarget?.id || isDeleting) return;
+    setIsDeleting(true);
     try {
       const data = await api<{ site?: SiteProfile }>(`/api/v1/admin/announcements/${deleteTarget.id}`, { method: 'DELETE' });
       setDeleteTarget(null);
       setToast({ tone: 'neutral', message: t('admin.announcementDeleted') });
-      await onReload();
-      await onSiteProfileSaved(data.site);
+      try {
+        await onReload();
+        await onSiteProfileSaved(data.site);
+      } catch (refreshError) {
+        setToast({ tone: 'neutral', message: `${t('admin.announcementDeleted')} · ${errorMessage(refreshError, t('admin.loadFailed'))}` });
+      }
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('admin.announcementDeleteFailed')) });
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -284,13 +292,13 @@ export function AdminAnnouncementsPanel({
       )}
 
       {deleteTarget && (
-        <ModalLayer onClose={() => setDeleteTarget(null)} purpose="required">
+        <ModalLayer onClose={() => { if (!isDeleting) setDeleteTarget(null); }} purpose="required">
           <div className="modal-panel form-panel confirm-dialog">
             <SectionTitle icon={Trash2} title={t('admin.deleteAnnouncement')} />
             <p>{t('admin.confirmDeleteAnnouncement', { title: deleteTarget.title || deleteTarget.body || t('admin.announcementUntitled') })}</p>
             <div className="dialog-actions">
-              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={() => setDeleteTarget(null)} />
-              <XButton type="button" variant="destructive" label={t('admin.deleteAnnouncement')} icon={<Trash2 size={17} />} onClick={() => void deleteAnnouncement()} />
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} isDisabled={isDeleting} onClick={() => setDeleteTarget(null)} />
+              <XButton type="button" variant="destructive" label={t('admin.deleteAnnouncement')} icon={<Trash2 size={17} />} isDisabled={isDeleting} isLoading={isDeleting} onClick={() => void deleteAnnouncement()} />
             </div>
           </div>
         </ModalLayer>

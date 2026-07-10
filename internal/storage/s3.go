@@ -47,16 +47,11 @@ func NewS3Backend(options S3Options) (*S3Backend, error) {
 			options.SecretKey,
 			"",
 		)),
-		EndpointResolverWithOptions: aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				PartitionID:       "aws",
-				URL:               endpoint,
-				SigningRegion:     region,
-				HostnameImmutable: true,
-			}, nil
-		}),
 	}
 	client := awss3.NewFromConfig(cfg, func(s3Options *awss3.Options) {
+		if endpoint != "" {
+			s3Options.BaseEndpoint = aws.String(endpoint)
+		}
 		s3Options.UsePathStyle = options.PathStyle
 	})
 	return &S3Backend{

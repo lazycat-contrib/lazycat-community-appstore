@@ -6,10 +6,13 @@ import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
-import { Check, Cloud, Copy, Database, Folder, Link, Plus, Save, Server, Star, Trash2, X } from 'lucide-react';
+import { Check, Cloud, Copy, Database, Folder, Link, Plus, Server, Star, Trash2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { cx } from '../../shared/utils';
+import { AdminOperationResultPanel } from './AdminOperationResult';
+import { AdminSaveBar } from './AdminSaveBar';
+import type { AdminOperationResult, AdminSaveStatus, AdminStorageAction } from './adminState';
 
 export type StorageSettings = {
   key: string;
@@ -77,6 +80,10 @@ type StorageSettingsPanelProps = {
   onTestSaved: (storage: StorageSettings) => void | Promise<void>;
   onSetDefault: (storage: StorageSettings) => void | Promise<void>;
   onDelete: (storage: StorageSettings) => void | Promise<void>;
+  isDirty: boolean;
+  saveStatus: AdminSaveStatus;
+  activeAction: AdminStorageAction;
+  result: AdminOperationResult | null;
 };
 
 export function StorageSettingsPanel({
@@ -97,6 +104,10 @@ export function StorageSettingsPanel({
   onTestSaved,
   onSetDefault,
   onDelete,
+  isDirty,
+  saveStatus,
+  activeAction,
+  result,
 }: StorageSettingsPanelProps) {
   const { t } = useTranslation();
   const selectedStorage = storages.find((storage) => storage.key === selectedKey) || storages[0];
@@ -110,7 +121,7 @@ export function StorageSettingsPanel({
           <strong>{t('admin.storageSettings')}</strong>
           <span>{t('admin.storageSettingsBody')}</span>
         </div>
-        <XButton type="button" variant="primary" size="sm" label={t('admin.createStorage')} icon={<Plus size={17} />} onClick={onOpenCreate} />
+        <XButton type="button" variant="primary" size="sm" label={t('admin.createStorage')} icon={<Plus size={17} />} isDisabled={activeAction !== null} onClick={onOpenCreate} />
       </div>
 
       <div className="storage-admin-grid">
@@ -143,7 +154,7 @@ export function StorageSettingsPanel({
               const canDelete = !isDefault && storage.key !== defaultStorageSettings.key;
               return (
                 <div key={storage.key} className={cx('storage-config-row', storage.key === selectedKey && 'selected')} role="listitem">
-                  <button type="button" className="storage-config-main" onClick={() => onSelect(storage.key)}>
+                  <button type="button" className="storage-config-main" disabled={activeAction !== null} onClick={() => onSelect(storage.key)}>
                     <span className="storage-config-icon">{providerIcon(storage.provider)}</span>
                     <span className="storage-config-body">
                       <strong>{storage.name || storage.key}</strong>
@@ -155,11 +166,11 @@ export function StorageSettingsPanel({
                   </button>
                   <span className="storage-config-actions">
                     {!isDefault && (
-                      <XButton className="storage-default-button" type="button" variant="secondary" size="sm" label={t('admin.setDefaultStorage')} icon={<Star size={16} />} onClick={() => void onSetDefault(storage)} />
+                      <XButton className="storage-default-button" type="button" variant="secondary" size="sm" label={t('admin.setDefaultStorage')} icon={<Star size={16} />} isDisabled={activeAction !== null} isLoading={activeAction === 'default'} onClick={() => void onSetDefault(storage)} />
                     )}
-                    <XIconButton type="button" variant="ghost" size="sm" label={t('admin.testStorageNamed', { name: storage.name || storage.key })} icon={<Check size={16} />} onClick={() => void onTestSaved(storage)} />
+                    <XIconButton type="button" variant="ghost" size="sm" label={t('admin.testStorageNamed', { name: storage.name || storage.key })} icon={<Check size={16} />} isDisabled={activeAction !== null} onClick={() => void onTestSaved(storage)} />
                     {canDelete && (
-                      <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteStorageNamed', { name: storage.name || storage.key })} icon={<Trash2 size={16} />} onClick={() => void onDelete(storage)} />
+                      <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteStorageNamed', { name: storage.name || storage.key })} icon={<Trash2 size={16} />} isDisabled={activeAction !== null} onClick={() => void onDelete(storage)} />
                     )}
                   </span>
                 </div>
@@ -175,11 +186,12 @@ export function StorageSettingsPanel({
               <span>{draft.key || selectedKey}</span>
             </div>
             <div className="storage-editor-actions">
-              <XButton className="storage-action-button" type="button" variant="secondary" size="sm" label={t('admin.testStorage')} icon={<Check size={17} />} onClick={() => void onTestDraft()} />
-              <XButton className="storage-action-button" type="button" variant="primary" size="sm" label={t('admin.saveStorage')} icon={<Save size={17} />} onClick={() => void onSave()} />
+              <XButton className="storage-action-button" type="button" variant="secondary" size="sm" label={t('admin.testStorage')} icon={<Check size={17} />} isDisabled={activeAction !== null} isLoading={activeAction === 'test'} onClick={() => void onTestDraft()} />
             </div>
           </div>
           <StorageFields storage={draft} onChange={onDraftChange} mode="edit" />
+          <AdminSaveBar status={saveStatus} isDirty={isDirty} saveLabel={t('admin.saveStorage')} isDisabled={activeAction !== null} onSave={() => void onSave()} />
+          <AdminOperationResultPanel result={result} retryLabel={t('admin.testStorage')} isRetrying={activeAction === 'test'} isRetryDisabled={activeAction !== null} onRetry={() => void onTestDraft()} />
         </section>
       </div>
 
@@ -193,15 +205,15 @@ export function StorageSettingsPanel({
               void onCreate();
             }}
           >
-            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={onCloseCreate} />
+            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} isDisabled={activeAction === 'create'} onClick={onCloseCreate} />
             <div className="section-title">
               <Plus size={19} />
               <h2>{t('admin.createStorage')}</h2>
             </div>
             <StorageFields storage={createDraft} onChange={onCreateDraftChange} mode="create" />
             <div className="dialog-actions">
-              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={onCloseCreate} />
-              <XButton type="submit" variant="primary" label={t('admin.createStorage')} icon={<Save size={17} />} />
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} isDisabled={activeAction === 'create'} onClick={onCloseCreate} />
+              <XButton type="submit" variant="primary" label={t('admin.createStorage')} icon={<Plus size={17} />} isDisabled={activeAction !== null} isLoading={activeAction === 'create'} />
             </div>
           </form>
         </ModalLayer>

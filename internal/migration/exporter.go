@@ -3,6 +3,7 @@ package migration
 import (
 	"archive/zip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -63,54 +64,47 @@ func (e *Exporter) Export(ctx context.Context, w io.Writer, options Options) (*M
 		mergeCounts(counts, appsCounts(appsData))
 	}
 
-	var payloads []filePayload
-	warnings := []string{}
-	if options.IncludeFiles {
-		payloads, warnings = collectFilePayloads(ctx, e.storage, peopleData, appsData, siteData)
-		counts["files"] = len(payloads)
-	}
-
 	manifest := &Manifest{
 		FormatVersion: FormatVersion,
 		ServerVersion: e.serverVersion,
 		CreatedAt:     e.now(),
 		Modules:       options.Modules(),
 		Counts:        counts,
-		Warnings:      warnings,
-	}
-	for _, payload := range payloads {
-		manifest.Files = append(manifest.Files, payload.Manifest)
-		manifest.TotalFileBytes += payload.Manifest.Size
 	}
 
 	zw := zip.NewWriter(w)
-	if err := writeJSONEntry(zw, manifestName, manifest); err != nil {
-		_ = zw.Close()
-		return nil, err
+	fail := func(err error) (*Manifest, error) {
+		return nil, errors.Join(err, zw.Close())
 	}
 	if options.IncludeSite {
 		if err := writeJSONEntry(zw, "data/site.json", siteData); err != nil {
-			_ = zw.Close()
-			return nil, err
+			return fail(err)
 		}
 	}
 	if options.IncludePeople {
 		if err := writeJSONEntry(zw, "data/people.json", peopleData); err != nil {
-			_ = zw.Close()
-			return nil, err
+			return fail(err)
 		}
 	}
 	if options.IncludeApps {
 		if err := writeJSONEntry(zw, "data/apps.json", appsData); err != nil {
-			_ = zw.Close()
-			return nil, err
+			return fail(err)
 		}
 	}
 	if options.IncludeFiles {
-		if err := writeFilePayloads(zw, payloads); err != nil {
-			_ = zw.Close()
-			return nil, err
+		files, warnings, err := writeFileEntries(ctx, zw, e.storage, collectFileRefs(peopleData, appsData, siteData))
+		if err != nil {
+			return fail(err)
 		}
+		manifest.Files = files
+		manifest.Warnings = warnings
+		manifest.Counts["files"] = len(files)
+		for _, file := range files {
+			manifest.TotalFileBytes += file.Size
+		}
+	}
+	if err := writeJSONEntry(zw, manifestName, manifest); err != nil {
+		return fail(err)
 	}
 	if err := zw.Close(); err != nil {
 		return nil, err

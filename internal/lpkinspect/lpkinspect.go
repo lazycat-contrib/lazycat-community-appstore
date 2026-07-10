@@ -249,7 +249,7 @@ func inspectFetchCandidate(ctx context.Context, parsed *url.URL, opts URLOptions
 	if err != nil {
 		return Inspection{}, fmt.Errorf("could not fetch LPK URL: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return Inspection{}, fmt.Errorf("LPK URL returned HTTP %d", resp.StatusCode)
 	}

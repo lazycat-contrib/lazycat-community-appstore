@@ -16,10 +16,12 @@ import (
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/appdownload"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/appvote"
 	"lazycat.community/appstore/ent/asset"
 	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
@@ -115,10 +117,12 @@ func checkColumn(t, c string) error {
 			ad.Table:                   ad.ValidColumn,
 			announcement.Table:         announcement.ValidColumn,
 			app.Table:                  app.ValidColumn,
+			appdownload.Table:          appdownload.ValidColumn,
 			appscreenshot.Table:        appscreenshot.ValidColumn,
 			apptag.Table:               apptag.ValidColumn,
 			appversion.Table:           appversion.ValidColumn,
 			appvisibility.Table:        appvisibility.ValidColumn,
+			appvote.Table:              appvote.ValidColumn,
 			asset.Table:                asset.ValidColumn,
 			assetlink.Table:            assetlink.ValidColumn,
 			category.Table:             category.ValidColumn,

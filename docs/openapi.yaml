@@ -270,6 +270,12 @@ paths:
           in: query
           schema:
             type: integer
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [recent, downloads, downloads_day, downloads_week, downloads_month, downloads_year, name]
+          description: downloads is all-time; downloads_day/week/month/year use the configured site time zone.
       responses:
         "200":
           description: Apps visible to the current request.
@@ -395,6 +401,71 @@ paths:
         "403":
           $ref: "#/components/responses/Error"
         "422":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/apps/{id}/version-retention:
+    patch:
+      tags: [Versions]
+      summary: Set or inherit the approved-version retention policy for an app
+      description: Only the app owner, a software administrator, or a site administrator may change this policy. Saving immediately prunes excess approved versions.
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/InheritVersionRetentionRequest"
+                - $ref: "#/components/schemas/CustomVersionRetentionRequest"
+      responses:
+        "200":
+          description: Policy saved and excess approved versions pruned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versionRetention, prunedVersions]
+                properties:
+                  versionRetention:
+                    $ref: "#/components/schemas/VersionRetentionPolicy"
+                  prunedVersions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DeletedVersionResult"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+
+  /api/v1/apps/{id}/versions/{versionId}:
+    delete:
+      tags: [Versions]
+      summary: Delete any app version, including the current latest version
+      description: Release maintainers may delete a version. Managed storage cleanup is best effort after the database deletion commits; failures are returned as warnings and do not restore the version row.
+      parameters:
+        - $ref: "#/components/parameters/ID"
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Version deleted.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deletedVersion]
+                properties:
+                  deletedVersion:
+                    $ref: "#/components/schemas/DeletedVersionResult"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
           $ref: "#/components/responses/Error"
 
   /api/v1/apps/{id}/versions/{versionId}/download:
@@ -560,6 +631,47 @@ paths:
       responses:
         "200":
           description: Favorite state toggled.
+
+  /api/v1/apps/{id}/rating:
+    post:
+      tags: [Social]
+      summary: Vote for an app and return the aggregate rating
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Existing vote refreshed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rating:
+                    $ref: "#/components/schemas/AppRating"
+        "201":
+          description: Vote created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rating:
+                    $ref: "#/components/schemas/AppRating"
+    delete:
+      tags: [Social]
+      summary: Remove the current user's app vote and return the aggregate rating
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Vote removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rating:
+                    $ref: "#/components/schemas/AppRating"
 
   /api/v1/submitters/{id}/favorites:
     post:
@@ -2015,9 +2127,42 @@ components:
       type: string
       enum: [LOCAL, WEBDAV, S3, GITHUB]
 
+    DownloadStats:
+      type: object
+      required: [total, day, week, month, year]
+      properties:
+        total:
+          type: integer
+        day:
+          type: integer
+          description: Downloads since local midnight in the configured site time zone.
+        week:
+          type: integer
+          description: Downloads since Monday 00:00 in the configured site time zone.
+        month:
+          type: integer
+          description: Downloads since the first day of the month in the configured site time zone.
+        year:
+          type: integer
+          description: Downloads since January 1 in the configured site time zone.
+
+    AppRating:
+      type: object
+      required: [score, voteCount, voted]
+      properties:
+        score:
+          type: number
+          format: double
+          description: Server-computed aggregate rating derived from user votes.
+        voteCount:
+          type: integer
+        voted:
+          type: boolean
+          description: Whether the current authenticated user has voted for this app.
+
     AppSummary:
       type: object
-      required: [id, ownerId, owner, packageId, name, slug, status, allowUnreviewedUpdates, commentsEnabled, commentsAllowed, installProtected, downloadCount, tags, visibleGroupIds, appFavorited, submitterFavorited, createdAt, updatedAt]
+      required: [id, ownerId, owner, packageId, name, slug, status, allowUnreviewedUpdates, commentsEnabled, commentsAllowed, installProtected, downloadCount, downloadStats, rating, tags, visibleGroupIds, appFavorited, submitterFavorited, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -2067,6 +2212,11 @@ components:
           description: True when this app requires a per-app install password. The password hash is never returned.
         downloadCount:
           type: integer
+          description: Backward-compatible all-time download count. Prefer downloadStats for period-aware displays.
+        downloadStats:
+          $ref: "#/components/schemas/DownloadStats"
+        rating:
+          $ref: "#/components/schemas/AppRating"
         tags:
           type: array
           items:
@@ -2119,6 +2269,69 @@ components:
               type: boolean
             canClearOutdatedMarks:
               type: boolean
+            versionRetention:
+              $ref: "#/components/schemas/VersionRetentionPolicy"
+
+    VersionRetentionPolicy:
+      type: object
+      required: [mode, siteMaxVersions, effectiveMaxVersions]
+      properties:
+        mode:
+          type: string
+          enum: [INHERIT, CUSTOM]
+        siteMaxVersions:
+          type: integer
+          minimum: 0
+        appMaxVersions:
+          type: integer
+          minimum: 0
+          nullable: true
+        effectiveMaxVersions:
+          type: integer
+          minimum: 0
+
+    InheritVersionRetentionRequest:
+      type: object
+      additionalProperties: false
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [INHERIT]
+
+    CustomVersionRetentionRequest:
+      type: object
+      additionalProperties: false
+      required: [mode, maxVersions]
+      properties:
+        mode:
+          type: string
+          enum: [CUSTOM]
+        maxVersions:
+          type: integer
+          minimum: 0
+
+    VersionCleanupWarning:
+      type: object
+      required: [versionId, storageKey, storagePath, message]
+      properties:
+        versionId:
+          type: integer
+        storageKey:
+          type: string
+        storagePath:
+          type: string
+        message:
+          type: string
+
+    DeletedVersionResult:
+      type: object
+      required: [version]
+      properties:
+        version:
+          $ref: "#/components/schemas/Version"
+        cleanupWarning:
+          $ref: "#/components/schemas/VersionCleanupWarning"
 
     Version:
       type: object
@@ -2143,6 +2356,8 @@ components:
         upstreamDownloadUrl:
           type: string
           description: Original upstream LPK URL exposed by source feeds so clients can apply per-source mirrors.
+        storageKey:
+          type: string
         storagePath:
           type: string
         fileSize:
@@ -2318,7 +2533,7 @@ components:
         sha256:
           type: string
           pattern: "^[0-9a-f]{64}$"
-          description: Optional when downloadUrl is reachable and points to a valid V2 LPK; otherwise required for external versions.
+          description: External-package checksum normally supplied by CI/CD. When both version and sha256 are present, the server validates the checksum format but does not fetch or recompute the package. If version or sha256 is missing, the server may inspect downloadUrl and fill missing values; an explicitly supplied checksum is not replaced or compared.
 
     CreateAppMultipart:
       type: object
@@ -2384,7 +2599,7 @@ components:
     CreateVersionRequest:
       type: object
       required: [downloadUrl]
-      description: Link a new external version. If version or sha256 is omitted, the server fetches downloadUrl, parses V2 package.yml, verifies packageId matches the app, records file size, and computes SHA256. If the URL cannot be inspected, version and sha256 must be supplied.
+      description: Link a new external version. CI/CD should normally submit version, sha256, and downloadUrl together; in that case the server does not download the package. If version or sha256 is omitted, the server fetches downloadUrl, parses V2 package.yml, verifies packageId matches the app, records file size, and computes SHA256 for missing data. An explicitly supplied checksum is format-validated but not compared with the inspected package.
       properties:
         version:
           type: string
@@ -2398,12 +2613,12 @@ components:
         sha256:
           type: string
           pattern: "^[0-9a-f]{64}$"
-          description: Optional when downloadUrl can be inspected as a valid V2 LPK.
+          description: External-package checksum supplied by CI/CD or the publisher. Optional only when downloadUrl can be inspected as a valid V2 LPK. When supplied together with version, it is not recomputed by the server.
 
     CreateVersionMultipart:
       type: object
       required: [file]
-      description: Upload a new V2 LPK version. If version is omitted, the server reads it from package.yml and verifies package.yml package matches the app packageId.
+      description: Upload a new V2 LPK version. The server always computes SHA256 from the uploaded bytes. If version is omitted, the server reads it from package.yml and verifies package.yml package matches the app packageId.
       properties:
         version:
           type: string

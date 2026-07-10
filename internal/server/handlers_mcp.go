@@ -81,7 +81,7 @@ func (s *Server) handleCreateMCPToken(w http.ResponseWriter, r *http.Request, u 
 		badRequest(w, err)
 		return
 	}
-	principalType := mcptoken.PrincipalTypeUSER
+	var principalType mcptoken.PrincipalType
 	switch strings.ToUpper(strings.TrimSpace(input.PrincipalType)) {
 	case "", string(mcptoken.PrincipalTypeUSER):
 		principalType = mcptoken.PrincipalTypeUSER

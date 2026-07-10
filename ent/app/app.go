@@ -48,6 +48,8 @@ const (
 	FieldInstallPasswordHash = "install_password_hash"
 	// FieldDownloadCount holds the string denoting the download_count field in the database.
 	FieldDownloadCount = "download_count"
+	// FieldVersionRetentionCount holds the string denoting the version_retention_count field in the database.
+	FieldVersionRetentionCount = "version_retention_count"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -76,6 +78,7 @@ var Columns = []string{
 	FieldEmailNotificationsEnabled,
 	FieldInstallPasswordHash,
 	FieldDownloadCount,
+	FieldVersionRetentionCount,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -245,6 +248,11 @@ func ByInstallPasswordHash(opts ...sql.OrderTermOption) OrderOption {
 // ByDownloadCount orders the results by the download_count field.
 func ByDownloadCount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDownloadCount, opts...).ToFunc()
+}
+
+// ByVersionRetentionCount orders the results by the version_retention_count field.
+func ByVersionRetentionCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVersionRetentionCount, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

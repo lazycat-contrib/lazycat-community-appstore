@@ -11,6 +11,8 @@ import (
 )
 
 func TestBackupRunWritesMigrationPackageToMultipleStorages(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
 	app := newTestApp(t)
 	ctx := t.Context()
 	firstRoot := t.TempDir()
@@ -62,6 +64,7 @@ func TestBackupRunWritesMigrationPackageToMultipleStorages(t *testing.T) {
 			t.Fatalf("stored backup for %s missing: %v", target.StorageKey, err)
 		}
 	}
+	assertNoMigrationTempFiles(t, tmp)
 }
 
 func TestBackupRunWritesToCustomTargetDirectories(t *testing.T) {
@@ -114,6 +117,33 @@ func TestBackupRunWritesToCustomTargetDirectories(t *testing.T) {
 			t.Fatalf("stored custom backup for %s missing: %v", target.StorageKey, err)
 		}
 	}
+}
+
+func TestBackupTargetFailureRemovesMigrationTempFile(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	app := newTestApp(t)
+	blockedRoot := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(blockedRoot, []byte("blocked"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.server.saveStorageConfig(t.Context(), appStorageConfig{
+		Key:          "backup-fail",
+		Name:         "Backup Fail",
+		Provider:     storageProviderLocal,
+		DeliveryMode: storageDeliveryServer,
+		LocalPath:    blockedRoot,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	result, err := app.server.runBackup(t.Context(), "manual", []string{"backup-fail"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != backupStatusFailed {
+		t.Fatalf("backup result = %+v, want failed", result)
+	}
+	assertNoMigrationTempFiles(t, tmp)
 }
 
 func TestBackupRetentionKeepsLatestBackupsInTargetDirectory(t *testing.T) {

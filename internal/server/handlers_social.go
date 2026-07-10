@@ -13,6 +13,7 @@ import (
 
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/appvote"
 	"lazycat.community/appstore/ent/collaborator"
 	"lazycat.community/appstore/ent/collaboratorinvite"
 	"lazycat.community/appstore/ent/collaboratorrequest"
@@ -396,6 +397,73 @@ func (s *Server) handleToggleSubmitterFavorite(w http.ResponseWriter, r *http.Re
 		return
 	}
 	s.toggleFavorite(w, r, u, favorite.TargetTypeSUBMITTER, id)
+}
+
+func (s *Server) handleRateApp(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	record, ok := s.ratingTargetApp(w, r, u)
+	if !ok {
+		return
+	}
+	existing, err := s.db.AppVote.Query().
+		Where(appvote.AppIDEQ(record.ID), appvote.UserIDEQ(u.ID)).
+		Only(r.Context())
+	if err == nil {
+		if _, err := s.db.AppVote.UpdateOneID(existing.ID).SetValue(1).Save(r.Context()); err != nil {
+			writeError(w, http.StatusInternalServerError, "APP_RATING_FAILED", "Could not update app rating", nil)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"rating": s.ratingForApp(r.Context(), record.ID, u)})
+		return
+	}
+	if !entgo.IsNotFound(err) {
+		writeError(w, http.StatusInternalServerError, "APP_RATING_FAILED", "Could not update app rating", nil)
+		return
+	}
+	if _, err := s.db.AppVote.Create().SetAppID(record.ID).SetUserID(u.ID).SetValue(1).Save(r.Context()); err != nil {
+		if entgo.IsConstraintError(err) {
+			if _, err := s.db.AppVote.Update().Where(appvote.AppIDEQ(record.ID), appvote.UserIDEQ(u.ID)).SetValue(1).Save(r.Context()); err != nil {
+				writeError(w, http.StatusInternalServerError, "APP_RATING_FAILED", "Could not update app rating", nil)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"rating": s.ratingForApp(r.Context(), record.ID, u)})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "APP_RATING_FAILED", "Could not update app rating", nil)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"rating": s.ratingForApp(r.Context(), record.ID, u)})
+}
+
+func (s *Server) handleClearAppRating(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	record, ok := s.ratingTargetApp(w, r, u)
+	if !ok {
+		return
+	}
+	if _, err := s.db.AppVote.Delete().
+		Where(appvote.AppIDEQ(record.ID), appvote.UserIDEQ(u.ID)).
+		Exec(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "APP_RATING_FAILED", "Could not clear app rating", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rating": s.ratingForApp(r.Context(), record.ID, u)})
+}
+
+func (s *Server) ratingTargetApp(w http.ResponseWriter, r *http.Request, u *entgo.User) (*entgo.App, bool) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		badRequest(w, err)
+		return nil, false
+	}
+	record, err := s.db.App.Get(r.Context(), id)
+	if err != nil || record.Status != app.StatusAPPROVED {
+		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+		return nil, false
+	}
+	if !s.userCanSeeApp(r, record, u) {
+		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+		return nil, false
+	}
+	return record, true
 }
 
 func (s *Server) toggleFavorite(w http.ResponseWriter, r *http.Request, u *entgo.User, targetType favorite.TargetType, targetID int) {

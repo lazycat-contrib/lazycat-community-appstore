@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,7 +40,11 @@ func TestSQLiteDSNAddsPragmas(t *testing.T) {
 func TestClientSourceSchemaUserScopedUniqueness(t *testing.T) {
 	ctx := context.Background()
 	client := testClient(t)
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			t.Errorf("close client: %v", err)
+		}
+	}()
 
 	_, err := client.ClientSource.Create().
 		SetUserID("alice").
@@ -68,7 +73,7 @@ func TestClientSourceSchemaUserScopedUniqueness(t *testing.T) {
 func TestSourceCRUDIsUserScoped(t *testing.T) {
 	app := testServer(t)
 
-	alice := app.request("POST", "/api/client/v1/sources", `{"name":"A","url":"https://a.example/source/v1/index.json","password":"secret","mirror":"https://mirror.example"}`, "alice")
+	alice := app.request("POST", "/api/client/v1/sources", `{"name":"A","url":"https://a.example/source/v1/index.json","password":"secret","groupCodes":[]}`, "alice")
 	if alice.Code != http.StatusCreated {
 		t.Fatalf("create alice = %d %s", alice.Code, alice.Body.String())
 	}
@@ -473,6 +478,86 @@ func TestOutdatedMarkProxyForwardsClientIdentityAndBody(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `"outdatedMarks":2`) {
 		t.Fatalf("proxy response body = %s", rec.Body.String())
+	}
+}
+
+func TestOutdatedMarkProxyEnforcesExactBodyLimit(t *testing.T) {
+	var hits atomic.Int64
+	var gotBytes atomic.Int64
+	sourceServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		n, _ := io.Copy(io.Discard, r.Body)
+		gotBytes.Store(n)
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	}))
+	t.Cleanup(sourceServer.Close)
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().
+		SetUserID("alice").
+		SetName("Feed").
+		SetURL(sourceServer.URL + "/source/v1/index.json").
+		SaveX(t.Context())
+	sourceApp := app.server.db.ClientSourceApp.Create().
+		SetSourceID(source.ID).
+		SetExternalID("7").
+		SetPackageID("cloud.lazycat.app.notes").
+		SetName("Notes").
+		SetSlug("notes").
+		SaveX(t.Context())
+	request := func(size int) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/client/v1/apps/%d/outdated-marks", sourceApp.ID), strings.NewReader(strings.Repeat("x", size)))
+		req.Header.Set("x-hc-user-id", "alice")
+		req.Header.Set("x-hc-device-id", "device-1")
+		rec := httptest.NewRecorder()
+		app.handler.ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := request(4096); rec.Code != http.StatusOK || gotBytes.Load() != 4096 {
+		t.Fatalf("exact-limit response=%d bytes=%d body=%s", rec.Code, gotBytes.Load(), rec.Body.String())
+	}
+	if rec := request(4097); rec.Code != http.StatusRequestEntityTooLarge || hits.Load() != 1 {
+		t.Fatalf("overflow response=%d hits=%d body=%s", rec.Code, hits.Load(), rec.Body.String())
+	}
+}
+
+func TestChatProxyEnforcesExactBodyLimit(t *testing.T) {
+	var hits atomic.Int64
+	var gotBytes atomic.Int64
+	sourceServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		n, _ := io.Copy(io.Discard, r.Body)
+		gotBytes.Store(n)
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	}))
+	t.Cleanup(sourceServer.Close)
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().
+		SetUserID("alice").
+		SetName("Chat Feed").
+		SetURL(sourceServer.URL + "/source/v1/index.json").
+		SetChatAvailable(true).
+		SetChatEnabled(true).
+		SaveX(t.Context())
+	sourceApp := app.server.db.ClientSourceApp.Create().
+		SetSourceID(source.ID).
+		SetExternalID("7").
+		SetPackageID("cloud.lazycat.app.chat").
+		SetName("Chat").
+		SetSlug("chat").
+		SaveX(t.Context())
+	request := func(size int) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/client/v1/apps/%d/chat", sourceApp.ID), strings.NewReader(strings.Repeat("x", size)))
+		req.Header.Set("x-hc-user-id", "alice")
+		req.Header.Set("x-hc-device-id", "device-1")
+		rec := httptest.NewRecorder()
+		app.handler.ServeHTTP(rec, req)
+		return rec
+	}
+	if rec := request(1 << 20); rec.Code != http.StatusOK || gotBytes.Load() != 1<<20 {
+		t.Fatalf("exact-limit response=%d bytes=%d body=%s", rec.Code, gotBytes.Load(), rec.Body.String())
+	}
+	if rec := request(1<<20 + 1); rec.Code != http.StatusRequestEntityTooLarge || hits.Load() != 1 {
+		t.Fatalf("overflow response=%d hits=%d body=%s", rec.Code, hits.Load(), rec.Body.String())
 	}
 }
 

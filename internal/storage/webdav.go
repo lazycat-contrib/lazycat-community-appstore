@@ -72,7 +72,7 @@ func (b *WebDAVBackend) saveAt(ctx context.Context, rel string, r io.Reader) (Ob
 	if err != nil {
 		return Object{}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return Object{}, fmt.Errorf("webdav put failed: %s", resp.Status)
 	}
@@ -89,7 +89,7 @@ func (b *WebDAVBackend) Delete(ctx context.Context, objectPath string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound || (resp.StatusCode >= 200 && resp.StatusCode < 300) {
 		return nil
 	}
@@ -110,7 +110,7 @@ func (b *WebDAVBackend) ListObjects(ctx context.Context, prefix string) ([]Objec
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil
 	}

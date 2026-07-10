@@ -1,0 +1,20 @@
+version: "2"
+run:
+  timeout: 5m
+linters:
+  enable:
+    - bodyclose
+    - errcheck
+    - govet
+    - ineffassign
+    - noctx
+    - staticcheck
+    - unused
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - noctx
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

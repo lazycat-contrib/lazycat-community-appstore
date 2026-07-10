@@ -18,6 +18,9 @@ type Announcement func(*sql.Selector)
 // App is the predicate function for app builders.
 type App func(*sql.Selector)
 
+// AppDownload is the predicate function for appdownload builders.
+type AppDownload func(*sql.Selector)
+
 // AppScreenshot is the predicate function for appscreenshot builders.
 type AppScreenshot func(*sql.Selector)
 
@@ -29,6 +32,9 @@ type AppVersion func(*sql.Selector)
 
 // AppVisibility is the predicate function for appvisibility builders.
 type AppVisibility func(*sql.Selector)
+
+// AppVote is the predicate function for appvote builders.
+type AppVote func(*sql.Selector)
 
 // Asset is the predicate function for asset builders.
 type Asset func(*sql.Selector)

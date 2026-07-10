@@ -1,12 +1,13 @@
 package server
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"lazycat.community/appstore/ent"
@@ -28,27 +29,42 @@ func (s *Server) handleMigrationExport(w http.ResponseWriter, r *http.Request, _
 		badRequest(w, err)
 		return
 	}
-	exporter := migration.NewExporter(s.db, s.migrationStorageResolver(), appVersion())
-	var buf bytes.Buffer
-	if _, err := exporter.Export(r.Context(), &buf, options); err != nil {
+	filePath, _, err := s.exportMigrationFile(r.Context(), options)
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, "MIGRATION_EXPORT_FAILED", "Could not export migration package", nil)
+		return
+	}
+	defer func() { _ = os.Remove(filePath) }()
+	file, err := os.Open(filePath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "MIGRATION_EXPORT_FAILED", "Could not open migration package", nil)
+		return
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("close migration export: %v", err)
+		}
+	}()
+	info, err := file.Stat()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "MIGRATION_EXPORT_FAILED", "Could not inspect migration package", nil)
 		return
 	}
 	filename := fmt.Sprintf("lazycat-appstore-migration-%s.zip", time.Now().UTC().Format("20060102-150405"))
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(buf.Bytes())
+	http.ServeContent(w, r, filename, info.ModTime(), file)
 }
 
 func (s *Server) handleMigrationImportPreview(w http.ResponseWriter, r *http.Request, _ *ent.User) {
-	data, size, ok := readMigrationUpload(w, r)
+	upload, ok := readMigrationUpload(w, r)
 	if !ok {
 		return
 	}
+	defer func() { _ = upload.Cleanup() }()
 	importer := migration.NewImporter(s.db, s.migrationStorageResolver())
-	preview, err := importer.Preview(r.Context(), bytes.NewReader(data), size)
+	preview, err := importer.Preview(r.Context(), upload.File, upload.Size)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "MIGRATION_PREVIEW_FAILED", "Could not preview migration package", nil)
 		return
@@ -57,70 +73,47 @@ func (s *Server) handleMigrationImportPreview(w http.ResponseWriter, r *http.Req
 }
 
 func (s *Server) handleMigrationImport(w http.ResponseWriter, r *http.Request, u *ent.User) {
-	data, size, ok := readMigrationUpload(w, r)
+	upload, ok := readMigrationUpload(w, r)
 	if !ok {
 		return
 	}
-	options := migration.ImportOptions{
-		Options: migration.Options{
-			IncludeSite:   formBool(r, "includeSite"),
-			IncludePeople: formBool(r, "includePeople"),
-			IncludeApps:   formBool(r, "includeApps"),
-			IncludeFiles:  formBool(r, "includeFiles"),
-		},
-		Mode:           migration.ImportMode(r.FormValue("mode")),
-		ConfirmReplace: r.FormValue("confirmReplace"),
-		ActorUserID:    u.ID,
-	}
+	defer func() { _ = upload.Cleanup() }()
+	options := migrationImportOptions(upload.Values, u.ID)
 	importer := migration.NewImporter(s.db, s.migrationStorageResolver())
-	result, err := importer.Import(r.Context(), bytes.NewReader(data), size, options)
+	result, err := importer.Import(r.Context(), upload.File, upload.Size, options)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "MIGRATION_IMPORT_FAILED", "Could not import migration package", nil)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"result": result})
-	if options.Mode == migration.ImportModeReplace {
-		s.scheduleRestartAfterImport()
-	}
-}
-
-func (s *Server) scheduleRestartAfterImport() {
-	if s.restartAfterImport == nil {
+	payload := map[string]any{"result": result}
+	if options.Mode != migration.ImportModeReplace {
+		writeJSON(w, http.StatusOK, payload)
 		return
 	}
-	s.restartAfterImportOnce.Do(func() {
-		go func() {
-			time.Sleep(750 * time.Millisecond)
-			log.Print("migration overwrite import completed; restarting server")
-			s.restartAfterImport()
-		}()
-	})
+	if err := writeMigrationResult(w, http.StatusOK, payload); err != nil {
+		log.Printf("write migration response before restart: %v", err)
+		return
+	}
+	s.requestRestart()
 }
 
-func readMigrationUpload(w http.ResponseWriter, r *http.Request) ([]byte, int64, bool) {
-	r.Body = http.MaxBytesReader(w, r.Body, maxMigrationUploadBytes)
-	if err := r.ParseMultipartForm(maxMigrationUploadBytes); err != nil {
-		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Migration package upload is invalid", nil)
-		return nil, 0, false
-	}
-	file, header, err := r.FormFile("file")
+func writeMigrationResult(w http.ResponseWriter, status int, payload any) error {
+	raw, err := json.Marshal(payload)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Migration package file is required", nil)
-		return nil, 0, false
+		return err
 	}
-	defer file.Close()
-	if header.Size > maxMigrationUploadBytes {
-		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Migration package is too large", nil)
-		return nil, 0, false
-	}
-	data, err := io.ReadAll(io.LimitReader(file, maxMigrationUploadBytes+1))
+	raw = append(raw, '\n')
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	n, err := w.Write(raw)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Could not read migration package", nil)
-		return nil, 0, false
+		return err
 	}
-	if len(data) > maxMigrationUploadBytes {
-		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Migration package is too large", nil)
-		return nil, 0, false
+	if n != len(raw) {
+		return io.ErrShortWrite
 	}
-	return data, int64(len(data)), true
+	if err := http.NewResponseController(w).Flush(); err != nil {
+		return err
+	}
+	return nil
 }

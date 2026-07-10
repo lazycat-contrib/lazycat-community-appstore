@@ -134,6 +134,11 @@ func DownloadCount(v int) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldDownloadCount, v))
 }
 
+// VersionRetentionCount applies equality check predicate on the "version_retention_count" field. It's identical to VersionRetentionCountEQ.
+func VersionRetentionCount(v int) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldVersionRetentionCount, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.App {
 	return predicate.App(sql.FieldEQ(FieldCreatedAt, v))
@@ -982,6 +987,56 @@ func DownloadCountLT(v int) predicate.App {
 // DownloadCountLTE applies the LTE predicate on the "download_count" field.
 func DownloadCountLTE(v int) predicate.App {
 	return predicate.App(sql.FieldLTE(FieldDownloadCount, v))
+}
+
+// VersionRetentionCountEQ applies the EQ predicate on the "version_retention_count" field.
+func VersionRetentionCountEQ(v int) predicate.App {
+	return predicate.App(sql.FieldEQ(FieldVersionRetentionCount, v))
+}
+
+// VersionRetentionCountNEQ applies the NEQ predicate on the "version_retention_count" field.
+func VersionRetentionCountNEQ(v int) predicate.App {
+	return predicate.App(sql.FieldNEQ(FieldVersionRetentionCount, v))
+}
+
+// VersionRetentionCountIn applies the In predicate on the "version_retention_count" field.
+func VersionRetentionCountIn(vs ...int) predicate.App {
+	return predicate.App(sql.FieldIn(FieldVersionRetentionCount, vs...))
+}
+
+// VersionRetentionCountNotIn applies the NotIn predicate on the "version_retention_count" field.
+func VersionRetentionCountNotIn(vs ...int) predicate.App {
+	return predicate.App(sql.FieldNotIn(FieldVersionRetentionCount, vs...))
+}
+
+// VersionRetentionCountGT applies the GT predicate on the "version_retention_count" field.
+func VersionRetentionCountGT(v int) predicate.App {
+	return predicate.App(sql.FieldGT(FieldVersionRetentionCount, v))
+}
+
+// VersionRetentionCountGTE applies the GTE predicate on the "version_retention_count" field.
+func VersionRetentionCountGTE(v int) predicate.App {
+	return predicate.App(sql.FieldGTE(FieldVersionRetentionCount, v))
+}
+
+// VersionRetentionCountLT applies the LT predicate on the "version_retention_count" field.
+func VersionRetentionCountLT(v int) predicate.App {
+	return predicate.App(sql.FieldLT(FieldVersionRetentionCount, v))
+}
+
+// VersionRetentionCountLTE applies the LTE predicate on the "version_retention_count" field.
+func VersionRetentionCountLTE(v int) predicate.App {
+	return predicate.App(sql.FieldLTE(FieldVersionRetentionCount, v))
+}
+
+// VersionRetentionCountIsNil applies the IsNil predicate on the "version_retention_count" field.
+func VersionRetentionCountIsNil() predicate.App {
+	return predicate.App(sql.FieldIsNull(FieldVersionRetentionCount))
+}
+
+// VersionRetentionCountNotNil applies the NotNil predicate on the "version_retention_count" field.
+func VersionRetentionCountNotNil() predicate.App {
+	return predicate.App(sql.FieldNotNull(FieldVersionRetentionCount))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

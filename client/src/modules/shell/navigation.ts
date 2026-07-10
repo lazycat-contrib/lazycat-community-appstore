@@ -26,10 +26,10 @@ const serverAdminTab: NavItem = { key: 'admin', labelKey: 'nav.admin', icon: Shi
 const chatTab: NavItem = { key: 'chat', labelKey: 'nav.chat', icon: MessageSquare };
 
 const clientBaseTabs: NavItem[] = [
-  { key: 'sources', labelKey: 'nav.sources', icon: Cloud },
-  { key: 'search', labelKey: 'nav.install', icon: Download },
-  { key: 'profile', labelKey: 'nav.installed', icon: Archive },
-  { key: 'history', labelKey: 'nav.history', icon: History },
+	{ key: 'search', labelKey: 'nav.install', icon: Download },
+	{ key: 'profile', labelKey: 'nav.installed', icon: Archive },
+	{ key: 'sources', labelKey: 'nav.sources', icon: Cloud },
+	{ key: 'history', labelKey: 'nav.history', icon: History },
   { key: 'settings', labelKey: 'nav.settings', icon: Settings },
 ];
 

@@ -291,7 +291,7 @@ func (s *Server) handleProxyFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "FILE_NOT_FOUND", "File not found", nil)
 		return
 	}
-	defer reader.Body.Close()
+	defer func() { _ = reader.Body.Close() }()
 	if reader.ContentType != "" {
 		w.Header().Set("Content-Type", reader.ContentType)
 	}
@@ -305,14 +305,6 @@ func (s *Server) handleProxyFile(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.Copy(w, reader.Body)
 }
 
-func (s *Server) storageBackend(ctx context.Context) (storage.Backend, error) {
-	cfg, err := s.effectiveStorageConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return storageBackendFromConfig(cfg)
-}
-
 func (s *Server) storageBackendForKey(ctx context.Context, key string) (storage.Backend, error) {
 	cfg, err := s.effectiveStorageConfigByKey(ctx, key)
 	if err != nil {
@@ -322,15 +314,18 @@ func (s *Server) storageBackendForKey(ctx context.Context, key string) (storage.
 }
 
 func (s *Server) deleteStoredObject(ctx context.Context, storageKey, objectPath string) {
+	_ = s.deleteStoredObjectChecked(ctx, storageKey, objectPath)
+}
+
+func (s *Server) deleteStoredObjectChecked(ctx context.Context, storageKey, objectPath string) error {
 	if strings.TrimSpace(objectPath) == "" {
-		return
+		return nil
 	}
 	backend, err := s.storageBackendForKey(ctx, storageKey)
 	if err == nil {
-		_ = backend.Delete(ctx, objectPath)
-		return
+		return backend.Delete(ctx, objectPath)
 	}
-	_ = s.storage.Delete(ctx, objectPath)
+	return s.storage.Delete(ctx, objectPath)
 }
 
 func (s *Server) effectiveStorageConfig(ctx context.Context) (appStorageConfig, error) {

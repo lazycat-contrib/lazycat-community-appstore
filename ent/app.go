@@ -51,6 +51,8 @@ type App struct {
 	InstallPasswordHash string `json:"install_password_hash,omitempty"`
 	// DownloadCount holds the value of the "download_count" field.
 	DownloadCount int `json:"download_count,omitempty"`
+	// VersionRetentionCount holds the value of the "version_retention_count" field.
+	VersionRetentionCount *int `json:"version_retention_count,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -65,7 +67,7 @@ func (*App) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case app.FieldAllowUnreviewedUpdates, app.FieldCommentsEnabled, app.FieldEmailNotificationsEnabled:
 			values[i] = new(sql.NullBool)
-		case app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldDownloadCount:
+		case app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldDownloadCount, app.FieldVersionRetentionCount:
 			values[i] = new(sql.NullInt64)
 		case app.FieldPackageID, app.FieldName, app.FieldNameI18nJSON, app.FieldSlug, app.FieldSummary, app.FieldSummaryI18nJSON, app.FieldDescription, app.FieldDescriptionI18nJSON, app.FieldIconURL, app.FieldStatus, app.FieldInstallPasswordHash:
 			values[i] = new(sql.NullString)
@@ -196,6 +198,13 @@ func (_m *App) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.DownloadCount = int(value.Int64)
 			}
+		case app.FieldVersionRetentionCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field version_retention_count", values[i])
+			} else if value.Valid {
+				_m.VersionRetentionCount = new(int)
+				*_m.VersionRetentionCount = int(value.Int64)
+			}
 		case app.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -298,6 +307,11 @@ func (_m *App) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("download_count=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DownloadCount))
+	builder.WriteString(", ")
+	if v := _m.VersionRetentionCount; v != nil {
+		builder.WriteString("version_retention_count=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

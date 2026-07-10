@@ -838,15 +838,6 @@ body,
   display: grid;
   gap: 14px;
   min-width: 0;
-  opacity: 1;
-  transition:
-    opacity 180ms var(--ease-out),
-    transform 180ms var(--ease-out);
-
-  @starting-style {
-    opacity: 0;
-    transform: translateY(6px);
-  }
 }
 
 .invite-manager {
@@ -4774,7 +4765,10 @@ code {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
-    transition-duration: 1ms !important;
+  }
+
+  :where(button, [role='button'], .app-card, .source-app-card, .detail-page-shell) {
+    transform: none !important;
   }
 
 }

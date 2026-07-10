@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Archive, Check, CloudUpload, Copy, DatabaseBackup, Download, Gauge, KeyRound, Layers3, Megaphone, MessageSquare, Pencil, Plus, Save, Server, Settings, ShieldCheck, Tag, Trash2, Upload, Users, X } from 'lucide-react';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
@@ -32,8 +32,20 @@ import { AdminAdsPanel } from './AdminAdsPanel';
 import { StorageSettingsPanel, defaultStorageSettings, type StorageSettings } from './StorageSettingsPanel';
 import { AdminMigrationPanel } from './migration/AdminMigrationPanel';
 import { AdminBackupPanel } from './AdminBackupPanel';
+import { AdminDeleteDialog } from './AdminDeleteDialog';
+import { AdminSaveBar } from './AdminSaveBar';
+import { areAdminDraftsEqual, type AdminOperationResult, type AdminSaveStatus, type AdminStorageAction } from './adminState';
+import { AdminTaskHeader, type AdminTaskHeaderProps } from './AdminTaskHeader';
 
 type TaxonomyDraft = { name: string; nameI18n: Record<string, string>; slug: string; parentId?: string; sortOrder?: string };
+type AdminTask = 'reviews' | 'site' | 'users' | 'taxonomy' | 'collections' | 'storage' | 'backup' | 'migration';
+type SiteSettingsTask = 'identity' | 'announcement' | 'ads' | 'registration' | 'policy' | 'mail';
+type AdminDeleteTarget =
+  | { kind: 'user'; item: User }
+  | { kind: 'category'; item: Category }
+  | { kind: 'tag'; item: TagRecord }
+  | { kind: 'collection'; item: Collection }
+  | { kind: 'invite'; item: RegistrationInvite };
 
 const DEFAULT_LIST_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
 const ADMIN_PAGE_SIZE_OPTIONS = [12, 24, 48, 50, 96, 100, 200];
@@ -129,13 +141,22 @@ export function AdminPanel({
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
-  const [adminTab, setAdminTab] = useState<'reviews' | 'site' | 'users' | 'taxonomy' | 'collections'>('reviews');
+  const [adminTab, setAdminTab] = useState<AdminTask>('reviews');
   const [users, setUsers] = useState<User[]>([]);
   const [userPagination, setUserPagination] = useState<PaginationMeta>(DEFAULT_LIST_PAGINATION);
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [approvedAppCount, setApprovedAppCount] = useState(0);
   const [reviewApps, setReviewApps] = useState<StoreApp[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [savedSettings, setSavedSettings] = useState<Record<string, string>>({});
+  const [settingsSaveStatus, setSettingsSaveStatus] = useState<AdminSaveStatus>('idle');
+  const settingsRef = useRef<Record<string, string>>({});
+  const savedSettingsRef = useRef<Record<string, string>>({});
+  const settingsRevisionRef = useRef(0);
+  const settingsRequestSequenceRef = useRef(0);
+  const settingsSaveRequestSequenceRef = useRef(0);
+  const settingsSaveInFlightRef = useRef(false);
+  const settingsDirty = !areAdminDraftsEqual(settings, savedSettings);
   const [announcements, setAnnouncements] = useState<SiteAnnouncement[]>([]);
   const [ads, setAds] = useState<SiteAd[]>([]);
   const [registrationInvites, setRegistrationInvites] = useState<RegistrationInvite[]>([]);
@@ -148,6 +169,14 @@ export function AdminPanel({
   const [storageDraft, setStorageDraft] = useState<StorageSettings>(defaultStorageSettings);
   const [storageCreateDraft, setStorageCreateDraft] = useState<StorageSettings>({ ...defaultStorageSettings, key: '', name: '' });
   const [isStorageCreateOpen, setIsStorageCreateOpen] = useState(false);
+  const [storageSaveStatus, setStorageSaveStatus] = useState<AdminSaveStatus>('idle');
+  const [storageAction, setStorageAction] = useState<AdminStorageAction>(null);
+  const [storageResult, setStorageResult] = useState<AdminOperationResult | null>(null);
+  const [storageToDelete, setStorageToDelete] = useState<StorageSettings | null>(null);
+  const storageSelectionRef = useRef(defaultStorageSettings.key);
+  const storageDraftRef = useRef<StorageSettings>(defaultStorageSettings);
+  const storageRevisionRef = useRef(0);
+  const storageActionRef = useRef<AdminStorageAction>(null);
   const [siteIconFile, setSiteIconFile] = useState<File | null>(null);
   const [siteIconStorageKey, setSiteIconStorageKey] = useState(defaultStorageSettings.key);
   const [isUploadingSiteIcon, setIsUploadingSiteIcon] = useState(false);
@@ -157,7 +186,7 @@ export function AdminPanel({
   const [categoryForm, setCategoryForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '', parentId: '', sortOrder: '0' });
   const [tagForm, setTagForm] = useState<TaxonomyDraft>({ name: '', nameI18n: { 'zh-CN': '', en: '' }, slug: '' });
   const [collectionForm, setCollectionForm] = useState<{ name: string; kind: string; appIds: number[] }>({ name: '', kind: 'MANUAL', appIds: [] });
-  const [siteSettingsTab, setSiteSettingsTab] = useState<'identity' | 'announcement' | 'ads' | 'registration' | 'policy' | 'storage' | 'mail' | 'backup' | 'migration'>('identity');
+  const [siteSettingsTab, setSiteSettingsTab] = useState<SiteSettingsTask>('identity');
   const [userDialogMode, setUserDialogMode] = useState<'create' | 'edit' | null>(null);
   const [userDraft, setUserDraft] = useState<ManagedUserDraft>(emptyUserDraft);
   const [isCollectionCreateOpen, setIsCollectionCreateOpen] = useState(false);
@@ -167,7 +196,8 @@ export function AdminPanel({
   const [categoryDrafts, setCategoryDrafts] = useState<Record<number, TaxonomyDraft>>({});
   const [tagDrafts, setTagDrafts] = useState<Record<number, TaxonomyDraft>>({});
   const [collectionDrafts, setCollectionDrafts] = useState<Record<number, CollectionDraft>>({});
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminDeleteTarget | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [testEmailTo, setTestEmailTo] = useState(user.email || '');
   const isSiteAdmin = user.role === 'SITE_ADMIN';
   const adminTabs = [
@@ -176,6 +206,9 @@ export function AdminPanel({
     ...(isSiteAdmin ? [{ key: 'users' as const, label: t('admin.tabs.users'), icon: Users }] : []),
     { key: 'taxonomy', label: t('admin.tabs.taxonomy'), icon: Tag },
     { key: 'collections', label: t('admin.tabs.collections'), icon: Layers3 },
+    ...(isSiteAdmin ? [{ key: 'storage' as const, label: t('admin.siteSettingTabs.storage'), icon: Server }] : []),
+    ...(isSiteAdmin ? [{ key: 'backup' as const, label: t('admin.siteSettingTabs.backup'), icon: CloudUpload }] : []),
+    ...(isSiteAdmin ? [{ key: 'migration' as const, label: t('admin.siteSettingTabs.migration'), icon: DatabaseBackup }] : []),
   ] as const;
   const collectionKindOptions = [
     { value: 'MANUAL', label: t('admin.collectionKinds.manual') },
@@ -193,16 +226,22 @@ export function AdminPanel({
     { key: 'ads', label: t('admin.siteSettingTabs.ads'), icon: Megaphone },
     { key: 'registration', label: t('admin.siteSettingTabs.registration'), icon: KeyRound },
     { key: 'policy', label: t('admin.siteSettingTabs.policy'), icon: ShieldCheck },
-    { key: 'storage', label: t('admin.siteSettingTabs.storage'), icon: Server },
     { key: 'mail', label: t('admin.siteSettingTabs.mail'), icon: MessageSquare },
-    { key: 'backup', label: t('admin.siteSettingTabs.backup'), icon: CloudUpload },
-    { key: 'migration', label: t('admin.siteSettingTabs.migration'), icon: DatabaseBackup },
   ] as const;
+  const timeZoneOptions = useMemo(() => {
+    const intlWithTimeZones = Intl as typeof Intl & { supportedValuesOf?: (key: 'timeZone') => string[] };
+    const supported = typeof intlWithTimeZones.supportedValuesOf === 'function' ? intlWithTimeZones.supportedValuesOf('timeZone') : [];
+    const preferred = ['Asia/Shanghai', 'UTC', 'Asia/Hong_Kong', 'Asia/Taipei', 'Asia/Tokyo', 'Asia/Singapore', 'Europe/London', 'Europe/Berlin', 'America/Los_Angeles', 'America/New_York'];
+    return Array.from(new Set([...preferred, ...supported])).map((value) => ({ value, label: value }));
+  }, []);
+  const selectedStorageRecord = storageRecords.find((storage) => storage.key === selectedStorageKey) || storageRecords[0] || defaultStorageSettings;
+  const storageDirty = !areAdminDraftsEqual(storageSettingsPayload(storageDraft), storageSettingsPayload(selectedStorageRecord));
   const siteIdentityFields = [
     { key: 'site_title', label: t('admin.settings.siteTitle'), help: t('admin.settingsHelp.siteTitle') },
     { key: 'site_subtitle', label: t('admin.settings.siteSubtitle'), help: t('admin.settingsHelp.siteSubtitle'), type: 'textarea' },
     { key: 'site_icon_url', label: t('admin.settings.siteIconURL'), help: t('admin.settingsHelp.siteIconURL'), type: 'url' },
     { key: 'site_public_url', label: t('admin.settings.sitePublicURL'), help: t('admin.settingsHelp.sitePublicURL'), type: 'url' },
+    { key: 'site_timezone', label: t('admin.settings.siteTimeZone'), help: t('admin.settingsHelp.siteTimeZone'), type: 'select', options: timeZoneOptions },
   ];
   const registrationSettingFields = [
     {
@@ -294,7 +333,14 @@ export function AdminPanel({
 
   useEffect(() => {
     const selected = storageRecords.find((storage) => storage.key === selectedStorageKey) || storageRecords[0] || defaultStorageSettings;
-    setStorageDraft({ ...defaultStorageSettings, ...selected });
+    const selectionChanged = storageSelectionRef.current !== selectedStorageKey;
+    if (selectionChanged || (storageSaveStatus !== 'dirty' && storageSaveStatus !== 'error')) {
+      const nextDraft = { ...defaultStorageSettings, ...selected };
+      storageDraftRef.current = nextDraft;
+      setStorageDraft(nextDraft);
+    }
+    if (selectionChanged) setStorageSaveStatus('idle');
+    storageSelectionRef.current = selectedStorageKey;
   }, [selectedStorageKey, storageRecords]);
 
   useEffect(() => {
@@ -371,7 +417,13 @@ export function AdminPanel({
     });
   }
 
-  async function reload() {
+  type ReloadOptions = { refreshSettings?: boolean };
+
+  async function reload({ refreshSettings }: ReloadOptions = {}) {
+    const settingsRevision = settingsRevisionRef.current;
+    const settingsRequestID = ++settingsRequestSequenceRef.current;
+    const shouldRefreshSettings = (refreshSettings ?? areAdminDraftsEqual(settingsRef.current, savedSettingsRef.current))
+      && !settingsSaveInFlightRef.current;
     await runAction(setToast, t('admin.loadFailed'), async () => {
       const [categoryData, tagData, collectionData, appCountData] = await Promise.all([
         api<{ categories: Category[] }>('/api/v1/admin/categories'),
@@ -387,13 +439,28 @@ export function AdminPanel({
       setTagDrafts({});
       setCollectionDrafts({});
       if (isSiteAdmin) {
+        const settingsPromise = shouldRefreshSettings
+          ? api<{ settings: Record<string, string> }>('/api/v1/admin/settings')
+          : Promise.resolve(null);
         const [settingData, storageData, announcementData, adData] = await Promise.all([
-          api<{ settings: Record<string, string> }>('/api/v1/admin/settings'),
+          settingsPromise,
           api<{ storages: StorageSettings[]; defaultKey: string }>('/api/v1/admin/storage'),
           fetchAllPaginated<SiteAnnouncement, 'announcements'>(api, '/api/v1/admin/announcements', 'announcements'),
           fetchAllPaginated<SiteAd, 'ads'>(api, '/api/v1/admin/ads', 'ads'),
         ]);
-        setSettings(settingData.settings || {});
+        if (
+          settingData
+          && settingsRequestID === settingsRequestSequenceRef.current
+          && settingsRevision === settingsRevisionRef.current
+          && !settingsSaveInFlightRef.current
+        ) {
+          const nextSettings = settingData.settings || {};
+          settingsRef.current = nextSettings;
+          savedSettingsRef.current = nextSettings;
+          setSettings(nextSettings);
+          setSavedSettings(nextSettings);
+          setSettingsSaveStatus('idle');
+        }
         setLoadedStorageRecords(storageData.storages || [], storageData.defaultKey);
         setAnnouncements(announcementData || []);
         setAds(adData || []);
@@ -421,14 +488,46 @@ export function AdminPanel({
     return note;
   }
 
-  async function saveSettings(event: FormEvent) {
-    event.preventDefault();
-    await runAction(setToast, t('admin.settingsSaveFailed'), async () => {
-      await api('/api/v1/admin/settings', { method: 'PATCH', body: JSON.stringify(settings) });
+  async function saveSettings(event?: FormEvent) {
+    event?.preventDefault();
+    if (settingsSaveInFlightRef.current || areAdminDraftsEqual(settingsRef.current, savedSettingsRef.current)) return;
+    settingsSaveInFlightRef.current = true;
+    const settingsSaveRequestID = ++settingsSaveRequestSequenceRef.current;
+    ++settingsRequestSequenceRef.current;
+    const settingsSnapshot = settingsRef.current;
+    const settingsRevision = settingsRevisionRef.current;
+    setSettingsSaveStatus('saving');
+    try {
+      await api('/api/v1/admin/settings', { method: 'PATCH', body: JSON.stringify(settingsSnapshot) });
+      const settingData = await api<{ settings: Record<string, string> }>('/api/v1/admin/settings', { method: 'GET' });
+      if (settingsSaveRequestID !== settingsSaveRequestSequenceRef.current) return;
+      const normalizedSettings = settingData.settings || {};
+      const draftUnchanged = settingsRevision === settingsRevisionRef.current;
+      savedSettingsRef.current = normalizedSettings;
+      setSavedSettings(normalizedSettings);
+      if (draftUnchanged) {
+        settingsRef.current = normalizedSettings;
+        setSettings(normalizedSettings);
+        setSettingsSaveStatus('saved');
+      } else {
+        setSettingsSaveStatus('dirty');
+      }
+      settingsSaveInFlightRef.current = false;
       setToast({ tone: 'success', message: t('admin.settingsSaved') });
-      await reload();
+    } catch (error) {
+      if (settingsSaveRequestID !== settingsSaveRequestSequenceRef.current) return;
+      settingsSaveInFlightRef.current = false;
+      setSettingsSaveStatus('error');
+      setToast({ tone: 'error', message: errorMessage(error, t('admin.settingsSaveFailed')) });
+      return;
+    }
+    try {
       await onSiteProfileSaved();
-    });
+    } catch (error) {
+      if (settingsSaveRequestID === settingsSaveRequestSequenceRef.current) {
+        setToast({ tone: 'neutral', message: `${t('admin.settingsSaved')} · ${errorMessage(error, t('admin.loadFailed'))}` });
+      }
+    }
   }
 
   async function sendTestEmail() {
@@ -444,30 +543,77 @@ export function AdminPanel({
     });
   }
 
-  async function saveStorageSettings() {
-    await runAction(setToast, t('admin.storageSaveFailed'), async () => {
-      const data = await api<{ storage: StorageSettings }>(`/api/v1/admin/storage/${encodeURIComponent(storageDraft.key)}`, {
-        method: 'PATCH',
-        body: JSON.stringify(storageSettingsPayload(storageDraft)),
-      });
-      setStorageRecords((current) => current.map((item) => (item.key === data.storage.key ? normalizeStorageRecord(data.storage) : item)));
-      setToast({ tone: 'success', message: t('admin.storageSaved') });
+  function startStorageAction(action: Exclude<AdminStorageAction, null>) {
+    if (storageActionRef.current) return false;
+    storageActionRef.current = action;
+    setStorageAction(action);
+    return true;
+  }
+
+  function finishStorageAction() {
+    storageActionRef.current = null;
+    setStorageAction(null);
+  }
+
+  async function notifyStorageOptionsChanged(successMessage: string) {
+    try {
       await onStorageOptionsChanged();
-    });
+    } catch (error) {
+      setToast({ tone: 'neutral', message: `${successMessage} · ${errorMessage(error, t('admin.loadFailed'))}` });
+    }
+  }
+
+  async function saveStorageSettings() {
+    if (!storageDirty || !startStorageAction('save')) return;
+    const storageSnapshot = storageDraftRef.current;
+    const storageRevision = storageRevisionRef.current;
+    setStorageSaveStatus('saving');
+    try {
+      const data = await api<{ storage: StorageSettings }>(`/api/v1/admin/storage/${encodeURIComponent(storageSnapshot.key)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(storageSettingsPayload(storageSnapshot)),
+      });
+      const saved = normalizeStorageRecord(data.storage);
+      setStorageRecords((current) => current.map((item) => (item.key === saved.key ? saved : item)));
+      if (storageRevision === storageRevisionRef.current) {
+        storageDraftRef.current = saved;
+        setStorageDraft(saved);
+        setStorageSaveStatus('saved');
+      } else {
+        setStorageSaveStatus('dirty');
+      }
+      setStorageResult({ variant: 'success', title: t('admin.storageSettings'), message: t('admin.storageSaved'), occurredAt: new Date().toISOString(), target: saved.name || saved.key });
+      setToast({ tone: 'success', message: t('admin.storageSaved') });
+      await notifyStorageOptionsChanged(t('admin.storageSaved'));
+    } catch (error) {
+      const message = errorMessage(error, t('admin.storageSaveFailed'));
+      setStorageSaveStatus(storageRevision === storageRevisionRef.current ? 'error' : 'dirty');
+      setStorageResult({ variant: 'error', title: t('admin.storageSettings'), message, occurredAt: new Date().toISOString(), target: storageSnapshot.name || storageSnapshot.key });
+      setToast({ tone: 'error', message });
+    } finally {
+      finishStorageAction();
+    }
   }
 
   async function testStorageSettings() {
-    await runAction(setToast, t('admin.storageTestFailed'), async () => {
-      await api('/api/v1/admin/storage/test', {
-        method: 'POST',
-        body: JSON.stringify(storageSettingsPayload(storageDraft)),
-      });
+    if (!startStorageAction('test')) return;
+    const storageSnapshot = storageDraftRef.current;
+    try {
+      await api('/api/v1/admin/storage/test', { method: 'POST', body: JSON.stringify(storageSettingsPayload(storageSnapshot)) });
+      setStorageResult({ variant: 'success', title: t('admin.testStorage'), message: t('admin.storageTested'), occurredAt: new Date().toISOString(), target: storageSnapshot.name || storageSnapshot.key });
       setToast({ tone: 'success', message: t('admin.storageTested') });
-    });
+    } catch (error) {
+      const message = errorMessage(error, t('admin.storageTestFailed'));
+      setStorageResult({ variant: 'error', title: t('admin.testStorage'), message, occurredAt: new Date().toISOString(), target: storageSnapshot.name || storageSnapshot.key });
+      setToast({ tone: 'error', message });
+    } finally {
+      finishStorageAction();
+    }
   }
 
   async function createStorage() {
-    await runAction(setToast, t('admin.storageSaveFailed'), async () => {
+    if (!startStorageAction('create')) return;
+    try {
       const data = await api<{ storage: StorageSettings }>('/api/v1/admin/storage', {
         method: 'POST',
         body: JSON.stringify(storageSettingsPayload(storageCreateDraft)),
@@ -477,42 +623,68 @@ export function AdminPanel({
       setSelectedStorageKey(next.key);
       setStorageCreateDraft({ ...defaultStorageSettings, key: '', name: '' });
       setIsStorageCreateOpen(false);
+      setStorageResult({ variant: 'success', title: t('admin.storageSettings'), message: t('admin.storageSaved'), occurredAt: new Date().toISOString(), target: next.name || next.key });
       setToast({ tone: 'success', message: t('admin.storageSaved') });
-      await onStorageOptionsChanged();
-    });
+      await notifyStorageOptionsChanged(t('admin.storageSaved'));
+    } catch (error) {
+      const message = errorMessage(error, t('admin.storageSaveFailed'));
+      setStorageResult({ variant: 'error', title: t('admin.storageSettings'), message, occurredAt: new Date().toISOString(), target: storageCreateDraft.name || storageCreateDraft.key });
+      setToast({ tone: 'error', message });
+    } finally {
+      finishStorageAction();
+    }
   }
 
   async function testSavedStorage(storage: StorageSettings) {
-    await runAction(setToast, t('admin.storageTestFailed'), async () => {
+    if (!startStorageAction('test')) return;
+    try {
       await api(`/api/v1/admin/storage/${encodeURIComponent(storage.key)}/test`, { method: 'POST' });
+      setStorageResult({ variant: 'success', title: t('admin.testStorage'), message: t('admin.storageTested'), occurredAt: new Date().toISOString(), target: storage.name || storage.key });
       setToast({ tone: 'success', message: t('admin.storageTested') });
-    });
+    } catch (error) {
+      const message = errorMessage(error, t('admin.storageTestFailed'));
+      setStorageResult({ variant: 'error', title: t('admin.testStorage'), message, occurredAt: new Date().toISOString(), target: storage.name || storage.key });
+      setToast({ tone: 'error', message });
+    } finally {
+      finishStorageAction();
+    }
   }
 
   async function setDefaultStorage(storage: StorageSettings) {
-    await runAction(setToast, t('admin.storageSaveFailed'), async () => {
+    if (!startStorageAction('default')) return;
+    try {
       await api(`/api/v1/admin/storage/${encodeURIComponent(storage.key)}/default`, { method: 'POST' });
       setDefaultStorageKey(storage.key);
       setStorageRecords((current) => current.map((item) => ({ ...item, isDefault: item.key === storage.key })));
+      setStorageResult({ variant: 'success', title: t('admin.defaultStoragePicker'), message: t('admin.storageSaved'), occurredAt: new Date().toISOString(), target: storage.name || storage.key });
       setToast({ tone: 'success', message: t('admin.storageSaved') });
-      await onStorageOptionsChanged();
-    });
+      await notifyStorageOptionsChanged(t('admin.storageSaved'));
+    } catch (error) {
+      const message = errorMessage(error, t('admin.storageSaveFailed'));
+      setStorageResult({ variant: 'error', title: t('admin.defaultStoragePicker'), message, occurredAt: new Date().toISOString(), target: storage.name || storage.key });
+      setToast({ tone: 'error', message });
+    } finally {
+      finishStorageAction();
+    }
   }
 
-  async function deleteStorage(storage: StorageSettings) {
-    const confirmKey = `storage:${storage.key}`;
-    if (confirmDelete !== confirmKey) {
-      setConfirmDelete(confirmKey);
-      setToast({ tone: 'neutral', message: t('admin.confirmDeleteStorage', { name: storage.name || storage.key }) });
-      return;
-    }
-    await runAction(setToast, t('admin.storageDeleteFailed'), async () => {
-      await api(`/api/v1/admin/storage/${encodeURIComponent(storage.key)}`, { method: 'DELETE' });
-      setStorageRecords((current) => current.filter((item) => item.key !== storage.key));
-      setConfirmDelete(null);
+  async function confirmDeleteStorage() {
+    if (!storageToDelete || !startStorageAction('delete')) return;
+    const deletingStorage = storageToDelete;
+    try {
+      await api(`/api/v1/admin/storage/${encodeURIComponent(deletingStorage.key)}`, { method: 'DELETE' });
+      setStorageResult({ variant: 'success', title: t('admin.storageSettings'), message: t('admin.storageDeleted'), occurredAt: new Date().toISOString(), target: deletingStorage.name || deletingStorage.key });
       setToast({ tone: 'neutral', message: t('admin.storageDeleted') });
-      await onStorageOptionsChanged();
-    });
+      setStorageToDelete(null);
+      setStorageRecords((current) => current.filter((item) => item.key !== deletingStorage.key));
+      await notifyStorageOptionsChanged(t('admin.storageDeleted'));
+    } catch (error) {
+      const message = errorMessage(error, t('admin.storageDeleteFailed'));
+      setStorageResult({ variant: 'error', title: t('admin.storageSettings'), message, occurredAt: new Date().toISOString(), target: deletingStorage.name || deletingStorage.key });
+      setToast({ tone: 'error', message });
+    } finally {
+      finishStorageAction();
+    }
   }
 
   async function uploadSiteIcon() {
@@ -548,21 +720,6 @@ export function AdminPanel({
       setIsInviteCreateOpen(false);
       setToast({ tone: 'success', message: t('admin.inviteCreated') });
       await fetchInvitesPage(1, invitePagination.pageSize);
-    });
-  }
-
-  async function deleteRegistrationInvite(invite: RegistrationInvite) {
-    const confirmKey = `invite:${invite.id}`;
-    if (confirmDelete !== confirmKey) {
-      setConfirmDelete(confirmKey);
-      setToast({ tone: 'neutral', message: t('admin.confirmDeleteInvite', { code: invite.note || invite.codePrefix }) });
-      return;
-    }
-    await runAction(setToast, t('admin.inviteDeleteFailed'), async () => {
-      await api(`/api/v1/admin/registration-invites/${invite.id}`, { method: 'DELETE' });
-      setConfirmDelete(null);
-      setToast({ tone: 'neutral', message: t('admin.inviteDeleted') });
-      await fetchInvitesPage(invitePagination.page, invitePagination.pageSize);
     });
   }
 
@@ -618,23 +775,14 @@ export function AdminPanel({
     });
   }
 
-  async function deleteManagedUser(item: User) {
-    const confirmKey = `user:${item.id}`;
-    if (confirmDelete !== confirmKey) {
-      setConfirmDelete(confirmKey);
-      setToast({ tone: 'neutral', message: t('admin.confirmDeleteUser', { name: displayUserName(item) }) });
-      return;
-    }
-    await runAction(setToast, t('admin.userDeleteFailed'), async () => {
-      await api(`/api/v1/admin/users/${item.id}`, { method: 'DELETE' });
-      setConfirmDelete(null);
-      setToast({ tone: 'neutral', message: t('admin.userDeleted') });
-      await reload();
-    });
-  }
-
   function updateSetting(key: string, value: string) {
-    setSettings((current) => ({ ...current, [key]: value }));
+    const nextSettings = { ...settingsRef.current, [key]: value };
+    settingsRef.current = nextSettings;
+    settingsRevisionRef.current += 1;
+    setSettings(nextSettings);
+    if (!settingsSaveInFlightRef.current) {
+      setSettingsSaveStatus('dirty');
+    }
   }
 
   function recommendedMirrorsForSetting(key: string) {
@@ -850,7 +998,7 @@ export function AdminPanel({
         endContent: (
           <div className="row-actions">
             <XIconButton type="button" variant="ghost" label={t('admin.editCategoryNamed', { name: item.name })} icon={<Pencil size={16} />} onClick={() => openCategoryEditor(item)} />
-            <XIconButton type="button" variant="destructive" label={t('admin.deleteCategoryNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteCategory(item)} />
+            <XIconButton type="button" variant="destructive" label={t('admin.deleteCategoryNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => setDeleteTarget({ kind: 'category', item })} />
           </div>
         ),
         children: build(item.id),
@@ -891,21 +1039,6 @@ export function AdminPanel({
     });
   }
 
-  async function deleteCategory(item: Category) {
-    const confirmKey = `category:${item.id}`;
-    if (confirmDelete !== confirmKey) {
-      setConfirmDelete(confirmKey);
-      setToast({ tone: 'neutral', message: t('admin.confirmDeleteCategory', { name: item.name }) });
-      return;
-    }
-    await runAction(setToast, t('admin.categoryDeleteFailed'), async () => {
-      await api(`/api/v1/admin/categories/${item.id}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: t('admin.categoryDeleted') });
-      setConfirmDelete(null);
-      await refreshTaxonomyCatalog();
-    });
-  }
-
   async function createTag(event: FormEvent) {
     event.preventDefault();
     await runAction(setToast, t('admin.tagCreateFailed'), async () => {
@@ -928,21 +1061,6 @@ export function AdminPanel({
         delete next[item.id];
         return next;
       });
-      await refreshTaxonomyCatalog();
-    });
-  }
-
-  async function deleteTag(item: TagRecord) {
-    const confirmKey = `tag:${item.id}`;
-    if (confirmDelete !== confirmKey) {
-      setConfirmDelete(confirmKey);
-      setToast({ tone: 'neutral', message: t('admin.confirmDeleteTag', { name: item.name }) });
-      return;
-    }
-    await runAction(setToast, t('admin.tagDeleteFailed'), async () => {
-      await api(`/api/v1/admin/tags/${item.id}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: t('admin.tagDeleted') });
-      setConfirmDelete(null);
       await refreshTaxonomyCatalog();
     });
   }
@@ -988,21 +1106,6 @@ export function AdminPanel({
     });
   }
 
-  async function deleteCollection(item: Collection) {
-    const confirmKey = `collection:${item.id}`;
-    if (confirmDelete !== confirmKey) {
-      setConfirmDelete(confirmKey);
-      setToast({ tone: 'neutral', message: t('admin.confirmDeleteCollection', { name: item.name }) });
-      return;
-    }
-    await runAction(setToast, t('admin.collectionDeleteFailed'), async () => {
-      await api(`/api/v1/admin/collections/${item.id}`, { method: 'DELETE' });
-      setToast({ tone: 'neutral', message: t('admin.collectionDeleted') });
-      setConfirmDelete(null);
-      await reload();
-    });
-  }
-
   function statusBadgeVariant(value?: string): 'neutral' | 'success' | 'warning' | 'error' | 'info' {
     const key = statusKey(value);
     if (key === 'approved' || key === 'synced') return 'success';
@@ -1036,14 +1139,139 @@ export function AdminPanel({
     );
   }
 
+  async function confirmAdminDelete() {
+    if (!deleteTarget || isDeleting) return;
+    const target = deleteTarget;
+    setIsDeleting(true);
+    try {
+      switch (target.kind) {
+        case 'user':
+          await api(`/api/v1/admin/users/${target.item.id}`, { method: 'DELETE' });
+          break;
+        case 'category':
+          await api(`/api/v1/admin/categories/${target.item.id}`, { method: 'DELETE' });
+          break;
+        case 'tag':
+          await api(`/api/v1/admin/tags/${target.item.id}`, { method: 'DELETE' });
+          break;
+        case 'collection':
+          await api(`/api/v1/admin/collections/${target.item.id}`, { method: 'DELETE' });
+          break;
+        case 'invite':
+          await api(`/api/v1/admin/registration-invites/${target.item.id}`, { method: 'DELETE' });
+          break;
+      }
+      setDeleteTarget(null);
+      const successMessage = target.kind === 'user'
+        ? t('admin.userDeleted')
+        : target.kind === 'category'
+          ? t('admin.categoryDeleted')
+          : target.kind === 'tag'
+            ? t('admin.tagDeleted')
+            : target.kind === 'collection'
+              ? t('admin.collectionDeleted')
+              : t('admin.inviteDeleted');
+      setToast({ tone: 'neutral', message: successMessage });
+      try {
+        switch (target.kind) {
+          case 'user':
+            await fetchUsersPage(userPagination.page, userPagination.pageSize);
+            break;
+          case 'category': {
+            const data = await api<{ categories: Category[] }>('/api/v1/admin/categories');
+            setAdminCategories(data.categories || []);
+            await onCatalogMetadataChanged();
+            break;
+          }
+          case 'tag': {
+            const data = await api<{ tags: TagRecord[] }>('/api/v1/admin/tags');
+            setAdminTags(data.tags || []);
+            await onCatalogMetadataChanged();
+            break;
+          }
+          case 'collection': {
+            const data = await api<{ collections: Collection[] }>('/api/v1/admin/collections');
+            setAdminCollections(data.collections || []);
+            break;
+          }
+          case 'invite':
+            await fetchInvitesPage(invitePagination.page, invitePagination.pageSize);
+            break;
+        }
+      } catch (refreshError) {
+        setToast({ tone: 'neutral', message: `${successMessage} · ${errorMessage(refreshError, t('admin.loadFailed'))}` });
+      }
+    } catch (error) {
+      const fallback = target.kind === 'user'
+        ? t('admin.userDeleteFailed')
+        : target.kind === 'category'
+          ? t('admin.categoryDeleteFailed')
+          : target.kind === 'tag'
+            ? t('admin.tagDeleteFailed')
+            : target.kind === 'collection'
+              ? t('admin.collectionDeleteFailed')
+              : t('admin.inviteDeleteFailed');
+      setToast({ tone: 'error', message: errorMessage(error, fallback) });
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  function deleteDialogCopy(target: AdminDeleteTarget) {
+    switch (target.kind) {
+      case 'user': {
+        const name = displayUserName(target.item);
+        return { title: t('admin.deleteUserNamed', { name }), subject: name, consequence: t('admin.confirmDeleteUser', { name }) };
+      }
+      case 'category': {
+        const name = localizedName(target.item);
+        return { title: t('admin.deleteCategoryNamed', { name }), subject: name, consequence: t('admin.confirmDeleteCategory', { name }) };
+      }
+      case 'tag': {
+        const name = localizedName(target.item);
+        return { title: t('admin.deleteTagNamed', { name }), subject: name, consequence: t('admin.confirmDeleteTag', { name }) };
+      }
+      case 'collection':
+        return { title: t('admin.deleteCollectionNamed', { name: target.item.name }), subject: target.item.name, consequence: t('admin.confirmDeleteCollection', { name: target.item.name }) };
+      case 'invite': {
+        const code = target.item.code || target.item.codePrefix;
+        return { title: t('admin.deleteInvite'), subject: target.item.note || code, consequence: t('admin.confirmDeleteInvite', { code }) };
+      }
+    }
+  }
+
+  function activeTaskHeader(): AdminTaskHeaderProps {
+    switch (adminTab) {
+      case 'reviews':
+        return { icon: ShieldCheck, title: t('admin.reviewQueue'), body: reviewOpsBody, statusLabel: reviewSummary.total === 0 ? t('admin.opsReady') : t('admin.opsNeedsAction'), statusVariant: reviewSummary.total === 0 ? 'success' as const : 'warning' as const };
+      case 'site':
+        return { icon: Settings, title: t('admin.siteSettings'), body: t('admin.siteIdentityBody'), statusLabel: sourceProtected ? t('admin.opsReady') : t('admin.opsNeedsAction'), statusVariant: sourceProtected ? 'success' as const : 'warning' as const };
+      case 'users':
+        return { icon: Users, title: t('admin.userManagement'), body: t('admin.body'), statusLabel: String(userPagination.totalItems || users.length), statusVariant: 'neutral' as const };
+      case 'taxonomy':
+        return { icon: Tag, title: t('admin.categoriesAndTags'), body: t('admin.taxonomyHelp'), statusLabel: `${adminCategories.length + adminTags.length}`, statusVariant: adminCategories.length > 0 ? 'success' as const : 'warning' as const };
+      case 'collections':
+        return { icon: Layers3, title: t('admin.collectionList'), body: t('admin.collectionAppsHelp'), statusLabel: `${adminCollections.length}`, statusVariant: adminCollections.length > 0 ? 'success' as const : 'neutral' as const };
+      case 'storage':
+        return { icon: Server, title: t('admin.storageSettings'), body: t('admin.storageSettingsBody'), statusLabel: `${storageRecords.length}`, statusVariant: storageRecords.length > 0 ? 'success' as const : 'warning' as const };
+      case 'backup':
+        return { icon: CloudUpload, title: t('admin.backup.title'), body: t('admin.backup.body'), statusLabel: t('admin.siteSettingTabs.backup'), statusVariant: 'neutral' as const };
+      case 'migration':
+        return { icon: DatabaseBackup, title: t('admin.migration.title'), body: t('admin.migration.body'), statusLabel: t('admin.siteSettingTabs.migration'), statusVariant: 'warning' as const };
+    }
+  }
+
+  const taskHeader = activeTaskHeader();
+  const activeDeleteCopy = deleteTarget ? deleteDialogCopy(deleteTarget) : null;
+
   return (
-    <section className="page-grid">
+    <section className="page-grid admin-shell">
       <div className="page-heading">
         <span className="eyebrow subtle">{t('admin.eyebrow')}</span>
         <h1>{t('admin.title')}</h1>
         <p>{t('admin.body')}</p>
       </div>
-      <div className="horizontal-control-scroll">
+      <div className="horizontal-control-scroll admin-primary-tabs">
         <XTabList value={adminTab} onChange={(value) => setAdminTab(value as typeof adminTab)} hasDivider size="md">
           {adminTabs.map((item) => {
             const Icon = item.icon;
@@ -1051,6 +1279,7 @@ export function AdminPanel({
           })}
         </XTabList>
       </div>
+      <AdminTaskHeader {...taskHeader} />
       {adminTab === 'reviews' && (
       <>
       <section className="panel">
@@ -1201,15 +1430,7 @@ export function AdminPanel({
               </XTabList>
             </div>
 
-            {siteSettingsTab === 'migration' ? (
-              <div className="settings-tab-panel">
-                <AdminMigrationPanel api={api} setToast={setToast} />
-              </div>
-            ) : siteSettingsTab === 'backup' ? (
-              <div className="settings-tab-panel">
-                <AdminBackupPanel storages={storageRecords} setToast={setToast} />
-              </div>
-            ) : siteSettingsTab !== 'storage' && siteSettingsTab !== 'announcement' && siteSettingsTab !== 'ads' ? (
+            {siteSettingsTab !== 'announcement' && siteSettingsTab !== 'ads' ? (
               <form className="settings-tab-panel" onSubmit={saveSettings}>
                 {siteSettingsTab === 'identity' && (
                   <div className="settings-section">
@@ -1297,7 +1518,7 @@ export function AdminPanel({
                                     size="sm"
                                     label={t('admin.deleteInvite')}
                                     icon={<Trash2 size={16} />}
-                                    onClick={() => void deleteRegistrationInvite(invite)}
+                                    onClick={() => setDeleteTarget({ kind: 'invite', item: invite })}
                                   />
                                 </div>
                               )}
@@ -1386,9 +1607,13 @@ export function AdminPanel({
                   </div>
                 )}
 
-                <div className="settings-form-actions">
-                  <XButton type="submit" variant="primary" label={t('admin.saveSettings')} icon={<Settings size={18} />} />
-                </div>
+                <AdminSaveBar
+                  status={settingsSaveStatus}
+                  isDirty={settingsDirty}
+                  saveLabel={t('admin.saveSettings')}
+                  isDisabled={settingsSaveInFlightRef.current}
+                  onSave={() => void saveSettings()}
+                />
               </form>
             ) : siteSettingsTab === 'announcement' ? (
               <div className="settings-tab-panel">
@@ -1399,35 +1624,13 @@ export function AdminPanel({
                   setToast={setToast}
                 />
               </div>
-            ) : siteSettingsTab === 'ads' ? (
+            ) : (
               <div className="settings-tab-panel">
                 <AdminAdsPanel
                   ads={ads}
                   onReload={reload}
                   onSiteProfileSaved={onSiteProfileSaved}
                   setToast={setToast}
-                />
-              </div>
-            ) : (
-              <div className="settings-tab-panel">
-                <StorageSettingsPanel
-                  storages={storageRecords}
-                  defaultKey={defaultStorageKey}
-                  selectedKey={selectedStorageKey}
-                  draft={storageDraft}
-                  createDraft={storageCreateDraft}
-                  isCreateOpen={isStorageCreateOpen}
-                  onSelect={setSelectedStorageKey}
-                  onDraftChange={setStorageDraft}
-                  onCreateDraftChange={setStorageCreateDraft}
-                  onOpenCreate={() => setIsStorageCreateOpen(true)}
-                  onCloseCreate={() => setIsStorageCreateOpen(false)}
-                  onCreate={createStorage}
-                  onSave={saveStorageSettings}
-                  onTestDraft={testStorageSettings}
-                  onTestSaved={testSavedStorage}
-                  onSetDefault={setDefaultStorage}
-                  onDelete={deleteStorage}
                 />
               </div>
             )}
@@ -1461,6 +1664,59 @@ export function AdminPanel({
           </section>
         </section>
       )}
+      {isSiteAdmin && adminTab === 'storage' && (
+        <section className="workspace-pane admin-task-workspace">
+          <StorageSettingsPanel
+            storages={storageRecords}
+            defaultKey={defaultStorageKey}
+            selectedKey={selectedStorageKey}
+            draft={storageDraft}
+            createDraft={storageCreateDraft}
+            isCreateOpen={isStorageCreateOpen}
+            onSelect={setSelectedStorageKey}
+            onDraftChange={(nextDraft) => {
+              storageDraftRef.current = nextDraft;
+              storageRevisionRef.current += 1;
+              setStorageDraft(nextDraft);
+              setStorageSaveStatus('dirty');
+            }}
+            onCreateDraftChange={setStorageCreateDraft}
+            onOpenCreate={() => setIsStorageCreateOpen(true)}
+            onCloseCreate={() => setIsStorageCreateOpen(false)}
+            onCreate={createStorage}
+            onSave={saveStorageSettings}
+            onTestDraft={testStorageSettings}
+            onTestSaved={testSavedStorage}
+            onSetDefault={setDefaultStorage}
+            onDelete={setStorageToDelete}
+            isDirty={storageDirty}
+            saveStatus={storageSaveStatus}
+            activeAction={storageAction}
+            result={storageResult}
+          />
+        </section>
+      )}
+      {storageToDelete && (
+        <AdminDeleteDialog
+          title={t('admin.deleteStorageNamed', { name: storageToDelete.name || storageToDelete.key })}
+          subject={storageToDelete.name || storageToDelete.key}
+          consequence={t('admin.confirmDeleteStorage', { name: storageToDelete.name || storageToDelete.key })}
+          confirmLabel={t('common.delete')}
+          isDeleting={storageAction === 'delete'}
+          onCancel={() => setStorageToDelete(null)}
+          onConfirm={() => void confirmDeleteStorage()}
+        />
+      )}
+      {isSiteAdmin && adminTab === 'backup' && (
+        <section className="panel admin-task-workspace">
+          <AdminBackupPanel storages={storageRecords} setToast={setToast} />
+        </section>
+      )}
+      {isSiteAdmin && adminTab === 'migration' && (
+        <section className="panel admin-task-workspace">
+          <AdminMigrationPanel api={api} setToast={setToast} />
+        </section>
+      )}
       {isSiteAdmin && adminTab === 'users' && (
         <AdminUsersWorkspace
           users={users}
@@ -1476,7 +1732,8 @@ export function AdminPanel({
           openEditUserDialog={openEditUserDialog}
           saveManagedUser={saveManagedUser}
           toggleUserDisabled={toggleUserDisabled}
-          deleteManagedUser={deleteManagedUser}
+          deleteManagedUser={(item) => setDeleteTarget({ kind: 'user', item })}
+          isDeletingUserID={deleteTarget?.kind === 'user' && isDeleting ? deleteTarget.item.id : undefined}
           loadUsersPage={loadUsersPage}
           setToast={setToast}
         />
@@ -1604,7 +1861,7 @@ export function AdminPanel({
                     </div>
                     <div className="row-actions">
                       <XIconButton type="button" variant="ghost" label={t('admin.editTagNamed', { name: item.name })} icon={<Pencil size={16} />} onClick={() => openTagEditor(item)} />
-                      <XIconButton type="button" variant="destructive" label={t('admin.deleteTagNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteTag(item)} />
+                      <XIconButton type="button" variant="destructive" label={t('admin.deleteTagNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => setDeleteTarget({ kind: 'tag', item })} />
                     </div>
                   </div>
                 );
@@ -1693,7 +1950,7 @@ export function AdminPanel({
                   />
                   <div className="row-actions">
                     <XIconButton type="button" variant="ghost" label={t('admin.saveCollectionNamed', { name: item.name })} icon={<Save size={16} />} onClick={() => void updateCollection(item)} />
-                    <XIconButton type="button" variant="destructive" label={t('admin.deleteCollectionNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => void deleteCollection(item)} />
+                    <XIconButton type="button" variant="destructive" label={t('admin.deleteCollectionNamed', { name: item.name })} icon={<Trash2 size={16} />} onClick={() => setDeleteTarget({ kind: 'collection', item })} />
                   </div>
                 </div>
               );
@@ -1701,6 +1958,15 @@ export function AdminPanel({
           </div>
         </section>
       </section>
+      )}
+      {deleteTarget && activeDeleteCopy && (
+        <AdminDeleteDialog
+          {...activeDeleteCopy}
+          confirmLabel={t('common.delete')}
+          isDeleting={isDeleting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => void confirmAdminDelete()}
+        />
       )}
     </section>
   );

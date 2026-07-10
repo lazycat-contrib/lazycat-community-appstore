@@ -1,5 +1,5 @@
-import { Clock3, Download, Info, RefreshCw, Save, Settings, ShieldCheck, Sparkles } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Check, Clock3, Download, Info, RefreshCw, Save, ShieldCheck, Sparkles } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
@@ -10,12 +10,16 @@ import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { APP_VERSION } from '../../config';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { ClientSettings, ClientSourceStats, Toast } from '../../shared/types';
-import { errorMessage, formatDate } from '../../shared/utils';
+import { cx, errorMessage, formatDate } from '../../shared/utils';
+import { normalizeEditableClientSettings, sameEditableClientSettings } from './clientUxState';
 
 const syncIntervalOptions = [5, 15, 30, 60, 360, 720, 1440];
 const pageSizeOptions = [12, 24, 48, 96, 100];
 const installDismissOptions = [0, 3, 5, 10, 30];
 type ClientSettingsTab = 'sync' | 'identity' | 'install' | 'about';
+type SaveResult = 'idle' | 'saving' | 'saved' | 'error';
+type SaveState = 'clean' | 'dirty' | Exclude<SaveResult, 'idle'>;
+type PendingSave = { settings: ClientSettings; revision: number };
 
 export function ClientSettingsView({
   settings,
@@ -29,23 +33,45 @@ export function ClientSettingsView({
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
+  const [baseline, setBaseline] = useState<ClientSettings>(settings);
   const [draft, setDraft] = useState<ClientSettings>(settings);
   const [activeTab, setActiveTab] = useState<ClientSettingsTab>('sync');
-  const [saving, setSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState<SaveResult>('idle');
+  const [saveError, setSaveError] = useState('');
+  const editRevisionRef = useRef(0);
+  const saveInFlightRef = useRef(false);
+  const pendingSaveRef = useRef<PendingSave | null>(null);
+  const isDirty = !sameEditableClientSettings(draft, baseline);
+  const effectiveSaveState: SaveState = saveResult === 'saving' || saveResult === 'error' || saveResult === 'saved'
+    ? saveResult
+    : isDirty
+      ? 'dirty'
+      : 'clean';
+
+  function updateDraft(next: ClientSettings) {
+    editRevisionRef.current += 1;
+    setDraft(next);
+    setSaveError('');
+    setSaveResult((current) => current === 'saving' ? 'saving' : 'idle');
+  }
 
   useEffect(() => {
-    setDraft({
-      clientTitle: settings.clientTitle || '',
-      commentDisplayName: settings.commentDisplayName || '',
-      defaultPageSize: settings.defaultPageSize || 24,
-      autoSyncEnabled: Boolean(settings.autoSyncEnabled),
-      autoSyncIntervalMinutes: settings.autoSyncIntervalMinutes || 60,
-      syncOnStartup: Boolean(settings.syncOnStartup),
-      installSuccessDismissSeconds: Number(settings.installSuccessDismissSeconds ?? 3),
-      lastAutoSyncAt: settings.lastAutoSyncAt,
-      lastAutoSyncStatus: settings.lastAutoSyncStatus,
-      lastAutoSyncError: settings.lastAutoSyncError,
-    });
+    const next = { ...settings, ...normalizeEditableClientSettings(settings) };
+    const pending = pendingSaveRef.current;
+    if (pending) {
+      const hasNewerEdits = editRevisionRef.current !== pending.revision;
+      setBaseline(next);
+      if (!hasNewerEdits) setDraft(next);
+      setSaveError('');
+      if (!saveInFlightRef.current) setSaveResult(hasNewerEdits ? 'idle' : 'saved');
+      pendingSaveRef.current = null;
+      return;
+    }
+    if (saveInFlightRef.current) return;
+    setBaseline(next);
+    setDraft(next);
+    setSaveError('');
+    setSaveResult('idle');
   }, [
     settings.autoSyncEnabled,
     settings.autoSyncIntervalMinutes,
@@ -53,9 +79,6 @@ export function ClientSettingsView({
     settings.commentDisplayName,
     settings.defaultPageSize,
     settings.installSuccessDismissSeconds,
-    settings.lastAutoSyncAt,
-    settings.lastAutoSyncError,
-    settings.lastAutoSyncStatus,
     settings.syncOnStartup,
   ]);
 
@@ -79,40 +102,40 @@ export function ClientSettingsView({
 
   async function saveSettings(event?: Pick<FormEvent, 'preventDefault'>) {
     event?.preventDefault();
-    setSaving(true);
+    if (!isDirty || saveInFlightRef.current) return;
+    const payload = normalizeEditableClientSettings(draft);
+    const submitted = { ...draft, ...payload };
+    const submission: PendingSave = { settings: submitted, revision: editRevisionRef.current };
+    saveInFlightRef.current = true;
+    pendingSaveRef.current = submission;
+    setSaveResult('saving');
+    setSaveError('');
     try {
-      await onSave({
-        ...draft,
-        clientTitle: draft.clientTitle.trim(),
-        commentDisplayName: draft.commentDisplayName.trim(),
-        defaultPageSize: Number(draft.defaultPageSize) || 24,
-        autoSyncIntervalMinutes: Number(intervalValue) || 60,
-        installSuccessDismissSeconds: Number(draft.installSuccessDismissSeconds ?? 3),
-      });
+      await onSave(payload);
+      const hasNewerEdits = editRevisionRef.current !== submission.revision;
+      if (pendingSaveRef.current === submission) {
+        setBaseline(submitted);
+        if (!hasNewerEdits) setDraft(submitted);
+      }
+      setSaveResult(hasNewerEdits ? 'idle' : 'saved');
       setToast({ tone: 'success', message: t('clientSettings.saved') });
     } catch (error) {
-      setToast({ tone: 'error', message: errorMessage(error, t('clientSettings.saveFailed')) });
+      if (pendingSaveRef.current === submission) pendingSaveRef.current = null;
+      setSaveError(errorMessage(error, t('clientSettings.saveFailed')));
+      setSaveResult('error');
     } finally {
-      setSaving(false);
+      saveInFlightRef.current = false;
     }
   }
 
   return (
     <section className="page-grid client-settings-page">
-      <div className="page-heading with-action settings-hero">
+      <div className="page-heading settings-hero">
         <div>
           <span className="eyebrow subtle">{t('mode.standaloneClient')}</span>
           <h1>{t('clientSettings.title')}</h1>
           <p>{t('clientSettings.subtitle')}</p>
         </div>
-        <XButton
-          type="button"
-          variant="primary"
-          label={saving ? t('clientSettings.saving') : t('common.save')}
-          icon={saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
-          isDisabled={saving}
-          onClick={() => void saveSettings()}
-        />
       </div>
 
       <div className="settings-overview-grid" aria-label={t('clientSettings.overview')}>
@@ -169,7 +192,7 @@ export function ClientSettingsView({
             value={draft.autoSyncEnabled}
             labelSpacing="spread"
             width="100%"
-            onChange={(checked) => setDraft({ ...draft, autoSyncEnabled: checked })}
+            onChange={(checked) => updateDraft({ ...draft, autoSyncEnabled: checked })}
           />
 
           <XSelector
@@ -177,7 +200,7 @@ export function ClientSettingsView({
             description={t('clientSettings.intervalHelp')}
             value={intervalValue}
             options={syncIntervalOptions.map((value) => ({ value: String(value), label: t('clientSettings.intervalOption', { count: value }) }))}
-            onChange={(value) => setDraft({ ...draft, autoSyncIntervalMinutes: Number(value) || 60 })}
+            onChange={(value) => updateDraft({ ...draft, autoSyncIntervalMinutes: Number(value) || 60 })}
           />
 
           <XSwitch
@@ -186,7 +209,7 @@ export function ClientSettingsView({
             value={draft.syncOnStartup}
             labelSpacing="spread"
             width="100%"
-            onChange={(checked) => setDraft({ ...draft, syncOnStartup: checked })}
+            onChange={(checked) => updateDraft({ ...draft, syncOnStartup: checked })}
           />
         </section>
         )}
@@ -206,21 +229,21 @@ export function ClientSettingsView({
             description={t('clientSettings.clientTitleHelp', { name: t('appName') })}
             value={draft.clientTitle}
             placeholder={t('appName')}
-            onChange={(value) => setDraft({ ...draft, clientTitle: value })}
+            onChange={(value) => updateDraft({ ...draft, clientTitle: value })}
           />
           <XTextInput
             label={t('clientSettings.commentDisplayName')}
             description={t('clientSettings.commentDisplayNameHelp', { name: t('clientSettings.defaultCommentDisplayName') })}
             value={draft.commentDisplayName}
             placeholder={t('clientSettings.defaultCommentDisplayName')}
-            onChange={(value) => setDraft({ ...draft, commentDisplayName: value })}
+            onChange={(value) => updateDraft({ ...draft, commentDisplayName: value })}
           />
           <XSelector
             label={t('clientSettings.defaultPageSize')}
             description={t('clientSettings.defaultPageSizeHelp')}
             value={String(draft.defaultPageSize || 24)}
             options={pageSizeOptions.map((value) => ({ value: String(value), label: t('clientSettings.pageSizeOption', { count: value }) }))}
-            onChange={(value) => setDraft({ ...draft, defaultPageSize: Number(value) || 24 })}
+            onChange={(value) => updateDraft({ ...draft, defaultPageSize: Number(value) || 24 })}
           />
         </section>
         )}
@@ -243,7 +266,7 @@ export function ClientSettingsView({
               value: String(value),
               label: value === 0 ? t('clientSettings.installDismissNever') : t('clientSettings.installDismissSeconds', { count: value }),
             }))}
-            onChange={(value) => setDraft({ ...draft, installSuccessDismissSeconds: Number(value) })}
+            onChange={(value) => updateDraft({ ...draft, installSuccessDismissSeconds: Number(value) })}
           />
         </section>
         )}
@@ -275,13 +298,18 @@ export function ClientSettingsView({
         </section>
         )}
 
-        <div className="settings-form-actions">
+        <div className={cx('client-settings-save-bar', effectiveSaveState)} role="status" aria-live="polite">
+          <div>
+            {effectiveSaveState === 'error' ? <AlertCircle size={18} /> : effectiveSaveState === 'saved' ? <Check size={18} /> : <Save size={18} />}
+            <span>{t(`clientSettings.saveStates.${effectiveSaveState}`)}</span>
+          </div>
+          {saveError && <p role="alert">{saveError}</p>}
           <XButton
             type="submit"
             variant="primary"
-            label={saving ? t('clientSettings.saving') : t('clientSettings.saveSettings')}
-            icon={saving ? <RefreshCw size={18} className="spin" /> : <Settings size={18} />}
-            isDisabled={saving}
+            label={effectiveSaveState === 'saving' ? t('clientSettings.saving') : t('clientSettings.saveSettings')}
+            icon={effectiveSaveState === 'saving' ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
+            isDisabled={!isDirty || saveResult === 'saving'}
           />
         </div>
       </form>

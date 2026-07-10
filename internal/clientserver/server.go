@@ -2,10 +2,14 @@ package clientserver
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"io/fs"
 	"net/http"
 	"path"
 	"strings"
+	"sync"
+	"time"
 
 	"lazycat.community/appstore/clientembed"
 	"lazycat.community/appstore/ent"
@@ -14,14 +18,25 @@ import (
 type Server struct {
 	cfg           Config
 	db            *ent.Client
+	sqlDB         *sql.DB
 	pkg           PackageManager
 	mux           *http.ServeMux
 	syncScheduler *sourceSyncScheduler
 	auth          *clientAuth
+	httpClient    *http.Client
+	streamClient  *http.Client
+	httpClientsMu sync.Mutex
+	sourcePolicy  sourceURLPolicy
+	stopOnce      sync.Once
+	stopDone      chan struct{}
+	stopErr       error
+	closeOnce     sync.Once
+	closeDone     chan struct{}
+	closeErr      error
 }
 
 func New(cfg Config) (*Server, error) {
-	db, err := openDB(cfg)
+	db, sqlDB, err := openDB(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +49,20 @@ func New(cfg Config) (*Server, error) {
 		_ = db.Close()
 		return nil, err
 	}
-	s := &Server{cfg: cfg, db: db, pkg: NewLazyCatPackageManager(), mux: http.NewServeMux(), auth: auth}
+	httpClient, streamClient := newHTTPClients()
+	s := &Server{
+		cfg:          cfg,
+		db:           db,
+		sqlDB:        sqlDB,
+		pkg:          NewLazyCatPackageManager(),
+		mux:          http.NewServeMux(),
+		auth:         auth,
+		httpClient:   httpClient,
+		streamClient: streamClient,
+		sourcePolicy: allowSourceURLPolicy{},
+		stopDone:     make(chan struct{}),
+		closeDone:    make(chan struct{}),
+	}
 	s.routes()
 	syncScheduler, err := newSourceSyncScheduler(s)
 	if err != nil {
@@ -46,22 +74,100 @@ func New(cfg Config) (*Server, error) {
 }
 
 func newTestServer(db *ent.Client) *Server {
+	httpClient, streamClient := newHTTPClients()
 	s := &Server{
-		cfg:  Config{DefaultSourceName: "喵喵私有商店", SessionSecret: "test-client-session-secret"},
-		db:   db,
-		pkg:  unavailablePackageManager{},
-		mux:  http.NewServeMux(),
-		auth: &clientAuth{secret: []byte("test-client-session-secret")},
+		cfg:          Config{DefaultSourceName: "喵喵私有商店", SessionSecret: "test-client-session-secret"},
+		db:           db,
+		pkg:          unavailablePackageManager{},
+		mux:          http.NewServeMux(),
+		auth:         &clientAuth{secret: []byte("test-client-session-secret")},
+		httpClient:   httpClient,
+		streamClient: streamClient,
+		sourcePolicy: allowSourceURLPolicy{},
+		stopDone:     make(chan struct{}),
+		closeDone:    make(chan struct{}),
 	}
 	s.routes()
 	return s
 }
 
-func (s *Server) Close() error {
-	if s.syncScheduler != nil {
-		_ = s.syncScheduler.Close()
+func (s *Server) ensureHTTPClients() {
+	s.httpClientsMu.Lock()
+	defer s.httpClientsMu.Unlock()
+	if s.httpClient != nil && s.streamClient != nil {
+		return
 	}
-	return s.db.Close()
+	ordinary, stream := newHTTPClients()
+	if s.httpClient == nil {
+		s.httpClient = ordinary
+	}
+	if s.streamClient == nil {
+		s.streamClient = stream
+	}
+}
+
+func (s *Server) Close() error {
+	timeout := s.cfg.ShutdownTimeout
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return s.CloseContext(ctx)
+}
+
+func (s *Server) CloseContext(ctx context.Context) error {
+	s.startClose()
+	select {
+	case <-s.closeDone:
+		return s.closeErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *Server) Stop(ctx context.Context) error {
+	s.startStop()
+	select {
+	case <-s.stopDone:
+		return s.stopErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *Server) startStop() {
+	s.stopOnce.Do(func() {
+		if s.stopDone == nil {
+			s.stopDone = make(chan struct{})
+		}
+		if s.syncScheduler != nil {
+			s.syncScheduler.Stop()
+		}
+		go func() {
+			if s.syncScheduler != nil {
+				s.stopErr = s.syncScheduler.CloseContext(context.Background())
+			}
+			close(s.stopDone)
+		}()
+	})
+}
+
+func (s *Server) startClose() {
+	s.closeOnce.Do(func() {
+		if s.closeDone == nil {
+			s.closeDone = make(chan struct{})
+		}
+		go func() {
+			stopErr := s.Stop(context.Background())
+			var dbErr error
+			if s.db != nil {
+				dbErr = s.db.Close()
+			}
+			s.closeErr = errors.Join(stopErr, dbErr)
+			close(s.closeDone)
+		}()
+	})
 }
 
 func (s *Server) Handler() http.Handler {

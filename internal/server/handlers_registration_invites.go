@@ -2,7 +2,7 @@ package server
 
 import (
 	"crypto/rand"
-	"encoding/base64"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,7 +13,12 @@ import (
 	"lazycat.community/appstore/internal/pagination"
 )
 
-const maxInviteUses = 10000
+const (
+	maxInviteUses       = 10000
+	inviteCodeLength    = 8
+	inviteCodeAlphabet  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	inviteCreateRetries = 5
+)
 
 type registrationInviteDTO struct {
 	ID            int       `json:"id"`
@@ -74,25 +79,33 @@ func (s *Server) handleCreateRegistrationInvite(w http.ResponseWriter, r *http.R
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Invite uses must be between 1 and 10000", nil)
 		return
 	}
-	code, err := randomInviteCode()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "INVITE_CREATE_FAILED", "Could not create registration invite", nil)
-		return
+	var code string
+	var record *entgo.RegistrationInvite
+	var err error
+	for range inviteCreateRetries {
+		code, err = randomInviteCode()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "INVITE_CREATE_FAILED", "Could not create registration invite", nil)
+			return
+		}
+		record, err = s.db.RegistrationInvite.Create().
+			SetCode(code).
+			SetCodeHash(tokenHash(code)).
+			SetCodePrefix(tokenPrefix(code)).
+			SetNote(input.Note).
+			SetMaxUses(input.MaxUses).
+			SetRemainingUses(input.MaxUses).
+			SetCreatedBy(u.ID).
+			Save(r.Context())
+		if err == nil {
+			writeJSON(w, http.StatusCreated, map[string]any{"invite": toRegistrationInviteDTO(record), "code": code})
+			return
+		}
+		if !entgo.IsConstraintError(err) {
+			break
+		}
 	}
-	record, err := s.db.RegistrationInvite.Create().
-		SetCode(code).
-		SetCodeHash(tokenHash(code)).
-		SetCodePrefix(tokenPrefix(code)).
-		SetNote(input.Note).
-		SetMaxUses(input.MaxUses).
-		SetRemainingUses(input.MaxUses).
-		SetCreatedBy(u.ID).
-		Save(r.Context())
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "INVITE_CREATE_FAILED", "Could not create registration invite", nil)
-		return
-	}
-	writeJSON(w, http.StatusCreated, map[string]any{"invite": toRegistrationInviteDTO(record), "code": code})
+	writeError(w, http.StatusInternalServerError, "INVITE_CREATE_FAILED", "Could not create registration invite", nil)
 }
 
 func (s *Server) handleDeleteRegistrationInvite(w http.ResponseWriter, r *http.Request, u *entgo.User) {
@@ -123,9 +136,14 @@ func toRegistrationInviteDTO(record *entgo.RegistrationInvite) registrationInvit
 }
 
 func randomInviteCode() (string, error) {
-	var buf [24]byte
-	if _, err := rand.Read(buf[:]); err != nil {
-		return "", err
+	var code [inviteCodeLength]byte
+	max := big.NewInt(int64(len(inviteCodeAlphabet)))
+	for i := range code {
+		n, err := rand.Int(rand.Reader, max)
+		if err != nil {
+			return "", err
+		}
+		code[i] = inviteCodeAlphabet[n.Int64()]
 	}
-	return "lciv_" + base64.RawURLEncoding.EncodeToString(buf[:]), nil
+	return string(code[:]), nil
 }

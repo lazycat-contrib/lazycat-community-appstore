@@ -15,10 +15,12 @@ import (
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/appdownload"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/appvote"
 	"lazycat.community/appstore/ent/asset"
 	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
@@ -66,10 +68,12 @@ const (
 	TypeAd                   = "Ad"
 	TypeAnnouncement         = "Announcement"
 	TypeApp                  = "App"
+	TypeAppDownload          = "AppDownload"
 	TypeAppScreenshot        = "AppScreenshot"
 	TypeAppTag               = "AppTag"
 	TypeAppVersion           = "AppVersion"
 	TypeAppVisibility        = "AppVisibility"
+	TypeAppVote              = "AppVote"
 	TypeAsset                = "Asset"
 	TypeAssetLink            = "AssetLink"
 	TypeCategory             = "Category"
@@ -2669,6 +2673,8 @@ type AppMutation struct {
 	install_password_hash       *string
 	download_count              *int
 	adddownload_count           *int
+	version_retention_count     *int
+	addversion_retention_count  *int
 	created_at                  *time.Time
 	updated_at                  *time.Time
 	clearedFields               map[string]struct{}
@@ -3474,6 +3480,76 @@ func (m *AppMutation) ResetDownloadCount() {
 	m.adddownload_count = nil
 }
 
+// SetVersionRetentionCount sets the "version_retention_count" field.
+func (m *AppMutation) SetVersionRetentionCount(i int) {
+	m.version_retention_count = &i
+	m.addversion_retention_count = nil
+}
+
+// VersionRetentionCount returns the value of the "version_retention_count" field in the mutation.
+func (m *AppMutation) VersionRetentionCount() (r int, exists bool) {
+	v := m.version_retention_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersionRetentionCount returns the old "version_retention_count" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldVersionRetentionCount(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersionRetentionCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersionRetentionCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersionRetentionCount: %w", err)
+	}
+	return oldValue.VersionRetentionCount, nil
+}
+
+// AddVersionRetentionCount adds i to the "version_retention_count" field.
+func (m *AppMutation) AddVersionRetentionCount(i int) {
+	if m.addversion_retention_count != nil {
+		*m.addversion_retention_count += i
+	} else {
+		m.addversion_retention_count = &i
+	}
+}
+
+// AddedVersionRetentionCount returns the value that was added to the "version_retention_count" field in this mutation.
+func (m *AppMutation) AddedVersionRetentionCount() (r int, exists bool) {
+	v := m.addversion_retention_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearVersionRetentionCount clears the value of the "version_retention_count" field.
+func (m *AppMutation) ClearVersionRetentionCount() {
+	m.version_retention_count = nil
+	m.addversion_retention_count = nil
+	m.clearedFields[app.FieldVersionRetentionCount] = struct{}{}
+}
+
+// VersionRetentionCountCleared returns if the "version_retention_count" field was cleared in this mutation.
+func (m *AppMutation) VersionRetentionCountCleared() bool {
+	_, ok := m.clearedFields[app.FieldVersionRetentionCount]
+	return ok
+}
+
+// ResetVersionRetentionCount resets all changes to the "version_retention_count" field.
+func (m *AppMutation) ResetVersionRetentionCount() {
+	m.version_retention_count = nil
+	m.addversion_retention_count = nil
+	delete(m.clearedFields, app.FieldVersionRetentionCount)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *AppMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -3580,7 +3656,7 @@ func (m *AppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AppMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 20)
 	if m.owner_id != nil {
 		fields = append(fields, app.FieldOwnerID)
 	}
@@ -3632,6 +3708,9 @@ func (m *AppMutation) Fields() []string {
 	if m.download_count != nil {
 		fields = append(fields, app.FieldDownloadCount)
 	}
+	if m.version_retention_count != nil {
+		fields = append(fields, app.FieldVersionRetentionCount)
+	}
 	if m.created_at != nil {
 		fields = append(fields, app.FieldCreatedAt)
 	}
@@ -3680,6 +3759,8 @@ func (m *AppMutation) Field(name string) (ent.Value, bool) {
 		return m.InstallPasswordHash()
 	case app.FieldDownloadCount:
 		return m.DownloadCount()
+	case app.FieldVersionRetentionCount:
+		return m.VersionRetentionCount()
 	case app.FieldCreatedAt:
 		return m.CreatedAt()
 	case app.FieldUpdatedAt:
@@ -3727,6 +3808,8 @@ func (m *AppMutation) OldField(ctx context.Context, name string) (ent.Value, err
 		return m.OldInstallPasswordHash(ctx)
 	case app.FieldDownloadCount:
 		return m.OldDownloadCount(ctx)
+	case app.FieldVersionRetentionCount:
+		return m.OldVersionRetentionCount(ctx)
 	case app.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case app.FieldUpdatedAt:
@@ -3859,6 +3942,13 @@ func (m *AppMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetDownloadCount(v)
 		return nil
+	case app.FieldVersionRetentionCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersionRetentionCount(v)
+		return nil
 	case app.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -3890,6 +3980,9 @@ func (m *AppMutation) AddedFields() []string {
 	if m.adddownload_count != nil {
 		fields = append(fields, app.FieldDownloadCount)
 	}
+	if m.addversion_retention_count != nil {
+		fields = append(fields, app.FieldVersionRetentionCount)
+	}
 	return fields
 }
 
@@ -3904,6 +3997,8 @@ func (m *AppMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCategoryID()
 	case app.FieldDownloadCount:
 		return m.AddedDownloadCount()
+	case app.FieldVersionRetentionCount:
+		return m.AddedVersionRetentionCount()
 	}
 	return nil, false
 }
@@ -3934,6 +4029,13 @@ func (m *AppMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddDownloadCount(v)
 		return nil
+	case app.FieldVersionRetentionCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersionRetentionCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown App numeric field %s", name)
 }
@@ -3947,6 +4049,9 @@ func (m *AppMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(app.FieldIconURL) {
 		fields = append(fields, app.FieldIconURL)
+	}
+	if m.FieldCleared(app.FieldVersionRetentionCount) {
+		fields = append(fields, app.FieldVersionRetentionCount)
 	}
 	return fields
 }
@@ -3967,6 +4072,9 @@ func (m *AppMutation) ClearField(name string) error {
 		return nil
 	case app.FieldIconURL:
 		m.ClearIconURL()
+		return nil
+	case app.FieldVersionRetentionCount:
+		m.ClearVersionRetentionCount()
 		return nil
 	}
 	return fmt.Errorf("unknown App nullable field %s", name)
@@ -4027,6 +4135,9 @@ func (m *AppMutation) ResetField(name string) error {
 	case app.FieldDownloadCount:
 		m.ResetDownloadCount()
 		return nil
+	case app.FieldVersionRetentionCount:
+		m.ResetVersionRetentionCount()
+		return nil
 	case app.FieldCreatedAt:
 		m.ResetCreatedAt()
 		return nil
@@ -4083,6 +4194,476 @@ func (m *AppMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *AppMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown App edge %s", name)
+}
+
+// AppDownloadMutation represents an operation that mutates the AppDownload nodes in the graph.
+type AppDownloadMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	app_id        *int
+	addapp_id     *int
+	version       *string
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*AppDownload, error)
+	predicates    []predicate.AppDownload
+}
+
+var _ ent.Mutation = (*AppDownloadMutation)(nil)
+
+// appdownloadOption allows management of the mutation configuration using functional options.
+type appdownloadOption func(*AppDownloadMutation)
+
+// newAppDownloadMutation creates new mutation for the AppDownload entity.
+func newAppDownloadMutation(c config, op Op, opts ...appdownloadOption) *AppDownloadMutation {
+	m := &AppDownloadMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAppDownload,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAppDownloadID sets the ID field of the mutation.
+func withAppDownloadID(id int) appdownloadOption {
+	return func(m *AppDownloadMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *AppDownload
+		)
+		m.oldValue = func(ctx context.Context) (*AppDownload, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().AppDownload.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAppDownload sets the old AppDownload of the mutation.
+func withAppDownload(node *AppDownload) appdownloadOption {
+	return func(m *AppDownloadMutation) {
+		m.oldValue = func(context.Context) (*AppDownload, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AppDownloadMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AppDownloadMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AppDownloadMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AppDownloadMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().AppDownload.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAppID sets the "app_id" field.
+func (m *AppDownloadMutation) SetAppID(i int) {
+	m.app_id = &i
+	m.addapp_id = nil
+}
+
+// AppID returns the value of the "app_id" field in the mutation.
+func (m *AppDownloadMutation) AppID() (r int, exists bool) {
+	v := m.app_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppID returns the old "app_id" field's value of the AppDownload entity.
+// If the AppDownload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppDownloadMutation) OldAppID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppID: %w", err)
+	}
+	return oldValue.AppID, nil
+}
+
+// AddAppID adds i to the "app_id" field.
+func (m *AppDownloadMutation) AddAppID(i int) {
+	if m.addapp_id != nil {
+		*m.addapp_id += i
+	} else {
+		m.addapp_id = &i
+	}
+}
+
+// AddedAppID returns the value that was added to the "app_id" field in this mutation.
+func (m *AppDownloadMutation) AddedAppID() (r int, exists bool) {
+	v := m.addapp_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAppID resets all changes to the "app_id" field.
+func (m *AppDownloadMutation) ResetAppID() {
+	m.app_id = nil
+	m.addapp_id = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *AppDownloadMutation) SetVersion(s string) {
+	m.version = &s
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *AppDownloadMutation) Version() (r string, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the AppDownload entity.
+// If the AppDownload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppDownloadMutation) OldVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *AppDownloadMutation) ResetVersion() {
+	m.version = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *AppDownloadMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *AppDownloadMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the AppDownload entity.
+// If the AppDownload object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppDownloadMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *AppDownloadMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the AppDownloadMutation builder.
+func (m *AppDownloadMutation) Where(ps ...predicate.AppDownload) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AppDownloadMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AppDownloadMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.AppDownload, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AppDownloadMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AppDownloadMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (AppDownload).
+func (m *AppDownloadMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AppDownloadMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.app_id != nil {
+		fields = append(fields, appdownload.FieldAppID)
+	}
+	if m.version != nil {
+		fields = append(fields, appdownload.FieldVersion)
+	}
+	if m.created_at != nil {
+		fields = append(fields, appdownload.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AppDownloadMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case appdownload.FieldAppID:
+		return m.AppID()
+	case appdownload.FieldVersion:
+		return m.Version()
+	case appdownload.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AppDownloadMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case appdownload.FieldAppID:
+		return m.OldAppID(ctx)
+	case appdownload.FieldVersion:
+		return m.OldVersion(ctx)
+	case appdownload.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown AppDownload field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AppDownloadMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case appdownload.FieldAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppID(v)
+		return nil
+	case appdownload.FieldVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case appdownload.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AppDownload field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AppDownloadMutation) AddedFields() []string {
+	var fields []string
+	if m.addapp_id != nil {
+		fields = append(fields, appdownload.FieldAppID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AppDownloadMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case appdownload.FieldAppID:
+		return m.AddedAppID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AppDownloadMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case appdownload.FieldAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAppID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AppDownload numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AppDownloadMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AppDownloadMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AppDownloadMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown AppDownload nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AppDownloadMutation) ResetField(name string) error {
+	switch name {
+	case appdownload.FieldAppID:
+		m.ResetAppID()
+		return nil
+	case appdownload.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case appdownload.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown AppDownload field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AppDownloadMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AppDownloadMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AppDownloadMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AppDownloadMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AppDownloadMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AppDownloadMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AppDownloadMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown AppDownload unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AppDownloadMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown AppDownload edge %s", name)
 }
 
 // AppScreenshotMutation represents an operation that mutates the AppScreenshot nodes in the graph.
@@ -7101,6 +7682,650 @@ func (m *AppVisibilityMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *AppVisibilityMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown AppVisibility edge %s", name)
+}
+
+// AppVoteMutation represents an operation that mutates the AppVote nodes in the graph.
+type AppVoteMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	app_id        *int
+	addapp_id     *int
+	user_id       *int
+	adduser_id    *int
+	value         *int
+	addvalue      *int
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*AppVote, error)
+	predicates    []predicate.AppVote
+}
+
+var _ ent.Mutation = (*AppVoteMutation)(nil)
+
+// appvoteOption allows management of the mutation configuration using functional options.
+type appvoteOption func(*AppVoteMutation)
+
+// newAppVoteMutation creates new mutation for the AppVote entity.
+func newAppVoteMutation(c config, op Op, opts ...appvoteOption) *AppVoteMutation {
+	m := &AppVoteMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAppVote,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAppVoteID sets the ID field of the mutation.
+func withAppVoteID(id int) appvoteOption {
+	return func(m *AppVoteMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *AppVote
+		)
+		m.oldValue = func(ctx context.Context) (*AppVote, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().AppVote.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAppVote sets the old AppVote of the mutation.
+func withAppVote(node *AppVote) appvoteOption {
+	return func(m *AppVoteMutation) {
+		m.oldValue = func(context.Context) (*AppVote, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AppVoteMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AppVoteMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AppVoteMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AppVoteMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().AppVote.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAppID sets the "app_id" field.
+func (m *AppVoteMutation) SetAppID(i int) {
+	m.app_id = &i
+	m.addapp_id = nil
+}
+
+// AppID returns the value of the "app_id" field in the mutation.
+func (m *AppVoteMutation) AppID() (r int, exists bool) {
+	v := m.app_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppID returns the old "app_id" field's value of the AppVote entity.
+// If the AppVote object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppVoteMutation) OldAppID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppID: %w", err)
+	}
+	return oldValue.AppID, nil
+}
+
+// AddAppID adds i to the "app_id" field.
+func (m *AppVoteMutation) AddAppID(i int) {
+	if m.addapp_id != nil {
+		*m.addapp_id += i
+	} else {
+		m.addapp_id = &i
+	}
+}
+
+// AddedAppID returns the value that was added to the "app_id" field in this mutation.
+func (m *AppVoteMutation) AddedAppID() (r int, exists bool) {
+	v := m.addapp_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAppID resets all changes to the "app_id" field.
+func (m *AppVoteMutation) ResetAppID() {
+	m.app_id = nil
+	m.addapp_id = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *AppVoteMutation) SetUserID(i int) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *AppVoteMutation) UserID() (r int, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the AppVote entity.
+// If the AppVote object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppVoteMutation) OldUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *AppVoteMutation) AddUserID(i int) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *AppVoteMutation) AddedUserID() (r int, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *AppVoteMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetValue sets the "value" field.
+func (m *AppVoteMutation) SetValue(i int) {
+	m.value = &i
+	m.addvalue = nil
+}
+
+// Value returns the value of the "value" field in the mutation.
+func (m *AppVoteMutation) Value() (r int, exists bool) {
+	v := m.value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValue returns the old "value" field's value of the AppVote entity.
+// If the AppVote object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppVoteMutation) OldValue(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValue: %w", err)
+	}
+	return oldValue.Value, nil
+}
+
+// AddValue adds i to the "value" field.
+func (m *AppVoteMutation) AddValue(i int) {
+	if m.addvalue != nil {
+		*m.addvalue += i
+	} else {
+		m.addvalue = &i
+	}
+}
+
+// AddedValue returns the value that was added to the "value" field in this mutation.
+func (m *AppVoteMutation) AddedValue() (r int, exists bool) {
+	v := m.addvalue
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetValue resets all changes to the "value" field.
+func (m *AppVoteMutation) ResetValue() {
+	m.value = nil
+	m.addvalue = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *AppVoteMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *AppVoteMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the AppVote entity.
+// If the AppVote object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppVoteMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *AppVoteMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *AppVoteMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *AppVoteMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the AppVote entity.
+// If the AppVote object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppVoteMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *AppVoteMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the AppVoteMutation builder.
+func (m *AppVoteMutation) Where(ps ...predicate.AppVote) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AppVoteMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AppVoteMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.AppVote, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AppVoteMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AppVoteMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (AppVote).
+func (m *AppVoteMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AppVoteMutation) Fields() []string {
+	fields := make([]string, 0, 5)
+	if m.app_id != nil {
+		fields = append(fields, appvote.FieldAppID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, appvote.FieldUserID)
+	}
+	if m.value != nil {
+		fields = append(fields, appvote.FieldValue)
+	}
+	if m.created_at != nil {
+		fields = append(fields, appvote.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, appvote.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AppVoteMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case appvote.FieldAppID:
+		return m.AppID()
+	case appvote.FieldUserID:
+		return m.UserID()
+	case appvote.FieldValue:
+		return m.Value()
+	case appvote.FieldCreatedAt:
+		return m.CreatedAt()
+	case appvote.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AppVoteMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case appvote.FieldAppID:
+		return m.OldAppID(ctx)
+	case appvote.FieldUserID:
+		return m.OldUserID(ctx)
+	case appvote.FieldValue:
+		return m.OldValue(ctx)
+	case appvote.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case appvote.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown AppVote field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AppVoteMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case appvote.FieldAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppID(v)
+		return nil
+	case appvote.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case appvote.FieldValue:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValue(v)
+		return nil
+	case appvote.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case appvote.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AppVote field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AppVoteMutation) AddedFields() []string {
+	var fields []string
+	if m.addapp_id != nil {
+		fields = append(fields, appvote.FieldAppID)
+	}
+	if m.adduser_id != nil {
+		fields = append(fields, appvote.FieldUserID)
+	}
+	if m.addvalue != nil {
+		fields = append(fields, appvote.FieldValue)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AppVoteMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case appvote.FieldAppID:
+		return m.AddedAppID()
+	case appvote.FieldUserID:
+		return m.AddedUserID()
+	case appvote.FieldValue:
+		return m.AddedValue()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AppVoteMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case appvote.FieldAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAppID(v)
+		return nil
+	case appvote.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case appvote.FieldValue:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddValue(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AppVote numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AppVoteMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AppVoteMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AppVoteMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown AppVote nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AppVoteMutation) ResetField(name string) error {
+	switch name {
+	case appvote.FieldAppID:
+		m.ResetAppID()
+		return nil
+	case appvote.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case appvote.FieldValue:
+		m.ResetValue()
+		return nil
+	case appvote.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case appvote.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown AppVote field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AppVoteMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AppVoteMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AppVoteMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AppVoteMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AppVoteMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AppVoteMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AppVoteMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown AppVote unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AppVoteMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown AppVote edge %s", name)
 }
 
 // AssetMutation represents an operation that mutates the Asset nodes in the graph.

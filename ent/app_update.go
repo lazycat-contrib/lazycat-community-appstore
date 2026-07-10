@@ -299,6 +299,33 @@ func (_u *AppUpdate) AddDownloadCount(v int) *AppUpdate {
 	return _u
 }
 
+// SetVersionRetentionCount sets the "version_retention_count" field.
+func (_u *AppUpdate) SetVersionRetentionCount(v int) *AppUpdate {
+	_u.mutation.ResetVersionRetentionCount()
+	_u.mutation.SetVersionRetentionCount(v)
+	return _u
+}
+
+// SetNillableVersionRetentionCount sets the "version_retention_count" field if the given value is not nil.
+func (_u *AppUpdate) SetNillableVersionRetentionCount(v *int) *AppUpdate {
+	if v != nil {
+		_u.SetVersionRetentionCount(*v)
+	}
+	return _u
+}
+
+// AddVersionRetentionCount adds value to the "version_retention_count" field.
+func (_u *AppUpdate) AddVersionRetentionCount(v int) *AppUpdate {
+	_u.mutation.AddVersionRetentionCount(v)
+	return _u
+}
+
+// ClearVersionRetentionCount clears the value of the "version_retention_count" field.
+func (_u *AppUpdate) ClearVersionRetentionCount() *AppUpdate {
+	_u.mutation.ClearVersionRetentionCount()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *AppUpdate) SetCreatedAt(v time.Time) *AppUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -462,6 +489,15 @@ func (_u *AppUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedDownloadCount(); ok {
 		_spec.AddField(app.FieldDownloadCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.VersionRetentionCount(); ok {
+		_spec.SetField(app.FieldVersionRetentionCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersionRetentionCount(); ok {
+		_spec.AddField(app.FieldVersionRetentionCount, field.TypeInt, value)
+	}
+	if _u.mutation.VersionRetentionCountCleared() {
+		_spec.ClearField(app.FieldVersionRetentionCount, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(app.FieldCreatedAt, field.TypeTime, value)
@@ -760,6 +796,33 @@ func (_u *AppUpdateOne) AddDownloadCount(v int) *AppUpdateOne {
 	return _u
 }
 
+// SetVersionRetentionCount sets the "version_retention_count" field.
+func (_u *AppUpdateOne) SetVersionRetentionCount(v int) *AppUpdateOne {
+	_u.mutation.ResetVersionRetentionCount()
+	_u.mutation.SetVersionRetentionCount(v)
+	return _u
+}
+
+// SetNillableVersionRetentionCount sets the "version_retention_count" field if the given value is not nil.
+func (_u *AppUpdateOne) SetNillableVersionRetentionCount(v *int) *AppUpdateOne {
+	if v != nil {
+		_u.SetVersionRetentionCount(*v)
+	}
+	return _u
+}
+
+// AddVersionRetentionCount adds value to the "version_retention_count" field.
+func (_u *AppUpdateOne) AddVersionRetentionCount(v int) *AppUpdateOne {
+	_u.mutation.AddVersionRetentionCount(v)
+	return _u
+}
+
+// ClearVersionRetentionCount clears the value of the "version_retention_count" field.
+func (_u *AppUpdateOne) ClearVersionRetentionCount() *AppUpdateOne {
+	_u.mutation.ClearVersionRetentionCount()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *AppUpdateOne) SetCreatedAt(v time.Time) *AppUpdateOne {
 	_u.mutation.SetCreatedAt(v)
@@ -953,6 +1016,15 @@ func (_u *AppUpdateOne) sqlSave(ctx context.Context) (_node *App, err error) {
 	}
 	if value, ok := _u.mutation.AddedDownloadCount(); ok {
 		_spec.AddField(app.FieldDownloadCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.VersionRetentionCount(); ok {
+		_spec.SetField(app.FieldVersionRetentionCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVersionRetentionCount(); ok {
+		_spec.AddField(app.FieldVersionRetentionCount, field.TypeInt, value)
+	}
+	if _u.mutation.VersionRetentionCountCleared() {
+		_spec.ClearField(app.FieldVersionRetentionCount, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(app.FieldCreatedAt, field.TypeTime, value)

@@ -1,5 +1,277 @@
 /* Standalone-client-specific styles live here as pages are split out of App.tsx. */
 
+.client-summary-grid.client-discovery-summary {
+  grid-template-columns: repeat(3, minmax(0, 180px));
+}
+
+.source-app-card.client-source-app-card {
+  min-height: 220px;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+
+.client-app-facts {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.client-app-facts span {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.client-source-onboarding {
+  min-height: min(620px, calc(100dvh - 180px));
+  display: grid;
+  place-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: 18px;
+  padding: clamp(24px, 7vw, 72px);
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.client-source-onboarding > div {
+  max-width: 620px;
+}
+
+.client-source-onboarding h1,
+.client-source-onboarding p {
+  margin: 0;
+}
+
+.client-source-onboarding p {
+  margin-top: 10px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.client-source-onboarding-icon,
+.client-source-row-icon {
+  display: grid;
+  place-items: center;
+  color: var(--green-strong);
+  background: var(--mint);
+  border: 1px solid color-mix(in srgb, var(--green) 30%, var(--line));
+  border-radius: 8px;
+}
+
+.client-source-onboarding-icon {
+  width: 54px;
+  height: 54px;
+}
+
+.client-source-list {
+  display: grid;
+  gap: 10px;
+}
+
+.client-source-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 18px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.client-source-row.has-error {
+  border-color: var(--status-danger-line);
+}
+
+.client-source-row-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.client-source-row-icon {
+  width: 38px;
+  height: 38px;
+}
+
+.client-source-row-title,
+.client-source-facts,
+.client-source-row-actions,
+.client-source-error {
+  display: flex;
+  align-items: center;
+}
+
+.client-source-row-title {
+  min-width: 0;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.client-source-row-title strong,
+.client-source-url {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-source-url,
+.client-source-facts {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.client-source-facts {
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  margin-top: 6px;
+}
+
+.client-source-facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.client-source-row-actions {
+  gap: 6px;
+}
+
+.client-source-error {
+  grid-column: 1 / -1;
+  gap: 8px;
+  padding: 10px;
+  color: var(--status-danger-ink);
+  background: var(--status-danger-bg);
+  border: 1px solid var(--status-danger-line);
+  border-radius: 8px;
+}
+
+.client-source-error span {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.client-sync-result {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  color: var(--status-success-ink);
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-line);
+  border-radius: 8px;
+}
+
+.client-sync-result.partial {
+  color: var(--status-warning-ink);
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-line);
+}
+
+.install-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 2px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.install-timeline li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  color: var(--install-panel-muted);
+  font-size: 12px;
+}
+
+.install-timeline li > span {
+  width: 8px;
+  height: 8px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.install-timeline li.complete,
+.install-timeline li.current {
+  color: var(--hero-ink);
+}
+
+.install-timeline li.complete > span {
+  background: var(--install-panel-success);
+  border-color: var(--install-panel-success);
+}
+
+.install-timeline li.current > span {
+  background: var(--green-strong);
+  border-color: var(--green-strong);
+}
+
+.install-timeline li.error,
+.install-timeline li.error > span {
+  color: var(--install-panel-error);
+  border-color: var(--install-panel-error);
+}
+
+.install-panel-message.error {
+  color: var(--install-panel-error);
+}
+
+.install-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.install-center-panel .install-center-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.install-center-panel .install-center-metrics .warning strong {
+  color: var(--amber);
+}
+
+.installed-groups,
+.installed-group {
+  display: grid;
+  gap: 14px;
+}
+
+.installed-group + .installed-group {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.installed-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.installed-group-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.installed-group-updates .installed-app-card {
+  border-color: var(--status-warning-line);
+  background: var(--status-warning-bg);
+}
+
 .detail-page-shell {
   width: 100%;
   min-width: 0;
@@ -38,8 +310,44 @@
 }
 
 @media (max-width: 640px) {
+  .client-summary-grid.client-discovery-summary {
+    grid-template-columns: repeat(3, minmax(118px, 1fr));
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: 2px;
+  }
+
   .detail-page {
     gap: 12px;
+  }
+
+  .client-source-row {
+    grid-template-columns: 1fr;
+  }
+
+  .client-source-row-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .install-timeline {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .source-detail-actions {
+    position: sticky;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    z-index: 3;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    backdrop-filter: blur(10px);
+  }
+
+  .source-detail-primary-action {
+    width: 100%;
+    justify-content: center;
   }
 
   .detail-page .detail-head,
@@ -81,14 +389,6 @@
   display: grid;
   gap: 8px;
   align-content: start;
-  transition:
-    opacity 180ms var(--ease-out),
-    transform 160ms var(--ease-out);
-
-  @starting-style {
-    opacity: 0;
-    transform: translateY(6px);
-  }
 }
 
 .settings-signal-card span,
@@ -124,6 +424,15 @@
   width: min(760px, 100%);
 }
 
+.client-settings-panel.settings-tab-panel {
+  transition: none;
+
+  @starting-style {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .settings-card-panel {
   display: grid;
   gap: 14px;
@@ -150,10 +459,43 @@
   line-height: 1.25;
 }
 
-.settings-form-actions {
-  grid-column: 1 / -1;
+.client-settings-save-bar {
+  position: sticky;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 4;
+  width: min(760px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(10px);
+}
+
+.client-settings-save-bar > div {
+  min-width: 0;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.client-settings-save-bar p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--red);
+  overflow-wrap: anywhere;
+}
+
+.client-settings-save-bar.saved {
+  border-color: var(--status-success-line);
+}
+
+.client-settings-save-bar.error {
+  border-color: var(--status-danger-line);
 }
 
 .client-about-panel {
@@ -206,19 +548,54 @@
   }
 }
 
+.client-source-row button,
+.client-source-onboarding button,
+.client-settings-save-bar button,
+.install-panel button,
+.client-source-app-card button {
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.client-source-row button:active,
+.client-source-onboarding button:active,
+.client-settings-save-bar button:active,
+.install-panel button:active,
+.client-source-app-card button:active {
+  transform: scale(0.98);
+}
+
+.client-source-row :focus-visible,
+.client-source-onboarding :focus-visible,
+.client-settings-save-bar :focus-visible,
+.install-panel :focus-visible,
+.client-source-app-card :focus-visible {
+  outline: 2px solid var(--green-strong);
+  outline-offset: 2px;
+}
+
+.installed-group .installed-app-card:active {
+  transform: none;
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .settings-signal-card:hover {
-    transform: translateY(-2px);
+  .installed-group .installed-app-card:hover {
+    border-color: var(--line);
+    background: var(--field);
+  }
+
+  .installed-group-updates .installed-app-card:hover {
+    border-color: var(--status-warning-line);
+    background: var(--status-warning-bg);
   }
 }
 
 @media (max-width: 980px) {
   .settings-overview-grid {
     grid-template-columns: 1fr;
-  }
-
-  .settings-form-actions {
-    justify-content: stretch;
   }
 }
 
@@ -230,18 +607,32 @@
   .client-about-list > div {
     grid-template-columns: 1fr;
   }
+
+  .client-settings-save-bar {
+    grid-template-columns: 1fr;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  .client-settings-save-bar > button {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .settings-signal-card {
-    transition-duration: 1ms !important;
-  }
-
-  .settings-signal-card:hover {
-    transform: none;
+  .detail-page-shell,
+  .client-source-row button,
+  .client-source-onboarding button,
+  .client-settings-save-bar button,
+  .install-panel button,
+  .client-source-app-card,
+  .client-source-app-card button {
+    transform: none !important;
+    transition-property: opacity, color, background-color, border-color !important;
+    transition-duration: 120ms !important;
   }
 
   .spin {
-    animation-duration: 1.4s;
+    animation-duration: 1.4s !important;
   }
 }

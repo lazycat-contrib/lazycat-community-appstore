@@ -96,8 +96,13 @@ func SaveFile(ctx context.Context, backend Backend, r io.Reader, filename string
 		return Object{}, err
 	}
 	if limited.total > maxBytes {
-		_ = backend.Delete(ctx, obj.Path)
-		return Object{}, ErrTooLarge
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		deleteErr := backend.Delete(cleanupCtx, obj.Path)
+		cleanupCancel()
+		if deleteErr == nil {
+			return Object{}, ErrTooLarge
+		}
+		return obj, errors.Join(ErrTooLarge, fmt.Errorf("delete oversized file %q: %w", obj.Path, deleteErr))
 	}
 
 	obj.Size = limited.total

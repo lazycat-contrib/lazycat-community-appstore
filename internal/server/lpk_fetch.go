@@ -7,7 +7,6 @@ import (
 
 	"lazycat.community/appstore/internal/lpkinspect"
 	"lazycat.community/appstore/internal/lpkmeta"
-	"lazycat.community/appstore/internal/mirror"
 )
 
 type lpkInspection = lpkinspect.Inspection
@@ -42,14 +41,6 @@ func (s *Server) lpkFetchURL(ctx context.Context, rawURL string, useMirrorDownlo
 
 func (s *Server) lpkFetchURLs(ctx context.Context, rawURL string, useMirrorDownload bool) ([]*url.URL, error) {
 	return lpkinspect.FetchURLs(rawURL, useMirrorDownload, s.effectiveGitHubMirrors(ctx))
-}
-
-func firstGitHubMirrorForURL(entries []mirror.Entry, rawURL string) (mirror.Entry, bool) {
-	return lpkinspect.FirstGitHubMirrorForURL(entries, rawURL)
-}
-
-func gitHubMirrorsForURL(entries []mirror.Entry, rawURL string) []mirror.Entry {
-	return lpkinspect.GitHubMirrorsForURL(entries, rawURL)
 }
 
 func normalizeGitHubRawURL(rawURL string) string {

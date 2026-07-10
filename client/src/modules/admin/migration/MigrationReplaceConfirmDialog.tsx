@@ -21,9 +21,9 @@ export function MigrationReplaceConfirmDialog({
   const canConfirm = value.trim() === replaceConfirmationText;
 
   return (
-    <ModalLayer onClose={onClose} purpose="required" width="min(540px, calc(100vw - 36px))">
+    <ModalLayer onClose={() => { if (!isImporting) onClose(); }} purpose="required" width="min(540px, calc(100vw - 36px))">
       <div className="modal-panel form-panel migration-confirm-dialog" aria-label={t('admin.migration.replaceConfirmTitle')}>
-        <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={onClose} />
+        <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} isDisabled={isImporting} onClick={onClose} />
         <div className="migration-confirm-head">
           <AlertTriangle size={22} />
           <div>
@@ -34,10 +34,11 @@ export function MigrationReplaceConfirmDialog({
         <XTextInput
           label={t('admin.migration.replaceConfirmInput', { value: replaceConfirmationText })}
           value={value}
+          isDisabled={isImporting}
           onChange={setValue}
         />
         <div className="dialog-actions">
-          <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={onClose} />
+          <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} isDisabled={isImporting} onClick={onClose} />
           <XButton
             type="button"
             variant="destructive"

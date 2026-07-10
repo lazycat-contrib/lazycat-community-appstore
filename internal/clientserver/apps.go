@@ -115,7 +115,6 @@ func (s *Server) handleGetAppVersions(w http.ResponseWriter, r *http.Request) {
 func sourceAppDTO(app *ent.ClientSourceApp) (SourceAppDTO, error) {
 	var version *VersionDTO
 	versions := []VersionDTO{}
-	screenshots := []catalogmeta.Screenshot{}
 	if app.LatestVersionJSON != "" {
 		version = &VersionDTO{}
 		if err := json.Unmarshal([]byte(app.LatestVersionJSON), version); err != nil {
@@ -127,7 +126,7 @@ func sourceAppDTO(app *ent.ClientSourceApp) (SourceAppDTO, error) {
 			return SourceAppDTO{}, err
 		}
 	}
-	screenshots = catalogmeta.DecodeScreenshots(app.ScreenshotsJSON)
+	screenshots := catalogmeta.DecodeScreenshots(app.ScreenshotsJSON)
 	sourceName := ""
 	if source, err := app.Edges.SourceOrErr(); err == nil {
 		sourceName = source.Name

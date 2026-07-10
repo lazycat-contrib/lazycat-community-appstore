@@ -32,7 +32,7 @@ func (lazyCatPackageManager) QueryInstalled(ctx context.Context, userID string) 
 	if err != nil {
 		return nil, err
 	}
-	defer gw.Close()
+	defer func() { _ = gw.Close() }()
 	resp, err := gw.PkgManager.QueryApplication(ctx, &sys.QueryApplicationRequest{})
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (lazyCatPackageManager) InstallLPK(ctx context.Context, userID string, req 
 	if err != nil {
 		return InstallResultDTO{}, err
 	}
-	defer gw.Close()
+	defer func() { _ = gw.Close() }()
 	wait := true
 	in := &sys.InstallLPKRequest{LpkUrl: req.DownloadURL, WaitUnitDone: &wait}
 	if req.SHA256 != "" {

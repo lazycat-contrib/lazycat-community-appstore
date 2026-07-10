@@ -1,4 +1,4 @@
-import { Search, Tag, UserRound } from 'lucide-react';
+import { RotateCcw, Search, Tag, UserRound } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
@@ -7,7 +7,7 @@ import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { SectionTitle } from '../../shared/components/Feedback';
 import { categoryDescendantIds } from '../../shared/categoryTree';
 import type { Category, InstallOptions, SortMode, SourceApp, StoreApp } from '../../shared/types';
-import { localizedAppDescription, localizedAppName, localizedAppSummary } from '../../shared/utils';
+import { localizedAppDescription, localizedAppName, localizedAppSummary, localizedName } from '../../shared/utils';
 import { filterSignature, matchesChoiceFilter, matchesStringFilter, uniqueEnumOptions } from '../search/searchFilterHelpers';
 import { AppGrid } from './AppGrid';
 import { CategoryBrowser } from './CategoryBrowser';
@@ -97,6 +97,10 @@ export function StorefrontSearch({
     const searched = categoryFilteredApps.filter((app) => matchesStoreAppFilters(app, filters));
     return [...searched].sort((a, b) => {
       if (sortMode === 'downloads') return b.downloadCount - a.downloadCount;
+      if (sortMode === 'downloads_day') return (b.downloadStats?.day || 0) - (a.downloadStats?.day || 0);
+      if (sortMode === 'downloads_week') return (b.downloadStats?.week || 0) - (a.downloadStats?.week || 0);
+      if (sortMode === 'downloads_month') return (b.downloadStats?.month || 0) - (a.downloadStats?.month || 0);
+      if (sortMode === 'downloads_year') return (b.downloadStats?.year || 0) - (a.downloadStats?.year || 0);
       if (sortMode === 'name') return localizedAppName(a).localeCompare(localizedAppName(b));
       return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
     });
@@ -107,6 +111,15 @@ export function StorefrontSearch({
     const start = (currentPage - 1) * pageSize;
     return filteredApps.slice(start, start + pageSize);
   }, [filteredApps, currentPage, pageSize]);
+  const selectedCategory = categories.find((category) => String(category.id) === activeCategory);
+  const activeCategoryLabel = selectedCategory ? localizedName(selectedCategory) : t('search.allCategories');
+  const hasActiveFilters = activeCategory !== 'all' || filters.length > 0;
+
+  function clearSearch() {
+    setFilters([]);
+    onCategory('all');
+    setPage(1);
+  }
 
   useEffect(() => {
     setPage(1);
@@ -118,12 +131,12 @@ export function StorefrontSearch({
   }, [defaultPageSize]);
 
   return (
-    <section className="page-grid">
+    <section className="page-grid storefront-search-page">
       <div className="page-heading">
         <h1>{t('search.serverTitle')}</h1>
         <p>{t('search.serverDescription')}</p>
       </div>
-      <section className="panel">
+      <section className="panel storefront-search-panel">
         <SectionTitle icon={Search} title={t('search.localStore')} />
         {categories.length > 0 && (
           <CategoryBrowser categories={categories} activeCategory={activeCategory} onCategory={onCategory} />
@@ -149,17 +162,35 @@ export function StorefrontSearch({
             options={[
               { value: 'recent', label: t('search.recent') },
               { value: 'downloads', label: t('search.downloads') },
+              { value: 'downloads_day', label: t('search.downloadsDay') },
+              { value: 'downloads_week', label: t('search.downloadsWeek') },
+              { value: 'downloads_month', label: t('search.downloadsMonth') },
+              { value: 'downloads_year', label: t('search.downloadsYear') },
               { value: 'name', label: t('search.name') },
             ]}
             onChange={(value) => onSortMode(value as SortMode)}
             width="100%"
           />
         </div>
+        <div className="catalog-result-summary" role="status" aria-live="polite" aria-atomic="true">
+          <span>{activeCategoryLabel}</span>
+          <strong>{t('search.resultCount', { count: filteredApps.length })}</strong>
+        </div>
         <AppGrid
           apps={pagedApps}
           onOpen={onOpen}
           onInstall={onInstall}
-          empty={{ title: t('search.noResultsTitle'), body: t('search.noResultsBody') }}
+          empty={{
+            title: t('search.noResultsTitle'),
+            body: t('search.noResultsBody'),
+            action: hasActiveFilters
+              ? {
+                  label: t('search.clearFilters', { defaultValue: t('search.allCategories') }),
+                  icon: RotateCcw,
+                  onClick: clearSearch,
+                }
+              : undefined,
+          }}
         />
         {filteredApps.length > pageSize && (
           <XPagination

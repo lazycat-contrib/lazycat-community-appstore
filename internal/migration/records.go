@@ -10,10 +10,12 @@ import (
 	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/apitoken"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/appdownload"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/appvote"
 	"lazycat.community/appstore/ent/asset"
 	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
@@ -55,9 +57,11 @@ type AppsData struct {
 	Tags            []TagRecord           `json:"tags,omitempty"`
 	Apps            []AppRecord           `json:"apps,omitempty"`
 	AppVersions     []AppVersionRecord    `json:"appVersions,omitempty"`
+	AppDownloads    []AppDownloadRecord   `json:"appDownloads,omitempty"`
 	AppScreenshots  []AppScreenshotRecord `json:"appScreenshots,omitempty"`
 	AppTags         []AppTagRecord        `json:"appTags,omitempty"`
 	AppVisibilities []AppVisibilityRecord `json:"appVisibilities,omitempty"`
+	AppVotes        []AppVoteRecord       `json:"appVotes,omitempty"`
 	Assets          []AssetRecord         `json:"assets,omitempty"`
 	AssetLinks      []AssetLinkRecord     `json:"assetLinks,omitempty"`
 }
@@ -239,6 +243,7 @@ type AppRecord struct {
 	EmailNotificationsEnabled bool      `json:"email_notifications_enabled"`
 	InstallPasswordHash       string    `json:"install_password_hash"`
 	DownloadCount             int       `json:"download_count"`
+	VersionRetentionCount     *int      `json:"version_retention_count,omitempty"`
 	CreatedAt                 time.Time `json:"created_at"`
 	UpdatedAt                 time.Time `json:"updated_at"`
 }
@@ -259,6 +264,14 @@ type AppVersionRecord struct {
 	PublishedAt *time.Time `json:"published_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+type AppDownloadRecord struct {
+	ID              int       `json:"id,omitempty"`
+	AppID           int       `json:"app_id"`
+	Version         string    `json:"version,omitempty"`
+	LegacyVersionID int       `json:"version_id,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 type AppScreenshotRecord struct {
@@ -286,6 +299,15 @@ type AppVisibilityRecord struct {
 	AppID     int       `json:"app_id"`
 	GroupID   int       `json:"group_id"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type AppVoteRecord struct {
+	ID        int       `json:"id,omitempty"`
+	AppID     int       `json:"app_id"`
+	UserID    int       `json:"user_id"`
+	Value     int       `json:"value"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func collectSiteData(ctx context.Context, db *ent.Client) (SiteData, error) {
@@ -339,10 +361,13 @@ func collectAppsData(ctx context.Context, db *ent.Client) (AppsData, error) {
 	if err := db.Tag.Query().Select(tag.FieldID, tag.FieldName, tag.FieldNameI18n, tag.FieldSlug, tag.FieldCreatedAt, tag.FieldUpdatedAt).Scan(ctx, &data.Tags); err != nil {
 		return data, err
 	}
-	if err := db.App.Query().Select(app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldPackageID, app.FieldName, app.FieldNameI18nJSON, app.FieldSlug, app.FieldSummary, app.FieldSummaryI18nJSON, app.FieldDescription, app.FieldDescriptionI18nJSON, app.FieldIconURL, app.FieldStatus, app.FieldAllowUnreviewedUpdates, app.FieldCommentsEnabled, app.FieldEmailNotificationsEnabled, app.FieldInstallPasswordHash, app.FieldDownloadCount, app.FieldCreatedAt, app.FieldUpdatedAt).Scan(ctx, &data.Apps); err != nil {
+	if err := db.App.Query().Select(app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldPackageID, app.FieldName, app.FieldNameI18nJSON, app.FieldSlug, app.FieldSummary, app.FieldSummaryI18nJSON, app.FieldDescription, app.FieldDescriptionI18nJSON, app.FieldIconURL, app.FieldStatus, app.FieldAllowUnreviewedUpdates, app.FieldCommentsEnabled, app.FieldEmailNotificationsEnabled, app.FieldInstallPasswordHash, app.FieldDownloadCount, app.FieldVersionRetentionCount, app.FieldCreatedAt, app.FieldUpdatedAt).Scan(ctx, &data.Apps); err != nil {
 		return data, err
 	}
 	if err := db.AppVersion.Query().Select(appversion.FieldID, appversion.FieldAppID, appversion.FieldUploaderID, appversion.FieldVersion, appversion.FieldChangelog, appversion.FieldStatus, appversion.FieldSourceType, appversion.FieldDownloadURL, appversion.FieldStorageKey, appversion.FieldStoragePath, appversion.FieldFileSize, appversion.FieldSha256, appversion.FieldPublishedAt, appversion.FieldCreatedAt, appversion.FieldUpdatedAt).Scan(ctx, &data.AppVersions); err != nil {
+		return data, err
+	}
+	if err := db.AppDownload.Query().Select(appdownload.FieldID, appdownload.FieldAppID, appdownload.FieldVersion, appdownload.FieldCreatedAt).Scan(ctx, &data.AppDownloads); err != nil {
 		return data, err
 	}
 	if err := db.AppScreenshot.Query().Select(appscreenshot.FieldID, appscreenshot.FieldAppID, appscreenshot.FieldUploaderID, appscreenshot.FieldImageURL, appscreenshot.FieldStorageKey, appscreenshot.FieldStoragePath, appscreenshot.FieldCaption, appscreenshot.FieldDeviceType, appscreenshot.FieldSortOrder, appscreenshot.FieldCreatedAt).Scan(ctx, &data.AppScreenshots); err != nil {
@@ -352,6 +377,9 @@ func collectAppsData(ctx context.Context, db *ent.Client) (AppsData, error) {
 		return data, err
 	}
 	if err := db.AppVisibility.Query().Select(appvisibility.FieldID, appvisibility.FieldAppID, appvisibility.FieldGroupID, appvisibility.FieldCreatedAt).Scan(ctx, &data.AppVisibilities); err != nil {
+		return data, err
+	}
+	if err := db.AppVote.Query().Select(appvote.FieldID, appvote.FieldAppID, appvote.FieldUserID, appvote.FieldValue, appvote.FieldCreatedAt, appvote.FieldUpdatedAt).Scan(ctx, &data.AppVotes); err != nil {
 		return data, err
 	}
 	links, assets, err := collectAssetRecords(ctx, db, assetOwnerApp)
@@ -428,9 +456,11 @@ func appsCounts(data AppsData) map[string]int {
 		"tags":            len(data.Tags),
 		"apps":            len(data.Apps),
 		"versions":        len(data.AppVersions),
+		"downloads":       len(data.AppDownloads),
 		"screenshots":     len(data.AppScreenshots),
 		"appTags":         len(data.AppTags),
 		"appVisibilities": len(data.AppVisibilities),
+		"appVotes":        len(data.AppVotes),
 		"appAssets":       len(data.Assets),
 		"appAssetLinks":   len(data.AssetLinks),
 	}

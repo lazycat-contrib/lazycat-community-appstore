@@ -2,28 +2,38 @@ package clientserver
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/internal/dbpool"
 
 	_ "github.com/lib-x/entsqlite"
 )
 
-func openDB(cfg Config) (*ent.Client, error) {
+func openDB(cfg Config) (*ent.Client, *sql.DB, error) {
 	if err := ensureSQLiteDir(cfg.DBDSN); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	client, err := ent.Open("sqlite3", sqliteDSN(cfg.DBDSN))
+	sqlDB, driver, err := dbpool.Open(dbpool.Config{
+		Driver:      "sqlite3",
+		DSN:         sqliteDSN(cfg.DBDSN),
+		MaxOpen:     cfg.DBMaxOpenConns,
+		MaxIdle:     cfg.DBMaxIdleConns,
+		MaxLifetime: cfg.DBConnMaxLifetime,
+		MaxIdleTime: cfg.DBConnMaxIdleTime,
+	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	client := ent.NewClient(ent.Driver(driver))
 	if err := client.Schema.Create(context.Background()); err != nil {
 		_ = client.Close()
-		return nil, err
+		return nil, nil, err
 	}
-	return client, nil
+	return client, sqlDB, nil
 }
 
 func sqliteDSN(dsn string) string {

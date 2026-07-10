@@ -26,10 +26,12 @@ import (
 
 	entclient "lazycat.community/appstore/ent"
 	apppkg "lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/appdownload"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/appvote"
 	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/ent/category"
 	"lazycat.community/appstore/ent/collaborator"
@@ -57,8 +59,6 @@ type testApp struct {
 	handler http.Handler
 	cookies []*http.Cookie
 }
-
-var benchmarkAppSummaries []appSummary
 
 func TestSetupWizardCreatesFirstSiteAdmin(t *testing.T) {
 	app := newTestAppWithAdminBootstrap(t, false)
@@ -294,6 +294,8 @@ func TestMigrationEndpointsRequireSiteAdmin(t *testing.T) {
 }
 
 func TestMigrationExportHTTPReturnsZip(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
 	app := newTestApp(t)
 	app.login("admin", "changeme")
 
@@ -310,9 +312,12 @@ func TestMigrationExportHTTPReturnsZip(t *testing.T) {
 	if rec.Body.Len() == 0 {
 		t.Fatal("empty migration export body")
 	}
+	assertNoMigrationTempFiles(t, tmp)
 }
 
 func TestMigrationImportPreviewHTTPReturnsCounts(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
 	app := newTestApp(t)
 	app.login("admin", "changeme")
 
@@ -327,6 +332,7 @@ func TestMigrationImportPreviewHTTPReturnsCounts(t *testing.T) {
 	if !strings.Contains(previewRec.Body.String(), `"users"`) || !strings.Contains(previewRec.Body.String(), `"siteSettings"`) {
 		t.Fatalf("migration preview missing counts: %s", previewRec.Body.String())
 	}
+	assertNoMigrationTempFiles(t, tmp)
 }
 
 func TestServerSQLiteDSNAddsEntSQLitePragmas(t *testing.T) {
@@ -803,6 +809,151 @@ func TestDownloadEndpointIncrementsDownloadCount(t *testing.T) {
 	if updated.DownloadCount != 1 {
 		t.Fatalf("download_count = %d, want 1", updated.DownloadCount)
 	}
+	if count := app.server.db.AppDownload.Query().Where(appdownload.AppIDEQ(record.ID), appdownload.VersionEQ(version.Version)).CountX(ctx); count != 1 {
+		t.Fatalf("download events = %d, want 1", count)
+	}
+}
+
+func TestDownloadEndpointDoesNotCountRejectedMirror(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.download-mirror-error").
+		SetName("Download Mirror Error").
+		SetSlug("download-mirror-error").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	version := app.server.db.AppVersion.Create().
+		SetAppID(record.ID).
+		SetUploaderID(admin.ID).
+		SetVersion("1.0.0").
+		SetStatus(appversion.StatusAPPROVED).
+		SetSourceType(appversion.SourceTypeWEBDAV).
+		SetDownloadURL("https://example.com/app.lpk").
+		SetPublishedAt(time.Now()).
+		SaveX(ctx)
+
+	rec := app.do(http.MethodGet, fmt.Sprintf("/api/v1/apps/%d/versions/%d/download?mirrorId=download:missing", record.ID, version.ID), nil)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("download status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.App.GetX(ctx, record.ID).DownloadCount; count != 0 {
+		t.Fatalf("download_count = %d, want 0", count)
+	}
+	if count := app.server.db.AppDownload.Query().Where(appdownload.AppIDEQ(record.ID)).CountX(ctx); count != 0 {
+		t.Fatalf("download events = %d, want 0", count)
+	}
+}
+
+func TestListAppsSupportsDownloadPeriodSorts(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	now := time.Date(2026, 7, 10, 12, 0, 0, 0, time.FixedZone("CST", 8*60*60))
+	records := map[string]*entclient.App{}
+	for _, name := range []string{"day", "week", "month"} {
+		records[name] = app.server.db.App.Create().
+			SetOwnerID(admin.ID).
+			SetPackageID("cloud.lazycat.test.download-sort-" + name).
+			SetName("Download Sort " + name).
+			SetSlug("download-sort-" + name).
+			SetStatus(apppkg.StatusAPPROVED).
+			SaveX(ctx)
+	}
+	addDownloads := func(record *entclient.App, createdAt time.Time, count int) {
+		for i := 0; i < count; i++ {
+			app.server.db.AppDownload.Create().
+				SetAppID(record.ID).
+				SetCreatedAt(createdAt.Add(time.Duration(i) * time.Second).UTC()).
+				SaveX(ctx)
+		}
+		app.server.db.App.UpdateOneID(record.ID).AddDownloadCount(count).SaveX(ctx)
+	}
+	addDownloads(records["day"], now.Add(-time.Hour), 3)
+	addDownloads(records["week"], now.AddDate(0, 0, -2), 5)
+	addDownloads(records["month"], now.AddDate(0, 0, -8), 7)
+
+	assertFirst := func(sort, wantSlug string) {
+		t.Helper()
+		rec := app.do(http.MethodGet, "/api/v1/apps?page=1&pageSize=1&sort="+sort, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("list sort %s status = %d, body = %s", sort, rec.Code, rec.Body.String())
+		}
+		var body struct {
+			Apps []appSummary `json:"apps"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode apps: %v", err)
+		}
+		if len(body.Apps) != 1 || body.Apps[0].Slug != wantSlug {
+			t.Fatalf("sort %s first app = %#v, want slug %q", sort, body.Apps, wantSlug)
+		}
+	}
+	assertFirst("downloads_day", "download-sort-day")
+	assertFirst("downloads_week", "download-sort-week")
+	assertFirst("downloads_month", "download-sort-month")
+	assertFirst("downloads_year", "download-sort-month")
+}
+
+func TestAppRatingUsesUserVotes(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	hash, err := appauth.HashPassword("password123")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	voter := app.server.db.User.Create().
+		SetUsername("voter").
+		SetPasswordHash(hash).
+		SetRole(user.RoleUSER).
+		SetEmailVerified(true).
+		SaveX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.rating").
+		SetName("Rating App").
+		SetSlug("rating-app").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+
+	app.login(voter.Username, "password123")
+	rec := app.do(http.MethodPost, fmt.Sprintf("/api/v1/apps/%d/rating", record.ID), nil)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("rate status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.AppVote.Query().Where(appvote.AppIDEQ(record.ID), appvote.UserIDEQ(voter.ID)).CountX(ctx); count != 1 {
+		t.Fatalf("votes = %d, want 1", count)
+	}
+	rec = app.do(http.MethodPost, fmt.Sprintf("/api/v1/apps/%d/rating", record.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("rate again status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.AppVote.Query().Where(appvote.AppIDEQ(record.ID), appvote.UserIDEQ(voter.ID)).CountX(ctx); count != 1 {
+		t.Fatalf("votes after second rating = %d, want 1", count)
+	}
+	rec = app.do(http.MethodGet, fmt.Sprintf("/api/v1/apps/%d", record.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("detail status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var detail struct {
+		App appDetail `json:"app"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &detail); err != nil {
+		t.Fatalf("decode app detail: %v", err)
+	}
+	if detail.App.Rating.Score != 1 || detail.App.Rating.VoteCount != 1 || !detail.App.Rating.Voted {
+		t.Fatalf("rating = %#v, want score/count 1 and voted", detail.App.Rating)
+	}
+	rec = app.do(http.MethodDelete, fmt.Sprintf("/api/v1/apps/%d/rating", record.ID), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("clear rating status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.AppVote.Query().Where(appvote.AppIDEQ(record.ID)).CountX(ctx); count != 0 {
+		t.Fatalf("votes after clear = %d, want 0", count)
+	}
 }
 
 func TestLocalFileServerDoesNotListDirectories(t *testing.T) {
@@ -1213,6 +1364,9 @@ func TestRegistrationModeAndInvites(t *testing.T) {
 	if created.Code == "" || created.Invite.MaxUses != 2 || created.Invite.RemainingUses != 2 {
 		t.Fatalf("created invite = %#v code=%q", created.Invite, created.Code)
 	}
+	if !isEightCharacterAlphanumericCode(created.Code) {
+		t.Fatalf("created invite code = %q, want 8 alphanumeric characters", created.Code)
+	}
 
 	app.cookies = nil
 	rec = app.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
@@ -1288,6 +1442,19 @@ func TestRegistrationModeAndInvites(t *testing.T) {
 	if exists := app.server.db.RegistrationInvite.Query().Where(registrationinvite.IDEQ(second.Invite.ID)).ExistX(ctx); exists {
 		t.Fatal("deleted invite still exists")
 	}
+}
+
+func isEightCharacterAlphanumericCode(code string) bool {
+	if len(code) != 8 {
+		return false
+	}
+	for _, ch := range code {
+		if (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func TestOwnerCanUnlistApp(t *testing.T) {
@@ -1674,28 +1841,36 @@ func TestRegisterSendsVerificationEmailWhenSMTPConfigured(t *testing.T) {
 func TestServerStartsWithGitHubStorageBackendForExternalVersions(t *testing.T) {
 	root := t.TempDir()
 	cfg := config.Config{
-		Addr:             ":0",
-		BaseURL:          "http://store.test",
-		ClientOrigins:    []string{"http://client.test"},
-		DBDriver:         "sqlite3",
-		DBDSN:            filepath.Join(root, "store.db"),
-		StorageBackend:   "github",
-		LocalStoragePath: filepath.Join(root, "files"),
-		MaxLPKSize:       1024 * 1024,
-		MaxVersions:      10,
-		SourceV1Enabled:  true,
-		AdminUsername:    "admin",
-		AdminPassword:    "changeme",
-		AdminBootstrap:   true,
-		SessionSecret:    "test-secret",
-		ReadTimeout:      time.Second,
-		WriteTimeout:     time.Second,
+		Addr:              ":0",
+		BaseURL:           "http://store.test",
+		ClientOrigins:     []string{"http://client.test"},
+		DBDriver:          "sqlite3",
+		DBDSN:             filepath.Join(root, "store.db"),
+		DBMaxOpenConns:    1,
+		DBMaxIdleConns:    1,
+		DBConnMaxLifetime: 30 * time.Minute,
+		DBConnMaxIdleTime: 5 * time.Minute,
+		StorageBackend:    "github",
+		LocalStoragePath:  filepath.Join(root, "files"),
+		MaxLPKSize:        1024 * 1024,
+		MaxVersions:       10,
+		SourceV1Enabled:   true,
+		AdminUsername:     "admin",
+		AdminPassword:     "changeme",
+		AdminBootstrap:    true,
+		SessionSecret:     "test-secret",
+		ReadTimeout:       time.Second,
+		WriteTimeout:      time.Second,
 	}
 	srv, err := New(cfg)
 	if err != nil {
 		t.Fatalf("New with github storage: %v", err)
 	}
-	defer srv.Close()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			t.Errorf("close server: %v", err)
+		}
+	}()
 	app := &testApp{t: t, server: srv, handler: srv.Handler()}
 	app.login("admin", "changeme")
 	rec := app.do(http.MethodPost, "/api/v1/apps", map[string]any{
@@ -1913,6 +2088,74 @@ func TestSchemaMigrationMovesImageDataURLsToAssets(t *testing.T) {
 	}
 }
 
+func TestMigrateDownloadVersionSnapshotsBackfillsLegacyVersionID(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	record := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.download-version-migration").
+		SetName("Download Version Migration").
+		SetSlug("download-version-migration").
+		SetStatus(apppkg.StatusAPPROVED).
+		SaveX(ctx)
+	version := app.server.db.AppVersion.Create().
+		SetAppID(record.ID).
+		SetUploaderID(admin.ID).
+		SetVersion("2.4.1").
+		SetStatus(appversion.StatusAPPROVED).
+		SaveX(ctx)
+	if _, err := app.server.sqlDB.ExecContext(
+		ctx,
+		"ALTER TABLE app_downloads ADD COLUMN version_id integer NOT NULL DEFAULT 0",
+	); err != nil {
+		t.Fatalf("add legacy version_id: %v", err)
+	}
+	if _, err := app.server.sqlDB.ExecContext(
+		ctx,
+		"INSERT INTO app_downloads (app_id, version, created_at, version_id) VALUES (?, '', ?, ?)",
+		record.ID,
+		time.Now(),
+		version.ID,
+	); err != nil {
+		t.Fatalf("insert legacy download: %v", err)
+	}
+
+	if err := app.server.migrateDownloadVersionSnapshots(ctx); err != nil {
+		t.Fatalf("migrate download version snapshots: %v", err)
+	}
+
+	download := app.server.db.AppDownload.Query().OnlyX(ctx)
+	if download.Version != "2.4.1" {
+		t.Fatalf("download version = %q, want %q", download.Version, "2.4.1")
+	}
+}
+
+func TestSchemaCreatesDownloadVersionSnapshotWithoutLegacyVersionID(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	var legacyVersionIDColumns int
+	if err := app.server.sqlDB.QueryRowContext(
+		ctx,
+		"SELECT COUNT(*) FROM pragma_table_info('app_downloads') WHERE name = 'version_id'",
+	).Scan(&legacyVersionIDColumns); err != nil {
+		t.Fatalf("inspect app_downloads schema: %v", err)
+	}
+	if legacyVersionIDColumns != 0 {
+		t.Fatalf("legacy version_id columns = %d, want 0", legacyVersionIDColumns)
+	}
+	var versionColumns int
+	if err := app.server.sqlDB.QueryRowContext(
+		ctx,
+		"SELECT COUNT(*) FROM pragma_table_info('app_downloads') WHERE name = 'version'",
+	).Scan(&versionColumns); err != nil {
+		t.Fatalf("inspect app_downloads schema: %v", err)
+	}
+	if versionColumns != 1 {
+		t.Fatalf("version snapshot columns = %d, want 1", versionColumns)
+	}
+}
+
 func TestNormalizeGitHubRawURL(t *testing.T) {
 	cases := map[string]string{
 		"https://github.com/lazycat-contrib/roon-server-lzcapp/raw/refs/heads/main/community.lazycat.app.roon-server-v2.65.1653.lpk": "https://raw.githubusercontent.com/lazycat-contrib/roon-server-lzcapp/refs/heads/main/community.lazycat.app.roon-server-v2.65.1653.lpk",
@@ -1958,64 +2201,6 @@ func TestLPKFetchURLUsesConfiguredGitHubMirrors(t *testing.T) {
 	}
 	if got, want := directURL.String(), "https://github.com/acme/demo/releases/download/v1/app.lpk"; got != want {
 		t.Fatalf("direct fetch url = %q, want %q", got, want)
-	}
-}
-
-func BenchmarkPreloadAppSummaries(b *testing.B) {
-	ctx := context.Background()
-	client, err := openEnt(config.Config{DBDriver: "sqlite3", DBDSN: filepath.Join(b.TempDir(), "bench.db")})
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer client.Close()
-	if err := client.Schema.Create(ctx); err != nil {
-		b.Fatal(err)
-	}
-	srv := &Server{db: client}
-	owner := client.User.Create().
-		SetUsername("owner").
-		SetPasswordHash("hash").
-		SetRole(user.RoleUSER).
-		SaveX(ctx)
-	cat := client.Category.Create().SetName("Tools").SetSlug("tools").SaveX(ctx)
-	tagA := client.Tag.Create().SetName("Productivity").SetSlug("productivity").SaveX(ctx)
-	tagB := client.Tag.Create().SetName("Utility").SetSlug("utility").SaveX(ctx)
-	records := make([]*entclient.App, 0, 50)
-	now := time.Now()
-	for i := 0; i < cap(records); i++ {
-		record := client.App.Create().
-			SetOwnerID(owner.ID).
-			SetCategoryID(cat.ID).
-			SetPackageID(fmt.Sprintf("cloud.lazycat.bench.%02d", i)).
-			SetName(fmt.Sprintf("Bench App %02d", i)).
-			SetSlug(fmt.Sprintf("bench-app-%02d", i)).
-			SetSummary("Benchmark app").
-			SetStatus(apppkg.StatusAPPROVED).
-			SaveX(ctx)
-		client.AppTag.Create().SetAppID(record.ID).SetTagID(tagA.ID).SaveX(ctx)
-		client.AppTag.Create().SetAppID(record.ID).SetTagID(tagB.ID).SaveX(ctx)
-		client.AppVersion.Create().
-			SetAppID(record.ID).
-			SetUploaderID(owner.ID).
-			SetVersion("1.0.0").
-			SetStatus(appversion.StatusAPPROVED).
-			SetPublishedAt(now).
-			SaveX(ctx)
-		records = append(records, record)
-	}
-
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		preload, err := srv.preloadAppSummaries(ctx, records, nil)
-		if err != nil {
-			b.Fatal(err)
-		}
-		out := make([]appSummary, 0, len(records))
-		for _, record := range records {
-			out = append(out, srv.appSummaryDTOFromPreload(ctx, record, nil, preload))
-		}
-		benchmarkAppSummaries = out
 	}
 }
 
@@ -2186,22 +2371,26 @@ func newTestAppWithAdminBootstrap(t *testing.T, adminBootstrap bool) *testApp {
 	t.Helper()
 	root := t.TempDir()
 	cfg := config.Config{
-		Addr:             ":0",
-		BaseURL:          "http://store.test",
-		ClientOrigins:    []string{"http://client.test"},
-		DBDriver:         "sqlite3",
-		DBDSN:            filepath.Join(root, "store.db"),
-		StorageBackend:   "local",
-		LocalStoragePath: filepath.Join(root, "files"),
-		MaxLPKSize:       1024 * 1024,
-		MaxVersions:      10,
-		SourceV1Enabled:  true,
-		AdminUsername:    "admin",
-		AdminPassword:    "changeme",
-		AdminBootstrap:   adminBootstrap,
-		SessionSecret:    "test-secret",
-		ReadTimeout:      time.Second,
-		WriteTimeout:     time.Second,
+		Addr:              ":0",
+		BaseURL:           "http://store.test",
+		ClientOrigins:     []string{"http://client.test"},
+		DBDriver:          "sqlite3",
+		DBDSN:             filepath.Join(root, "store.db"),
+		DBMaxOpenConns:    1,
+		DBMaxIdleConns:    1,
+		StorageBackend:    "local",
+		LocalStoragePath:  filepath.Join(root, "files"),
+		MaxLPKSize:        1024 * 1024,
+		MaxVersions:       10,
+		SourceV1Enabled:   true,
+		AdminUsername:     "admin",
+		AdminPassword:     "changeme",
+		AdminBootstrap:    adminBootstrap,
+		SessionSecret:     "test-secret",
+		DBConnMaxLifetime: 30 * time.Minute,
+		DBConnMaxIdleTime: 5 * time.Minute,
+		ReadTimeout:       time.Second,
+		WriteTimeout:      time.Second,
 	}
 	srv, err := New(cfg)
 	if err != nil {

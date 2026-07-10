@@ -15,6 +15,7 @@ import {
   Save,
   Settings,
   ShieldCheck,
+  Sparkles,
   Star,
   Trash2,
   Upload,
@@ -46,11 +47,25 @@ import { TagTokenizer } from '../../shared/components/TagTokenizer';
 import { VersionHistoryTable } from '../../shared/components/VersionHistoryTable';
 import { AppIcon } from '../../components/AppIcon';
 import { CommentList } from '../../components/CommentList';
-import type { Category, CollaboratorRequest, Group, InstallOptions, Review, StorageOption, StoreApp, Toast, User } from '../../shared/types';
+import type {
+  Category,
+  CollaboratorRequest,
+  Group,
+  InstallOptions,
+  Review,
+  StorageOption,
+  StoreApp,
+  Toast,
+  User,
+  Version,
+  VersionCleanupWarning,
+  VersionRetentionPolicy,
+} from '../../shared/types';
 import { flattenCategoryTree } from '../../shared/categoryTree';
 import { orderedScreenshots, screenshotDeviceLabel, usePreferredScreenshotDevice } from '../../shared/screenshotHelpers';
 import {
   cx,
+  errorMessage,
   formatBytes,
   formatDate,
   githubMirrorKindForURL,
@@ -63,9 +78,20 @@ import {
   shortSHA,
 } from '../../shared/utils';
 import type { SubmissionProgress } from '../profile/AppSubmissionForm';
+import { VersionDeleteDialog, VersionRetentionDialog } from './VersionManagementDialogs';
+import { nextLatestVersion } from './versionManagementState';
 
 export type AppDetailMode = 'detail' | 'manage';
-type ManagementDialog = 'app-info' | 'publish-version' | 'screenshots' | 'visibility' | 'collaborators';
+type ManagementDialog = 'app-info' | 'publish-version' | 'screenshots' | 'visibility' | 'collaborators' | 'version-retention';
+type VersionManagementResult = {
+  tone: 'success' | 'warning' | 'error';
+  message: string;
+};
+const versionManagementResults = new Map<number, VersionManagementResult>();
+type DeletedVersionResult = {
+  version: Version;
+  cleanupWarning?: VersionCleanupWarning;
+};
 
 export function AppDrawer({
   app,
@@ -118,6 +144,12 @@ export function AppDrawer({
   const [collaboratorRequests, setCollaboratorRequests] = useState<CollaboratorRequest[]>([]);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
   const [managementDialog, setManagementDialog] = useState<ManagementDialog | null>(null);
+  const [versionDeleteTarget, setVersionDeleteTarget] = useState<Version | null>(null);
+  const [isSavingVersionRetention, setIsSavingVersionRetention] = useState(false);
+  const [deletingVersionID, setDeletingVersionID] = useState<number | null>(null);
+  const [versionManagementResult, setVersionManagementResult] = useState<VersionManagementResult | null>(
+    () => versionManagementResults.get(app.id) || null,
+  );
   const [appForm, setAppForm] = useState({
     name: app.name,
     summary: app.summary,
@@ -164,6 +196,7 @@ export function AppDrawer({
   ];
   const communitySummary = t('drawer.communitySummary', {
     favorites: app.favorites ?? 0,
+    rating: app.rating?.voteCount ?? 0,
     comments: (app.comments || []).length,
     outdated: app.outdatedMarks ?? 0,
     screenshots: (app.screenshots || []).length,
@@ -233,8 +266,24 @@ export function AppDrawer({
   }, [isManageMode]);
 
   useEffect(() => {
+    setVersionDeleteTarget(null);
+    setIsSavingVersionRetention(false);
+    setDeletingVersionID(null);
+    setVersionManagementResult(versionManagementResults.get(app.id) || null);
+  }, [app.id]);
+
+  useEffect(() => {
     closeButtonRef.current?.focus();
   }, [app.id]);
+
+  function updateVersionManagementResult(result: VersionManagementResult | null) {
+    if (result) {
+      versionManagementResults.set(app.id, result);
+    } else {
+      versionManagementResults.delete(app.id);
+    }
+    setVersionManagementResult(result);
+  }
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -425,6 +474,91 @@ export function AppDrawer({
     });
   }
 
+  async function saveVersionRetention(
+    input:
+      | { mode: 'INHERIT' }
+      | { mode: 'CUSTOM'; maxVersions: number },
+  ) {
+    if (isSavingVersionRetention) return;
+    setIsSavingVersionRetention(true);
+    updateVersionManagementResult(null);
+    try {
+      let data: {
+        versionRetention: VersionRetentionPolicy;
+        prunedVersions?: DeletedVersionResult[];
+      };
+      try {
+        data = await api(`/api/v1/apps/${app.id}/version-retention`, {
+          method: 'PATCH',
+          body: JSON.stringify(input),
+        });
+      } catch (error) {
+        const message = errorMessage(error, t('drawer.versionRetentionFailed'));
+        updateVersionManagementResult({ tone: 'error', message });
+        setToast({ tone: 'error', message });
+        return;
+      }
+
+      const prunedVersions = data.prunedVersions || [];
+      const cleanupWarnings = prunedVersions.filter((item) => item.cleanupWarning);
+      const message = cleanupWarnings.length > 0
+        ? t('drawer.versionDeleteCleanupWarning', {
+            version: cleanupWarnings.map((item) => item.version.version).join(', '),
+          })
+        : prunedVersions.length > 0
+          ? t('drawer.versionRetentionPruned', { count: prunedVersions.length })
+          : t('drawer.versionRetentionSaved');
+      const tone = cleanupWarnings.length > 0 ? 'warning' : 'success';
+      updateVersionManagementResult({ tone, message });
+      setToast({ tone: tone === 'warning' ? 'neutral' : 'success', message });
+      try {
+        await onRefresh();
+        await onListRefresh();
+      } catch (error) {
+        setToast({ tone: 'error', message: errorMessage(error, t('toast.refreshFailed')) });
+      }
+      setManagementDialog(null);
+    } finally {
+      setIsSavingVersionRetention(false);
+    }
+  }
+
+  async function deleteVersion(version: Version) {
+    if (deletingVersionID !== null) return;
+    setDeletingVersionID(version.id);
+    updateVersionManagementResult(null);
+    try {
+      let data: { deletedVersion: DeletedVersionResult };
+      try {
+        data = await api(
+          `/api/v1/apps/${app.id}/versions/${version.id}`,
+          { method: 'DELETE' },
+        );
+      } catch (error) {
+        const message = errorMessage(error, t('drawer.versionDeleteFailed'));
+        updateVersionManagementResult({ tone: 'error', message });
+        setToast({ tone: 'error', message });
+        return;
+      }
+
+      const message = data.deletedVersion.cleanupWarning
+        ? t('drawer.versionDeleteCleanupWarning', { version: data.deletedVersion.version.version })
+        : t('drawer.versionDeleted', { version: data.deletedVersion.version.version });
+      const tone = data.deletedVersion.cleanupWarning ? 'warning' : 'success';
+      updateVersionManagementResult({ tone, message });
+      setToast({ tone: tone === 'warning' ? 'neutral' : 'success', message });
+      try {
+        await onRefresh();
+        await onListRefresh();
+      } catch (error) {
+        setToast({ tone: 'error', message: errorMessage(error, t('toast.refreshFailed')) });
+      }
+      setVersionDeleteTarget(null);
+    } finally {
+      setDeletingVersionID(null);
+    }
+  }
+
   async function uploadScreenshot(event: FormEvent) {
     event.preventDefault();
     if (!screenshotFile) return;
@@ -542,6 +676,16 @@ export function AppDrawer({
     });
   }
 
+  async function toggleAppRating() {
+    if (!user) return;
+    await runAction(setToast, t('drawer.ratingUpdateFailed'), async () => {
+      const rated = Boolean(app.rating?.voted);
+      await api<{ rating: StoreApp['rating'] }>(`/api/v1/apps/${app.id}/rating`, { method: rated ? 'DELETE' : 'POST' });
+      setToast({ tone: 'success', message: rated ? t('drawer.ratingRemoved') : t('drawer.ratingAdded') });
+      await onRefresh();
+    });
+  }
+
   function renderScreenshotGallery(canEdit: boolean) {
     return (
       <>
@@ -632,6 +776,9 @@ export function AppDrawer({
           <XMetadataListItem label={t('common.download')}>
             {t('app.downloads', { count: app.downloadCount })}
           </XMetadataListItem>
+          <XMetadataListItem label={t('app.ratingLabel')}>
+            {t('app.rating', { score: app.rating?.score || 0, count: app.rating?.voteCount || 0 })}
+          </XMetadataListItem>
           <XMetadataListItem label={t('common.source')}>
             {latestVersion?.sourceType || '-'}
           </XMetadataListItem>
@@ -684,6 +831,18 @@ export function AppDrawer({
 
   function renderManagementDialogs() {
     if (!managementDialog) return null;
+
+    if (managementDialog === 'version-retention') {
+      return app.versionRetention ? (
+        <VersionRetentionDialog
+          policy={app.versionRetention}
+          versions={app.versions || []}
+          isSaving={isSavingVersionRetention}
+          onCancel={() => setManagementDialog(null)}
+          onSave={saveVersionRetention}
+        />
+      ) : null;
+    }
 
     if (managementDialog === 'app-info') {
       return (
@@ -1038,7 +1197,7 @@ export function AppDrawer({
             </div>
           </div>
         </div>
-        <div className="detail-actions">
+        <div className="detail-actions storefront-detail-actions">
           {isManageMode ? (
             <>
               <XButton type="button" variant="secondary" label={t('drawer.backToDetail')} icon={<ArrowLeft size={18} />} onClick={() => onModeChange('detail')} />
@@ -1076,6 +1235,13 @@ export function AppDrawer({
                 <>
                   <XButton
                     type="button"
+                    variant={app.rating?.voted ? 'primary' : 'secondary'}
+                    label={app.rating?.voted ? t('drawer.ratingVoted') : t('drawer.ratingVote')}
+                    icon={<Sparkles size={18} />}
+                    onClick={() => void toggleAppRating()}
+                  />
+                  <XButton
+                    type="button"
                     variant="secondary"
                     label={appFavorited ? t('drawer.appFavorited') : t('drawer.favoriteApp')}
                     icon={<Heart size={18} fill={appFavorited ? 'currentColor' : 'none'} />}
@@ -1096,6 +1262,12 @@ export function AppDrawer({
             </>
           )}
         </div>
+        {!isManageMode && (
+          <section className="storefront-detail-section storefront-screenshot-section">
+            <h3>{t('drawer.screenshots')}</h3>
+            {renderScreenshotGallery(false)}
+          </section>
+        )}
         {!isManageMode && (
           <>
             <XCard className={cx('install-trust', trustState)} variant={trustCardVariant} padding={4} aria-label={t('drawer.installReadiness')}>
@@ -1202,14 +1374,70 @@ export function AppDrawer({
           </section>
         )}
         {renderManagementDialogs()}
-        {!isManageMode && (
-          <section>
-            <h3>{t('drawer.screenshots')}</h3>
-            {renderScreenshotGallery(false)}
-          </section>
-        )}
-        <section>
+        <section className="storefront-detail-section storefront-version-section">
           <h3>{t('drawer.versionHistory')}</h3>
+          {versionManagementResult && (
+            <div
+              className="version-management-result"
+              data-tone={versionManagementResult.tone}
+              role={versionManagementResult.tone === 'error' ? 'alert' : 'status'}
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <StatusBadge
+                tone={versionManagementResult.tone}
+                label={versionManagementResult.tone === 'warning'
+                  ? t('site.announcementLevels.warning')
+                  : versionManagementResult.tone === 'error'
+                    ? t('history.failed')
+                    : t('history.success')}
+              />
+              <p>{versionManagementResult.message}</p>
+            </div>
+          )}
+          {isManageMode && app.versionRetention && (
+            <XCard className="version-retention-summary" variant="muted" padding={4}>
+              <div className="version-retention-head">
+                <div>
+                  <Archive size={19} aria-hidden="true" />
+                  <h4>{t('drawer.versionRetentionTitle')}</h4>
+                </div>
+                <StatusBadge
+                  tone={app.versionRetention.mode === 'CUSTOM' ? 'info' : 'neutral'}
+                  label={app.versionRetention.mode === 'CUSTOM'
+                    ? t('drawer.versionRetentionCustom')
+                    : t('drawer.versionRetentionInherited', { count: app.versionRetention.siteMaxVersions })}
+                />
+              </div>
+              <XMetadataList columns="multi">
+                <XMetadataListItem label={t('statusLabels.approved')}>
+                  {t('drawer.versionRetentionApprovedCount', {
+                    count: (app.versions || []).filter((version) => version.status === 'APPROVED').length,
+                  })}
+                </XMetadataListItem>
+                <XMetadataListItem label={t('drawer.versionRetentionSettings')}>
+                  {app.versionRetention.effectiveMaxVersions === 0
+                    ? t('drawer.versionRetentionUnlimited')
+                    : t('drawer.versionRetentionEffectiveCount', {
+                        count: app.versionRetention.effectiveMaxVersions,
+                      })}
+                </XMetadataListItem>
+              </XMetadataList>
+              {canMaintain && (
+                <div className="version-retention-actions">
+                  <XButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    label={t('drawer.versionRetentionSettings')}
+                    icon={<Settings size={17} />}
+                    isDisabled={isSavingVersionRetention || deletingVersionID !== null}
+                    onClick={() => setManagementDialog('version-retention')}
+                  />
+                </div>
+              )}
+            </XCard>
+          )}
           {(app.versions || []).length === 0 ? (
             <EmptyState icon={History} title={t('drawer.noVersions')} body={t('drawer.installBlocked')} />
           ) : (
@@ -1227,23 +1455,61 @@ export function AppDrawer({
                   statusLabel: isLatest ? t('sourceDetail.latest') : t('drawer.historicalVersion'),
                   statusVariant: isLatest ? 'success' : 'neutral',
                   action: (
-                    <XButton
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      label={isLatest ? t('common.download') : t('drawer.downloadHistoricalVersion')}
-                      icon={<Download size={17} />}
-                      isDisabled={!version.downloadUrl}
-                      onClick={() => void onInstall(app, { version: version.version })}
-                    />
+                    <div className="version-row-actions">
+                      <XButton
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        label={isLatest ? t('common.download') : t('drawer.downloadHistoricalVersion')}
+                        icon={<Download size={17} />}
+                        isDisabled={!version.downloadUrl}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void onInstall(app, { version: version.version });
+                        }}
+                      />
+                      {isManageMode && canUploadVersion && (
+                        <XButton
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          label={t('drawer.versionDeleteTitle', { version: version.version })}
+                          icon={<Trash2 size={17} />}
+                          isDisabled={deletingVersionID !== null || isSavingVersionRetention}
+                          isLoading={deletingVersionID === version.id}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setVersionDeleteTarget(version);
+                          }}
+                        />
+                      )}
+                    </div>
                   ),
                 };
               })}
             />
           )}
         </section>
+        {versionDeleteTarget && (
+          <VersionDeleteDialog
+            appName={appName}
+            version={versionDeleteTarget}
+            consequence={(() => {
+              const isLatest = versionDeleteTarget.id === latestVersion?.id
+                || versionDeleteTarget.version === latestVersion?.version;
+              if (!isLatest) return t('drawer.versionDeleteHistorical');
+              const fallback = nextLatestVersion(app.versions || [], versionDeleteTarget.id);
+              return fallback
+                ? t('drawer.versionDeleteLatestFallback', { version: fallback.version })
+                : t('drawer.versionDeleteLatestEmpty');
+            })()}
+            isDeleting={deletingVersionID === versionDeleteTarget.id}
+            onCancel={() => setVersionDeleteTarget(null)}
+            onConfirm={() => deleteVersion(versionDeleteTarget)}
+          />
+        )}
         {!isManageMode && (
-          <section>
+          <section className="storefront-detail-section storefront-comment-section">
             <h3>{t('drawer.comments')}</h3>
             {canComment ? (
               <form className="comment-form rich-comment-form" onSubmit={(event) => void submitComment(event)}>

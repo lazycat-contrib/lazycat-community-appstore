@@ -57,6 +57,18 @@ func (f AppFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppMutation", m)
 }
 
+// The AppDownloadFunc type is an adapter to allow the use of ordinary
+// function as AppDownload mutator.
+type AppDownloadFunc func(context.Context, *ent.AppDownloadMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AppDownloadFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AppDownloadMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppDownloadMutation", m)
+}
+
 // The AppScreenshotFunc type is an adapter to allow the use of ordinary
 // function as AppScreenshot mutator.
 type AppScreenshotFunc func(context.Context, *ent.AppScreenshotMutation) (ent.Value, error)
@@ -103,6 +115,18 @@ func (f AppVisibilityFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Valu
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppVisibilityMutation", m)
+}
+
+// The AppVoteFunc type is an adapter to allow the use of ordinary
+// function as AppVote mutator.
+type AppVoteFunc func(context.Context, *ent.AppVoteMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AppVoteFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AppVoteMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppVoteMutation", m)
 }
 
 // The AssetFunc type is an adapter to allow the use of ordinary

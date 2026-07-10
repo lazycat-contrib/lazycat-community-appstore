@@ -69,6 +69,7 @@ export function AdminUsersPanel({
   saveManagedUser,
   toggleUserDisabled,
   deleteManagedUser,
+  isDeletingUserID,
   loadUsersPage,
 }: {
   users: User[];
@@ -83,7 +84,8 @@ export function AdminUsersPanel({
   openEditUserDialog: (item: User) => void;
   saveManagedUser: (event: FormEvent) => Promise<void>;
   toggleUserDisabled: (item: User) => Promise<void>;
-  deleteManagedUser: (item: User) => Promise<void>;
+  deleteManagedUser: (item: User) => void;
+  isDeletingUserID?: number;
   loadUsersPage: (page: number, pageSize?: number) => Promise<void>;
 }) {
   const { t } = useTranslation();
@@ -102,8 +104,10 @@ export function AdminUsersPanel({
           <EmptyState icon={Users} title={t('admin.noUsers')} />
         ) : (
           <XList className="action-list user-management-list" density="compact" hasDividers>
-            {users.map((item) => (
-              <XListItem
+            {users.map((item) => {
+              const rowBusy = isDeletingUserID === item.id;
+              return (
+                <XListItem
                 className="user-row"
                 key={item.id}
                 startContent={<UserAvatar user={item} size={42} />}
@@ -113,13 +117,14 @@ export function AdminUsersPanel({
                   <div className="row-actions">
                     <XBadge label={t(`admin.roles.${item.role === 'SITE_ADMIN' ? 'siteAdmin' : item.role === 'SOFTWARE_ADMIN' ? 'softwareAdmin' : 'user'}`)} variant={item.role === 'SITE_ADMIN' ? 'info' : item.role === 'SOFTWARE_ADMIN' ? 'success' : 'neutral'} />
                     {item.disabled && <XBadge label={t('admin.userDisabledBadge')} variant="error" />}
-                    <XIconButton type="button" variant="ghost" size="sm" label={t('admin.editUserNamed', { name: displayUserName(item) })} icon={<Pencil size={16} />} onClick={() => openEditUserDialog(item)} />
-                    <XIconButton type="button" variant="ghost" size="sm" label={item.disabled ? t('admin.enableUserNamed', { name: displayUserName(item) }) : t('admin.disableUserNamed', { name: displayUserName(item) })} icon={<UserRound size={16} />} onClick={() => void toggleUserDisabled(item)} />
-                    <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteUserNamed', { name: displayUserName(item) })} icon={<Trash2 size={16} />} onClick={() => void deleteManagedUser(item)} />
+                    <XIconButton type="button" variant="ghost" size="sm" label={t('admin.editUserNamed', { name: displayUserName(item) })} icon={<Pencil size={16} />} isDisabled={rowBusy} onClick={() => openEditUserDialog(item)} />
+                    <XIconButton type="button" variant="ghost" size="sm" label={item.disabled ? t('admin.enableUserNamed', { name: displayUserName(item) }) : t('admin.disableUserNamed', { name: displayUserName(item) })} icon={<UserRound size={16} />} isDisabled={rowBusy} onClick={() => void toggleUserDisabled(item)} />
+                    <XIconButton type="button" variant="destructive" size="sm" label={t('admin.deleteUserNamed', { name: displayUserName(item) })} icon={<Trash2 size={16} />} isDisabled={rowBusy} isLoading={rowBusy} onClick={() => deleteManagedUser(item)} />
                   </div>
                 )}
-              />
-            ))}
+                />
+              );
+            })}
           </XList>
         )}
         {userPagination.pageSize > 0 && userPagination.totalItems > userPagination.pageSize && (

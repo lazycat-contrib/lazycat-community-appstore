@@ -23,12 +23,13 @@ export function InstallOptionsDialog({
   source?: SourceSubscription;
   version?: Version | SourceVersion;
   onCancel: () => void;
-  onSubmit: (options: { installPassword?: string; mirrorId?: string }) => void;
+  onSubmit: (options: { installPassword?: string; mirrorId?: string }) => void | Promise<void>;
 }) {
   const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [mirrorId, setMirrorId] = useState(() => defaultMirrorIDForVersion(source, version) || '');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const dialogTitleId = `install-password-title-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
   const dialogBodyId = `install-password-body-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
   const requiresPassword = app.installProtected;
@@ -40,17 +41,25 @@ export function InstallOptionsDialog({
     setMirrorId(defaultMirrorIDForVersion(source, version) || '');
   }, [source?.id, version?.version]);
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
+    if (submitting) return;
     const value = password.trim();
     if (requiresPassword && !value) {
       setError(t('installPassword.required'));
       return;
     }
-    onSubmit({
-      installPassword: requiresPassword ? value : undefined,
-      mirrorId: mirrorOptions.length > 0 ? mirrorId : undefined,
-    });
+    setSubmitting(true);
+    setError('');
+    try {
+      await Promise.resolve(onSubmit({
+        installPassword: requiresPassword ? value : undefined,
+        mirrorId: mirrorOptions.length > 0 ? mirrorId : undefined,
+      }));
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : t('toast.installFailed'));
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -59,9 +68,10 @@ export function InstallOptionsDialog({
         className="install-password-dialog"
         aria-labelledby={dialogTitleId}
         aria-describedby={dialogBodyId}
+        aria-busy={submitting}
         onSubmit={submit}
       >
-        <XIconButton type="button" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onCancel} />
+        <XIconButton type="button" variant="ghost" label={t('common.close')} icon={<X size={17} />} isDisabled={submitting} onClick={onCancel} />
         <div className="install-password-head">
           <span className="install-password-icon">
             {requiresPassword ? <KeyRound size={21} /> : <Download size={21} />}
@@ -105,8 +115,14 @@ export function InstallOptionsDialog({
           )}
         </XFormLayout>
         <div className="dialog-actions">
-          <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} onClick={onCancel} />
-          <XButton type="submit" variant="primary" label={t('installPassword.confirm')} icon={<Download size={17} />} />
+          <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} isDisabled={submitting} onClick={onCancel} />
+          <XButton
+            type="submit"
+            variant="primary"
+            label={submitting ? t('installActivity.status.running') : t('installPassword.confirm')}
+            icon={submitting ? <Download size={17} className="spin" /> : <Download size={17} />}
+            isDisabled={submitting}
+          />
         </div>
       </form>
     </ModalLayer>

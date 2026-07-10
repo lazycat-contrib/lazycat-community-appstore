@@ -123,6 +123,7 @@ var (
 		{Name: "email_notifications_enabled", Type: field.TypeBool, Default: true},
 		{Name: "install_password_hash", Type: field.TypeString, Default: ""},
 		{Name: "download_count", Type: field.TypeInt, Default: 0},
+		{Name: "version_retention_count", Type: field.TypeInt, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -140,7 +141,7 @@ var (
 			{
 				Name:    "app_owner_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{AppsColumns[1], AppsColumns[19]},
+				Columns: []*schema.Column{AppsColumns[1], AppsColumns[20]},
 			},
 			{
 				Name:    "app_category_id",
@@ -150,7 +151,7 @@ var (
 			{
 				Name:    "app_category_id_status_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{AppsColumns[2], AppsColumns[12], AppsColumns[19]},
+				Columns: []*schema.Column{AppsColumns[2], AppsColumns[12], AppsColumns[20]},
 			},
 			{
 				Name:    "app_status",
@@ -160,12 +161,37 @@ var (
 			{
 				Name:    "app_status_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{AppsColumns[12], AppsColumns[19]},
+				Columns: []*schema.Column{AppsColumns[12], AppsColumns[20]},
 			},
 			{
 				Name:    "app_status_download_count_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{AppsColumns[12], AppsColumns[17], AppsColumns[19]},
+				Columns: []*schema.Column{AppsColumns[12], AppsColumns[17], AppsColumns[20]},
+			},
+		},
+	}
+	// AppDownloadsColumns holds the columns for the "app_downloads" table.
+	AppDownloadsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "app_id", Type: field.TypeInt},
+		{Name: "version", Type: field.TypeString, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// AppDownloadsTable holds the schema information for the "app_downloads" table.
+	AppDownloadsTable = &schema.Table{
+		Name:       "app_downloads",
+		Columns:    AppDownloadsColumns,
+		PrimaryKey: []*schema.Column{AppDownloadsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "appdownload_app_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AppDownloadsColumns[1], AppDownloadsColumns[3]},
+			},
+			{
+				Name:    "appdownload_created_at_app_id",
+				Unique:  false,
+				Columns: []*schema.Column{AppDownloadsColumns[3], AppDownloadsColumns[1]},
 			},
 		},
 	}
@@ -293,6 +319,38 @@ var (
 				Name:    "appvisibility_group_id",
 				Unique:  false,
 				Columns: []*schema.Column{AppVisibilitiesColumns[2]},
+			},
+		},
+	}
+	// AppVotesColumns holds the columns for the "app_votes" table.
+	AppVotesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "app_id", Type: field.TypeInt},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "value", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AppVotesTable holds the schema information for the "app_votes" table.
+	AppVotesTable = &schema.Table{
+		Name:       "app_votes",
+		Columns:    AppVotesColumns,
+		PrimaryKey: []*schema.Column{AppVotesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "appvote_app_id_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{AppVotesColumns[1], AppVotesColumns[2]},
+			},
+			{
+				Name:    "appvote_app_id_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{AppVotesColumns[1], AppVotesColumns[5]},
+			},
+			{
+				Name:    "appvote_user_id_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{AppVotesColumns[2], AppVotesColumns[5]},
 			},
 		},
 	}
@@ -1326,10 +1384,12 @@ var (
 		AdsTable,
 		AnnouncementsTable,
 		AppsTable,
+		AppDownloadsTable,
 		AppScreenshotsTable,
 		AppTagsTable,
 		AppVersionsTable,
 		AppVisibilitiesTable,
+		AppVotesTable,
 		AssetsTable,
 		AssetLinksTable,
 		CategoriesTable,

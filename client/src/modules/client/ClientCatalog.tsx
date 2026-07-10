@@ -1,4 +1,4 @@
-import { Cloud, Download, PackageCheck, RefreshCw, Search, Server } from 'lucide-react';
+import { Cloud, Download, PackageCheck, Search, Server } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
@@ -17,7 +17,6 @@ import type {
 } from '../../shared/types';
 import {
   cx,
-  defaultMirrorIDForVersion,
   findInstalledApplication,
   hasInstallableVersion,
   isSourceAppUpdateAvailable,
@@ -25,8 +24,6 @@ import {
   localizedAppName,
   localizedAppSummary,
   localizedCategory,
-  selectedSourceVersion,
-  sourceForApp,
 } from '../../shared/utils';
 import { enumOptionsFromEntries, filterSignature, matchesChoiceFilter, matchesStringFilter } from '../search/searchFilterHelpers';
 import {
@@ -48,6 +45,7 @@ export function ClientCatalog({
   onInstall,
   onGoSources,
   defaultPageSize,
+  activeInstallKey,
 }: {
   sourceApps: SourceApp[];
   sources: SourceSubscription[];
@@ -57,6 +55,7 @@ export function ClientCatalog({
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
   defaultPageSize: number;
+  activeInstallKey?: string;
 }) {
   const { t } = useTranslation();
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
@@ -147,14 +146,6 @@ export function ClientCatalog({
     setPage(1);
   }, [defaultPageSize]);
 
-  async function updateAllSourceApps() {
-    for (const app of updateSourceApps) {
-      const source = sourceForApp(app, sources);
-      const version = selectedSourceVersion(app);
-      await Promise.resolve(onInstall(app, { mirrorId: defaultMirrorIDForVersion(source, version) }));
-    }
-  }
-
   const sourceEmptyTitle = sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle');
   const sourceEmptyBody =
     sourceApps.length === 0
@@ -173,7 +164,7 @@ export function ClientCatalog({
         </div>
         <XButton type="button" variant="secondary" label={t('search.noSyncedAppsAction')} icon={<Cloud size={18} />} onClick={onGoSources} />
       </div>
-      <div className="client-summary-grid" aria-label={t('search.installReadiness')}>
+      <div className="client-summary-grid client-discovery-summary" aria-label={t('search.installReadiness')}>
         <div>
           <span>{t('search.sourcesTotal')}</span>
           <strong>{sourceStats.sourceCount}</strong>
@@ -182,32 +173,17 @@ export function ClientCatalog({
           <span>{t('search.syncedAppsTotal')}</span>
           <strong>{sourceStats.sourceAppCount}</strong>
         </div>
-        <div>
-          <span>{t('search.installableApps')}</span>
-          <strong>{sourceStats.installableSourceAppCount}</strong>
-        </div>
-        <div className={cx(sourceStats.staleSourceCount > 0 && 'warning')}>
-          <span>{t('search.staleSources')}</span>
-          <strong>{sourceStats.staleSourceCount}</strong>
-        </div>
-        <div className={cx(sourceStats.authSourceCount > 0 && 'warning')}>
-          <span>{t('search.authSources')}</span>
-          <strong>{sourceStats.authSourceCount}</strong>
-        </div>
-        <div className={cx(sourceStats.failedSourceCount > 0 && 'warning')}>
-          <span>{t('search.failedSources')}</span>
-          <strong>{sourceStats.failedSourceCount}</strong>
+        <div className={cx(updateSourceApps.length > 0 && 'warning')}>
+          <span>{t('search.updatesAvailable')}</span>
+          <strong>{updateSourceApps.length}</strong>
         </div>
       </div>
       <section className="panel">
-        <div className="section-title with-action">
+        <div className="section-title">
           <div>
             <Download size={19} />
             <h2>{t('search.subscribedApps')}</h2>
           </div>
-          {updateSourceApps.length > 0 && (
-            <XButton type="button" variant="primary" size="sm" label={t('search.updateAll')} icon={<RefreshCw size={17} />} onClick={() => void updateAllSourceApps()} />
-          )}
         </div>
         <div className="catalog-search-toolbar">
           <PowerSearch
@@ -258,6 +234,7 @@ export function ClientCatalog({
           onOpen={onOpenSource}
           onInstall={onInstall}
           onGoSources={onGoSources}
+          activeInstallKey={activeInstallKey}
           emptyTitle={sourceEmptyTitle}
           emptyBody={sourceEmptyBody}
         />

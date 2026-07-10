@@ -1,7 +1,6 @@
 package clientserver
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/url"
@@ -25,7 +24,7 @@ func (s *Server) handleInstalled(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 	var input InstallRequestDTO
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	if err := decodeJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON request body")
 		return
 	}
@@ -84,7 +83,7 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 func (s *Server) installDownloadURL(app *ent.ClientSourceApp, version *VersionDTO, input InstallRequestDTO) (string, error) {
 	source, err := app.Edges.SourceOrErr()
 	if err != nil {
-		return "", errors.New("Source was not loaded")
+		return "", errors.New("source was not loaded")
 	}
 	mirrorID := strings.TrimSpace(input.MirrorID)
 	if mirrorID == "" {
@@ -95,11 +94,11 @@ func (s *Server) installDownloadURL(app *ent.ClientSourceApp, version *VersionDT
 		upstream = strings.TrimSpace(version.DownloadURL)
 	}
 	if !mirror.IsGitHubURL(upstream) {
-		return "", errors.New("Selected mirror can only be used with GitHub downloads")
+		return "", errors.New("selected mirror can only be used with GitHub downloads")
 	}
 	entry, ok := mirror.FindApplicable(sourceMirrors(source), mirrorID, upstream)
 	if !ok {
-		return "", errors.New("Selected mirror is not available for this download")
+		return "", errors.New("selected mirror is not available for this download")
 	}
 	return withGroupCodes(mirror.RewriteGitHub(upstream, entry), decodeStringSlice(source.GroupCodesJSON)), nil
 }
@@ -117,7 +116,7 @@ func selectInstallVersion(app SourceAppDTO, wanted string) (*VersionDTO, error) 
 	if app.LatestVersion != nil && app.LatestVersion.Version == wanted {
 		return app.LatestVersion, nil
 	}
-	return nil, errors.New("Requested version is not available from this source")
+	return nil, errors.New("requested version is not available from this source")
 }
 
 func withInstallPassword(rawURL string, password string) string {

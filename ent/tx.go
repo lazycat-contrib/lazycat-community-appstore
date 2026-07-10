@@ -20,6 +20,8 @@ type Tx struct {
 	Announcement *AnnouncementClient
 	// App is the client for interacting with the App builders.
 	App *AppClient
+	// AppDownload is the client for interacting with the AppDownload builders.
+	AppDownload *AppDownloadClient
 	// AppScreenshot is the client for interacting with the AppScreenshot builders.
 	AppScreenshot *AppScreenshotClient
 	// AppTag is the client for interacting with the AppTag builders.
@@ -28,6 +30,8 @@ type Tx struct {
 	AppVersion *AppVersionClient
 	// AppVisibility is the client for interacting with the AppVisibility builders.
 	AppVisibility *AppVisibilityClient
+	// AppVote is the client for interacting with the AppVote builders.
+	AppVote *AppVoteClient
 	// Asset is the client for interacting with the Asset builders.
 	Asset *AssetClient
 	// AssetLink is the client for interacting with the AssetLink builders.
@@ -225,10 +229,12 @@ func (tx *Tx) init() {
 	tx.Ad = NewAdClient(tx.config)
 	tx.Announcement = NewAnnouncementClient(tx.config)
 	tx.App = NewAppClient(tx.config)
+	tx.AppDownload = NewAppDownloadClient(tx.config)
 	tx.AppScreenshot = NewAppScreenshotClient(tx.config)
 	tx.AppTag = NewAppTagClient(tx.config)
 	tx.AppVersion = NewAppVersionClient(tx.config)
 	tx.AppVisibility = NewAppVisibilityClient(tx.config)
+	tx.AppVote = NewAppVoteClient(tx.config)
 	tx.Asset = NewAssetClient(tx.config)
 	tx.AssetLink = NewAssetLinkClient(tx.config)
 	tx.Category = NewCategoryClient(tx.config)

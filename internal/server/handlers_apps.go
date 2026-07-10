@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -14,10 +15,12 @@ import (
 
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/appdownload"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvisibility"
+	"lazycat.community/appstore/ent/appvote"
 	"lazycat.community/appstore/ent/collaborator"
 	"lazycat.community/appstore/ent/collaboratorinvite"
 	"lazycat.community/appstore/ent/collaboratorrequest"
@@ -99,14 +102,7 @@ func (s *Server) handleListApps(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "APP_LIST_FAILED", "Could not list apps", nil)
 		return
 	}
-	switch strings.TrimSpace(r.URL.Query().Get("sort")) {
-	case "downloads":
-		q.Order(entgo.Desc(app.FieldDownloadCount), entgo.Desc(app.FieldUpdatedAt))
-	case "name":
-		q.Order(entgo.Asc(app.FieldName), entgo.Desc(app.FieldUpdatedAt))
-	default:
-		q.Order(entgo.Desc(app.FieldUpdatedAt))
-	}
+	s.applyAppListSort(r.Context(), q, strings.TrimSpace(r.URL.Query().Get("sort")))
 	apps, err := q.Offset(page.Offset()).Limit(page.PageSize).All(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "APP_LIST_FAILED", "Could not list apps", nil)
@@ -145,14 +141,7 @@ func (s *Server) publicListAppsResponse(ctx context.Context, r *http.Request) (a
 	if err != nil {
 		return nil, err
 	}
-	switch strings.TrimSpace(r.URL.Query().Get("sort")) {
-	case "downloads":
-		q.Order(entgo.Desc(app.FieldDownloadCount), entgo.Desc(app.FieldUpdatedAt))
-	case "name":
-		q.Order(entgo.Asc(app.FieldName), entgo.Desc(app.FieldUpdatedAt))
-	default:
-		q.Order(entgo.Desc(app.FieldUpdatedAt))
-	}
+	s.applyAppListSort(ctx, q, strings.TrimSpace(r.URL.Query().Get("sort")))
 	records, err := q.Offset(page.Offset()).Limit(page.PageSize).All(ctx)
 	if err != nil {
 		return nil, err
@@ -213,12 +202,17 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	detail := appDetail{appSummary: s.appSummaryDTOFromPreload(r.Context(), record, u, preload)}
+	canManageReleases := u != nil && s.canUploadVersion(r, record, u)
 	versionRecords, _ := s.db.AppVersion.Query().Where(appversion.AppIDEQ(record.ID)).Order(entgo.Desc(appversion.FieldCreatedAt)).All(r.Context())
 	for _, v := range versionRecords {
-		if v.Status != appversion.StatusAPPROVED && (u == nil || (!isAdmin(u) && record.OwnerID != u.ID)) {
+		if v.Status != appversion.StatusAPPROVED && !canManageReleases {
 			continue
 		}
 		detail.Versions = append(detail.Versions, toVersionDTO(v))
+	}
+	if canManageReleases {
+		policy := s.versionRetentionPolicyForApp(r.Context(), record)
+		detail.VersionRetention = &policy
 	}
 	detail.Screenshots, _ = s.loadScreenshots(r, record.ID)
 	comments, _ := s.loadComments(r, record.ID)
@@ -365,7 +359,7 @@ func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *e
 	}
 	file, header, fileErr := r.FormFile("file")
 	if fileErr == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		meta, err := parseUploadedLPKMetadata(file, header, maxLPKSize)
 		if err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "APP_CREATE_FAILED", err.Error(), nil)
@@ -623,6 +617,8 @@ func (s *Server) handleDeleteApp(w http.ResponseWriter, r *http.Request, u *entg
 	_, _ = s.db.CollectionApp.Delete().Where(collectionapp.AppIDEQ(id)).Exec(r.Context())
 	_, _ = s.db.Comment.Delete().Where(commentpkg.AppIDEQ(id)).Exec(r.Context())
 	_, _ = s.db.Favorite.Delete().Where(favoritepkg.TargetTypeEQ(favoritepkg.TargetTypeAPP), favoritepkg.TargetIDEQ(id)).Exec(r.Context())
+	_, _ = s.db.AppDownload.Delete().Where(appdownload.AppIDEQ(id)).Exec(r.Context())
+	_, _ = s.db.AppVote.Delete().Where(appvote.AppIDEQ(id)).Exec(r.Context())
 	if err := s.db.App.DeleteOneID(id).Exec(r.Context()); err != nil {
 		writeError(w, http.StatusInternalServerError, "APP_DELETE_FAILED", "Could not delete app", nil)
 		return
@@ -681,7 +677,7 @@ func (s *Server) handleCreateVersion(w http.ResponseWriter, r *http.Request, u *
 			badRequest(w, err)
 			return
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		created, err := s.createUploadedVersion(r, u, record, r.FormValue("version"), r.FormValue("changelog"), r.FormValue("storageKey"), file, header)
 		if err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "VERSION_CREATE_FAILED", err.Error(), nil)
@@ -790,7 +786,9 @@ func (s *Server) createUploadedVersion(r *http.Request, u *entgo.User, record *e
 	} else {
 		_ = s.updateAppFromApprovedLPKMetadata(r, record.ID, meta)
 		s.clearAppOutdatedMarks(r, record.ID)
-		s.enforceVersionRetention(r, record.ID)
+		if _, _, err := s.enforceVersionRetention(r.Context(), record.ID); err != nil {
+			slog.Warn("Could not enforce version retention", "app_id", record.ID, "error", err)
+		}
 	}
 	return created, nil
 }
@@ -808,7 +806,7 @@ func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *e
 	if !isSHA256Hex(sha256) {
 		return nil, errors.New("sha256 must be a 64-character hexadecimal string")
 	}
-	source := appversion.SourceTypeGITHUB
+	var source appversion.SourceType
 	switch strings.ToUpper(strings.TrimSpace(sourceType)) {
 	case "", "GITHUB":
 		source = appversion.SourceTypeGITHUB
@@ -853,7 +851,9 @@ func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *e
 	} else {
 		_, _ = s.db.App.UpdateOneID(record.ID).SetStatus(app.StatusAPPROVED).Save(r.Context())
 		s.clearAppOutdatedMarks(r, record.ID)
-		s.enforceVersionRetention(r, record.ID)
+		if _, _, err := s.enforceVersionRetention(r.Context(), record.ID); err != nil {
+			slog.Warn("Could not enforce version retention", "app_id", record.ID, "error", err)
+		}
 	}
 	return created, nil
 }
@@ -1047,6 +1047,8 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 		EmailNotificationsEnabled: record.EmailNotificationsEnabled,
 		InstallProtected:          record.InstallPasswordHash != "",
 		DownloadCount:             record.DownloadCount,
+		DownloadStats:             s.downloadStatsForApp(r.Context(), record.ID, record.DownloadCount),
+		Rating:                    s.ratingForApp(r.Context(), record.ID, u),
 		CreatedAt:                 record.CreatedAt,
 		UpdatedAt:                 record.UpdatedAt,
 		Tags:                      []string{},
@@ -1143,7 +1145,6 @@ func (s *Server) handleDownloadVersion(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	_, _ = s.db.App.UpdateOneID(appID).AddDownloadCount(1).Save(r.Context())
 	downloadURL := versionRecord.DownloadURL
 	if mirrorID := strings.TrimSpace(r.URL.Query().Get("mirrorId")); mirrorID != "" {
 		if !mirror.IsGitHubURL(downloadURL) {
@@ -1156,6 +1157,10 @@ func (s *Server) handleDownloadVersion(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		downloadURL = mirror.RewriteGitHub(downloadURL, entry)
+	}
+	if err := s.recordAppDownload(r.Context(), appID, versionRecord.Version); err != nil {
+		writeError(w, http.StatusInternalServerError, "DOWNLOAD_RECORD_FAILED", "Could not record download", nil)
+		return
 	}
 	http.Redirect(w, r, downloadURL, http.StatusFound)
 }
@@ -1219,7 +1224,7 @@ func (s *Server) handleUploadScreenshot(w http.ResponseWriter, r *http.Request, 
 		badRequest(w, err)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".webp" {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Screenshots must be png, jpg, or webp", nil)

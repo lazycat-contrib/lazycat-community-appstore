@@ -1,5 +1,6 @@
-import { Check, ChevronRight, Download, KeyRound, Link, PackagePlus, ShieldCheck, Star, Tag } from 'lucide-react';
+import { ChevronRight, Download, PackagePlus, Sparkles, Star, Tag } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { type MouseEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
@@ -17,10 +18,23 @@ export function AppGrid({
 }: {
   apps: StoreApp[];
   onOpen: (app: StoreApp) => void;
-  onInstall: (app: StoreApp) => void;
+  onInstall: (app: StoreApp) => void | Promise<void>;
   empty?: { title?: string; body?: string; action?: { label: string; icon?: LucideIcon; onClick: () => void } };
 }) {
   const { t } = useTranslation();
+  const [pendingAppID, setPendingAppID] = useState<number | null>(null);
+
+  async function installApp(event: MouseEvent<HTMLButtonElement>, app: StoreApp) {
+    event.stopPropagation();
+    if (pendingAppID !== null) return;
+    setPendingAppID(app.id);
+    try {
+      await onInstall(app);
+    } finally {
+      setPendingAppID((current) => (current === app.id ? null : current));
+    }
+  }
+
   if (apps.length === 0) {
     return <EmptyState icon={PackagePlus} title={empty?.title || t('common.noApps')} body={empty?.body} action={empty?.action} />;
   }
@@ -28,7 +42,7 @@ export function AppGrid({
     <div className="app-grid">
       {apps.map((app) => {
         const installable = hasInstallableVersion(app);
-        const hasChecksum = Boolean(app.latestVersion?.sha256);
+        const isInstalling = pendingAppID === app.id;
         const appName = localizedAppName(app);
         const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
         return (
@@ -45,35 +59,20 @@ export function AppGrid({
               <XBadge variant="neutral" icon={<Tag size={13} />} label={localizedCategory(app, t('common.uncategorized'))} />
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
               <span><Download size={14} /> {t('app.downloads', { count: app.downloadCount })}</span>
-              {app.latestVersion?.sourceType && <span><Link size={14} /> {t('app.sourceType', { type: app.latestVersion.sourceType })}</span>}
-            </div>
-            <div className="app-readiness" aria-label={t('app.installSignals')}>
-              <XBadge
-                variant={installable ? 'success' : 'error'}
-                icon={<Download size={13} />}
-                label={installable ? t('app.installReady') : t('app.installMissingVersion')}
-              />
-              <XBadge
-                variant={hasChecksum ? 'success' : 'warning'}
-                icon={<ShieldCheck size={13} />}
-                label={hasChecksum ? t('app.checksumReady') : t('app.checksumMissing')}
-              />
-              {app.installProtected && (
-                <XBadge variant="warning" icon={<KeyRound size={13} />} label={t('app.installPasswordRequired')} />
-              )}
-              {app.status === 'APPROVED' && (
-                <XBadge variant="success" icon={<Check size={13} />} label={t('app.reviewed')} />
-              )}
+              <span><Sparkles size={14} /> {t('app.rating', { score: app.rating?.score || 0, count: app.rating?.voteCount || 0 })}</span>
             </div>
             <XButton
+              className="app-card-primary-action"
               type="button"
               variant="primary"
-              label={installable ? t('common.download') : t('common.unavailable')}
+              label={installable ? `${t('common.download')} ${appName}` : t('app.installUnavailable', { name: appName })}
               icon={<Download size={17} />}
-              isDisabled={!installable}
-              onClick={() => void onInstall(app)}
-              aria-label={installable ? `${t('common.download')} ${appName}` : t('app.installUnavailable', { name: appName })}
-            />
+              isDisabled={!installable || pendingAppID !== null}
+              isLoading={isInstalling}
+              onClick={(event) => void installApp(event, app)}
+            >
+              {installable ? t('common.download') : t('common.unavailable')}
+            </XButton>
           </XClickableCard>
         );
       })}

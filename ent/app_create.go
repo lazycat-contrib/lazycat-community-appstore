@@ -226,6 +226,20 @@ func (_c *AppCreate) SetNillableDownloadCount(v *int) *AppCreate {
 	return _c
 }
 
+// SetVersionRetentionCount sets the "version_retention_count" field.
+func (_c *AppCreate) SetVersionRetentionCount(v int) *AppCreate {
+	_c.mutation.SetVersionRetentionCount(v)
+	return _c
+}
+
+// SetNillableVersionRetentionCount sets the "version_retention_count" field if the given value is not nil.
+func (_c *AppCreate) SetNillableVersionRetentionCount(v *int) *AppCreate {
+	if v != nil {
+		_c.SetVersionRetentionCount(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *AppCreate) SetCreatedAt(v time.Time) *AppCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -509,6 +523,10 @@ func (_c *AppCreate) createSpec() (*App, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DownloadCount(); ok {
 		_spec.SetField(app.FieldDownloadCount, field.TypeInt, value)
 		_node.DownloadCount = value
+	}
+	if value, ok := _c.mutation.VersionRetentionCount(); ok {
+		_spec.SetField(app.FieldVersionRetentionCount, field.TypeInt, value)
+		_node.VersionRetentionCount = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(app.FieldCreatedAt, field.TypeTime, value)

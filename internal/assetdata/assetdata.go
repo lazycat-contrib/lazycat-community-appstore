@@ -147,10 +147,7 @@ func ServeImageMetadata(w http.ResponseWriter, r *http.Request, mediaType, sha25
 		return true
 	}
 	w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
-	if r.Method == http.MethodHead {
-		return true
-	}
-	return false
+	return r.Method == http.MethodHead
 }
 
 func ETag(sha256 string) string {

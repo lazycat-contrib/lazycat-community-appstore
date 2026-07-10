@@ -1,14 +1,15 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"path"
 	"sort"
 	"strconv"
@@ -242,12 +243,10 @@ func (s *Server) setBackupLastRun(ctx context.Context, result backupRunResult) e
 }
 
 func (s *Server) startBackupScheduler() {
-	if s.backupCtx == nil {
+	if s.ctx == nil {
 		return
 	}
-	s.backupWG.Add(1)
-	go func() {
-		defer s.backupWG.Done()
+	s.backupWG.Go(func() {
 		timer := time.NewTimer(0)
 		defer timer.Stop()
 		for {
@@ -255,21 +254,21 @@ func (s *Server) startBackupScheduler() {
 			case <-timer.C:
 				s.runBackupSchedulerTick()
 				timer.Reset(time.Minute)
-			case <-s.backupCtx.Done():
+			case <-s.ctx.Done():
 				return
 			}
 		}
-	}()
+	})
 }
 
 func (s *Server) runBackupSchedulerTick() {
-	ctx, cancel := context.WithTimeout(s.backupCtx, 6*time.Hour)
+	ctx, cancel := context.WithTimeout(s.ctx, 6*time.Hour)
 	defer cancel()
 	settings, err := s.loadBackupSettings(ctx)
 	if err != nil || !settings.Enabled || len(settings.Targets) == 0 {
 		return
 	}
-	if !shouldRunScheduledBackup(time.Now(), settings.ScheduleTime, settings.LastRun) {
+	if !shouldRunScheduledBackup(time.Now().In(s.siteLocation(ctx)), settings.ScheduleTime, settings.LastRun) {
 		return
 	}
 	_, _ = s.runBackupWithTargets(ctx, "scheduled", settings.Targets)
@@ -325,15 +324,27 @@ func (s *Server) runBackupWithTargets(ctx context.Context, trigger string, targe
 		return finish(), nil
 	}
 
-	var buf bytes.Buffer
-	manifest, err := migration.NewExporter(s.db, s.migrationStorageResolver(), appVersion()).Export(ctx, &buf, migration.DefaultOptions())
+	filePath, manifest, err := s.exportMigrationFile(ctx, migration.DefaultOptions())
 	if err != nil {
 		result.Error = fmt.Sprintf("export migration package: %v", err)
 		return finish(), nil
 	}
-	sum := sha256.Sum256(buf.Bytes())
-	result.Size = int64(buf.Len())
-	result.SHA256 = hex.EncodeToString(sum[:])
+	defer func() { _ = os.Remove(filePath) }()
+	file, err := os.Open(filePath)
+	if err != nil {
+		result.Error = fmt.Sprintf("open migration package: %v", err)
+		return finish(), nil
+	}
+	hasher := sha256.New()
+	_, copyErr := io.Copy(hasher, file)
+	info, statErr := file.Stat()
+	closeErr := file.Close()
+	if err := errors.Join(copyErr, statErr, closeErr); err != nil {
+		result.Error = fmt.Sprintf("inspect migration package: %v", err)
+		return finish(), nil
+	}
+	result.Size = info.Size()
+	result.SHA256 = hex.EncodeToString(hasher.Sum(nil))
 	result.ManifestCounts = manifest.Counts
 	result.Warnings = manifest.Warnings
 
@@ -346,7 +357,15 @@ func (s *Server) runBackupWithTargets(ctx context.Context, trigger string, targe
 			Status:      backupStatusFailed,
 		}
 		objectPath := path.Join(target.directory, fileName)
-		obj, err := target.writer.SaveObject(ctx, objectPath, bytes.NewReader(buf.Bytes()))
+		source, openErr := os.Open(filePath)
+		if openErr != nil {
+			targetResult.Error = openErr.Error()
+			result.Targets = append(result.Targets, targetResult)
+			continue
+		}
+		obj, saveErr := target.writer.SaveObject(ctx, objectPath, source)
+		closeErr := source.Close()
+		err := errors.Join(saveErr, closeErr)
 		if err != nil {
 			targetResult.Error = err.Error()
 			result.Targets = append(result.Targets, targetResult)
@@ -396,14 +415,6 @@ func (s *Server) resolveBackupTargets(ctx context.Context, targetConfigs []backu
 		targets = append(targets, backupTarget{key: targetConfig.StorageKey, name: storageDisplayName(cfg), directory: targetConfig.Directory, backend: backend, writer: writer})
 	}
 	return targets, nil
-}
-
-func (s *Server) normalizeBackupStorageKeys(ctx context.Context, raw []string, require bool) ([]string, error) {
-	targets, err := s.normalizeBackupTargets(ctx, backupTargetsFromKeys(raw), require)
-	if err != nil {
-		return nil, err
-	}
-	return backupStorageKeysFromTargets(targets), nil
 }
 
 func (s *Server) normalizeBackupTargets(ctx context.Context, raw []backupTargetConfig, require bool) ([]backupTargetConfig, error) {

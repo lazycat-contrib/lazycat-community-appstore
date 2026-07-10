@@ -38,6 +38,20 @@ export type Version = {
   publishedAt?: string;
 };
 
+export type VersionRetentionPolicy = {
+  mode: 'INHERIT' | 'CUSTOM';
+  siteMaxVersions: number;
+  appMaxVersions?: number | null;
+  effectiveMaxVersions: number;
+};
+
+export type VersionCleanupWarning = {
+  versionId: number;
+  storageKey: string;
+  storagePath: string;
+  message: string;
+};
+
 export type StoreApp = {
   id: number;
   ownerId: number;
@@ -63,10 +77,13 @@ export type StoreApp = {
   emailNotificationsEnabled: boolean;
   installProtected: boolean;
   downloadCount: number;
+  downloadStats?: DownloadStats;
+  rating?: RatingSummary;
   appFavorited?: boolean;
   submitterFavorited?: boolean;
   latestVersion?: Version;
   versions?: Version[];
+  versionRetention?: VersionRetentionPolicy;
   screenshots?: Screenshot[];
   comments?: Comment[];
   favorites?: number;
@@ -76,6 +93,20 @@ export type StoreApp = {
   canUploadVersion?: boolean;
   canClearOutdatedMarks?: boolean;
   updatedAt: string;
+};
+
+export type DownloadStats = {
+  total: number;
+  day: number;
+  week: number;
+  month: number;
+  year: number;
+};
+
+export type RatingSummary = {
+  score: number;
+  voteCount: number;
+  voted?: boolean;
 };
 
 export type Screenshot = {
@@ -428,6 +459,7 @@ export type SiteProfile = {
   iconUrl?: string;
   publicUrl: string;
   sourceUrl: string;
+  timeZone?: string;
   version?: string;
   defaultPageSize?: number;
   announcement: SiteAnnouncement;
@@ -484,7 +516,10 @@ export type Toast = {
 };
 
 export type InstallActivity = {
-  title: string;
+	appKey: string;
+	appId: number;
+	version: string;
+	title: string;
   source: string;
   checksum: string;
   status: 'running' | 'success' | 'error';
@@ -591,7 +626,7 @@ export type InstallHistoryEntry = {
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type ResolvedTheme = Exclude<ThemeMode, 'system'>;
-export type SortMode = 'recent' | 'downloads' | 'name';
+export type SortMode = 'recent' | 'downloads' | 'downloads_day' | 'downloads_week' | 'downloads_month' | 'downloads_year' | 'name';
 export type SourceAppFilter = 'all' | 'installable' | 'installed' | 'updates' | 'incomplete';
 export type SourceHealth = 'syncing' | 'auth' | 'failed' | 'stale' | 'synced' | 'unsynced';
 export type SourceHealthFilter = 'all' | Exclude<SourceHealth, 'syncing'>;

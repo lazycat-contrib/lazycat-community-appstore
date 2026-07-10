@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -44,7 +45,7 @@ func (s *Server) handleCreateSourceAppComment(w http.ResponseWriter, r *http.Req
 		return
 	}
 	var input CommentInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	if err := decodeJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON request body")
 		return
 	}
@@ -88,8 +89,12 @@ func (s *Server) handleMarkSourceAppOutdated(w http.ResponseWriter, r *http.Requ
 	if !ok {
 		return
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
+	body, err := readLimitedBody(r.Body, 4096)
 	if err != nil {
+		if _, ok := errors.AsType[*responseTooLargeError](err); ok {
+			writeError(w, http.StatusRequestEntityTooLarge, "REQUEST_TOO_LARGE", "Request body is too large")
+			return
+		}
 		writeError(w, http.StatusBadRequest, "INVALID_BODY", "Invalid request body")
 		return
 	}
@@ -186,6 +191,7 @@ func sourceAPIBase(rawURL string) (string, error) {
 }
 
 func (s *Server) proxySourceCommentRequest(w http.ResponseWriter, r *http.Request, source *ent.ClientSource, method, endpoint string, body io.Reader) {
+	s.ensureHTTPClients()
 	req, err := http.NewRequestWithContext(r.Context(), method, endpoint, body)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "SOURCE_URL_INVALID", "Source URL is invalid")
@@ -201,15 +207,20 @@ func (s *Server) proxySourceCommentRequest(w http.ResponseWriter, r *http.Reques
 	if source.Password != "" {
 		req.Header.Set("X-Source-Password", source.Password)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "SOURCE_COMMENT_FAILED", "Could not reach source comments")
 		return
 	}
-	defer resp.Body.Close()
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(resp.StatusCode)
-	_, _ = io.Copy(w, resp.Body)
+	defer func() { _ = resp.Body.Close() }()
+	err = writeBoundedSourceResponse(w, resp, maxSourceProxyResponseBytes)
+	if _, ok := errors.AsType[*responseTooLargeError](err); ok {
+		writeError(w, http.StatusBadGateway, "SOURCE_RESPONSE_TOO_LARGE", "Source response is too large")
+		return
+	}
+	if err != nil {
+		return
+	}
 }
 
 func pseudonymousClientUserID(sourceURL, userID string) string {

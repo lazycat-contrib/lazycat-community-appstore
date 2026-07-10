@@ -21,6 +21,7 @@ export function AdminUsersWorkspace({
   saveManagedUser,
   toggleUserDisabled,
   deleteManagedUser,
+  isDeletingUserID,
   loadUsersPage,
   setToast,
 }: {
@@ -37,7 +38,8 @@ export function AdminUsersWorkspace({
   openEditUserDialog: (item: User) => void;
   saveManagedUser: (event: FormEvent) => Promise<void>;
   toggleUserDisabled: (item: User) => Promise<void>;
-  deleteManagedUser: (item: User) => Promise<void>;
+  deleteManagedUser: (item: User) => void;
+  isDeletingUserID?: number;
   loadUsersPage: (page: number, pageSize?: number) => Promise<void>;
   setToast: (toast: Toast) => void;
 }) {
@@ -67,6 +69,7 @@ export function AdminUsersWorkspace({
           saveManagedUser={saveManagedUser}
           toggleUserDisabled={toggleUserDisabled}
           deleteManagedUser={deleteManagedUser}
+          isDeletingUserID={isDeletingUserID}
           loadUsersPage={loadUsersPage}
         />
       ) : (

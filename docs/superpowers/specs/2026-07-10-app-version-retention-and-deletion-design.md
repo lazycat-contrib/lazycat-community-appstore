@@ -146,6 +146,8 @@ Changing the site default does not trigger an immediate all-application destruct
 
 The server storefront application drawer owns this workflow because it already contains release publishing and version history.
 
+Frontend implementation must compose the current Astryx Design primitives and existing project shared components. It must not create replacement buttons, dialogs, inputs, selectors, badges, toasts, tables, or other design-system primitives. A new component is acceptable only as a business composition around those existing primitives; any capability adapter must be minimal and documented.
+
 Above version history, show a compact retention summary:
 
 - `继承站点设置（当前 10）` or `应用自定义（当前 5）`;

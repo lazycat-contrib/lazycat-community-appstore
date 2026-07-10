@@ -34,6 +34,9 @@ func (s *Server) handleCreateSource(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !s.validateSourceURL(w, r, input.URL) {
+		return
+	}
 	if input.DefaultDownloadMirrorID != "" || input.DefaultRawMirrorID != "" {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Default mirror is not available until the source has been synced")
 		return
@@ -71,6 +74,9 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 	}
 	input, ok := readSourceInput(w, r)
 	if !ok {
+		return
+	}
+	if !s.validateSourceURL(w, r, input.URL) {
 		return
 	}
 	source, err := s.db.ClientSource.Query().
@@ -121,6 +127,28 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"source": sourceDTO(record)})
 }
 
+func (s *Server) validateSourceURL(w http.ResponseWriter, r *http.Request, raw string) bool {
+	target, err := url.Parse(raw)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "SOURCE_URL_NOT_ALLOWED", "Source URL is not allowed")
+		return false
+	}
+	identity, ok := currentClientIdentity(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "CLIENT_AUTH_REQUIRED", "LazyCat OIDC login is required")
+		return false
+	}
+	policy := s.sourcePolicy
+	if policy == nil {
+		policy = allowSourceURLPolicy{}
+	}
+	if err := policy.Validate(r.Context(), identity, target); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "SOURCE_URL_NOT_ALLOWED", err.Error())
+		return false
+	}
+	return true
+}
+
 func (s *Server) handleDeleteSource(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
 	if !ok {
@@ -160,7 +188,7 @@ func (s *Server) handleDeleteSource(w http.ResponseWriter, r *http.Request) {
 
 func readSourceInput(w http.ResponseWriter, r *http.Request) (SourceInput, bool) {
 	var input SourceInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	if err := decodeJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON request body")
 		return SourceInput{}, false
 	}

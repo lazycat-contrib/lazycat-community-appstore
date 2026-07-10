@@ -2,27 +2,25 @@ package migration
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path"
 	"strings"
+	"time"
+
+	"lazycat.community/appstore/internal/storage"
 )
 
-type filePayload struct {
-	Manifest FileManifest
-	Data     []byte
-}
-
-func collectFilePayloads(ctx context.Context, resolver StorageResolver, people PeopleData, apps AppsData, site SiteData) ([]filePayload, []string) {
+func writeFileEntries(ctx context.Context, zw *zip.Writer, resolver StorageResolver, refs []fileRef) ([]FileManifest, []string, error) {
 	if resolver == nil {
-		return nil, []string{"attachment files were skipped because storage is not configured"}
+		return nil, []string{"attachment files were skipped because storage is not configured"}, nil
 	}
-	refs := collectFileRefs(people, apps, site)
-	payloads := make([]filePayload, 0, len(refs))
+	files := make([]FileManifest, 0, len(refs))
 	warnings := []string{}
 	seen := map[string]bool{}
 	for _, ref := range refs {
@@ -45,30 +43,59 @@ func collectFilePayloads(ctx context.Context, resolver StorageResolver, people P
 			warnings = append(warnings, fmt.Sprintf("skipped %s attachment: file is unavailable", ref.Kind))
 			continue
 		}
-		data, readErr := io.ReadAll(io.LimitReader(reader.Body, maxJSONEntryBytes+1))
-		_ = reader.Body.Close()
-		if readErr != nil {
-			warnings = append(warnings, fmt.Sprintf("skipped %s attachment: file could not be read", ref.Kind))
-			continue
-		}
-		if int64(len(data)) > maxJSONEntryBytes {
+		if reader.Size > maxJSONEntryBytes {
+			if err := reader.Body.Close(); err != nil {
+				return nil, nil, fmt.Errorf("close %s attachment: %w", ref.Kind, err)
+			}
 			warnings = append(warnings, fmt.Sprintf("skipped %s attachment: file is too large", ref.Kind))
 			continue
 		}
-		sum := sha256.Sum256(data)
 		zipPath := "files/" + path.Clean(ref.StorageKey+"/"+ref.StoragePath)
-		payloads = append(payloads, filePayload{
-			Manifest: FileManifest{
-				Path:        zipPath,
-				StorageKey:  ref.StorageKey,
-				StoragePath: ref.StoragePath,
-				Size:        int64(len(data)),
-				SHA256:      hex.EncodeToString(sum[:]),
-			},
-			Data: data,
+		if !isSafeZipPath(zipPath) {
+			if err := reader.Body.Close(); err != nil {
+				return nil, nil, fmt.Errorf("close %s attachment: %w", ref.Kind, err)
+			}
+			warnings = append(warnings, fmt.Sprintf("skipped unsafe attachment path for %s", ref.Kind))
+			continue
+		}
+		entry, err := zw.CreateHeader(&zip.FileHeader{Name: zipPath, Method: zip.Deflate})
+		if err != nil {
+			_ = reader.Body.Close()
+			return nil, nil, err
+		}
+		hasher := sha256.New()
+		limited := &io.LimitedReader{R: reader.Body, N: maxJSONEntryBytes + 1}
+		n, copyErr := io.CopyBuffer(io.MultiWriter(entry, hasher), &contextReader{ctx: ctx, reader: limited}, make([]byte, 64<<10))
+		closeErr := reader.Body.Close()
+		if err := errors.Join(copyErr, closeErr); err != nil {
+			return nil, nil, fmt.Errorf("stream %s attachment: %w", ref.Kind, err)
+		}
+		if n > maxJSONEntryBytes {
+			return nil, nil, fmt.Errorf("stream %s attachment: file is too large", ref.Kind)
+		}
+		files = append(files, FileManifest{
+			Path:        zipPath,
+			StorageKey:  ref.StorageKey,
+			StoragePath: ref.StoragePath,
+			Size:        n,
+			SHA256:      hex.EncodeToString(hasher.Sum(nil)),
 		})
 	}
-	return payloads, warnings
+	return files, warnings, nil
+}
+
+type contextReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (r *contextReader) Read(p []byte) (int, error) {
+	select {
+	case <-r.ctx.Done():
+		return 0, r.ctx.Err()
+	default:
+		return r.reader.Read(p)
+	}
 }
 
 type fileRef struct {
@@ -104,20 +131,6 @@ func collectFileRefs(people PeopleData, apps AppsData, site SiteData) []fileRef 
 	return refs
 }
 
-func writeFilePayloads(zw *zip.Writer, payloads []filePayload) error {
-	for _, payload := range payloads {
-		header := &zip.FileHeader{Name: payload.Manifest.Path, Method: zip.Deflate}
-		w, err := zw.CreateHeader(header)
-		if err != nil {
-			return err
-		}
-		if _, err := w.Write(payload.Data); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func importFiles(ctx context.Context, zr *zip.Reader, resolver StorageResolver, manifest Manifest) (map[string]string, []string, error) {
 	pathMap := map[string]string{}
 	warnings := []string{}
@@ -128,28 +141,56 @@ func importFiles(ctx context.Context, zr *zip.Reader, resolver StorageResolver, 
 		return nil, nil, fmt.Errorf("storage is not configured")
 	}
 	for _, file := range manifest.Files {
-		data, err := readZipEntry(zr, file.Path, maxJSONEntryBytes)
-		if err != nil {
-			return nil, nil, fmt.Errorf("read attachment: %w", err)
+		var entry *zip.File
+		for _, candidate := range zr.File {
+			if candidate.Name != file.Path {
+				continue
+			}
+			if entry != nil || candidate.FileInfo().IsDir() {
+				return nil, nil, fmt.Errorf("read attachment: invalid attachment entry")
+			}
+			entry = candidate
 		}
-		if int64(len(data)) != file.Size {
-			return nil, nil, fmt.Errorf("attachment size mismatch")
-		}
-		sum := sha256.Sum256(data)
-		if !strings.EqualFold(hex.EncodeToString(sum[:]), file.SHA256) {
-			return nil, nil, fmt.Errorf("attachment hash mismatch")
+		if entry == nil {
+			return nil, nil, fmt.Errorf("read attachment: zip entry not found")
 		}
 		backend, err := resolver.BackendForKey(ctx, file.StorageKey)
 		if err != nil {
 			return nil, nil, fmt.Errorf("load attachment storage: %w", err)
 		}
-		obj, err := backend.Save(ctx, path.Base(file.StoragePath), bytes.NewReader(data))
+		rc, err := entry.Open()
 		if err != nil {
-			return nil, nil, fmt.Errorf("save attachment: %w", err)
+			return nil, nil, fmt.Errorf("read attachment: %w", err)
+		}
+		obj, saveErr := storage.SaveFile(ctx, backend, rc, path.Base(file.StoragePath), maxJSONEntryBytes)
+		closeErr := rc.Close()
+		if err := errors.Join(saveErr, closeErr); err != nil {
+			var deleteErr error
+			if obj.Path != "" {
+				deleteErr = deleteAttachment(ctx, backend, obj.Path)
+			}
+			return nil, nil, errors.Join(fmt.Errorf("save attachment: %w", err), deleteErr)
+		}
+		if obj.Size != file.Size || !strings.EqualFold(obj.SHA256, file.SHA256) {
+			deleteErr := deleteAttachment(ctx, backend, obj.Path)
+			if obj.Size != file.Size {
+				return nil, nil, errors.Join(errors.New("attachment size mismatch"), deleteErr)
+			}
+			return nil, nil, errors.Join(errors.New("attachment hash mismatch"), deleteErr)
 		}
 		pathMap[file.StorageKey+"\x00"+file.StoragePath] = obj.Path
 	}
 	return pathMap, warnings, nil
+}
+
+func deleteAttachment(ctx context.Context, backend storage.Backend, objectPath string) error {
+	cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cleanupCancel()
+	err := backend.Delete(cleanupCtx, objectPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 func remapStoragePath(pathMap map[string]string, storageKey, storagePath string) string {

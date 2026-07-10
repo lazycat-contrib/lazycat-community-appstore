@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -144,7 +145,9 @@ func (s *Server) decideReview(w http.ResponseWriter, r *http.Request, u *entgo.U
 		if err == nil && approve {
 			_, _ = s.db.App.UpdateOneID(updatedVersion.AppID).SetStatus(app.StatusAPPROVED).Save(r.Context())
 			s.clearAppOutdatedMarks(r, updatedVersion.AppID)
-			s.enforceVersionRetention(r, updatedVersion.AppID)
+			if _, _, err := s.enforceVersionRetention(r.Context(), updatedVersion.AppID); err != nil {
+				slog.Warn("Could not enforce version retention", "app_id", updatedVersion.AppID, "error", err)
+			}
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"review": updated})
@@ -326,20 +329,20 @@ func (s *Server) validateCategoryParent(ctx context.Context, categoryID int, par
 		return nil
 	}
 	if *parentID <= 0 {
-		return fmt.Errorf("Parent category is invalid")
+		return fmt.Errorf("parent category is invalid")
 	}
 	if categoryID > 0 && *parentID == categoryID {
-		return fmt.Errorf("Category cannot be its own parent")
+		return fmt.Errorf("category cannot be its own parent")
 	}
 	parent, err := s.db.Category.Query().Where(category.IDEQ(*parentID)).Only(ctx)
 	if entgo.IsNotFound(err) {
-		return fmt.Errorf("Parent category does not exist")
+		return fmt.Errorf("parent category does not exist")
 	}
 	if err != nil {
 		return err
 	}
 	if parent.ParentID != nil {
-		return fmt.Errorf("Category depth cannot exceed two levels")
+		return fmt.Errorf("category depth cannot exceed two levels")
 	}
 	if categoryID > 0 {
 		children, err := s.db.Category.Query().Where(category.ParentIDEQ(categoryID)).Count(ctx)
@@ -347,7 +350,7 @@ func (s *Server) validateCategoryParent(ctx context.Context, categoryID int, par
 			return err
 		}
 		if children > 0 {
-			return fmt.Errorf("Category depth cannot exceed two levels")
+			return fmt.Errorf("category depth cannot exceed two levels")
 		}
 	}
 	currentID := *parentID
@@ -357,12 +360,12 @@ func (s *Server) validateCategoryParent(ctx context.Context, categoryID int, par
 	}
 	for currentID > 0 {
 		if _, exists := seen[currentID]; exists {
-			return fmt.Errorf("Category parent would create a cycle")
+			return fmt.Errorf("category parent would create a cycle")
 		}
 		seen[currentID] = struct{}{}
 		record, err := s.db.Category.Query().Where(category.IDEQ(currentID)).Only(ctx)
 		if entgo.IsNotFound(err) {
-			return fmt.Errorf("Parent category does not exist")
+			return fmt.Errorf("parent category does not exist")
 		}
 		if err != nil {
 			return err
@@ -541,6 +544,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingSiteSubtitle:             s.siteProfile(r.Context()).Subtitle,
 		settingSiteIconURL:              "",
 		settingSitePublicURL:            s.sitePublicURL(r.Context()),
+		settingSiteTimeZone:             s.siteTimeZone(r.Context()),
 		settingMinClientVersion:         defaultMinClientVersion(),
 		settingMinClientVersionMessage:  "",
 		settingAnnouncementEnabled:      "false",
@@ -623,7 +627,7 @@ func (s *Server) handleUploadSiteIcon(w http.ResponseWriter, r *http.Request, u 
 		badRequest(w, err)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	if err := validateUploadedImage(file, header, maxSiteIconImageSize); err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", err.Error(), nil)
 		return
@@ -786,6 +790,10 @@ func validateSetting(key, value string) error {
 		if !isHTTPURLOrEmpty(value) {
 			return fmt.Errorf("%s must be an http or https URL", key)
 		}
+	case settingSiteTimeZone:
+		if _, err := time.LoadLocation(normalizeSiteTimeZone(value)); err != nil {
+			return fmt.Errorf("%s must be a valid IANA time zone", key)
+		}
 	case settingSiteIconURL:
 		if !isImageSettingURLOrEmpty(value) {
 			return fmt.Errorf("%s must be an http, https, asset, or data image URL", key)
@@ -862,6 +870,7 @@ func isPublicSetting(key string) bool {
 		settingSiteSubtitle,
 		settingSiteIconURL,
 		settingSitePublicURL,
+		settingSiteTimeZone,
 		settingMinClientVersion,
 		settingMinClientVersionMessage,
 		settingAnnouncementEnabled,
@@ -894,6 +903,8 @@ func normalizeSettingValue(key, value string) string {
 		return normalized
 	case settingSitePublicURL, settingSiteIconURL, settingAnnouncementLinkURL:
 		return cleanURLSetting(value)
+	case settingSiteTimeZone:
+		return normalizeSiteTimeZone(value)
 	case settingRegistrationMode:
 		return strings.ToLower(value)
 	default:
@@ -933,26 +944,6 @@ func announcementSettingDefault(key string) string {
 		return "info"
 	default:
 		return ""
-	}
-}
-
-func (s *Server) enforceVersionRetention(r *http.Request, appID int) {
-	maxVersions := s.effectiveMaxVersions(r.Context())
-	if maxVersions == 0 {
-		return
-	}
-	records, err := s.db.AppVersion.Query().
-		Where(appversion.AppIDEQ(appID), appversion.StatusEQ(appversion.StatusAPPROVED)).
-		Order(entgo.Desc(appversion.FieldPublishedAt), entgo.Desc(appversion.FieldCreatedAt)).
-		All(r.Context())
-	if err != nil || len(records) <= maxVersions {
-		return
-	}
-	for _, old := range records[maxVersions:] {
-		if old.StoragePath != "" {
-			s.deleteStoredObject(r.Context(), old.StorageKey, old.StoragePath)
-		}
-		_ = s.db.AppVersion.DeleteOneID(old.ID).Exec(r.Context())
 	}
 }
 

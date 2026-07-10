@@ -2,7 +2,6 @@ import {
   AlertCircle,
   Check,
   Cloud,
-  Download,
   KeyRound,
   Megaphone,
   MessageSquare,
@@ -10,32 +9,25 @@ import {
   Plus,
   RefreshCw,
   Save,
-  Server,
+  Trash2,
   X,
 } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
-import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
-import { SelectableCard as XSelectableCard } from '@astryxdesign/core/SelectableCard';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
-import { Skeleton as XSkeleton } from '@astryxdesign/core/Skeleton';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
-import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
 import { DEFAULT_SOURCE_URL } from '../../config';
-import { AdSpot } from '../../components/AdSpot';
-import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
+import { SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import { CategoryBrowser } from '../storefront/CategoryBrowser';
 import type {
   ClientSourceStats,
   InstalledApplication,
   SourceApp,
   SourceHealth,
-  SourceHealthFilter,
   SourceID,
   SourceInput,
   SourceSubscription,
@@ -46,40 +38,26 @@ import {
   belongsToSource,
   cx,
   errorMessage,
-  formatDate,
   hasInstallableVersion,
   isSourceStale,
   sourceMirrorOptions,
 } from '../../shared/utils';
-import { SourceAppGrid } from './SourceAppGrid';
-import {
-  buildSourceCategoryFilterContext,
-  matchesSourceAppCategory,
-  matchesSourceAppSource,
-  sourceAppCategoryOptions,
-  sourceAppSourceOptions,
-  sourceSubscriptionFilterKey,
-} from './sourceAppFilters';
 import { normalizeGroupCodes, normalizeSourceURL, parseSourceConfigInput } from './sourceConfig';
+import { SourceOnboarding } from './SourceOnboarding';
+import { SourceStatusRow } from './SourceStatusRow';
 
-const PAGE_SIZE_OPTIONS = [12, 24, 48];
+const emptySourceDraft: SourceInput = {
+  name: '',
+  url: DEFAULT_SOURCE_URL,
+  password: '',
+  defaultDownloadMirrorId: '',
+  defaultRawMirrorId: '',
+  groupCodes: [],
+  chatEnabled: true,
+  adsPreference: 'unset',
+};
 
-export function SourcesView({
-  sources,
-  sourceApps,
-  sourceAppsLoading = false,
-  onAddSource,
-  onUpdateSource,
-  onDeleteSource,
-  onSync,
-  onSyncAll,
-  onOpenSource,
-  onInstall,
-  installedApps,
-  sourceStats,
-  ads,
-  setToast,
-}: {
+type SourcesViewProps = {
   sources: SourceSubscription[];
   sourceApps: SourceApp[];
   sourceAppsLoading?: boolean;
@@ -87,28 +65,42 @@ export function SourcesView({
   onUpdateSource: (source: SourceSubscription) => Promise<void>;
   onDeleteSource: (source: SourceSubscription) => Promise<void>;
   onSync: (source: SourceSubscription) => Promise<void>;
-  onSyncAll: () => Promise<void>;
+  onSyncAll: () => Promise<void | { success: number; failed: number }>;
   onOpenSource: (app: SourceApp) => void;
   onInstall: (app: SourceApp) => void;
   installedApps: InstalledApplication[];
   sourceStats: ClientSourceStats;
   ads?: SiteAd[];
   setToast: (toast: Toast) => void;
-}) {
+};
+
+type SourceAction = 'add' | 'edit' | 'delete' | 'sync-all' | `sync:${string}`;
+
+export function SourcesView({
+  sources,
+  sourceApps,
+  onAddSource,
+  onUpdateSource,
+  onDeleteSource,
+  onSync,
+  onSyncAll,
+  setToast,
+}: SourcesViewProps) {
   const { t } = useTranslation();
-  const emptyDraft: SourceInput = { name: '', url: DEFAULT_SOURCE_URL, password: '', defaultDownloadMirrorId: '', defaultRawMirrorId: '', groupCodes: [], chatEnabled: true, adsPreference: 'unset' };
-  const [draft, setDraft] = useState(emptyDraft);
-  const [syncingID, setSyncingID] = useState<SourceID | null>(null);
-  const [confirmDeleteSource, setConfirmDeleteSource] = useState<SourceID | null>(null);
-  const [sourceHealthFilter, setSourceHealthFilter] = useState<SourceHealthFilter>('all');
-  const [selectedSourceID, setSelectedSourceID] = useState<SourceID | null>(null);
-  const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
+  const [draft, setDraft] = useState<SourceInput>(emptySourceDraft);
+  const [editDraft, setEditDraft] = useState<SourceInput>(emptySourceDraft);
   const [editingSource, setEditingSource] = useState<SourceSubscription | null>(null);
-  const [editDraft, setEditDraft] = useState<SourceInput>(emptyDraft);
-  const [selectedSyncedSource, setSelectedSyncedSource] = useState('all');
-  const [selectedSyncedCategory, setSelectedSyncedCategory] = useState('all');
-  const [syncedPage, setSyncedPage] = useState(1);
-  const [syncedPageSize, setSyncedPageSize] = useState(24);
+  const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SourceSubscription | null>(null);
+  const [syncingID, setSyncingID] = useState<SourceID | null>(null);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [savingSource, setSavingSource] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [sourceErrors, setSourceErrors] = useState<Record<string, string>>({});
+  const [syncAllResult, setSyncAllResult] = useState<{ success: number; failed: number } | null>(null);
+  const [activeAction, setActiveAction] = useState<SourceAction | null>(null);
+  const sourceActionRef = useRef<SourceAction | null>(null);
+  const isBusy = activeAction !== null;
 
   const parsedDraftConfig = parseSourceConfigInput(draft.url, DEFAULT_SOURCE_URL);
   const normalizedDraftURL = parsedDraftConfig?.url || '';
@@ -118,48 +110,78 @@ export function SourcesView({
   const sourcePasswordReady = Boolean(draft.password.trim());
   const canAddSource = sourceNameReady && sourceURLReady;
 
+  function openAddSource() {
+    if (sourceActionRef.current) return;
+    setFormError('');
+    setDraft(emptySourceDraft);
+    setIsAddSourceOpen(true);
+  }
+
+  function startSourceAction(action: SourceAction) {
+    if (sourceActionRef.current) return false;
+    sourceActionRef.current = action;
+    setActiveAction(action);
+    return true;
+  }
+
+  function finishSourceAction() {
+    sourceActionRef.current = null;
+    setActiveAction(null);
+  }
+
   async function addSource(event: FormEvent) {
     event.preventDefault();
     const name = draft.name.trim();
     const url = normalizedDraftURL;
     if (!name) {
-      setToast({ tone: 'error', message: t('sources.nameRequired') });
+      setFormError(t('sources.nameRequired'));
       return;
     }
     if (!url) {
-      setToast({ tone: 'error', message: t('sources.invalid') });
+      setFormError(t('sources.invalid'));
       return;
     }
-    const existingSource = sources.find((source) => normalizeSourceURL(source.url) === url);
-    if (existingSource) {
-      if (draftGroupCodes.length === 0) {
-        setToast({ tone: 'neutral', message: t('sources.duplicate') });
-        return;
-      }
-      try {
+    if (!startSourceAction('add')) return;
+    setSavingSource(true);
+    setFormError('');
+    try {
+      const existingSource = sources.find((source) => normalizeSourceURL(source.url) === url);
+      if (existingSource) {
+        if (draftGroupCodes.length === 0) {
+          setFormError(t('sources.duplicate'));
+          return;
+        }
         await onUpdateSource({
           ...existingSource,
           groupCodes: normalizeGroupCodes([...(existingSource.groupCodes || []), ...draftGroupCodes]),
         });
-        setDraft(emptyDraft);
-        setIsAddSourceOpen(false);
         setToast({ tone: 'success', message: t('sources.groupCodesMerged') });
-      } catch (error) {
-        setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSaveFailed')) });
+      } else {
+        await onAddSource({
+          name,
+          url,
+          password: draft.password,
+          defaultDownloadMirrorId: '',
+          defaultRawMirrorId: '',
+          groupCodes: draftGroupCodes,
+          chatEnabled: draft.chatEnabled !== false,
+          adsPreference: draft.adsPreference || 'unset',
+        });
+        setToast({ tone: 'success', message: t('sources.addedNext') });
       }
-      return;
-    }
-    try {
-      await onAddSource({ name, url, password: draft.password, defaultDownloadMirrorId: '', defaultRawMirrorId: '', groupCodes: draftGroupCodes, chatEnabled: draft.chatEnabled !== false });
-      setDraft(emptyDraft);
+      setDraft(emptySourceDraft);
       setIsAddSourceOpen(false);
-      setToast({ tone: 'success', message: t('sources.addedNext') });
     } catch (error) {
-      setToast({ tone: 'error', message: errorMessage(error, t('sources.invalid')) });
+      setFormError(errorMessage(error, t('sources.invalid')));
+    } finally {
+      setSavingSource(false);
+      finishSourceAction();
     }
   }
 
   function openEditSource(source: SourceSubscription) {
+    if (sourceActionRef.current) return;
+    setFormError('');
     setEditingSource(source);
     setEditDraft({
       name: source.name,
@@ -179,13 +201,16 @@ export function SourcesView({
     const name = editDraft.name.trim();
     const url = normalizeSourceURL(editDraft.url);
     if (!name) {
-      setToast({ tone: 'error', message: t('sources.nameRequired') });
+      setFormError(t('sources.nameRequired'));
       return;
     }
     if (!url) {
-      setToast({ tone: 'error', message: t('sources.invalid') });
+      setFormError(t('sources.invalid'));
       return;
     }
+    if (!startSourceAction('edit')) return;
+    setSavingSource(true);
+    setFormError('');
     try {
       await onUpdateSource({
         ...editingSource,
@@ -201,7 +226,10 @@ export function SourcesView({
       setEditingSource(null);
       setToast({ tone: 'success', message: t('sources.updated') });
     } catch (error) {
-      setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSaveFailed')) });
+      setFormError(errorMessage(error, t('toast.sourceSaveFailed')));
+    } finally {
+      setSavingSource(false);
+      finishSourceAction();
     }
   }
 
@@ -214,129 +242,140 @@ export function SourcesView({
     return 'unsynced';
   }
 
-  const sourceHealthFilterItems: Array<{ key: SourceHealthFilter; label: string; count: number }> = [
-    { key: 'all', label: t('sources.filters.all'), count: sources.length },
-    { key: 'synced', label: t('sources.filters.synced'), count: sources.filter((source) => healthFor(source) === 'synced').length },
-    { key: 'stale', label: t('sources.filters.stale'), count: sources.filter((source) => healthFor(source) === 'stale').length },
-    { key: 'auth', label: t('sources.filters.auth'), count: sources.filter((source) => healthFor(source) === 'auth').length },
-    { key: 'unsynced', label: t('sources.filters.unsynced'), count: sources.filter((source) => healthFor(source) === 'unsynced').length },
-    { key: 'failed', label: t('sources.filters.failed'), count: sources.filter((source) => healthFor(source) === 'failed').length },
-  ];
-  const filteredSources = sources.filter((source) => sourceHealthFilter === 'all' || healthFor(source) === sourceHealthFilter);
-  const syncedSourceOptions = sourceAppSourceOptions(sourceApps);
-  const syncedSourceFilteredApps = sourceApps.filter((app) => matchesSourceAppSource(app, selectedSyncedSource));
-  const syncedCategoryOptions = sourceAppCategoryOptions(syncedSourceFilteredApps, t('common.uncategorized'));
-  const syncedCategoryContext = useMemo(() => {
-    const scopedSources = selectedSyncedSource === 'all'
-      ? sources
-      : sources.filter((source) => sourceSubscriptionFilterKey(source) === selectedSyncedSource);
-    return buildSourceCategoryFilterContext(scopedSources);
-  }, [selectedSyncedSource, sources]);
-  const hasSyncedStructuredCategories = syncedCategoryContext.categories.length > 0;
-  const filteredSyncedSourceApps = sourceApps.filter(
-    (app) =>
-      matchesSourceAppSource(app, selectedSyncedSource) &&
-      matchesSourceAppCategory(app, selectedSyncedCategory, hasSyncedStructuredCategories ? syncedCategoryContext : undefined),
-  );
-  const syncedTotalPages = Math.max(1, Math.ceil(filteredSyncedSourceApps.length / syncedPageSize));
-  const currentSyncedPage = Math.min(syncedPage, syncedTotalPages);
-  const pagedSyncedSourceApps = useMemo(() => {
-    const start = (currentSyncedPage - 1) * syncedPageSize;
-    return filteredSyncedSourceApps.slice(start, start + syncedPageSize);
-  }, [filteredSyncedSourceApps, currentSyncedPage, syncedPageSize]);
-
-  useEffect(() => {
-    setSyncedPage(1);
-  }, [sourceApps.length, selectedSyncedSource, selectedSyncedCategory]);
-
-  useEffect(() => {
-    setSelectedSyncedCategory('all');
-  }, [selectedSyncedSource]);
-
-  async function deleteSource(source: SourceSubscription) {
-    if (confirmDeleteSource !== source.id) {
-      setConfirmDeleteSource(source.id);
-      setToast({ tone: 'neutral', message: t('sources.confirmDelete', { name: source.name }) });
+  async function runSourceSync(source: SourceSubscription) {
+    const key = String(source.id);
+    if (!startSourceAction(`sync:${key}`)) {
+      setFormError(t('sources.health.syncing'));
       return;
     }
+    setSyncingID(source.id);
+    setFormError('');
+    setSourceErrors((current) => ({ ...current, [key]: '' }));
     try {
-      await onDeleteSource(source);
-      setConfirmDeleteSource(null);
+      await onSync(source);
+    } catch (error) {
+      setSourceErrors((current) => ({ ...current, [key]: errorMessage(error, t('toast.sourceSyncFailed')) }));
+    } finally {
+      setSyncingID(null);
+      finishSourceAction();
+    }
+  }
+
+  async function runSyncAll() {
+    if (sources.length === 0) return;
+    if (!startSourceAction('sync-all')) {
+      setFormError(t('sources.health.syncing'));
+      return;
+    }
+    setSyncingAll(true);
+    setFormError('');
+    setSyncAllResult(null);
+    try {
+      const result = await onSyncAll();
+      if (result) setSyncAllResult(result);
+    } catch (error) {
+      setFormError(errorMessage(error, t('toast.sourceSyncFailed')));
+    } finally {
+      setSyncingAll(false);
+      finishSourceAction();
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || !startSourceAction('delete')) return;
+    setSavingSource(true);
+    setFormError('');
+    try {
+      await onDeleteSource(deleteTarget);
+      setDeleteTarget(null);
       setToast({ tone: 'success', message: t('sources.deleted') });
     } catch (error) {
-      setToast({ tone: 'error', message: errorMessage(error, t('toast.sourceSaveFailed')) });
+      setFormError(errorMessage(error, t('toast.sourceSaveFailed')));
+    } finally {
+      setSavingSource(false);
+      finishSourceAction();
     }
   }
 
   return (
-    <section className="page-grid">
-      <div className="page-heading with-action">
-        <div>
-          <span className="eyebrow subtle">{t('mode.standaloneClient')}</span>
-          <h1>{t('sources.title')}</h1>
-          <p>{t('sources.subtitle')}</p>
-        </div>
-        <div className="row-actions">
-          <XButton type="button" variant="primary" label={t('sources.add')} icon={<Plus size={18} />} onClick={() => setIsAddSourceOpen(true)} />
-          <XButton type="button" variant="secondary" label={t('sources.syncAll')} icon={<RefreshCw size={18} />} onClick={() => void onSyncAll()} />
-        </div>
-      </div>
-
-      <AdSpot ads={ads} className="client-source-ad" />
-
-      <div className="client-summary-grid source-summary" aria-label={t('sources.summary')}>
-        <div>
-          <span>{t('search.sourcesTotal')}</span>
-          <strong>{sourceStats.sourceCount}</strong>
-        </div>
-        <div>
-          <span>{t('search.syncedSources')}</span>
-          <strong>{sourceStats.syncedSourceCount}</strong>
-        </div>
-        <div className={cx(sourceStats.staleSourceCount > 0 && 'warning')}>
-          <span>{t('search.staleSources')}</span>
-          <strong>{sourceStats.staleSourceCount}</strong>
-        </div>
-        <div className={cx(sourceStats.authSourceCount > 0 && 'warning')}>
-          <span>{t('search.authSources')}</span>
-          <strong>{sourceStats.authSourceCount}</strong>
-        </div>
-        <div>
-          <span>{t('search.installableApps')}</span>
-          <strong>{sourceStats.installableSourceAppCount}</strong>
-        </div>
-        <div className={cx(sourceStats.failedSourceCount > 0 && 'warning')}>
-          <span>{t('search.failedSources')}</span>
-          <strong>{sourceStats.failedSourceCount}</strong>
-        </div>
-      </div>
+    <>
+      {sources.length === 0 ? (
+        <SourceOnboarding onAdd={openAddSource} />
+      ) : (
+        <section className="page-grid client-sources-page">
+          <div className="page-heading with-action">
+            <div>
+              <span className="eyebrow subtle">{t('mode.standaloneClient')}</span>
+              <h1>{t('sources.title')}</h1>
+              <p>{t('sources.managementSubtitle')}</p>
+            </div>
+            <div className="row-actions">
+              <XButton type="button" variant="primary" label={t('sources.add')} icon={<Plus size={18} />} isDisabled={isBusy} onClick={openAddSource} />
+              <XButton
+                type="button"
+                variant="secondary"
+                label={syncingAll ? t('sources.syncingAll') : t('sources.syncAll')}
+                icon={<RefreshCw size={18} className={syncingAll ? 'spin' : undefined} />}
+                isDisabled={isBusy}
+                onClick={() => void runSyncAll()}
+              />
+            </div>
+          </div>
+          {formError && !isAddSourceOpen && !editingSource && !deleteTarget && (
+            <p className="inline-alert" role="alert"><AlertCircle size={15} /><span>{formError}</span></p>
+          )}
+          {syncAllResult && (
+            <div className={cx('client-sync-result', syncAllResult.failed > 0 && 'partial')} role="status">
+              <strong>{syncAllResult.failed > 0 ? t('sources.syncResultPartial') : t('sources.syncResultSuccess')}</strong>
+              <span>{t('sources.syncResultCounts', syncAllResult)}</span>
+            </div>
+          )}
+          <div className="client-source-list">
+            {sources.map((source) => {
+              const scopedApps = sourceApps.filter((app) => belongsToSource(app, source));
+              return (
+                <SourceStatusRow
+                  key={source.id}
+                  source={source}
+                  health={healthFor(source)}
+                  appCount={source.lastAppCount ?? scopedApps.length}
+                  installableCount={source.lastInstallableCount ?? scopedApps.filter(hasInstallableVersion).length}
+                  isSyncing={syncingID === source.id}
+                  isBusy={isBusy}
+                  error={sourceErrors[String(source.id)]}
+                  onSync={() => runSourceSync(source)}
+                  onEdit={() => openEditSource(source)}
+                  onDelete={() => {
+                    if (sourceActionRef.current) return;
+                    setFormError('');
+                    setDeleteTarget(source);
+                  }}
+                />
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {isAddSourceOpen && (
-        <ModalLayer onClose={() => setIsAddSourceOpen(false)} purpose="form">
+        <ModalLayer onClose={() => !savingSource && setIsAddSourceOpen(false)} purpose="form">
           <form
             className="modal-panel form-panel source-add-dialog"
             aria-label={t('sources.addTitle')}
+            aria-busy={savingSource}
             onSubmit={addSource}
             noValidate
           >
-            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setIsAddSourceOpen(false)} />
+            <XIconButton type="button" label={t('common.close')} variant="ghost" icon={<X size={17} />} isDisabled={savingSource} onClick={() => setIsAddSourceOpen(false)} />
             <SectionTitle icon={Cloud} title={t('sources.addTitle')} />
             <div className="source-readiness" aria-label={t('sources.addReadiness')}>
               <div className={cx('readiness-step', sourceNameReady && 'ready')}>
-                <StatusBadge
-                  tone={sourceNameReady ? 'approved' : 'unlisted'}
-                  icon={sourceNameReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                  label={sourceNameReady ? t('sources.ready') : t('sources.needsValue')}
-                />
+                <StatusBadge tone={sourceNameReady ? 'approved' : 'unlisted'} icon={sourceNameReady ? <Check size={14} /> : <AlertCircle size={14} />} label={sourceNameReady ? t('sources.ready') : t('sources.needsValue')} />
                 <strong>{t('sources.readinessName')}</strong>
                 <small>{sourceNameReady ? t('sources.readinessNameReady') : t('sources.readinessNameMissing')}</small>
               </div>
               <div className={cx('readiness-step', sourceURLReady && 'ready')}>
-                <StatusBadge
-                  tone={sourceURLReady ? 'approved' : 'unlisted'}
-                  icon={sourceURLReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                  label={sourceURLReady ? t('sources.ready') : t('sources.needsValue')}
-                />
+                <StatusBadge tone={sourceURLReady ? 'approved' : 'unlisted'} icon={sourceURLReady ? <Check size={14} /> : <AlertCircle size={14} />} label={sourceURLReady ? t('sources.ready') : t('sources.needsValue')} />
                 <strong>{t('sources.readinessUrl')}</strong>
                 <small>{sourceURLReady ? t('sources.readinessUrlReady') : t('sources.readinessUrlMissing')}</small>
               </div>
@@ -356,23 +395,25 @@ export function SourcesView({
             )}
             <XTextInput type="password" label={t('sources.password')} value={draft.password} onChange={(value) => setDraft({ ...draft, password: value })} />
             {!canAddSource && <p className="field-help">{t('sources.addBlocked')}</p>}
+            {formError && <p className="inline-alert" role="alert"><AlertCircle size={15} /><span>{formError}</span></p>}
             <div className="dialog-actions">
-              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={() => setIsAddSourceOpen(false)} />
-              <XButton type="submit" variant="primary" label={t('sources.add')} icon={<Cloud size={18} />} isDisabled={!canAddSource} />
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} isDisabled={savingSource} onClick={() => setIsAddSourceOpen(false)} />
+              <XButton type="submit" variant="primary" label={savingSource ? t('common.saving') : t('sources.add')} icon={savingSource ? <RefreshCw size={18} className="spin" /> : <Cloud size={18} />} isDisabled={!canAddSource || savingSource} />
             </div>
           </form>
         </ModalLayer>
       )}
 
       {editingSource && (
-        <ModalLayer onClose={() => setEditingSource(null)} purpose="form">
+        <ModalLayer onClose={() => !savingSource && setEditingSource(null)} purpose="form">
           <form
             className="modal-panel form-panel source-add-dialog"
             aria-label={t('sources.editTitle')}
+            aria-busy={savingSource}
             onSubmit={saveEditedSource}
             noValidate
           >
-            <XIconButton label={t('common.close')} variant="ghost" icon={<X size={17} />} onClick={() => setEditingSource(null)} />
+            <XIconButton type="button" label={t('common.close')} variant="ghost" icon={<X size={17} />} isDisabled={savingSource} onClick={() => setEditingSource(null)} />
             <SectionTitle icon={Pencil} title={t('sources.editTitle')} />
             <XTextInput label={t('common.name')} value={editDraft.name} onChange={(value) => setEditDraft({ ...editDraft, name: value })} />
             <XTextInput label={t('sources.url')} value={editDraft.url} onChange={(value) => setEditDraft({ ...editDraft, url: value })} />
@@ -418,156 +459,28 @@ export function SourcesView({
               options={sourceMirrorOptions(editingSource, 'raw', t('sources.directMirror'))}
               onChange={(value) => setEditDraft({ ...editDraft, defaultRawMirrorId: value })}
             />
+            {formError && <p className="inline-alert" role="alert"><AlertCircle size={15} /><span>{formError}</span></p>}
             <div className="dialog-actions">
-              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} onClick={() => setEditingSource(null)} />
-              <XButton type="submit" variant="primary" label={t('common.save')} icon={<Save size={18} />} />
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} isDisabled={savingSource} onClick={() => setEditingSource(null)} />
+              <XButton type="submit" variant="primary" label={savingSource ? t('common.saving') : t('common.save')} icon={savingSource ? <RefreshCw size={18} className="spin" /> : <Save size={18} />} isDisabled={savingSource} />
             </div>
           </form>
         </ModalLayer>
       )}
 
-      <section className="panel">
-        <SectionTitle icon={Server} title={t('sources.subscriptions')} />
-        <XToggleButtonGroup value={sourceHealthFilter} onChange={(value) => setSourceHealthFilter((value || 'all') as SourceHealthFilter)} label={t('sources.statusFilter')} size="sm">
-          {sourceHealthFilterItems.map((item) => (
-            <XToggleButton
-              key={item.key}
-              value={item.key}
-              label={`${item.label} ${item.count}`}
-            />
-          ))}
-        </XToggleButtonGroup>
-        <div className="source-list">
-          {sources.length === 0 ? (
-            <EmptyState icon={Cloud} title={t('sources.empty')} />
-          ) : filteredSources.length === 0 ? (
-            <EmptyState icon={Cloud} title={t('sources.emptyFiltered')} body={t('sources.emptyFilteredBody')} />
-          ) : (
-            filteredSources.map((source) => {
-              const sourceScopedApps = sourceApps.filter((app) => belongsToSource(app, source));
-              const syncedAppCount = source.lastAppCount ?? sourceScopedApps.length;
-              const installableAppCount = source.lastInstallableCount ?? sourceScopedApps.filter(hasInstallableVersion).length;
-              const health = healthFor(source);
-              const issueMessage = source.lastError
-                || (health === 'auth' ? t('sources.healthHints.auth') : '')
-                || (health === 'failed' ? t('sources.healthHints.failed') : '')
-                || (source.lastInvalidGroupCodes?.length ? t('sources.invalidGroupCodesCleaned', { count: source.lastInvalidGroupCodes.length }) : '');
-              return (
-                <XSelectableCard
-                  key={source.id}
-                  className="source-row source-select-card"
-                  label={source.name}
-                  isSelected={selectedSourceID === source.id}
-                  onChange={(selected) => setSelectedSourceID(selected ? source.id : null)}
-                  padding={3}
-                  width="100%"
-                >
-                  <div className="source-card-main">
-                    <div className="source-row-header">
-                      <strong>{source.name}</strong>
-                      <StatusBadge className="source-health-badge" tone={health} label={t(`sources.health.${health}`)} aria-live="polite" />
-                    </div>
-                    <div className="source-facts">
-                      <small>{source.lastSync ? t(health === 'stale' ? 'sources.lastSyncStale' : 'sources.lastSync', { time: formatDate(source.lastSync) }) : t('sources.neverSynced')}</small>
-                      <small>{t('sources.syncedAppCount', { count: syncedAppCount })}</small>
-                      <small>{t('sources.installableAppCount', { count: installableAppCount })}</small>
-                    </div>
-                    {issueMessage && (
-                      <p className={cx(health === 'auth' ? 'inline-warning' : 'inline-alert')}>
-                        {health === 'auth' ? <KeyRound size={15} /> : <AlertCircle size={15} />}
-                        <span>{issueMessage}</span>
-                      </p>
-                    )}
-                  </div>
-                  <div className="row-actions source-card-actions">
-                    <XIconButton label={t('sources.editTitle')} variant="ghost" icon={<Pencil size={17} />} onClick={() => openEditSource(source)} />
-                    <XIconButton
-                      label={t('sources.syncSource', { name: source.name })}
-                      variant="ghost"
-                      icon={<RefreshCw size={17} />}
-                      isDisabled={syncingID === source.id}
-                      onClick={() =>
-                        void (async () => {
-                          setSyncingID(source.id);
-                          try {
-                            await onSync(source);
-                          } catch (error) {
-                            setToast({ tone: 'error', message: error instanceof Error ? error.message : t('toast.sourceSyncFailed') });
-                          } finally {
-                            setSyncingID(null);
-                          }
-                        })()
-                      }
-                    />
-                    <XIconButton label={t('sources.deleteSource', { name: source.name })} variant="destructive" icon={<X size={17} />} onClick={() => deleteSource(source)} />
-                  </div>
-                </XSelectableCard>
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      <section className="panel">
-        <SectionTitle icon={Download} title={t('sources.syncedApps')} />
-        <div className="filter-bar">
-          <XSelector
-            label={t('search.sourceFilter')}
-            value={selectedSyncedSource}
-            options={[
-              { value: 'all', label: t('search.allSources') },
-              ...syncedSourceOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
-            ]}
-            onChange={setSelectedSyncedSource}
-          />
-          {!hasSyncedStructuredCategories && (
-            <XSelector
-              label={t('search.categoryFilter')}
-              value={selectedSyncedCategory}
-              options={[
-                { value: 'all', label: t('search.allCategories') },
-                ...syncedCategoryOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
-              ]}
-              onChange={setSelectedSyncedCategory}
-            />
-          )}
-        </div>
-        {hasSyncedStructuredCategories && (
-          <CategoryBrowser categories={syncedCategoryContext.categories} activeCategory={selectedSyncedCategory} onCategory={setSelectedSyncedCategory} />
-        )}
-        {sourceAppsLoading ? (
-          <div className="source-app-loading" aria-label={t('common.loading')} aria-live="polite">
-            <XSkeleton height={88} radius={2} index={0} />
-            <XSkeleton height={88} radius={2} index={1} />
-            <XSkeleton height={88} radius={2} index={2} />
+      {deleteTarget && (
+        <ModalLayer onClose={() => !savingSource && setDeleteTarget(null)} purpose="form">
+          <div className="modal-panel form-panel client-source-delete-dialog" role="alertdialog" aria-labelledby="client-source-delete-title">
+            <SectionTitle icon={AlertCircle} title={t('sources.deleteTitle')} />
+            <p id="client-source-delete-title">{t('sources.deleteBody', { name: deleteTarget.name })}</p>
+            {formError && <p className="inline-alert" role="alert"><AlertCircle size={15} /><span>{formError}</span></p>}
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} isDisabled={savingSource} onClick={() => setDeleteTarget(null)} />
+              <XButton type="button" variant="destructive" label={savingSource ? t('common.deleting') : t('sources.deleteConfirm')} icon={savingSource ? <RefreshCw size={18} className="spin" /> : <Trash2 size={18} />} isDisabled={savingSource} onClick={() => void confirmDelete()} />
+            </div>
           </div>
-        ) : (
-          <SourceAppGrid
-            apps={pagedSyncedSourceApps}
-            installedApps={installedApps}
-            onOpen={onOpenSource}
-            onInstall={onInstall}
-            onGoSources={() => setIsAddSourceOpen(true)}
-            showEmptyAction={sourceApps.length === 0}
-            emptyTitle={sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle')}
-            emptyBody={sourceApps.length === 0 ? t('search.noSyncedAppsBody') : t('search.noFilterResultsBody')}
-          />
-        )}
-        {filteredSyncedSourceApps.length > syncedPageSize && (
-          <XPagination
-            className="list-pagination"
-            page={currentSyncedPage}
-            onChange={setSyncedPage}
-            totalItems={filteredSyncedSourceApps.length}
-            pageSize={syncedPageSize}
-            pageSizeOptions={PAGE_SIZE_OPTIONS}
-            onPageSizeChange={setSyncedPageSize}
-            variant="pages"
-            size="sm"
-            label={t('pagination.label')}
-          />
-        )}
-      </section>
-    </section>
+        </ModalLayer>
+      )}
+    </>
   );
 }
