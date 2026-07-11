@@ -84,6 +84,26 @@ func LastAutoSyncError(v string) predicate.ClientSyncSetting {
 	return predicate.ClientSyncSetting(sql.FieldEQ(FieldLastAutoSyncError, v))
 }
 
+// AutoUpdateEnabled applies equality check predicate on the "auto_update_enabled" field. It's identical to AutoUpdateEnabledEQ.
+func AutoUpdateEnabled(v bool) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldEQ(FieldAutoUpdateEnabled, v))
+}
+
+// AutoUpdateIntervalMinutes applies equality check predicate on the "auto_update_interval_minutes" field. It's identical to AutoUpdateIntervalMinutesEQ.
+func AutoUpdateIntervalMinutes(v int) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldEQ(FieldAutoUpdateIntervalMinutes, v))
+}
+
+// LastAutoUpdateAt applies equality check predicate on the "last_auto_update_at" field. It's identical to LastAutoUpdateAtEQ.
+func LastAutoUpdateAt(v time.Time) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldEQ(FieldLastAutoUpdateAt, v))
+}
+
+// LastAutoUpdateError applies equality check predicate on the "last_auto_update_error" field. It's identical to LastAutoUpdateErrorEQ.
+func LastAutoUpdateError(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldEQ(FieldLastAutoUpdateError, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.ClientSyncSetting {
 	return predicate.ClientSyncSetting(sql.FieldEQ(FieldCreatedAt, v))
@@ -372,6 +392,211 @@ func LastAutoSyncErrorEqualFold(v string) predicate.ClientSyncSetting {
 // LastAutoSyncErrorContainsFold applies the ContainsFold predicate on the "last_auto_sync_error" field.
 func LastAutoSyncErrorContainsFold(v string) predicate.ClientSyncSetting {
 	return predicate.ClientSyncSetting(sql.FieldContainsFold(FieldLastAutoSyncError, v))
+}
+
+// AutoUpdateEnabledEQ applies the EQ predicate on the "auto_update_enabled" field.
+func AutoUpdateEnabledEQ(v bool) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldEQ(FieldAutoUpdateEnabled, v))
+}
+
+// AutoUpdateEnabledNEQ applies the NEQ predicate on the "auto_update_enabled" field.
+func AutoUpdateEnabledNEQ(v bool) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNEQ(FieldAutoUpdateEnabled, v))
+}
+
+// AutoUpdateIntervalMinutesEQ applies the EQ predicate on the "auto_update_interval_minutes" field.
+func AutoUpdateIntervalMinutesEQ(v int) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldEQ(FieldAutoUpdateIntervalMinutes, v))
+}
+
+// AutoUpdateIntervalMinutesNEQ applies the NEQ predicate on the "auto_update_interval_minutes" field.
+func AutoUpdateIntervalMinutesNEQ(v int) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNEQ(FieldAutoUpdateIntervalMinutes, v))
+}
+
+// AutoUpdateIntervalMinutesIn applies the In predicate on the "auto_update_interval_minutes" field.
+func AutoUpdateIntervalMinutesIn(vs ...int) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldIn(FieldAutoUpdateIntervalMinutes, vs...))
+}
+
+// AutoUpdateIntervalMinutesNotIn applies the NotIn predicate on the "auto_update_interval_minutes" field.
+func AutoUpdateIntervalMinutesNotIn(vs ...int) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNotIn(FieldAutoUpdateIntervalMinutes, vs...))
+}
+
+// AutoUpdateIntervalMinutesGT applies the GT predicate on the "auto_update_interval_minutes" field.
+func AutoUpdateIntervalMinutesGT(v int) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldGT(FieldAutoUpdateIntervalMinutes, v))
+}
+
+// AutoUpdateIntervalMinutesGTE applies the GTE predicate on the "auto_update_interval_minutes" field.
+func AutoUpdateIntervalMinutesGTE(v int) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldGTE(FieldAutoUpdateIntervalMinutes, v))
+}
+
+// AutoUpdateIntervalMinutesLT applies the LT predicate on the "auto_update_interval_minutes" field.
+func AutoUpdateIntervalMinutesLT(v int) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldLT(FieldAutoUpdateIntervalMinutes, v))
+}
+
+// AutoUpdateIntervalMinutesLTE applies the LTE predicate on the "auto_update_interval_minutes" field.
+func AutoUpdateIntervalMinutesLTE(v int) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldLTE(FieldAutoUpdateIntervalMinutes, v))
+}
+
+// LastAutoUpdateAtEQ applies the EQ predicate on the "last_auto_update_at" field.
+func LastAutoUpdateAtEQ(v time.Time) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldEQ(FieldLastAutoUpdateAt, v))
+}
+
+// LastAutoUpdateAtNEQ applies the NEQ predicate on the "last_auto_update_at" field.
+func LastAutoUpdateAtNEQ(v time.Time) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNEQ(FieldLastAutoUpdateAt, v))
+}
+
+// LastAutoUpdateAtIn applies the In predicate on the "last_auto_update_at" field.
+func LastAutoUpdateAtIn(vs ...time.Time) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldIn(FieldLastAutoUpdateAt, vs...))
+}
+
+// LastAutoUpdateAtNotIn applies the NotIn predicate on the "last_auto_update_at" field.
+func LastAutoUpdateAtNotIn(vs ...time.Time) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNotIn(FieldLastAutoUpdateAt, vs...))
+}
+
+// LastAutoUpdateAtGT applies the GT predicate on the "last_auto_update_at" field.
+func LastAutoUpdateAtGT(v time.Time) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldGT(FieldLastAutoUpdateAt, v))
+}
+
+// LastAutoUpdateAtGTE applies the GTE predicate on the "last_auto_update_at" field.
+func LastAutoUpdateAtGTE(v time.Time) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldGTE(FieldLastAutoUpdateAt, v))
+}
+
+// LastAutoUpdateAtLT applies the LT predicate on the "last_auto_update_at" field.
+func LastAutoUpdateAtLT(v time.Time) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldLT(FieldLastAutoUpdateAt, v))
+}
+
+// LastAutoUpdateAtLTE applies the LTE predicate on the "last_auto_update_at" field.
+func LastAutoUpdateAtLTE(v time.Time) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldLTE(FieldLastAutoUpdateAt, v))
+}
+
+// LastAutoUpdateAtIsNil applies the IsNil predicate on the "last_auto_update_at" field.
+func LastAutoUpdateAtIsNil() predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldIsNull(FieldLastAutoUpdateAt))
+}
+
+// LastAutoUpdateAtNotNil applies the NotNil predicate on the "last_auto_update_at" field.
+func LastAutoUpdateAtNotNil() predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNotNull(FieldLastAutoUpdateAt))
+}
+
+// LastAutoUpdateStatusEQ applies the EQ predicate on the "last_auto_update_status" field.
+func LastAutoUpdateStatusEQ(v LastAutoUpdateStatus) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldEQ(FieldLastAutoUpdateStatus, v))
+}
+
+// LastAutoUpdateStatusNEQ applies the NEQ predicate on the "last_auto_update_status" field.
+func LastAutoUpdateStatusNEQ(v LastAutoUpdateStatus) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNEQ(FieldLastAutoUpdateStatus, v))
+}
+
+// LastAutoUpdateStatusIn applies the In predicate on the "last_auto_update_status" field.
+func LastAutoUpdateStatusIn(vs ...LastAutoUpdateStatus) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldIn(FieldLastAutoUpdateStatus, vs...))
+}
+
+// LastAutoUpdateStatusNotIn applies the NotIn predicate on the "last_auto_update_status" field.
+func LastAutoUpdateStatusNotIn(vs ...LastAutoUpdateStatus) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNotIn(FieldLastAutoUpdateStatus, vs...))
+}
+
+// LastAutoUpdateStatusIsNil applies the IsNil predicate on the "last_auto_update_status" field.
+func LastAutoUpdateStatusIsNil() predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldIsNull(FieldLastAutoUpdateStatus))
+}
+
+// LastAutoUpdateStatusNotNil applies the NotNil predicate on the "last_auto_update_status" field.
+func LastAutoUpdateStatusNotNil() predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNotNull(FieldLastAutoUpdateStatus))
+}
+
+// LastAutoUpdateErrorEQ applies the EQ predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorEQ(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldEQ(FieldLastAutoUpdateError, v))
+}
+
+// LastAutoUpdateErrorNEQ applies the NEQ predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorNEQ(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNEQ(FieldLastAutoUpdateError, v))
+}
+
+// LastAutoUpdateErrorIn applies the In predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorIn(vs ...string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldIn(FieldLastAutoUpdateError, vs...))
+}
+
+// LastAutoUpdateErrorNotIn applies the NotIn predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorNotIn(vs ...string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNotIn(FieldLastAutoUpdateError, vs...))
+}
+
+// LastAutoUpdateErrorGT applies the GT predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorGT(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldGT(FieldLastAutoUpdateError, v))
+}
+
+// LastAutoUpdateErrorGTE applies the GTE predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorGTE(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldGTE(FieldLastAutoUpdateError, v))
+}
+
+// LastAutoUpdateErrorLT applies the LT predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorLT(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldLT(FieldLastAutoUpdateError, v))
+}
+
+// LastAutoUpdateErrorLTE applies the LTE predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorLTE(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldLTE(FieldLastAutoUpdateError, v))
+}
+
+// LastAutoUpdateErrorContains applies the Contains predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorContains(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldContains(FieldLastAutoUpdateError, v))
+}
+
+// LastAutoUpdateErrorHasPrefix applies the HasPrefix predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorHasPrefix(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldHasPrefix(FieldLastAutoUpdateError, v))
+}
+
+// LastAutoUpdateErrorHasSuffix applies the HasSuffix predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorHasSuffix(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldHasSuffix(FieldLastAutoUpdateError, v))
+}
+
+// LastAutoUpdateErrorIsNil applies the IsNil predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorIsNil() predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldIsNull(FieldLastAutoUpdateError))
+}
+
+// LastAutoUpdateErrorNotNil applies the NotNil predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorNotNil() predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldNotNull(FieldLastAutoUpdateError))
+}
+
+// LastAutoUpdateErrorEqualFold applies the EqualFold predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorEqualFold(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldEqualFold(FieldLastAutoUpdateError, v))
+}
+
+// LastAutoUpdateErrorContainsFold applies the ContainsFold predicate on the "last_auto_update_error" field.
+func LastAutoUpdateErrorContainsFold(v string) predicate.ClientSyncSetting {
+	return predicate.ClientSyncSetting(sql.FieldContainsFold(FieldLastAutoUpdateError, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

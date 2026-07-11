@@ -41,6 +41,8 @@ type Server struct {
 	mux                     *http.ServeMux
 	web                     http.Handler
 	chatHub                 *chatHub
+	lpkInspectionScheduler  *lpkInspectionScheduler
+	inspectLPKForJob        func(context.Context, string, int64, bool, time.Duration) (lpkInspection, error)
 	allowPrivateLPKURLHosts bool
 	adminLoginFailuresMu    sync.Mutex
 	adminLoginFailures      map[string]adminLoginFailure
@@ -103,6 +105,7 @@ func New(cfg config.Config) (*Server, error) {
 		closeDone:          make(chan struct{}),
 	}
 	s.web = embeddedWebHandler(cfg)
+	s.inspectLPKForJob = s.inspectLPKURLWithTimeout
 	if err := s.bootstrap(context.Background()); err != nil {
 		appCancel()
 		_ = client.Close()
@@ -114,6 +117,13 @@ func New(cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 	s.routes()
+	inspectionScheduler, err := newLPKInspectionScheduler(s)
+	if err != nil {
+		appCancel()
+		_ = client.Close()
+		return nil, err
+	}
+	s.lpkInspectionScheduler = inspectionScheduler
 	s.startBackupScheduler()
 	return s, nil
 }
@@ -188,6 +198,9 @@ func (s *Server) startStop() {
 		s.backgroundMu.Unlock()
 		if s.cancel != nil {
 			s.cancel()
+		}
+		if s.lpkInspectionScheduler != nil {
+			s.lpkInspectionScheduler.Stop()
 		}
 		go func() {
 			s.backupWG.Wait()
@@ -359,6 +372,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}", s.withAuth(s.handleUpdateApp))
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}", s.withAuth(s.handleDeleteApp))
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/unlist", s.withAuth(s.handleUnlistApp))
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/lpk-inspections", s.withAuth(s.handleCreateLPKInspection))
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/versions", s.withAuth(s.handleCreateVersion))
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/version-retention", s.withAuth(s.handleUpdateVersionRetention))
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/versions/{versionId}", s.withAuth(s.handleDeleteVersion))

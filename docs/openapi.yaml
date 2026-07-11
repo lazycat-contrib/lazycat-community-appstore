@@ -437,6 +437,44 @@ paths:
         "200":
           description: App unlisted.
 
+  /api/v1/apps/{id}/lpk-inspections:
+    post:
+      tags: [Apps]
+      summary: Queue an LPK metadata inspection
+      description: App owners, collaborators with version-upload access, and administrators can inspect the latest externally linked LPK. By default only missing metadata is filled; overwriting existing metadata requires explicit opt-in.
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                overwriteExistingMetadata:
+                  type: boolean
+                  default: false
+      responses:
+        "202":
+          description: Inspection queued or an existing active inspection returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [inspection]
+                properties:
+                  inspection:
+                    $ref: "#/components/schemas/LPKInspectionStatus"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+
   /api/v1/apps/{id}/versions:
     post:
       tags: [Versions]
@@ -2345,6 +2383,32 @@ components:
               type: boolean
             versionRetention:
               $ref: "#/components/schemas/VersionRetentionPolicy"
+            lpkInspection:
+              $ref: "#/components/schemas/LPKInspectionStatus"
+
+    LPKInspectionStatus:
+      type: object
+      required: [id, state, trigger, attempts, updatedAt]
+      properties:
+        id:
+          type: integer
+        state:
+          type: string
+          enum: [PENDING, RUNNING, SUCCEEDED, FAILED, TIMED_OUT, CANCELLED]
+        trigger:
+          type: string
+          enum: [API_TOKEN_FIRST_SUBMISSION, MANUAL]
+        attempts:
+          type: integer
+          minimum: 0
+        lastError:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
 
     VersionRetentionPolicy:
       type: object

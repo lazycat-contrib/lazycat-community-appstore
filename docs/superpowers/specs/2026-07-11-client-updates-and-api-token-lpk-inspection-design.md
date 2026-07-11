@@ -10,6 +10,7 @@ Success means a user can update all eligible local applications in one ordered t
 
 - A bulk or scheduled update installs only applications that do not require an install password. Password-protected updates remain visible for manual action.
 - A bulk update is a sequential queue. One failure records its result and does not prevent later eligible applications from running.
+- A user can cancel a running installation through LazyCat's `CancelPendingTask` using its returned task ID; cancelling a bulk queue also marks not-yet-started items cancelled.
 - The automatic-update scheduler runs in the standalone client service, not in the browser page.
 - An API-token first `POST /api/v1/apps` returns after the application is created. LPK inspection runs asynchronously only when that first submission has an external LPK URL.
 - The asynchronous job is post-create enrichment: API-token requests continue to meet the existing creation validation and do not rely on a deferred parse to supply fields required to create the application.
@@ -47,11 +48,11 @@ cd lazycat/client && lzc-cli project release -o ../../dist/community.lazycat.app
 
 The installed-app page keeps the existing update grouping and adds `Update all (N)` beside its heading. Its confirmation dialog lists the N eligible applications and separately states which password-protected applications were skipped. The queue uses each source's already-configured default mirror and creates a normal install-history record for every attempted item.
 
-The queue states are `queued`, `running`, `success`, `failed`, and `skipped`. Only one client update queue may run for a user at a time. A manual single-app installation joins the same exclusion boundary: it can be started only when no scheduled/bulk queue is active, and a scheduled/bulk queue waits when an interactive installation is running.
+The queue states are `queued`, `running`, `success`, `failed`, `skipped`, and `cancelled`. Only one client update queue may run for a user at a time. A manual single-app installation joins the same exclusion boundary: it can be started only when no scheduled/bulk queue is active, and a scheduled/bulk queue waits when an interactive installation is running. Cancellation sends the current `taskId` to the LazyCat package manager and prevents the queue from starting later items.
 
 ### Installation progress
 
-After the user confirms an installation, `InstallOptionsDialog` becomes an in-place progress view instead of leaving a separate fixed activity panel behind the modal backdrop. It retains the current application title, source, stage timeline, status, and accessible `aria-live` feedback. The completed state follows the existing success-dismiss setting; errors remain actionable with retry and history controls.
+For every installation entry point, including the software-detail page and the installed-app/update interface, installation creates an asynchronous LazyCat pending task and immediately returns its task ID. `InstallOptionsDialog` becomes an in-place progress view instead of leaving a separate fixed activity panel behind the modal backdrop. It polls task status, downloaded/total bytes, and detail through the client service, retains accessible `aria-live` feedback, and offers `Cancel installation`. Cancellation calls LazyCat `CancelPendingTask` for that task ID. The completed state follows the existing success-dismiss setting; errors remain actionable with retry and history controls.
 
 For a multi-app queue, the installed-app page shows a compact, sticky summary with current item, completed/total count, and an expand control for per-app outcomes. It remains in normal page stacking rather than competing with an open modal. Motion is limited to opacity and transform transitions under 250ms, honors reduced-motion preferences, and gives pressable controls a short active-state response.
 
@@ -65,6 +66,10 @@ Client settings add:
 - `Run update check now`
 
 When due, the client service silently synchronizes configured sources, loads the local installed-app list through the LazyCat SDK, recomputes eligible updates, and executes the sequential queue. It skips password-protected apps, local/unknown-source apps, applications without an approved/installable latest version, and any app that is already at or above the source version. A scheduler lock prevents duplicate work across timer ticks and manual triggers.
+
+## Installation Task API
+
+`POST /api/client/v1/install` remains the creation endpoint but now returns `202 Accepted` with `{ "task": { "taskId", "status", "downloadedSize", "totalSize", "detail" } }`. Add `GET /api/client/v1/install-tasks/{taskId}` for the task snapshot and `DELETE /api/client/v1/install-tasks/{taskId}` for cancellation. Both routes are client-user scoped; a task not returned by that user's LazyCat task list is `404 INSTALL_TASK_NOT_FOUND`. Task validation and cancellation errors use the existing structured error shape.
 
 ## Server Design
 
@@ -108,6 +113,7 @@ return s.finishInspectionJob(ctx, job, inspectionjob.StateSUCCEEDED, "")
 - Server authorization tests cover owner, collaborator, administrator, and unauthorized manual-inspection attempts.
 - Metadata tests prove automatic jobs fill only empty values; manual jobs overwrite only with explicit consent; package-ID mismatches leave data unchanged.
 - Client-server tests cover persisted scheduler settings, due-time evaluation, exclusion of password-protected apps, ordered execution, failure continuation, and scheduler/manual mutual exclusion.
+- Client-server tests cover cancellation forwarding with the active LazyCat task ID and queue cancellation of unstarted items.
 - Frontend tests cover update count/confirmation, skipped-password messaging, dialog progress state, queue summary, result rendering, and translation keys.
 - Run the commands above plus both LPK lint/info checks before release.
 
@@ -120,7 +126,7 @@ return s.finishInspectionJob(ctx, job, inspectionjob.StateSUCCEEDED, "")
 ## Success Criteria
 
 - A visible update list has a working bulk-update entry point and a clear count of password-protected skips.
-- Installing from a modal always shows live progress in that modal rather than behind its backdrop.
+- Installing from any modal always shows live progress in that modal rather than behind its backdrop.
 - With scheduled updates enabled, the client service updates only eligible newer applications, serially and without concurrent duplicate queues.
 - A first API-token external-LPK submission returns without waiting for asset availability, then creates a visible automatic inspection job when enabled.
 - A temporarily unreachable LPK is retried only until the configured total window; at 30 seconds it stops automatically and records `timed_out`.

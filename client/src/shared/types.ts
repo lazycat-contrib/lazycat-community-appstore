@@ -45,6 +45,16 @@ export type VersionRetentionPolicy = {
   effectiveMaxVersions: number;
 };
 
+export type LPKInspectionStatus = {
+  id: number;
+  state: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'TIMED_OUT' | 'CANCELLED' | string;
+  trigger: 'API_TOKEN_FIRST_SUBMISSION' | 'MANUAL' | string;
+  attempts: number;
+  lastError?: string;
+  updatedAt: string;
+  completedAt?: string;
+};
+
 export type VersionCleanupWarning = {
   versionId: number;
   storageKey: string;
@@ -84,6 +94,7 @@ export type StoreApp = {
   latestVersion?: Version;
   versions?: Version[];
   versionRetention?: VersionRetentionPolicy;
+  lpkInspection?: LPKInspectionStatus;
   screenshots?: Screenshot[];
   comments?: Comment[];
   favorites?: number;
@@ -331,6 +342,11 @@ export type ClientSettings = {
   lastAutoSyncAt?: string;
   lastAutoSyncStatus?: string;
   lastAutoSyncError?: string;
+  autoUpdateEnabled: boolean;
+  autoUpdateIntervalMinutes: number;
+  lastAutoUpdateAt?: string;
+  lastAutoUpdateStatus?: string;
+  lastAutoUpdateError?: string;
 };
 
 export type ClientIdentity = {
@@ -516,15 +532,19 @@ export type Toast = {
 };
 
 export type InstallActivity = {
-	appKey: string;
-	appId: number;
-	version: string;
-	title: string;
+  appKey: string;
+  appId: number;
+  version: string;
+  title: string;
   source: string;
   checksum: string;
-  status: 'running' | 'success' | 'error';
+  taskId?: string;
+  status: 'running' | 'success' | 'error' | 'cancelled';
   progress: number;
+  progressKnown?: boolean;
   stageKey: string;
+  detail?: string;
+  isCancelling?: boolean;
   resultMode?: string;
   messageKey?: string;
   messageParams?: Record<string, string | number>;
@@ -539,6 +559,7 @@ export type InstallOptions = {
   installPassword?: string;
   version?: string;
   mirrorId?: string;
+  confirmed?: boolean;
 };
 
 export type ClientSourceStats = {
@@ -562,11 +583,29 @@ export type InstalledApplication = {
   icon?: string;
 };
 
-export type ClientInstallResult = {
-  mode: string;
-  taskId?: string;
-  status?: string;
+export type ClientInstallTask = {
+  taskId: string;
+  status: string;
+  downloadedSize?: number;
+  totalSize?: number;
   detail?: string;
+};
+
+export type UpdateQueueItem = {
+  appId: number;
+  packageId: string;
+  appName: string;
+  installedVersion?: string;
+  version?: string;
+  status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled' | string;
+  taskId?: string;
+  detail?: string;
+};
+
+export type UpdateQueueResult = {
+  status: 'running' | 'success' | 'partial' | 'failed' | 'cancelled' | 'no_updates' | 'already_running' | string;
+  items?: UpdateQueueItem[];
+  error?: string;
 };
 
 export type ChatParticipant = {

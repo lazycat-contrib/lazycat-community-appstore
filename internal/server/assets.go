@@ -13,7 +13,7 @@ import (
 	"lazycat.community/appstore/ent/asset"
 	"lazycat.community/appstore/ent/assetlink"
 	"lazycat.community/appstore/internal/assetdata"
-	"lazycat.community/appstore/internal/lpkmeta"
+	"lazycat.community/appstore/internal/lpkinspect"
 )
 
 const (
@@ -80,7 +80,7 @@ func (s *Server) saveAsset(ctx context.Context, payload assetdata.Payload) (*ent
 	return nil, err
 }
 
-func (s *Server) saveLPKIconAsset(ctx context.Context, meta lpkmeta.Metadata) (string, int, error) {
+func (s *Server) saveLPKIconAsset(ctx context.Context, meta lpkinspect.Metadata) (string, int, error) {
 	if len(meta.IconData) == 0 {
 		return "", 0, nil
 	}

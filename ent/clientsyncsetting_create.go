@@ -110,6 +110,76 @@ func (_c *ClientSyncSettingCreate) SetNillableLastAutoSyncError(v *string) *Clie
 	return _c
 }
 
+// SetAutoUpdateEnabled sets the "auto_update_enabled" field.
+func (_c *ClientSyncSettingCreate) SetAutoUpdateEnabled(v bool) *ClientSyncSettingCreate {
+	_c.mutation.SetAutoUpdateEnabled(v)
+	return _c
+}
+
+// SetNillableAutoUpdateEnabled sets the "auto_update_enabled" field if the given value is not nil.
+func (_c *ClientSyncSettingCreate) SetNillableAutoUpdateEnabled(v *bool) *ClientSyncSettingCreate {
+	if v != nil {
+		_c.SetAutoUpdateEnabled(*v)
+	}
+	return _c
+}
+
+// SetAutoUpdateIntervalMinutes sets the "auto_update_interval_minutes" field.
+func (_c *ClientSyncSettingCreate) SetAutoUpdateIntervalMinutes(v int) *ClientSyncSettingCreate {
+	_c.mutation.SetAutoUpdateIntervalMinutes(v)
+	return _c
+}
+
+// SetNillableAutoUpdateIntervalMinutes sets the "auto_update_interval_minutes" field if the given value is not nil.
+func (_c *ClientSyncSettingCreate) SetNillableAutoUpdateIntervalMinutes(v *int) *ClientSyncSettingCreate {
+	if v != nil {
+		_c.SetAutoUpdateIntervalMinutes(*v)
+	}
+	return _c
+}
+
+// SetLastAutoUpdateAt sets the "last_auto_update_at" field.
+func (_c *ClientSyncSettingCreate) SetLastAutoUpdateAt(v time.Time) *ClientSyncSettingCreate {
+	_c.mutation.SetLastAutoUpdateAt(v)
+	return _c
+}
+
+// SetNillableLastAutoUpdateAt sets the "last_auto_update_at" field if the given value is not nil.
+func (_c *ClientSyncSettingCreate) SetNillableLastAutoUpdateAt(v *time.Time) *ClientSyncSettingCreate {
+	if v != nil {
+		_c.SetLastAutoUpdateAt(*v)
+	}
+	return _c
+}
+
+// SetLastAutoUpdateStatus sets the "last_auto_update_status" field.
+func (_c *ClientSyncSettingCreate) SetLastAutoUpdateStatus(v clientsyncsetting.LastAutoUpdateStatus) *ClientSyncSettingCreate {
+	_c.mutation.SetLastAutoUpdateStatus(v)
+	return _c
+}
+
+// SetNillableLastAutoUpdateStatus sets the "last_auto_update_status" field if the given value is not nil.
+func (_c *ClientSyncSettingCreate) SetNillableLastAutoUpdateStatus(v *clientsyncsetting.LastAutoUpdateStatus) *ClientSyncSettingCreate {
+	if v != nil {
+		_c.SetLastAutoUpdateStatus(*v)
+	}
+	return _c
+}
+
+// SetLastAutoUpdateError sets the "last_auto_update_error" field.
+func (_c *ClientSyncSettingCreate) SetLastAutoUpdateError(v string) *ClientSyncSettingCreate {
+	_c.mutation.SetLastAutoUpdateError(v)
+	return _c
+}
+
+// SetNillableLastAutoUpdateError sets the "last_auto_update_error" field if the given value is not nil.
+func (_c *ClientSyncSettingCreate) SetNillableLastAutoUpdateError(v *string) *ClientSyncSettingCreate {
+	if v != nil {
+		_c.SetLastAutoUpdateError(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *ClientSyncSettingCreate) SetCreatedAt(v time.Time) *ClientSyncSettingCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -185,6 +255,14 @@ func (_c *ClientSyncSettingCreate) defaults() {
 		v := clientsyncsetting.DefaultSyncOnStartup
 		_c.mutation.SetSyncOnStartup(v)
 	}
+	if _, ok := _c.mutation.AutoUpdateEnabled(); !ok {
+		v := clientsyncsetting.DefaultAutoUpdateEnabled
+		_c.mutation.SetAutoUpdateEnabled(v)
+	}
+	if _, ok := _c.mutation.AutoUpdateIntervalMinutes(); !ok {
+		v := clientsyncsetting.DefaultAutoUpdateIntervalMinutes
+		_c.mutation.SetAutoUpdateIntervalMinutes(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := clientsyncsetting.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -217,6 +295,17 @@ func (_c *ClientSyncSettingCreate) check() error {
 	if v, ok := _c.mutation.LastAutoSyncStatus(); ok {
 		if err := clientsyncsetting.LastAutoSyncStatusValidator(v); err != nil {
 			return &ValidationError{Name: "last_auto_sync_status", err: fmt.Errorf(`ent: validator failed for field "ClientSyncSetting.last_auto_sync_status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.AutoUpdateEnabled(); !ok {
+		return &ValidationError{Name: "auto_update_enabled", err: errors.New(`ent: missing required field "ClientSyncSetting.auto_update_enabled"`)}
+	}
+	if _, ok := _c.mutation.AutoUpdateIntervalMinutes(); !ok {
+		return &ValidationError{Name: "auto_update_interval_minutes", err: errors.New(`ent: missing required field "ClientSyncSetting.auto_update_interval_minutes"`)}
+	}
+	if v, ok := _c.mutation.LastAutoUpdateStatus(); ok {
+		if err := clientsyncsetting.LastAutoUpdateStatusValidator(v); err != nil {
+			return &ValidationError{Name: "last_auto_update_status", err: fmt.Errorf(`ent: validator failed for field "ClientSyncSetting.last_auto_update_status": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
@@ -278,6 +367,26 @@ func (_c *ClientSyncSettingCreate) createSpec() (*ClientSyncSetting, *sqlgraph.C
 	if value, ok := _c.mutation.LastAutoSyncError(); ok {
 		_spec.SetField(clientsyncsetting.FieldLastAutoSyncError, field.TypeString, value)
 		_node.LastAutoSyncError = &value
+	}
+	if value, ok := _c.mutation.AutoUpdateEnabled(); ok {
+		_spec.SetField(clientsyncsetting.FieldAutoUpdateEnabled, field.TypeBool, value)
+		_node.AutoUpdateEnabled = value
+	}
+	if value, ok := _c.mutation.AutoUpdateIntervalMinutes(); ok {
+		_spec.SetField(clientsyncsetting.FieldAutoUpdateIntervalMinutes, field.TypeInt, value)
+		_node.AutoUpdateIntervalMinutes = value
+	}
+	if value, ok := _c.mutation.LastAutoUpdateAt(); ok {
+		_spec.SetField(clientsyncsetting.FieldLastAutoUpdateAt, field.TypeTime, value)
+		_node.LastAutoUpdateAt = &value
+	}
+	if value, ok := _c.mutation.LastAutoUpdateStatus(); ok {
+		_spec.SetField(clientsyncsetting.FieldLastAutoUpdateStatus, field.TypeEnum, value)
+		_node.LastAutoUpdateStatus = &value
+	}
+	if value, ok := _c.mutation.LastAutoUpdateError(); ok {
+		_spec.SetField(clientsyncsetting.FieldLastAutoUpdateError, field.TypeString, value)
+		_node.LastAutoUpdateError = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(clientsyncsetting.FieldCreatedAt, field.TypeTime, value)

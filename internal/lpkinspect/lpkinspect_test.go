@@ -121,7 +121,50 @@ description: Upload package
 	}
 }
 
+func TestParseUploadedReadsMetadataAndIconWithToolkit(t *testing.T) {
+	icon := []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0x00}
+	lpk := testLPKArchiveWithFiles(t, `package: cloud.lazycat.test.toolkit
+version: 1.2.3
+icon: assets/icon.png
+locales:
+  zh:
+    name: 工具包应用
+    description: 工具包描述
+  en:
+    name: Toolkit app
+    description: Toolkit description
+`, map[string][]byte{"assets/icon.png": icon})
+	file, err := os.CreateTemp(t.TempDir(), "toolkit-*.lpk")
+	if err != nil {
+		t.Fatalf("CreateTemp: %v", err)
+	}
+	if _, err := file.Write(lpk); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		t.Fatalf("Seek: %v", err)
+	}
+
+	meta, err := ParseUploaded(file, &multipart.FileHeader{Filename: "toolkit.lpk", Size: int64(len(lpk))}, int64(len(lpk)+1024))
+	if err != nil {
+		t.Fatalf("ParseUploaded: %v", err)
+	}
+	if meta.PackageID != "cloud.lazycat.test.toolkit" || meta.Version != "1.2.3" {
+		t.Fatalf("metadata = %+v", meta)
+	}
+	if meta.Name != "工具包应用" || meta.Description != "工具包描述" || meta.NameI18n["en"] != "Toolkit app" {
+		t.Fatalf("localized metadata = %+v", meta)
+	}
+	if meta.IconPath != "assets/icon.png" || meta.IconMediaType != "image/png" || !bytes.Equal(meta.IconData, icon) {
+		t.Fatalf("icon metadata = %+v", meta)
+	}
+}
+
 func testLPKArchive(t *testing.T, packageYAML string) []byte {
+	return testLPKArchiveWithFiles(t, packageYAML, nil)
+}
+
+func testLPKArchiveWithFiles(t *testing.T, packageYAML string, files map[string][]byte) []byte {
 	t.Helper()
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
@@ -130,6 +173,14 @@ func testLPKArchive(t *testing.T, packageYAML string) []byte {
 	}
 	if _, err := tw.Write([]byte(packageYAML)); err != nil {
 		t.Fatalf("Write: %v", err)
+	}
+	for name, data := range files {
+		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(data))}); err != nil {
+			t.Fatalf("WriteHeader %s: %v", name, err)
+		}
+		if _, err := tw.Write(data); err != nil {
+			t.Fatalf("Write %s: %v", name, err)
+		}
 	}
 	if err := tw.Close(); err != nil {
 		t.Fatalf("Close tar: %v", err)

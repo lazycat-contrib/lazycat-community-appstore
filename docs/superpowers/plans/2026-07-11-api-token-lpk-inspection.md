@@ -28,11 +28,11 @@
 - `internal/server/settings.go`, `handlers_admin.go`, `types.go`: site setting/DTO support.
 - management React files, locales, and `docs/openapi.yaml`: status/action/settings contracts.
 
-### Task 1: Persist inspection jobs and wire scheduler lifecycle
+### Task 1: Persist inspection jobs and wire scheduler lifecycle `[~]`
 
 **Files:**
 - Create: `ent/schema/lpk_inspection_job.go`
-- Modify: generated `ent/` files via `go generate ./ent`
+- Modify: generated `ent/` files via `go run -mod=mod entgo.io/ent/cmd/ent generate ./ent/schema`
 - Modify: `internal/server/server.go`
 - Create: `internal/server/lpk_inspection_test.go`
 
@@ -65,7 +65,7 @@ Expected: FAIL because `LPKInspectionJob` is undefined.
 
 - [ ] **Step 3: Define and generate the Ent model**
 
-Include `app_id`, optional `version_id`, `user_id`, `download_url`, enum `trigger`, enum `state`, `overwrite_existing_metadata`, `attempts`, optional `last_error`, optional `next_attempt_at`, optional `deadline_at`, optional `completed_at`, and timestamps. Add indexes on `(state, next_attempt_at)` and `(app_id, state)`. Run `go generate ./ent`. Add a scheduler field to `Server`, start it after routes are registered, and close it alongside other server resources.
+Include `app_id`, optional `version_id`, `user_id`, `download_url`, enum `trigger`, enum `state`, `overwrite_existing_metadata`, `attempts`, optional `last_error`, optional `next_attempt_at`, optional `deadline_at`, optional `completed_at`, and timestamps. Add indexes on `(state, next_attempt_at)` and `(app_id, state)`. Run `go run -mod=mod entgo.io/ent/cmd/ent generate ./ent/schema`. Add a scheduler field to `Server`, start it after routes are registered, and close it alongside other server resources.
 
 - [ ] **Step 4: Verify the durable foundation**
 

@@ -794,12 +794,20 @@ func init() {
 	clientsyncsettingDescSyncOnStartup := clientsyncsettingFields[3].Descriptor()
 	// clientsyncsetting.DefaultSyncOnStartup holds the default value on creation for the sync_on_startup field.
 	clientsyncsetting.DefaultSyncOnStartup = clientsyncsettingDescSyncOnStartup.Default.(bool)
+	// clientsyncsettingDescAutoUpdateEnabled is the schema descriptor for auto_update_enabled field.
+	clientsyncsettingDescAutoUpdateEnabled := clientsyncsettingFields[7].Descriptor()
+	// clientsyncsetting.DefaultAutoUpdateEnabled holds the default value on creation for the auto_update_enabled field.
+	clientsyncsetting.DefaultAutoUpdateEnabled = clientsyncsettingDescAutoUpdateEnabled.Default.(bool)
+	// clientsyncsettingDescAutoUpdateIntervalMinutes is the schema descriptor for auto_update_interval_minutes field.
+	clientsyncsettingDescAutoUpdateIntervalMinutes := clientsyncsettingFields[8].Descriptor()
+	// clientsyncsetting.DefaultAutoUpdateIntervalMinutes holds the default value on creation for the auto_update_interval_minutes field.
+	clientsyncsetting.DefaultAutoUpdateIntervalMinutes = clientsyncsettingDescAutoUpdateIntervalMinutes.Default.(int)
 	// clientsyncsettingDescCreatedAt is the schema descriptor for created_at field.
-	clientsyncsettingDescCreatedAt := clientsyncsettingFields[7].Descriptor()
+	clientsyncsettingDescCreatedAt := clientsyncsettingFields[12].Descriptor()
 	// clientsyncsetting.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsyncsetting.DefaultCreatedAt = clientsyncsettingDescCreatedAt.Default.(func() time.Time)
 	// clientsyncsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsyncsettingDescUpdatedAt := clientsyncsettingFields[8].Descriptor()
+	clientsyncsettingDescUpdatedAt := clientsyncsettingFields[13].Descriptor()
 	// clientsyncsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsyncsetting.DefaultUpdatedAt = clientsyncsettingDescUpdatedAt.Default.(func() time.Time)
 	// clientsyncsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

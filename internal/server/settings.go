@@ -15,50 +15,51 @@ import (
 )
 
 const (
-	settingMaxLPKSize               = "max_lpk_size"
-	settingMaxVersions              = "max_versions"
-	settingDefaultPageSize          = "default_page_size"
-	settingRequireEmailVerify       = "require_email_verify"
-	settingSourcePassword           = "source_password"
-	settingSourcePasswordRotation   = "source_password_rotation"
-	sourcePasswordRotatedAtSetting  = "source_password_rotated_at"
-	settingSourceV1Enabled          = "source_v1_enabled"
-	settingCommentsEnabled          = "comments_enabled"
-	settingChatEnabled              = "chat_enabled"
-	settingChatRetentionDays        = "chat_retention_days"
-	settingTwoFactorAuthEnabled     = "two_factor_auth_enabled"
-	settingAllowManualOutdatedClear = "allow_manual_outdated_clear"
-	settingGitHubDownloadMirrors    = "github_download_mirrors"
-	settingGitHubRawMirrors         = "github_raw_mirrors"
-	settingSiteTitle                = "site_title"
-	settingSiteSubtitle             = "site_subtitle"
-	settingSiteIconURL              = "site_icon_url"
-	settingSitePublicURL            = "site_public_url"
-	settingSiteTimeZone             = "site_timezone"
-	settingDefaultStorageKey        = "default_storage_key"
-	settingMinClientVersion         = "min_client_version"
-	settingMinClientVersionMessage  = "min_client_version_message"
-	settingAnnouncementEnabled      = "announcement_enabled"
-	settingAnnouncementLevel        = "announcement_level"
-	settingAnnouncementTitle        = "announcement_title"
-	settingAnnouncementBody         = "announcement_body"
-	settingAnnouncementLinkLabel    = "announcement_link_label"
-	settingAnnouncementLinkURL      = "announcement_link_url"
-	settingAnnouncementUpdatedAt    = "announcement_updated_at"
-	settingRegistrationMode         = "registration_mode"
-	settingSMTPHost                 = "smtp_host"
-	settingSMTPPort                 = "smtp_port"
-	settingSMTPUser                 = "smtp_user"
-	settingSMTPPass                 = "smtp_pass"
-	settingSMTPFrom                 = "smtp_from"
-	settingSMTPFromName             = "smtp_from_name"
-	settingBackupEnabled            = "backup_enabled"
-	settingBackupScheduleTime       = "backup_schedule_time"
-	settingBackupRetentionCount     = "backup_retention_count"
-	settingBackupStorageKeys        = "backup_storage_keys"
-	settingBackupTargets            = "backup_targets"
-	settingBackupLastRun            = "backup_last_run"
-	settingSchemaVersion            = "schema_version"
+	settingMaxLPKSize                        = "max_lpk_size"
+	settingAutomaticLPKInspectionWaitSeconds = "automatic_lpk_inspection_wait_seconds"
+	settingMaxVersions                       = "max_versions"
+	settingDefaultPageSize                   = "default_page_size"
+	settingRequireEmailVerify                = "require_email_verify"
+	settingSourcePassword                    = "source_password"
+	settingSourcePasswordRotation            = "source_password_rotation"
+	sourcePasswordRotatedAtSetting           = "source_password_rotated_at"
+	settingSourceV1Enabled                   = "source_v1_enabled"
+	settingCommentsEnabled                   = "comments_enabled"
+	settingChatEnabled                       = "chat_enabled"
+	settingChatRetentionDays                 = "chat_retention_days"
+	settingTwoFactorAuthEnabled              = "two_factor_auth_enabled"
+	settingAllowManualOutdatedClear          = "allow_manual_outdated_clear"
+	settingGitHubDownloadMirrors             = "github_download_mirrors"
+	settingGitHubRawMirrors                  = "github_raw_mirrors"
+	settingSiteTitle                         = "site_title"
+	settingSiteSubtitle                      = "site_subtitle"
+	settingSiteIconURL                       = "site_icon_url"
+	settingSitePublicURL                     = "site_public_url"
+	settingSiteTimeZone                      = "site_timezone"
+	settingDefaultStorageKey                 = "default_storage_key"
+	settingMinClientVersion                  = "min_client_version"
+	settingMinClientVersionMessage           = "min_client_version_message"
+	settingAnnouncementEnabled               = "announcement_enabled"
+	settingAnnouncementLevel                 = "announcement_level"
+	settingAnnouncementTitle                 = "announcement_title"
+	settingAnnouncementBody                  = "announcement_body"
+	settingAnnouncementLinkLabel             = "announcement_link_label"
+	settingAnnouncementLinkURL               = "announcement_link_url"
+	settingAnnouncementUpdatedAt             = "announcement_updated_at"
+	settingRegistrationMode                  = "registration_mode"
+	settingSMTPHost                          = "smtp_host"
+	settingSMTPPort                          = "smtp_port"
+	settingSMTPUser                          = "smtp_user"
+	settingSMTPPass                          = "smtp_pass"
+	settingSMTPFrom                          = "smtp_from"
+	settingSMTPFromName                      = "smtp_from_name"
+	settingBackupEnabled                     = "backup_enabled"
+	settingBackupScheduleTime                = "backup_schedule_time"
+	settingBackupRetentionCount              = "backup_retention_count"
+	settingBackupStorageKeys                 = "backup_storage_keys"
+	settingBackupTargets                     = "backup_targets"
+	settingBackupLastRun                     = "backup_last_run"
+	settingSchemaVersion                     = "schema_version"
 )
 
 const defaultSiteTimeZone = "Asia/Shanghai"
@@ -201,6 +202,17 @@ func (s *Server) effectiveMaxLPKSize(ctx context.Context) int64 {
 		return s.cfg.MaxLPKSize
 	}
 	return value
+}
+
+func (s *Server) automaticLPKInspectionWait(ctx context.Context) time.Duration {
+	seconds := s.settingInt(ctx, settingAutomaticLPKInspectionWaitSeconds, 30)
+	if seconds < 0 {
+		seconds = 30
+	}
+	if seconds > 30 {
+		seconds = 30
+	}
+	return time.Duration(seconds) * time.Second
 }
 
 func (s *Server) effectiveRequireEmailVerify(ctx context.Context) bool {

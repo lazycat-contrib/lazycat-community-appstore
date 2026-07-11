@@ -526,41 +526,42 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		return
 	}
 	values := map[string]string{
-		settingMaxLPKSize:               strconv.FormatInt(s.cfg.MaxLPKSize, 10),
-		settingMaxVersions:              strconv.Itoa(s.cfg.MaxVersions),
-		settingDefaultPageSize:          strconv.Itoa(pagination.DefaultPageSize),
-		settingRequireEmailVerify:       strconv.FormatBool(s.cfg.RequireEmailVerify),
-		settingSourcePassword:           s.cfg.SourcePassword,
-		settingSourcePasswordRotation:   strconv.Itoa(s.cfg.SourcePasswordRotation),
-		settingSourceV1Enabled:          strconv.FormatBool(s.cfg.SourceV1Enabled),
-		settingCommentsEnabled:          "true",
-		settingChatEnabled:              "true",
-		settingChatRetentionDays:        "0",
-		settingTwoFactorAuthEnabled:     "false",
-		settingAllowManualOutdatedClear: "false",
-		settingGitHubDownloadMirrors:    s.cfg.GitHubDownloadMirrors,
-		settingGitHubRawMirrors:         s.cfg.GitHubRawMirrors,
-		settingSiteTitle:                s.siteProfile(r.Context()).Title,
-		settingSiteSubtitle:             s.siteProfile(r.Context()).Subtitle,
-		settingSiteIconURL:              "",
-		settingSitePublicURL:            s.sitePublicURL(r.Context()),
-		settingSiteTimeZone:             s.siteTimeZone(r.Context()),
-		settingMinClientVersion:         defaultMinClientVersion(),
-		settingMinClientVersionMessage:  "",
-		settingAnnouncementEnabled:      "false",
-		settingAnnouncementLevel:        "info",
-		settingAnnouncementTitle:        "",
-		settingAnnouncementBody:         "",
-		settingAnnouncementLinkLabel:    "",
-		settingAnnouncementLinkURL:      "",
-		settingAnnouncementUpdatedAt:    "",
-		settingRegistrationMode:         registrationModeOpen,
-		settingSMTPHost:                 s.cfg.SMTPHost,
-		settingSMTPPort:                 strconv.Itoa(s.cfg.SMTPPort),
-		settingSMTPUser:                 s.cfg.SMTPUser,
-		settingSMTPPass:                 s.cfg.SMTPPass,
-		settingSMTPFrom:                 s.cfg.SMTPFrom,
-		settingSMTPFromName:             s.cfg.SMTPFromName,
+		settingMaxLPKSize:                        strconv.FormatInt(s.cfg.MaxLPKSize, 10),
+		settingAutomaticLPKInspectionWaitSeconds: "30",
+		settingMaxVersions:                       strconv.Itoa(s.cfg.MaxVersions),
+		settingDefaultPageSize:                   strconv.Itoa(pagination.DefaultPageSize),
+		settingRequireEmailVerify:                strconv.FormatBool(s.cfg.RequireEmailVerify),
+		settingSourcePassword:                    s.cfg.SourcePassword,
+		settingSourcePasswordRotation:            strconv.Itoa(s.cfg.SourcePasswordRotation),
+		settingSourceV1Enabled:                   strconv.FormatBool(s.cfg.SourceV1Enabled),
+		settingCommentsEnabled:                   "true",
+		settingChatEnabled:                       "true",
+		settingChatRetentionDays:                 "0",
+		settingTwoFactorAuthEnabled:              "false",
+		settingAllowManualOutdatedClear:          "false",
+		settingGitHubDownloadMirrors:             s.cfg.GitHubDownloadMirrors,
+		settingGitHubRawMirrors:                  s.cfg.GitHubRawMirrors,
+		settingSiteTitle:                         s.siteProfile(r.Context()).Title,
+		settingSiteSubtitle:                      s.siteProfile(r.Context()).Subtitle,
+		settingSiteIconURL:                       "",
+		settingSitePublicURL:                     s.sitePublicURL(r.Context()),
+		settingSiteTimeZone:                      s.siteTimeZone(r.Context()),
+		settingMinClientVersion:                  defaultMinClientVersion(),
+		settingMinClientVersionMessage:           "",
+		settingAnnouncementEnabled:               "false",
+		settingAnnouncementLevel:                 "info",
+		settingAnnouncementTitle:                 "",
+		settingAnnouncementBody:                  "",
+		settingAnnouncementLinkLabel:             "",
+		settingAnnouncementLinkURL:               "",
+		settingAnnouncementUpdatedAt:             "",
+		settingRegistrationMode:                  registrationModeOpen,
+		settingSMTPHost:                          s.cfg.SMTPHost,
+		settingSMTPPort:                          strconv.Itoa(s.cfg.SMTPPort),
+		settingSMTPUser:                          s.cfg.SMTPUser,
+		settingSMTPPass:                          s.cfg.SMTPPass,
+		settingSMTPFrom:                          s.cfg.SMTPFrom,
+		settingSMTPFromName:                      s.cfg.SMTPFromName,
 	}
 	for _, record := range records {
 		if isPublicSetting(record.Key) {
@@ -758,7 +759,7 @@ func validateSetting(key, value string) error {
 		if err != nil || parsed <= 0 {
 			return fmt.Errorf("%s must be a positive integer", key)
 		}
-	case settingMaxVersions, settingSourcePasswordRotation, settingDefaultPageSize, settingChatRetentionDays:
+	case settingMaxVersions, settingSourcePasswordRotation, settingDefaultPageSize, settingChatRetentionDays, settingAutomaticLPKInspectionWaitSeconds:
 		parsed, err := strconv.Atoi(value)
 		if err != nil || parsed < 0 {
 			return fmt.Errorf("%s must be a non-negative integer", key)
@@ -768,6 +769,9 @@ func validateSetting(key, value string) error {
 		}
 		if key == settingDefaultPageSize && parsed > 200 {
 			return fmt.Errorf("%s must be at most 200", key)
+		}
+		if key == settingAutomaticLPKInspectionWaitSeconds && parsed > 30 {
+			return fmt.Errorf("%s must be at most 30", key)
 		}
 	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingChatEnabled, settingTwoFactorAuthEnabled, settingAllowManualOutdatedClear, settingSourceV1Enabled:
 		if _, err := strconv.ParseBool(value); err != nil {
@@ -853,6 +857,7 @@ func validateSetting(key, value string) error {
 func isPublicSetting(key string) bool {
 	switch key {
 	case settingMaxLPKSize,
+		settingAutomaticLPKInspectionWaitSeconds,
 		settingMaxVersions,
 		settingDefaultPageSize,
 		settingRequireEmailVerify,

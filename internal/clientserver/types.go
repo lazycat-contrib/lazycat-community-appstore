@@ -181,6 +181,23 @@ type InstallTaskDTO struct {
 	Detail         string  `json:"detail,omitempty"`
 }
 
+type UpdateQueueItemDTO struct {
+	AppID            int    `json:"appId"`
+	PackageID        string `json:"packageId"`
+	AppName          string `json:"appName"`
+	InstalledVersion string `json:"installedVersion,omitempty"`
+	Version          string `json:"version,omitempty"`
+	Status           string `json:"status"`
+	TaskID           string `json:"taskId,omitempty"`
+	Detail           string `json:"detail,omitempty"`
+}
+
+type UpdateQueueResultDTO struct {
+	Status string               `json:"status"`
+	Items  []UpdateQueueItemDTO `json:"items,omitempty"`
+	Error  string               `json:"error,omitempty"`
+}
+
 type PackageManager interface {
 	QueryInstalled(ctx context.Context, userID string) ([]InstalledApplicationDTO, error)
 	InstallLPK(ctx context.Context, userID string, req InstallRequestDTO) (InstallResultDTO, error)
@@ -234,6 +251,11 @@ type ClientSettingsDTO struct {
 	LastAutoSyncAt               *time.Time `json:"lastAutoSyncAt,omitempty"`
 	LastAutoSyncStatus           string     `json:"lastAutoSyncStatus,omitempty"`
 	LastAutoSyncError            string     `json:"lastAutoSyncError,omitempty"`
+	AutoUpdateEnabled            bool       `json:"autoUpdateEnabled"`
+	AutoUpdateIntervalMinutes    int        `json:"autoUpdateIntervalMinutes"`
+	LastAutoUpdateAt             *time.Time `json:"lastAutoUpdateAt,omitempty"`
+	LastAutoUpdateStatus         string     `json:"lastAutoUpdateStatus,omitempty"`
+	LastAutoUpdateError          string     `json:"lastAutoUpdateError,omitempty"`
 }
 
 type ClientSettingsUpdateDTO struct {
@@ -244,4 +266,6 @@ type ClientSettingsUpdateDTO struct {
 	AutoSyncIntervalMinutes      int    `json:"autoSyncIntervalMinutes"`
 	SyncOnStartup                bool   `json:"syncOnStartup"`
 	InstallSuccessDismissSeconds *int   `json:"installSuccessDismissSeconds"`
+	AutoUpdateEnabled            bool   `json:"autoUpdateEnabled"`
+	AutoUpdateIntervalMinutes    int    `json:"autoUpdateIntervalMinutes"`
 }

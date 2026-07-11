@@ -3,6 +3,7 @@ package clientserver
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -140,6 +141,26 @@ func (s *sourceSyncScheduler) runDueAutoSyncs(ctx context.Context, _ string) err
 		}
 		s.syncUser(ctx, setting.UserID)
 	}
+	return s.runDueAutoUpdates(ctx, "")
+}
+
+func (s *sourceSyncScheduler) runDueAutoUpdates(ctx context.Context, _ string) error {
+	now := time.Now()
+	settings, err := s.server.db.ClientSyncSetting.Query().
+		Where(clientsyncsetting.AutoUpdateEnabledEQ(true)).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, setting := range settings {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if !autoUpdateDue(setting, now) {
+			continue
+		}
+		s.updateUser(ctx, setting.UserID)
+	}
 	return nil
 }
 
@@ -169,6 +190,17 @@ func autoSyncDue(setting *ent.ClientSyncSetting, now time.Time) bool {
 	return !setting.LastAutoSyncAt.Add(interval).After(now)
 }
 
+func autoUpdateDue(setting *ent.ClientSyncSetting, now time.Time) bool {
+	if setting == nil || !setting.AutoUpdateEnabled {
+		return false
+	}
+	if setting.LastAutoUpdateAt == nil {
+		return true
+	}
+	interval := time.Duration(sanitizeAutoSyncInterval(setting.AutoUpdateIntervalMinutes)) * time.Minute
+	return !setting.LastAutoUpdateAt.Add(interval).After(now)
+}
+
 func (s *sourceSyncScheduler) syncUser(ctx context.Context, userID string) {
 	if !s.markRunning(userID) {
 		return
@@ -181,6 +213,29 @@ func (s *sourceSyncScheduler) syncUser(ctx context.Context, userID string) {
 	}
 	status, message := autoSyncResultStatus(result, err)
 	_ = s.recordAutoSyncResult(ctx, userID, status, message)
+}
+
+func (s *sourceSyncScheduler) updateUser(ctx context.Context, userID string) {
+	if !s.markRunning(userID) {
+		return
+	}
+	defer s.unmarkRunning(userID)
+
+	syncResult, err := s.server.syncAllSources(ctx, userID)
+	if ctx.Err() != nil {
+		return
+	}
+	if err != nil {
+		_ = s.recordAutoUpdateResult(ctx, userID, clientsyncsetting.LastAutoUpdateStatusFailed, err.Error())
+		return
+	}
+	if syncResult.Success == 0 && syncResult.Failed > 0 {
+		_ = s.recordAutoUpdateResult(ctx, userID, clientsyncsetting.LastAutoUpdateStatusFailed, fmt.Sprintf("%d source syncs failed", syncResult.Failed))
+		return
+	}
+	queueResult := s.server.RunUpdateQueue(ctx, userID)
+	status, message := autoUpdateResultStatus(syncResult, queueResult)
+	_ = s.recordAutoUpdateResult(ctx, userID, status, message)
 }
 
 func (s *sourceSyncScheduler) markRunning(userID string) bool {
@@ -241,6 +296,62 @@ func (s *sourceSyncScheduler) recordAutoSyncResult(ctx context.Context, userID s
 		update.SetLastAutoSyncError(message)
 	} else {
 		update.ClearLastAutoSyncError()
+	}
+	_, err = update.Save(ctx)
+	return err
+}
+
+func autoUpdateResultStatus(syncResult SyncAllResult, queueResult UpdateQueueResultDTO) (clientsyncsetting.LastAutoUpdateStatus, string) {
+	message := strings.TrimSpace(queueResult.Error)
+	switch queueResult.Status {
+	case "failed":
+		if message == "" {
+			message = "automatic update queue failed"
+		}
+		return clientsyncsetting.LastAutoUpdateStatusFailed, message
+	case "partial":
+		if message == "" {
+			message = "some applications could not be updated"
+		}
+		return clientsyncsetting.LastAutoUpdateStatusPartial, message
+	case "already_running", "no_updates", "cancelled":
+		return clientsyncsetting.LastAutoUpdateStatusSkipped, message
+	default:
+		if syncResult.Failed > 0 {
+			return clientsyncsetting.LastAutoUpdateStatusPartial, fmt.Sprintf("%d source syncs failed", syncResult.Failed)
+		}
+		return clientsyncsetting.LastAutoUpdateStatusSuccess, message
+	}
+}
+
+func (s *sourceSyncScheduler) recordAutoUpdateResult(ctx context.Context, userID string, status clientsyncsetting.LastAutoUpdateStatus, message string) error {
+	now := time.Now()
+	record, err := s.server.db.ClientSyncSetting.Query().
+		Where(clientsyncsetting.UserIDEQ(userID)).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return err
+	}
+	if ent.IsNotFound(err) {
+		create := s.server.db.ClientSyncSetting.Create().
+			SetUserID(userID).
+			SetAutoSyncIntervalMinutes(defaultAutoSyncIntervalMinutes).
+			SetAutoUpdateIntervalMinutes(defaultAutoSyncIntervalMinutes).
+			SetLastAutoUpdateAt(now).
+			SetLastAutoUpdateStatus(status)
+		if message != "" {
+			create.SetLastAutoUpdateError(message)
+		}
+		_, err = create.Save(ctx)
+		return err
+	}
+	update := s.server.db.ClientSyncSetting.UpdateOneID(record.ID).
+		SetLastAutoUpdateAt(now).
+		SetLastAutoUpdateStatus(status)
+	if message != "" {
+		update.SetLastAutoUpdateError(message)
+	} else {
+		update.ClearLastAutoUpdateError()
 	}
 	_, err = update.Save(ctx)
 	return err

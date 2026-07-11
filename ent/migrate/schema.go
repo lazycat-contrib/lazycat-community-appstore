@@ -803,6 +803,11 @@ var (
 		{Name: "last_auto_sync_at", Type: field.TypeTime, Nullable: true},
 		{Name: "last_auto_sync_status", Type: field.TypeEnum, Nullable: true, Enums: []string{"success", "partial", "failed"}},
 		{Name: "last_auto_sync_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "auto_update_enabled", Type: field.TypeBool, Default: false},
+		{Name: "auto_update_interval_minutes", Type: field.TypeInt, Default: 60},
+		{Name: "last_auto_update_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_auto_update_status", Type: field.TypeEnum, Nullable: true, Enums: []string{"success", "partial", "failed", "skipped"}},
+		{Name: "last_auto_update_error", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -821,6 +826,11 @@ var (
 				Name:    "clientsyncsetting_auto_sync_enabled_last_auto_sync_at",
 				Unique:  false,
 				Columns: []*schema.Column{ClientSyncSettingsColumns[2], ClientSyncSettingsColumns[5]},
+			},
+			{
+				Name:    "clientsyncsetting_auto_update_enabled_last_auto_update_at",
+				Unique:  false,
+				Columns: []*schema.Column{ClientSyncSettingsColumns[8], ClientSyncSettingsColumns[10]},
 			},
 			{
 				Name:    "clientsyncsetting_sync_on_startup",

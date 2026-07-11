@@ -9,21 +9,28 @@ import { Text as XText } from '@astryxdesign/core/Text';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { ModalLayer } from '../../shared/components/ModalLayer';
-import type { SourceApp, SourceSubscription, SourceVersion, StoreApp, Version } from '../../shared/types';
+import type { InstallActivity, SourceApp, SourceSubscription, SourceVersion, StoreApp, Version } from '../../shared/types';
 import { applicableMirrorsForVersion, defaultMirrorIDForVersion, githubMirrorKindForURL, localizedAppName } from '../../shared/utils';
+import { InstallActivityPanel } from './InstallActivityPanel';
 
 export function InstallOptionsDialog({
   app,
   source,
   version,
+  activity,
   onCancel,
   onSubmit,
+  onCancelInstallation,
+  onRetry,
 }: {
   app: StoreApp | SourceApp;
   source?: SourceSubscription;
   version?: Version | SourceVersion;
+  activity?: InstallActivity;
   onCancel: () => void;
   onSubmit: (options: { installPassword?: string; mirrorId?: string }) => void | Promise<void>;
+  onCancelInstallation?: () => void;
+  onRetry?: () => void;
 }) {
   const { t } = useTranslation();
   const [password, setPassword] = useState('');
@@ -40,6 +47,28 @@ export function InstallOptionsDialog({
   useEffect(() => {
     setMirrorId(defaultMirrorIDForVersion(source, version) || '');
   }, [source?.id, version?.version]);
+
+  if (activity) {
+    const isRunning = activity.status === 'running';
+    return (
+      <ModalLayer
+        onClose={isRunning ? () => {} : onCancel}
+        purpose="form"
+        width="min(520px, calc(100vw - 36px))"
+        maxHeight="min(86vh, 780px)"
+      >
+        <div className="install-password-dialog install-progress-dialog">
+          <InstallActivityPanel
+            activity={activity}
+            embedded
+            onDismiss={onCancel}
+            onCancel={onCancelInstallation}
+            onRetry={onRetry}
+          />
+        </div>
+      </ModalLayer>
+    );
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();

@@ -13,6 +13,7 @@
 - Bulk/scheduled work installs only applications with a newer source version and no install password.
 - Sync sources then read local installed apps before calculating eligibility.
 - Queue is sequential; failures are recorded and later eligible apps continue.
+- Cancellation forwards the active LazyCat `taskId` to `CancelPendingTask` and prevents remaining queue items from starting.
 - One update/interactive install operation per client user at a time.
 - Installed-device data remains in the client server.
 - Use only short opacity/transform UI transitions, active press feedback, and reduced-motion fallbacks.
@@ -22,11 +23,11 @@
 ## File Structure
 
 - `ent/schema/client_sync_setting.go`: auto-update controls and last-run persistence.
-- `internal/clientserver/update_queue.go`: eligibility, queue execution, per-user exclusion, and result records.
+- `internal/clientserver/update_queue.go`: eligibility, queue execution/cancellation, per-user exclusion, and result records.
 - `internal/clientserver/update_queue_test.go`: candidates, continuation, concurrency, and scheduler tests.
 - `internal/clientserver/install.go`, `scheduler.go`, `settings.go`, `types.go`, `server.go`: shared install guard, due runs, settings, DTOs, and manual route.
 - `client/src/modules/client/InstalledAppsView.tsx`: bulk button, confirmation, and sticky summary.
-- `client/src/modules/client/InstallOptionsDialog.tsx`: modal-owned activity state.
+- `client/src/modules/client/InstallOptionsDialog.tsx`, `SourceAppDetailPage.tsx`, `SourceAppGrid.tsx`: modal-owned activity state for detail and install/list entry points.
 - `client/src/modules/client/ClientSettingsView.tsx`, `ClientCatalog.tsx`, `clientUxState.ts`: automation controls and API state.
 - `client/src/shared/types.ts`, `client/src/locales/{zh,en}.ts`, relevant client CSS: types, copy, and visual behavior.
 
@@ -39,6 +40,9 @@
 
 **Interfaces:**
 - Produces `UpdateQueueItemDTO`, `UpdateQueueResultDTO`, and `RunUpdateQueue(ctx context.Context, userID string) UpdateQueueResultDTO`.
+- Extends `PackageManager` with `CancelInstall(ctx context.Context, userID, taskID string) error`.
+- Extends `PackageManager` with `GetInstallTask(ctx context.Context, userID, taskID string) (InstallTaskDTO, error)`.
+- Changes `POST /api/client/v1/install` to return `202` with `InstallTaskDTO`; adds `GET` and `DELETE /api/client/v1/install-tasks/{taskId}`.
 - Produces `eligibleUpdates(installed []InstalledApplicationDTO, apps []*ent.ClientSourceApp) []updateCandidate`.
 
 - [ ] **Step 1: Write failing eligibility and queue tests**
@@ -60,6 +64,14 @@ func TestUpdateQueueRejectsConcurrentUserRun(t *testing.T) {
 	if result := store.server.RunUpdateQueue(t.Context(), "alice"); result.Status != "already_running" { t.Fatalf("status = %q", result.Status) }
 	close(release)
 }
+func TestCancelUpdateQueueCancelsActiveTaskAndRemainingItems(t *testing.T) {
+	store := newTestApp(t); started := make(chan struct{}); release := make(chan struct{})
+	store.server.pkg = blockingPackageManager{started: started, release: release, taskID: "task-1"}
+	go store.server.RunUpdateQueue(t.Context(), "alice"); <-started
+	if err := store.server.CancelUpdateQueue(t.Context(), "alice"); err != nil { t.Fatal(err) }
+	close(release)
+	if got := store.server.pkg.(*blockingPackageManager).cancelledTaskID; got != "task-1" { t.Fatalf("cancelled = %q", got) }
+}
 ```
 
 - [ ] **Step 2: Run focused tests**
@@ -70,7 +82,32 @@ Expected: FAIL because queue functions do not exist.
 
 - [ ] **Step 3: Implement queue and shared exclusion**
 
-Load installed apps through `QueryInstalled`, match cached source apps by stable package ID, compare versions, skip protected/local/unknown/no-version/current apps, and resolve each source's default mirror. Install one candidate at a time using `InstallLPK` without a password, recording normal install history for each result. Share a per-user running lock with `handleInstall`.
+Load installed apps through `QueryInstalled`, match cached source apps by stable package ID, compare versions, skip protected/local/unknown/no-version/current apps, and resolve each source's default mirror. Install one candidate at a time using asynchronous `InstallLPK` without a password, poll its `InstallTaskDTO` to a terminal state, and record normal install history for each result. Persist the active task ID in the in-memory user queue state. `CancelUpdateQueue` sets the cancellation flag, calls `PackageManager.CancelInstall`, and marks unstarted items cancelled. Share the per-user running lock with `handleInstall`.
+
+### Task 1a: Expose asynchronous install-task control before queue/UI work
+
+**Files:**
+- Modify: `internal/clientserver/types.go`, `lazycat.go`, `install.go`, `server.go`, `server_test.go`
+- Modify: `client/src/shared/types.ts`, `client/src/modules/client/ClientCatalog.tsx`, `InstallOptionsDialog.tsx`
+
+- [ ] **Step 1: Write contract tests**
+
+```go
+func TestInstallReturnsAcceptedTask(t *testing.T) { /* status 202 and taskId */ }
+func TestInstallTaskStatusAndCancelAreUserScoped(t *testing.T) { /* owner 200/204, different user 404 */ }
+```
+
+- [ ] **Step 2: Implement SDK and HTTP task methods**
+
+Set `WaitUnitDone` to `false`; map `PendingTaskInfo` to `InstallTaskDTO`. Query with `QueryPendingTask`, match task ID, and cancel with `CancelPendingTaskRequest{TaskId: taskID}`. Register `GET`/`DELETE` routes under `/api/client/v1/install-tasks/{taskId}` and return 202/200/204/404 through the existing JSON error contract.
+
+- [ ] **Step 3: Wire dialog polling and cancellation**
+
+After install creation, retain `taskId`, poll at a bounded interval while pending, and call DELETE from the visible progress state. Stop polling on terminal, cancellation, unmount, and retry replacement.
+
+- [ ] **Step 4: Verify task contracts**
+
+Run: `go test ./internal/clientserver -run '^(TestInstallReturnsAcceptedTask|TestInstallTaskStatusAndCancelAreUserScoped)' -count=1 && cd client && npm run build`
 
 ```go
 for _, candidate := range candidates {
@@ -173,7 +210,7 @@ Place helpers in `clientUxState.ts`; if no TypeScript test runner exists, assert
 
 - [ ] **Step 2: Implement controls and activity layering**
 
-Show `Update all (N)` only for a nonempty updates group. Confirm eligible and skipped counts before posting. Render a sticky, expandable queue summary with current item and success/failed/skipped totals. After a single-install submit begins, replace the options form with the current activity/timeline content inside the same `ModalLayer`; do not leave progress solely in a panel behind the backdrop.
+Show `Update all (N)` only for a nonempty updates group. Confirm eligible and skipped counts before posting. Render a sticky, expandable queue summary with current item and success/failed/skipped totals. For every `InstallOptionsDialog` entry point, including `SourceAppDetailPage` and `SourceAppGrid`, replace the options form with the current activity/timeline content inside the same `ModalLayer`; do not leave progress solely in a panel behind the backdrop.
 
 Apply `transition: opacity 180ms cubic-bezier(0.23, 1, 0.32, 1), transform 180ms cubic-bezier(0.23, 1, 0.32, 1)` and `:active { transform: scale(0.97) }`. Under `prefers-reduced-motion`, retain opacity only.
 

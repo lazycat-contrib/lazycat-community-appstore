@@ -8,9 +8,11 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.42.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.24
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.0
+	github.com/cloudflare/backoff v0.0.0-20240920015135-e46b80a3a7d0
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/lib-x/entsqlite v0.2.3
+	github.com/lib-x/lzc-toolkit-go v0.3.1
 	github.com/lib-x/mailingo v0.1.0
 	github.com/lib-x/timewheel v0.4.0
 	github.com/lib/pq v1.12.3
@@ -22,7 +24,7 @@ require (
 	golang.org/x/image v0.43.0
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sync v0.21.0
-	google.golang.org/grpc v1.63.2
+	google.golang.org/grpc v1.75.1
 )
 
 require (
@@ -69,7 +71,7 @@ require (
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.72.3 // indirect
