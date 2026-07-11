@@ -43,6 +43,7 @@ import (
 	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
+	"lazycat.community/appstore/ent/lpkinspectionjob"
 	"lazycat.community/appstore/ent/mcptoken"
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/predicate"
@@ -96,6 +97,7 @@ const (
 	TypeCommentNotification  = "CommentNotification"
 	TypeFavorite             = "Favorite"
 	TypeGroupMember          = "GroupMember"
+	TypeLPKInspectionJob     = "LPKInspectionJob"
 	TypeMCPToken             = "MCPToken"
 	TypeOutdatedMark         = "OutdatedMark"
 	TypeRegistrationInvite   = "RegistrationInvite"
@@ -26522,6 +26524,1268 @@ func (m *GroupMemberMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *GroupMemberMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown GroupMember edge %s", name)
+}
+
+// LPKInspectionJobMutation represents an operation that mutates the LPKInspectionJob nodes in the graph.
+type LPKInspectionJobMutation struct {
+	config
+	op                          Op
+	typ                         string
+	id                          *int
+	app_id                      *int
+	addapp_id                   *int
+	version_id                  *int
+	addversion_id               *int
+	user_id                     *int
+	adduser_id                  *int
+	download_url                *string
+	trigger                     *lpkinspectionjob.Trigger
+	state                       *lpkinspectionjob.State
+	overwrite_existing_metadata *bool
+	attempts                    *int
+	addattempts                 *int
+	last_error                  *string
+	next_attempt_at             *time.Time
+	deadline_at                 *time.Time
+	completed_at                *time.Time
+	created_at                  *time.Time
+	updated_at                  *time.Time
+	clearedFields               map[string]struct{}
+	done                        bool
+	oldValue                    func(context.Context) (*LPKInspectionJob, error)
+	predicates                  []predicate.LPKInspectionJob
+}
+
+var _ ent.Mutation = (*LPKInspectionJobMutation)(nil)
+
+// lpkinspectionjobOption allows management of the mutation configuration using functional options.
+type lpkinspectionjobOption func(*LPKInspectionJobMutation)
+
+// newLPKInspectionJobMutation creates new mutation for the LPKInspectionJob entity.
+func newLPKInspectionJobMutation(c config, op Op, opts ...lpkinspectionjobOption) *LPKInspectionJobMutation {
+	m := &LPKInspectionJobMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeLPKInspectionJob,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withLPKInspectionJobID sets the ID field of the mutation.
+func withLPKInspectionJobID(id int) lpkinspectionjobOption {
+	return func(m *LPKInspectionJobMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *LPKInspectionJob
+		)
+		m.oldValue = func(ctx context.Context) (*LPKInspectionJob, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().LPKInspectionJob.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withLPKInspectionJob sets the old LPKInspectionJob of the mutation.
+func withLPKInspectionJob(node *LPKInspectionJob) lpkinspectionjobOption {
+	return func(m *LPKInspectionJobMutation) {
+		m.oldValue = func(context.Context) (*LPKInspectionJob, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m LPKInspectionJobMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m LPKInspectionJobMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *LPKInspectionJobMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *LPKInspectionJobMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().LPKInspectionJob.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAppID sets the "app_id" field.
+func (m *LPKInspectionJobMutation) SetAppID(i int) {
+	m.app_id = &i
+	m.addapp_id = nil
+}
+
+// AppID returns the value of the "app_id" field in the mutation.
+func (m *LPKInspectionJobMutation) AppID() (r int, exists bool) {
+	v := m.app_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppID returns the old "app_id" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldAppID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppID: %w", err)
+	}
+	return oldValue.AppID, nil
+}
+
+// AddAppID adds i to the "app_id" field.
+func (m *LPKInspectionJobMutation) AddAppID(i int) {
+	if m.addapp_id != nil {
+		*m.addapp_id += i
+	} else {
+		m.addapp_id = &i
+	}
+}
+
+// AddedAppID returns the value that was added to the "app_id" field in this mutation.
+func (m *LPKInspectionJobMutation) AddedAppID() (r int, exists bool) {
+	v := m.addapp_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAppID resets all changes to the "app_id" field.
+func (m *LPKInspectionJobMutation) ResetAppID() {
+	m.app_id = nil
+	m.addapp_id = nil
+}
+
+// SetVersionID sets the "version_id" field.
+func (m *LPKInspectionJobMutation) SetVersionID(i int) {
+	m.version_id = &i
+	m.addversion_id = nil
+}
+
+// VersionID returns the value of the "version_id" field in the mutation.
+func (m *LPKInspectionJobMutation) VersionID() (r int, exists bool) {
+	v := m.version_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersionID returns the old "version_id" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldVersionID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersionID: %w", err)
+	}
+	return oldValue.VersionID, nil
+}
+
+// AddVersionID adds i to the "version_id" field.
+func (m *LPKInspectionJobMutation) AddVersionID(i int) {
+	if m.addversion_id != nil {
+		*m.addversion_id += i
+	} else {
+		m.addversion_id = &i
+	}
+}
+
+// AddedVersionID returns the value that was added to the "version_id" field in this mutation.
+func (m *LPKInspectionJobMutation) AddedVersionID() (r int, exists bool) {
+	v := m.addversion_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearVersionID clears the value of the "version_id" field.
+func (m *LPKInspectionJobMutation) ClearVersionID() {
+	m.version_id = nil
+	m.addversion_id = nil
+	m.clearedFields[lpkinspectionjob.FieldVersionID] = struct{}{}
+}
+
+// VersionIDCleared returns if the "version_id" field was cleared in this mutation.
+func (m *LPKInspectionJobMutation) VersionIDCleared() bool {
+	_, ok := m.clearedFields[lpkinspectionjob.FieldVersionID]
+	return ok
+}
+
+// ResetVersionID resets all changes to the "version_id" field.
+func (m *LPKInspectionJobMutation) ResetVersionID() {
+	m.version_id = nil
+	m.addversion_id = nil
+	delete(m.clearedFields, lpkinspectionjob.FieldVersionID)
+}
+
+// SetUserID sets the "user_id" field.
+func (m *LPKInspectionJobMutation) SetUserID(i int) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *LPKInspectionJobMutation) UserID() (r int, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *LPKInspectionJobMutation) AddUserID(i int) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *LPKInspectionJobMutation) AddedUserID() (r int, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *LPKInspectionJobMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetDownloadURL sets the "download_url" field.
+func (m *LPKInspectionJobMutation) SetDownloadURL(s string) {
+	m.download_url = &s
+}
+
+// DownloadURL returns the value of the "download_url" field in the mutation.
+func (m *LPKInspectionJobMutation) DownloadURL() (r string, exists bool) {
+	v := m.download_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDownloadURL returns the old "download_url" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldDownloadURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDownloadURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDownloadURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDownloadURL: %w", err)
+	}
+	return oldValue.DownloadURL, nil
+}
+
+// ResetDownloadURL resets all changes to the "download_url" field.
+func (m *LPKInspectionJobMutation) ResetDownloadURL() {
+	m.download_url = nil
+}
+
+// SetTrigger sets the "trigger" field.
+func (m *LPKInspectionJobMutation) SetTrigger(l lpkinspectionjob.Trigger) {
+	m.trigger = &l
+}
+
+// Trigger returns the value of the "trigger" field in the mutation.
+func (m *LPKInspectionJobMutation) Trigger() (r lpkinspectionjob.Trigger, exists bool) {
+	v := m.trigger
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTrigger returns the old "trigger" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldTrigger(ctx context.Context) (v lpkinspectionjob.Trigger, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTrigger is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTrigger requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTrigger: %w", err)
+	}
+	return oldValue.Trigger, nil
+}
+
+// ResetTrigger resets all changes to the "trigger" field.
+func (m *LPKInspectionJobMutation) ResetTrigger() {
+	m.trigger = nil
+}
+
+// SetState sets the "state" field.
+func (m *LPKInspectionJobMutation) SetState(l lpkinspectionjob.State) {
+	m.state = &l
+}
+
+// State returns the value of the "state" field in the mutation.
+func (m *LPKInspectionJobMutation) State() (r lpkinspectionjob.State, exists bool) {
+	v := m.state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldState returns the old "state" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldState(ctx context.Context) (v lpkinspectionjob.State, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldState: %w", err)
+	}
+	return oldValue.State, nil
+}
+
+// ResetState resets all changes to the "state" field.
+func (m *LPKInspectionJobMutation) ResetState() {
+	m.state = nil
+}
+
+// SetOverwriteExistingMetadata sets the "overwrite_existing_metadata" field.
+func (m *LPKInspectionJobMutation) SetOverwriteExistingMetadata(b bool) {
+	m.overwrite_existing_metadata = &b
+}
+
+// OverwriteExistingMetadata returns the value of the "overwrite_existing_metadata" field in the mutation.
+func (m *LPKInspectionJobMutation) OverwriteExistingMetadata() (r bool, exists bool) {
+	v := m.overwrite_existing_metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOverwriteExistingMetadata returns the old "overwrite_existing_metadata" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldOverwriteExistingMetadata(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOverwriteExistingMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOverwriteExistingMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOverwriteExistingMetadata: %w", err)
+	}
+	return oldValue.OverwriteExistingMetadata, nil
+}
+
+// ResetOverwriteExistingMetadata resets all changes to the "overwrite_existing_metadata" field.
+func (m *LPKInspectionJobMutation) ResetOverwriteExistingMetadata() {
+	m.overwrite_existing_metadata = nil
+}
+
+// SetAttempts sets the "attempts" field.
+func (m *LPKInspectionJobMutation) SetAttempts(i int) {
+	m.attempts = &i
+	m.addattempts = nil
+}
+
+// Attempts returns the value of the "attempts" field in the mutation.
+func (m *LPKInspectionJobMutation) Attempts() (r int, exists bool) {
+	v := m.attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempts returns the old "attempts" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldAttempts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempts: %w", err)
+	}
+	return oldValue.Attempts, nil
+}
+
+// AddAttempts adds i to the "attempts" field.
+func (m *LPKInspectionJobMutation) AddAttempts(i int) {
+	if m.addattempts != nil {
+		*m.addattempts += i
+	} else {
+		m.addattempts = &i
+	}
+}
+
+// AddedAttempts returns the value that was added to the "attempts" field in this mutation.
+func (m *LPKInspectionJobMutation) AddedAttempts() (r int, exists bool) {
+	v := m.addattempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempts resets all changes to the "attempts" field.
+func (m *LPKInspectionJobMutation) ResetAttempts() {
+	m.attempts = nil
+	m.addattempts = nil
+}
+
+// SetLastError sets the "last_error" field.
+func (m *LPKInspectionJobMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *LPKInspectionJobMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldLastError(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ClearLastError clears the value of the "last_error" field.
+func (m *LPKInspectionJobMutation) ClearLastError() {
+	m.last_error = nil
+	m.clearedFields[lpkinspectionjob.FieldLastError] = struct{}{}
+}
+
+// LastErrorCleared returns if the "last_error" field was cleared in this mutation.
+func (m *LPKInspectionJobMutation) LastErrorCleared() bool {
+	_, ok := m.clearedFields[lpkinspectionjob.FieldLastError]
+	return ok
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *LPKInspectionJobMutation) ResetLastError() {
+	m.last_error = nil
+	delete(m.clearedFields, lpkinspectionjob.FieldLastError)
+}
+
+// SetNextAttemptAt sets the "next_attempt_at" field.
+func (m *LPKInspectionJobMutation) SetNextAttemptAt(t time.Time) {
+	m.next_attempt_at = &t
+}
+
+// NextAttemptAt returns the value of the "next_attempt_at" field in the mutation.
+func (m *LPKInspectionJobMutation) NextAttemptAt() (r time.Time, exists bool) {
+	v := m.next_attempt_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNextAttemptAt returns the old "next_attempt_at" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldNextAttemptAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNextAttemptAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNextAttemptAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNextAttemptAt: %w", err)
+	}
+	return oldValue.NextAttemptAt, nil
+}
+
+// ClearNextAttemptAt clears the value of the "next_attempt_at" field.
+func (m *LPKInspectionJobMutation) ClearNextAttemptAt() {
+	m.next_attempt_at = nil
+	m.clearedFields[lpkinspectionjob.FieldNextAttemptAt] = struct{}{}
+}
+
+// NextAttemptAtCleared returns if the "next_attempt_at" field was cleared in this mutation.
+func (m *LPKInspectionJobMutation) NextAttemptAtCleared() bool {
+	_, ok := m.clearedFields[lpkinspectionjob.FieldNextAttemptAt]
+	return ok
+}
+
+// ResetNextAttemptAt resets all changes to the "next_attempt_at" field.
+func (m *LPKInspectionJobMutation) ResetNextAttemptAt() {
+	m.next_attempt_at = nil
+	delete(m.clearedFields, lpkinspectionjob.FieldNextAttemptAt)
+}
+
+// SetDeadlineAt sets the "deadline_at" field.
+func (m *LPKInspectionJobMutation) SetDeadlineAt(t time.Time) {
+	m.deadline_at = &t
+}
+
+// DeadlineAt returns the value of the "deadline_at" field in the mutation.
+func (m *LPKInspectionJobMutation) DeadlineAt() (r time.Time, exists bool) {
+	v := m.deadline_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeadlineAt returns the old "deadline_at" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldDeadlineAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeadlineAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeadlineAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeadlineAt: %w", err)
+	}
+	return oldValue.DeadlineAt, nil
+}
+
+// ClearDeadlineAt clears the value of the "deadline_at" field.
+func (m *LPKInspectionJobMutation) ClearDeadlineAt() {
+	m.deadline_at = nil
+	m.clearedFields[lpkinspectionjob.FieldDeadlineAt] = struct{}{}
+}
+
+// DeadlineAtCleared returns if the "deadline_at" field was cleared in this mutation.
+func (m *LPKInspectionJobMutation) DeadlineAtCleared() bool {
+	_, ok := m.clearedFields[lpkinspectionjob.FieldDeadlineAt]
+	return ok
+}
+
+// ResetDeadlineAt resets all changes to the "deadline_at" field.
+func (m *LPKInspectionJobMutation) ResetDeadlineAt() {
+	m.deadline_at = nil
+	delete(m.clearedFields, lpkinspectionjob.FieldDeadlineAt)
+}
+
+// SetCompletedAt sets the "completed_at" field.
+func (m *LPKInspectionJobMutation) SetCompletedAt(t time.Time) {
+	m.completed_at = &t
+}
+
+// CompletedAt returns the value of the "completed_at" field in the mutation.
+func (m *LPKInspectionJobMutation) CompletedAt() (r time.Time, exists bool) {
+	v := m.completed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompletedAt returns the old "completed_at" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldCompletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompletedAt: %w", err)
+	}
+	return oldValue.CompletedAt, nil
+}
+
+// ClearCompletedAt clears the value of the "completed_at" field.
+func (m *LPKInspectionJobMutation) ClearCompletedAt() {
+	m.completed_at = nil
+	m.clearedFields[lpkinspectionjob.FieldCompletedAt] = struct{}{}
+}
+
+// CompletedAtCleared returns if the "completed_at" field was cleared in this mutation.
+func (m *LPKInspectionJobMutation) CompletedAtCleared() bool {
+	_, ok := m.clearedFields[lpkinspectionjob.FieldCompletedAt]
+	return ok
+}
+
+// ResetCompletedAt resets all changes to the "completed_at" field.
+func (m *LPKInspectionJobMutation) ResetCompletedAt() {
+	m.completed_at = nil
+	delete(m.clearedFields, lpkinspectionjob.FieldCompletedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *LPKInspectionJobMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *LPKInspectionJobMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *LPKInspectionJobMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *LPKInspectionJobMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *LPKInspectionJobMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the LPKInspectionJob entity.
+// If the LPKInspectionJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LPKInspectionJobMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *LPKInspectionJobMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the LPKInspectionJobMutation builder.
+func (m *LPKInspectionJobMutation) Where(ps ...predicate.LPKInspectionJob) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the LPKInspectionJobMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *LPKInspectionJobMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.LPKInspectionJob, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *LPKInspectionJobMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *LPKInspectionJobMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (LPKInspectionJob).
+func (m *LPKInspectionJobMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *LPKInspectionJobMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.app_id != nil {
+		fields = append(fields, lpkinspectionjob.FieldAppID)
+	}
+	if m.version_id != nil {
+		fields = append(fields, lpkinspectionjob.FieldVersionID)
+	}
+	if m.user_id != nil {
+		fields = append(fields, lpkinspectionjob.FieldUserID)
+	}
+	if m.download_url != nil {
+		fields = append(fields, lpkinspectionjob.FieldDownloadURL)
+	}
+	if m.trigger != nil {
+		fields = append(fields, lpkinspectionjob.FieldTrigger)
+	}
+	if m.state != nil {
+		fields = append(fields, lpkinspectionjob.FieldState)
+	}
+	if m.overwrite_existing_metadata != nil {
+		fields = append(fields, lpkinspectionjob.FieldOverwriteExistingMetadata)
+	}
+	if m.attempts != nil {
+		fields = append(fields, lpkinspectionjob.FieldAttempts)
+	}
+	if m.last_error != nil {
+		fields = append(fields, lpkinspectionjob.FieldLastError)
+	}
+	if m.next_attempt_at != nil {
+		fields = append(fields, lpkinspectionjob.FieldNextAttemptAt)
+	}
+	if m.deadline_at != nil {
+		fields = append(fields, lpkinspectionjob.FieldDeadlineAt)
+	}
+	if m.completed_at != nil {
+		fields = append(fields, lpkinspectionjob.FieldCompletedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, lpkinspectionjob.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, lpkinspectionjob.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *LPKInspectionJobMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case lpkinspectionjob.FieldAppID:
+		return m.AppID()
+	case lpkinspectionjob.FieldVersionID:
+		return m.VersionID()
+	case lpkinspectionjob.FieldUserID:
+		return m.UserID()
+	case lpkinspectionjob.FieldDownloadURL:
+		return m.DownloadURL()
+	case lpkinspectionjob.FieldTrigger:
+		return m.Trigger()
+	case lpkinspectionjob.FieldState:
+		return m.State()
+	case lpkinspectionjob.FieldOverwriteExistingMetadata:
+		return m.OverwriteExistingMetadata()
+	case lpkinspectionjob.FieldAttempts:
+		return m.Attempts()
+	case lpkinspectionjob.FieldLastError:
+		return m.LastError()
+	case lpkinspectionjob.FieldNextAttemptAt:
+		return m.NextAttemptAt()
+	case lpkinspectionjob.FieldDeadlineAt:
+		return m.DeadlineAt()
+	case lpkinspectionjob.FieldCompletedAt:
+		return m.CompletedAt()
+	case lpkinspectionjob.FieldCreatedAt:
+		return m.CreatedAt()
+	case lpkinspectionjob.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *LPKInspectionJobMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case lpkinspectionjob.FieldAppID:
+		return m.OldAppID(ctx)
+	case lpkinspectionjob.FieldVersionID:
+		return m.OldVersionID(ctx)
+	case lpkinspectionjob.FieldUserID:
+		return m.OldUserID(ctx)
+	case lpkinspectionjob.FieldDownloadURL:
+		return m.OldDownloadURL(ctx)
+	case lpkinspectionjob.FieldTrigger:
+		return m.OldTrigger(ctx)
+	case lpkinspectionjob.FieldState:
+		return m.OldState(ctx)
+	case lpkinspectionjob.FieldOverwriteExistingMetadata:
+		return m.OldOverwriteExistingMetadata(ctx)
+	case lpkinspectionjob.FieldAttempts:
+		return m.OldAttempts(ctx)
+	case lpkinspectionjob.FieldLastError:
+		return m.OldLastError(ctx)
+	case lpkinspectionjob.FieldNextAttemptAt:
+		return m.OldNextAttemptAt(ctx)
+	case lpkinspectionjob.FieldDeadlineAt:
+		return m.OldDeadlineAt(ctx)
+	case lpkinspectionjob.FieldCompletedAt:
+		return m.OldCompletedAt(ctx)
+	case lpkinspectionjob.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case lpkinspectionjob.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown LPKInspectionJob field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LPKInspectionJobMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case lpkinspectionjob.FieldAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppID(v)
+		return nil
+	case lpkinspectionjob.FieldVersionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersionID(v)
+		return nil
+	case lpkinspectionjob.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case lpkinspectionjob.FieldDownloadURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDownloadURL(v)
+		return nil
+	case lpkinspectionjob.FieldTrigger:
+		v, ok := value.(lpkinspectionjob.Trigger)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTrigger(v)
+		return nil
+	case lpkinspectionjob.FieldState:
+		v, ok := value.(lpkinspectionjob.State)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetState(v)
+		return nil
+	case lpkinspectionjob.FieldOverwriteExistingMetadata:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOverwriteExistingMetadata(v)
+		return nil
+	case lpkinspectionjob.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempts(v)
+		return nil
+	case lpkinspectionjob.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	case lpkinspectionjob.FieldNextAttemptAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNextAttemptAt(v)
+		return nil
+	case lpkinspectionjob.FieldDeadlineAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeadlineAt(v)
+		return nil
+	case lpkinspectionjob.FieldCompletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompletedAt(v)
+		return nil
+	case lpkinspectionjob.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case lpkinspectionjob.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LPKInspectionJob field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *LPKInspectionJobMutation) AddedFields() []string {
+	var fields []string
+	if m.addapp_id != nil {
+		fields = append(fields, lpkinspectionjob.FieldAppID)
+	}
+	if m.addversion_id != nil {
+		fields = append(fields, lpkinspectionjob.FieldVersionID)
+	}
+	if m.adduser_id != nil {
+		fields = append(fields, lpkinspectionjob.FieldUserID)
+	}
+	if m.addattempts != nil {
+		fields = append(fields, lpkinspectionjob.FieldAttempts)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *LPKInspectionJobMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case lpkinspectionjob.FieldAppID:
+		return m.AddedAppID()
+	case lpkinspectionjob.FieldVersionID:
+		return m.AddedVersionID()
+	case lpkinspectionjob.FieldUserID:
+		return m.AddedUserID()
+	case lpkinspectionjob.FieldAttempts:
+		return m.AddedAttempts()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *LPKInspectionJobMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case lpkinspectionjob.FieldAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAppID(v)
+		return nil
+	case lpkinspectionjob.FieldVersionID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersionID(v)
+		return nil
+	case lpkinspectionjob.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case lpkinspectionjob.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempts(v)
+		return nil
+	}
+	return fmt.Errorf("unknown LPKInspectionJob numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *LPKInspectionJobMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(lpkinspectionjob.FieldVersionID) {
+		fields = append(fields, lpkinspectionjob.FieldVersionID)
+	}
+	if m.FieldCleared(lpkinspectionjob.FieldLastError) {
+		fields = append(fields, lpkinspectionjob.FieldLastError)
+	}
+	if m.FieldCleared(lpkinspectionjob.FieldNextAttemptAt) {
+		fields = append(fields, lpkinspectionjob.FieldNextAttemptAt)
+	}
+	if m.FieldCleared(lpkinspectionjob.FieldDeadlineAt) {
+		fields = append(fields, lpkinspectionjob.FieldDeadlineAt)
+	}
+	if m.FieldCleared(lpkinspectionjob.FieldCompletedAt) {
+		fields = append(fields, lpkinspectionjob.FieldCompletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *LPKInspectionJobMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *LPKInspectionJobMutation) ClearField(name string) error {
+	switch name {
+	case lpkinspectionjob.FieldVersionID:
+		m.ClearVersionID()
+		return nil
+	case lpkinspectionjob.FieldLastError:
+		m.ClearLastError()
+		return nil
+	case lpkinspectionjob.FieldNextAttemptAt:
+		m.ClearNextAttemptAt()
+		return nil
+	case lpkinspectionjob.FieldDeadlineAt:
+		m.ClearDeadlineAt()
+		return nil
+	case lpkinspectionjob.FieldCompletedAt:
+		m.ClearCompletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LPKInspectionJob nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *LPKInspectionJobMutation) ResetField(name string) error {
+	switch name {
+	case lpkinspectionjob.FieldAppID:
+		m.ResetAppID()
+		return nil
+	case lpkinspectionjob.FieldVersionID:
+		m.ResetVersionID()
+		return nil
+	case lpkinspectionjob.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case lpkinspectionjob.FieldDownloadURL:
+		m.ResetDownloadURL()
+		return nil
+	case lpkinspectionjob.FieldTrigger:
+		m.ResetTrigger()
+		return nil
+	case lpkinspectionjob.FieldState:
+		m.ResetState()
+		return nil
+	case lpkinspectionjob.FieldOverwriteExistingMetadata:
+		m.ResetOverwriteExistingMetadata()
+		return nil
+	case lpkinspectionjob.FieldAttempts:
+		m.ResetAttempts()
+		return nil
+	case lpkinspectionjob.FieldLastError:
+		m.ResetLastError()
+		return nil
+	case lpkinspectionjob.FieldNextAttemptAt:
+		m.ResetNextAttemptAt()
+		return nil
+	case lpkinspectionjob.FieldDeadlineAt:
+		m.ResetDeadlineAt()
+		return nil
+	case lpkinspectionjob.FieldCompletedAt:
+		m.ResetCompletedAt()
+		return nil
+	case lpkinspectionjob.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case lpkinspectionjob.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown LPKInspectionJob field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *LPKInspectionJobMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *LPKInspectionJobMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *LPKInspectionJobMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *LPKInspectionJobMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *LPKInspectionJobMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *LPKInspectionJobMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *LPKInspectionJobMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown LPKInspectionJob unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *LPKInspectionJobMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown LPKInspectionJob edge %s", name)
 }
 
 // MCPTokenMutation represents an operation that mutates the MCPToken nodes in the graph.
