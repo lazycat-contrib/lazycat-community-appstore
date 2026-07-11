@@ -173,9 +173,19 @@ type InstallResultDTO struct {
 	Detail string `json:"detail,omitempty"`
 }
 
+type InstallTaskDTO struct {
+	TaskID         string  `json:"taskId"`
+	Status         string  `json:"status"`
+	DownloadedSize uint64  `json:"downloadedSize,omitempty"`
+	TotalSize      *uint64 `json:"totalSize,omitempty"`
+	Detail         string  `json:"detail,omitempty"`
+}
+
 type PackageManager interface {
 	QueryInstalled(ctx context.Context, userID string) ([]InstalledApplicationDTO, error)
 	InstallLPK(ctx context.Context, userID string, req InstallRequestDTO) (InstallResultDTO, error)
+	GetInstallTask(ctx context.Context, userID, taskID string) (InstallTaskDTO, error)
+	CancelInstall(ctx context.Context, userID, taskID string) error
 }
 
 type InstallHistoryDTO struct {

@@ -76,8 +76,38 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "INSTALL_FAILED", err.Error())
 		return
 	}
-	_ = s.recordInstallHistory(r.Context(), currentUserID(r), app, dto, selected, clientinstallhistory.ResultSUCCESS, "")
-	writeJSON(w, http.StatusOK, result)
+	if result.TaskID == "" {
+		writeError(w, http.StatusBadGateway, "INSTALL_TASK_MISSING", "LazyCat did not return an install task")
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"task": InstallTaskDTO{TaskID: result.TaskID, Status: result.Status, Detail: result.Detail}})
+}
+
+func (s *Server) handleGetInstallTask(w http.ResponseWriter, r *http.Request) {
+	taskID := strings.TrimSpace(r.PathValue("taskId"))
+	if taskID == "" {
+		writeError(w, http.StatusBadRequest, "INVALID_TASK_ID", "Task ID is required")
+		return
+	}
+	task, err := s.pkg.GetInstallTask(r.Context(), currentUserID(r), taskID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "INSTALL_TASK_NOT_FOUND", "Install task not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"task": task})
+}
+
+func (s *Server) handleCancelInstallTask(w http.ResponseWriter, r *http.Request) {
+	taskID := strings.TrimSpace(r.PathValue("taskId"))
+	if taskID == "" {
+		writeError(w, http.StatusBadRequest, "INVALID_TASK_ID", "Task ID is required")
+		return
+	}
+	if err := s.pkg.CancelInstall(r.Context(), currentUserID(r), taskID); err != nil {
+		writeError(w, http.StatusNotFound, "INSTALL_TASK_NOT_FOUND", "Install task not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"taskId": taskID, "status": "CANCELLED"})
 }
 
 func (s *Server) installDownloadURL(app *ent.ClientSourceApp, version *VersionDTO, input InstallRequestDTO) (string, error) {

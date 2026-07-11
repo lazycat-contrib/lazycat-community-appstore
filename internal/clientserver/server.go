@@ -206,6 +206,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/client/v1/chat/events", s.clientAPI(s.handleChatEvents))
 	s.mux.HandleFunc("GET /api/client/v1/installed", s.clientAPI(s.handleInstalled))
 	s.mux.HandleFunc("POST /api/client/v1/install", s.clientAPI(s.handleInstall))
+	s.mux.HandleFunc("GET /api/client/v1/install-tasks/{taskId}", s.clientAPI(s.handleGetInstallTask))
+	s.mux.HandleFunc("DELETE /api/client/v1/install-tasks/{taskId}", s.clientAPI(s.handleCancelInstallTask))
 	s.mux.HandleFunc("GET /api/client/v1/history", s.clientAPI(s.handleInstallHistory))
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "lazycat-private-store-client"})
