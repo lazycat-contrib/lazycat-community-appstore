@@ -48,6 +48,9 @@ jobs:
       - name: Build
         working-directory: client
         run: npm run build
+      - name: Verify embedded client assets
+        working-directory: client
+        run: diff -qr --exclude=app-config.js dist ../clientembed/dist
 
   api-contract:
     name: API Contract

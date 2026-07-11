@@ -26,13 +26,13 @@ First-run initialization supports two paths:
 
 If only one admin environment variable is set, the other keeps its development fallback (`admin` / `changeme`). For production, set both values explicitly.
 
-To build the server with the web console embedded, build the client first and copy it into `web/dist` before compiling Go:
+To build the server with the web console embedded, build the client first and copy it into `clientembed/dist` before compiling Go:
 
 ```bash
 (cd client && npm ci && VITE_API_BASE_URL=. npm run build)
-rm -rf web/dist
-mkdir -p web/dist
-cp -R client/dist/. web/dist/
+rm -rf clientembed/dist
+mkdir -p clientembed/dist
+cp -R client/dist/. clientembed/dist/
 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o dist/store-server ./cmd/store-server
 ```
 
