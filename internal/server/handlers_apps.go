@@ -228,6 +228,33 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"app": detail})
 }
 
+func (s *Server) handleGetWritableAppByName(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	if name == "" {
+		writeError(w, http.StatusBadRequest, "BAD_REQUEST", "name is required", nil)
+		return
+	}
+	records, err := s.db.App.Query().Where(app.NameEQ(name)).All(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "APP_LOOKUP_FAILED", "Could not resolve app name", nil)
+		return
+	}
+	writable := make([]*entgo.App, 0, 1)
+	for _, record := range records {
+		if s.canUploadVersion(r, record, u) {
+			writable = append(writable, record)
+		}
+	}
+	switch len(writable) {
+	case 0:
+		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+	case 1:
+		writeJSON(w, http.StatusOK, map[string]any{"app": s.appSummaryDTO(r, writable[0], u)})
+	default:
+		writeError(w, http.StatusConflict, "APP_NAME_AMBIGUOUS", "Multiple writable apps have this name", nil)
+	}
+}
+
 func (s *Server) handleGetPackageLatestVersion(w http.ResponseWriter, r *http.Request) {
 	packageID := strings.TrimSpace(r.PathValue("packageId"))
 	record, err := s.db.App.Query().Where(app.PackageIDEQ(packageID)).Only(r.Context())

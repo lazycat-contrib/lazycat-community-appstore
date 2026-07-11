@@ -354,6 +354,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/packages/{packageId}/latest-version", s.handleGetPackageLatestVersion)
 	s.mux.HandleFunc("GET /api/v1/apps", s.handleListApps)
 	s.mux.HandleFunc("POST /api/v1/apps", s.withAuth(s.handleCreateApp))
+	s.mux.HandleFunc("GET /api/v1/apps/by-name", s.withAuth(s.handleGetWritableAppByName))
 	s.mux.HandleFunc("GET /api/v1/apps/{id}", s.handleGetApp)
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}", s.withAuth(s.handleUpdateApp))
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}", s.withAuth(s.handleDeleteApp))
