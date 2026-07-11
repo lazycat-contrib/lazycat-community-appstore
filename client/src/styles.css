@@ -4109,6 +4109,21 @@ body,
   border-color: var(--install-panel-error);
 }
 
+.install-panel.install-panel-embedded {
+  position: static;
+  width: 100%;
+  padding: 0;
+  grid-template-columns: 22px minmax(0, 1fr);
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.install-progress-dialog {
+  width: min(520px, 100%);
+}
+
 .install-panel-body {
   min-width: 0;
   display: grid;
@@ -4128,6 +4143,16 @@ body,
   overflow-wrap: anywhere;
 }
 
+.install-panel-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  color: var(--install-panel-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .install-panel-body > span,
 .install-panel-body p,
 .install-panel-meta small {
@@ -4141,10 +4166,52 @@ body,
   margin: 0;
 }
 
+.install-panel-detail {
+  color: var(--install-panel-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .install-panel-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 12px;
+}
+
+.lpk-inspection-card {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.lpk-inspection-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lpk-inspection-card-head > div,
+.lpk-inspection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.lpk-inspection-card h3,
+.lpk-inspection-card p {
+  margin: 0;
+}
+
+.lpk-inspection-card > small,
+.lpk-inspection-error {
+  color: var(--install-panel-muted);
+  overflow-wrap: anywhere;
+}
+
+.lpk-inspection-error {
+  color: var(--install-panel-error);
 }
 
 .progress {

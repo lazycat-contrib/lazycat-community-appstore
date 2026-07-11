@@ -244,6 +244,93 @@
   color: var(--amber);
 }
 
+.update-queue-summary,
+.client-auto-update-control,
+.update-confirm-dialog {
+  display: grid;
+  gap: 10px;
+}
+
+.update-queue-summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--status-info-line);
+  border-radius: 8px;
+  background: var(--status-info-bg);
+  color: var(--status-info-ink);
+  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out), border-color 160ms ease;
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.update-queue-summary.is-success {
+  border-color: var(--status-success-line);
+  background: var(--status-success-bg);
+  color: var(--status-success-ink);
+}
+
+.update-queue-summary.is-failed {
+  border-color: var(--status-danger-line);
+  background: var(--status-danger-bg);
+  color: var(--status-danger-ink);
+}
+
+.update-queue-summary.is-partial,
+.update-queue-summary.is-cancelled,
+.update-queue-summary.is-cancelling {
+  border-color: var(--status-warning-line);
+  background: var(--status-warning-bg);
+  color: var(--status-warning-ink);
+}
+
+.update-queue-summary > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.update-queue-summary span,
+.update-queue-summary small,
+.client-auto-update-control > small {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.update-queue-summary small {
+  grid-column: 1 / -1;
+  color: currentColor;
+  opacity: 0.84;
+}
+
+.client-auto-update-control {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.client-auto-update-control h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.client-auto-update-error {
+  color: var(--red);
+}
+
+.update-confirm-dialog h2,
+.update-confirm-dialog p {
+  margin: 0;
+}
+
+.update-confirm-dialog p,
+.update-confirm-dialog small {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
 .installed-groups,
 .installed-group {
   display: grid;
@@ -552,6 +639,7 @@
 .client-source-onboarding button,
 .client-settings-save-bar button,
 .install-panel button,
+.update-queue-summary button,
 .client-source-app-card button {
   transition:
     transform 140ms var(--ease-out),
@@ -564,6 +652,7 @@
 .client-source-onboarding button:active,
 .client-settings-save-bar button:active,
 .install-panel button:active,
+.update-queue-summary button:active,
 .client-source-app-card button:active {
   transform: scale(0.98);
 }
@@ -625,6 +714,8 @@
   .client-source-onboarding button,
   .client-settings-save-bar button,
   .install-panel button,
+	  .update-queue-summary,
+	  .update-queue-summary button,
   .client-source-app-card,
   .client-source-app-card button {
     transform: none !important;

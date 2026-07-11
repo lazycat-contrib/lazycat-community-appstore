@@ -31,6 +31,16 @@ type ClientSyncSetting struct {
 	LastAutoSyncStatus *clientsyncsetting.LastAutoSyncStatus `json:"last_auto_sync_status,omitempty"`
 	// LastAutoSyncError holds the value of the "last_auto_sync_error" field.
 	LastAutoSyncError *string `json:"last_auto_sync_error,omitempty"`
+	// AutoUpdateEnabled holds the value of the "auto_update_enabled" field.
+	AutoUpdateEnabled bool `json:"auto_update_enabled,omitempty"`
+	// AutoUpdateIntervalMinutes holds the value of the "auto_update_interval_minutes" field.
+	AutoUpdateIntervalMinutes int `json:"auto_update_interval_minutes,omitempty"`
+	// LastAutoUpdateAt holds the value of the "last_auto_update_at" field.
+	LastAutoUpdateAt *time.Time `json:"last_auto_update_at,omitempty"`
+	// LastAutoUpdateStatus holds the value of the "last_auto_update_status" field.
+	LastAutoUpdateStatus *clientsyncsetting.LastAutoUpdateStatus `json:"last_auto_update_status,omitempty"`
+	// LastAutoUpdateError holds the value of the "last_auto_update_error" field.
+	LastAutoUpdateError *string `json:"last_auto_update_error,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -43,13 +53,13 @@ func (*ClientSyncSetting) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case clientsyncsetting.FieldAutoSyncEnabled, clientsyncsetting.FieldSyncOnStartup:
+		case clientsyncsetting.FieldAutoSyncEnabled, clientsyncsetting.FieldSyncOnStartup, clientsyncsetting.FieldAutoUpdateEnabled:
 			values[i] = new(sql.NullBool)
-		case clientsyncsetting.FieldID, clientsyncsetting.FieldAutoSyncIntervalMinutes:
+		case clientsyncsetting.FieldID, clientsyncsetting.FieldAutoSyncIntervalMinutes, clientsyncsetting.FieldAutoUpdateIntervalMinutes:
 			values[i] = new(sql.NullInt64)
-		case clientsyncsetting.FieldUserID, clientsyncsetting.FieldLastAutoSyncStatus, clientsyncsetting.FieldLastAutoSyncError:
+		case clientsyncsetting.FieldUserID, clientsyncsetting.FieldLastAutoSyncStatus, clientsyncsetting.FieldLastAutoSyncError, clientsyncsetting.FieldLastAutoUpdateStatus, clientsyncsetting.FieldLastAutoUpdateError:
 			values[i] = new(sql.NullString)
-		case clientsyncsetting.FieldLastAutoSyncAt, clientsyncsetting.FieldCreatedAt, clientsyncsetting.FieldUpdatedAt:
+		case clientsyncsetting.FieldLastAutoSyncAt, clientsyncsetting.FieldLastAutoUpdateAt, clientsyncsetting.FieldCreatedAt, clientsyncsetting.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -116,6 +126,39 @@ func (_m *ClientSyncSetting) assignValues(columns []string, values []any) error 
 			} else if value.Valid {
 				_m.LastAutoSyncError = new(string)
 				*_m.LastAutoSyncError = value.String
+			}
+		case clientsyncsetting.FieldAutoUpdateEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_update_enabled", values[i])
+			} else if value.Valid {
+				_m.AutoUpdateEnabled = value.Bool
+			}
+		case clientsyncsetting.FieldAutoUpdateIntervalMinutes:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_update_interval_minutes", values[i])
+			} else if value.Valid {
+				_m.AutoUpdateIntervalMinutes = int(value.Int64)
+			}
+		case clientsyncsetting.FieldLastAutoUpdateAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_auto_update_at", values[i])
+			} else if value.Valid {
+				_m.LastAutoUpdateAt = new(time.Time)
+				*_m.LastAutoUpdateAt = value.Time
+			}
+		case clientsyncsetting.FieldLastAutoUpdateStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field last_auto_update_status", values[i])
+			} else if value.Valid {
+				_m.LastAutoUpdateStatus = new(clientsyncsetting.LastAutoUpdateStatus)
+				*_m.LastAutoUpdateStatus = clientsyncsetting.LastAutoUpdateStatus(value.String)
+			}
+		case clientsyncsetting.FieldLastAutoUpdateError:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field last_auto_update_error", values[i])
+			} else if value.Valid {
+				_m.LastAutoUpdateError = new(string)
+				*_m.LastAutoUpdateError = value.String
 			}
 		case clientsyncsetting.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -189,6 +232,27 @@ func (_m *ClientSyncSetting) String() string {
 	builder.WriteString(", ")
 	if v := _m.LastAutoSyncError; v != nil {
 		builder.WriteString("last_auto_sync_error=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("auto_update_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoUpdateEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("auto_update_interval_minutes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoUpdateIntervalMinutes))
+	builder.WriteString(", ")
+	if v := _m.LastAutoUpdateAt; v != nil {
+		builder.WriteString("last_auto_update_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.LastAutoUpdateStatus; v != nil {
+		builder.WriteString("last_auto_update_status=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.LastAutoUpdateError; v != nil {
+		builder.WriteString("last_auto_update_error=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

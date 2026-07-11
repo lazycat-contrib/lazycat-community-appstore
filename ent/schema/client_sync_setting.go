@@ -21,6 +21,11 @@ func (ClientSyncSetting) Fields() []ent.Field {
 		field.Time("last_auto_sync_at").Optional().Nillable(),
 		field.Enum("last_auto_sync_status").Values("success", "partial", "failed").Optional().Nillable(),
 		field.Text("last_auto_sync_error").Optional().Nillable(),
+		field.Bool("auto_update_enabled").Default(false),
+		field.Int("auto_update_interval_minutes").Default(60),
+		field.Time("last_auto_update_at").Optional().Nillable(),
+		field.Enum("last_auto_update_status").Values("success", "partial", "failed", "skipped").Optional().Nillable(),
+		field.Text("last_auto_update_error").Optional().Nillable(),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}
@@ -30,6 +35,7 @@ func (ClientSyncSetting) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("user_id").Unique(),
 		index.Fields("auto_sync_enabled", "last_auto_sync_at"),
+		index.Fields("auto_update_enabled", "last_auto_update_at"),
 		index.Fields("sync_on_startup"),
 	}
 }

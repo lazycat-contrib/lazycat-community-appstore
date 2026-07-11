@@ -37,6 +37,7 @@ import (
 	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
+	"lazycat.community/appstore/ent/lpkinspectionjob"
 	"lazycat.community/appstore/ent/mcptoken"
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/registrationinvite"
@@ -793,12 +794,20 @@ func init() {
 	clientsyncsettingDescSyncOnStartup := clientsyncsettingFields[3].Descriptor()
 	// clientsyncsetting.DefaultSyncOnStartup holds the default value on creation for the sync_on_startup field.
 	clientsyncsetting.DefaultSyncOnStartup = clientsyncsettingDescSyncOnStartup.Default.(bool)
+	// clientsyncsettingDescAutoUpdateEnabled is the schema descriptor for auto_update_enabled field.
+	clientsyncsettingDescAutoUpdateEnabled := clientsyncsettingFields[7].Descriptor()
+	// clientsyncsetting.DefaultAutoUpdateEnabled holds the default value on creation for the auto_update_enabled field.
+	clientsyncsetting.DefaultAutoUpdateEnabled = clientsyncsettingDescAutoUpdateEnabled.Default.(bool)
+	// clientsyncsettingDescAutoUpdateIntervalMinutes is the schema descriptor for auto_update_interval_minutes field.
+	clientsyncsettingDescAutoUpdateIntervalMinutes := clientsyncsettingFields[8].Descriptor()
+	// clientsyncsetting.DefaultAutoUpdateIntervalMinutes holds the default value on creation for the auto_update_interval_minutes field.
+	clientsyncsetting.DefaultAutoUpdateIntervalMinutes = clientsyncsettingDescAutoUpdateIntervalMinutes.Default.(int)
 	// clientsyncsettingDescCreatedAt is the schema descriptor for created_at field.
-	clientsyncsettingDescCreatedAt := clientsyncsettingFields[7].Descriptor()
+	clientsyncsettingDescCreatedAt := clientsyncsettingFields[12].Descriptor()
 	// clientsyncsetting.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsyncsetting.DefaultCreatedAt = clientsyncsettingDescCreatedAt.Default.(func() time.Time)
 	// clientsyncsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsyncsettingDescUpdatedAt := clientsyncsettingFields[8].Descriptor()
+	clientsyncsettingDescUpdatedAt := clientsyncsettingFields[13].Descriptor()
 	// clientsyncsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsyncsetting.DefaultUpdatedAt = clientsyncsettingDescUpdatedAt.Default.(func() time.Time)
 	// clientsyncsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -945,6 +954,30 @@ func init() {
 	groupmemberDescCreatedAt := groupmemberFields[2].Descriptor()
 	// groupmember.DefaultCreatedAt holds the default value on creation for the created_at field.
 	groupmember.DefaultCreatedAt = groupmemberDescCreatedAt.Default.(func() time.Time)
+	lpkinspectionjobFields := schema.LPKInspectionJob{}.Fields()
+	_ = lpkinspectionjobFields
+	// lpkinspectionjobDescDownloadURL is the schema descriptor for download_url field.
+	lpkinspectionjobDescDownloadURL := lpkinspectionjobFields[3].Descriptor()
+	// lpkinspectionjob.DownloadURLValidator is a validator for the "download_url" field. It is called by the builders before save.
+	lpkinspectionjob.DownloadURLValidator = lpkinspectionjobDescDownloadURL.Validators[0].(func(string) error)
+	// lpkinspectionjobDescOverwriteExistingMetadata is the schema descriptor for overwrite_existing_metadata field.
+	lpkinspectionjobDescOverwriteExistingMetadata := lpkinspectionjobFields[6].Descriptor()
+	// lpkinspectionjob.DefaultOverwriteExistingMetadata holds the default value on creation for the overwrite_existing_metadata field.
+	lpkinspectionjob.DefaultOverwriteExistingMetadata = lpkinspectionjobDescOverwriteExistingMetadata.Default.(bool)
+	// lpkinspectionjobDescAttempts is the schema descriptor for attempts field.
+	lpkinspectionjobDescAttempts := lpkinspectionjobFields[7].Descriptor()
+	// lpkinspectionjob.DefaultAttempts holds the default value on creation for the attempts field.
+	lpkinspectionjob.DefaultAttempts = lpkinspectionjobDescAttempts.Default.(int)
+	// lpkinspectionjobDescCreatedAt is the schema descriptor for created_at field.
+	lpkinspectionjobDescCreatedAt := lpkinspectionjobFields[12].Descriptor()
+	// lpkinspectionjob.DefaultCreatedAt holds the default value on creation for the created_at field.
+	lpkinspectionjob.DefaultCreatedAt = lpkinspectionjobDescCreatedAt.Default.(func() time.Time)
+	// lpkinspectionjobDescUpdatedAt is the schema descriptor for updated_at field.
+	lpkinspectionjobDescUpdatedAt := lpkinspectionjobFields[13].Descriptor()
+	// lpkinspectionjob.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	lpkinspectionjob.DefaultUpdatedAt = lpkinspectionjobDescUpdatedAt.Default.(func() time.Time)
+	// lpkinspectionjob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	lpkinspectionjob.UpdateDefaultUpdatedAt = lpkinspectionjobDescUpdatedAt.UpdateDefault.(func() time.Time)
 	mcptokenFields := schema.MCPToken{}.Fields()
 	_ = mcptokenFields
 	// mcptokenDescNote is the schema descriptor for note field.

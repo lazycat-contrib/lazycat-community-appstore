@@ -59,7 +59,7 @@ func (lazyCatPackageManager) InstallLPK(ctx context.Context, userID string, req 
 		return InstallResultDTO{}, err
 	}
 	defer func() { _ = gw.Close() }()
-	wait := true
+	wait := false
 	in := &sys.InstallLPKRequest{LpkUrl: req.DownloadURL, WaitUnitDone: &wait}
 	if req.SHA256 != "" {
 		in.Sha256 = &req.SHA256
@@ -83,10 +83,57 @@ func (lazyCatPackageManager) InstallLPK(ctx context.Context, userID string, req 
 	return result, nil
 }
 
+func (lazyCatPackageManager) GetInstallTask(ctx context.Context, userID, taskID string) (InstallTaskDTO, error) {
+	ctx, cancel := context.WithTimeout(lazycatContext(ctx, userID), 10*time.Second)
+	defer cancel()
+	gw, err := gohelper.NewAPIGateway(ctx)
+	if err != nil {
+		return InstallTaskDTO{}, err
+	}
+	defer func() { _ = gw.Close() }()
+	resp, err := gw.PkgManager.QueryPendingTask(ctx, &sys.QueryPendingTaskRequest{})
+	if err != nil {
+		return InstallTaskDTO{}, err
+	}
+	for _, task := range resp.GetInfos() {
+		if task.GetTaskId() != taskID {
+			continue
+		}
+		return InstallTaskDTO{
+			TaskID:         task.GetTaskId(),
+			Status:         task.GetStatus().String(),
+			DownloadedSize: task.GetDownloadedSize(),
+			TotalSize:      task.TotalSize,
+			Detail:         task.GetDetail(),
+		}, nil
+	}
+	return InstallTaskDTO{}, errors.New("install task not found")
+}
+
+func (lazyCatPackageManager) CancelInstall(ctx context.Context, userID, taskID string) error {
+	ctx, cancel := context.WithTimeout(lazycatContext(ctx, userID), 10*time.Second)
+	defer cancel()
+	gw, err := gohelper.NewAPIGateway(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = gw.Close() }()
+	_, err = gw.PkgManager.CancelPendingTask(ctx, &sys.CancelPendingTaskRequest{TaskId: taskID})
+	return err
+}
+
 func (unavailablePackageManager) QueryInstalled(context.Context, string) ([]InstalledApplicationDTO, error) {
 	return nil, errors.New("system SDK is unavailable")
 }
 
 func (unavailablePackageManager) InstallLPK(context.Context, string, InstallRequestDTO) (InstallResultDTO, error) {
 	return InstallResultDTO{}, errors.New("system SDK is unavailable")
+}
+
+func (unavailablePackageManager) GetInstallTask(context.Context, string, string) (InstallTaskDTO, error) {
+	return InstallTaskDTO{}, errors.New("system SDK is unavailable")
+}
+
+func (unavailablePackageManager) CancelInstall(context.Context, string, string) error {
+	return errors.New("system SDK is unavailable")
 }

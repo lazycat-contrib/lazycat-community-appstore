@@ -28,6 +28,16 @@ const (
 	FieldLastAutoSyncStatus = "last_auto_sync_status"
 	// FieldLastAutoSyncError holds the string denoting the last_auto_sync_error field in the database.
 	FieldLastAutoSyncError = "last_auto_sync_error"
+	// FieldAutoUpdateEnabled holds the string denoting the auto_update_enabled field in the database.
+	FieldAutoUpdateEnabled = "auto_update_enabled"
+	// FieldAutoUpdateIntervalMinutes holds the string denoting the auto_update_interval_minutes field in the database.
+	FieldAutoUpdateIntervalMinutes = "auto_update_interval_minutes"
+	// FieldLastAutoUpdateAt holds the string denoting the last_auto_update_at field in the database.
+	FieldLastAutoUpdateAt = "last_auto_update_at"
+	// FieldLastAutoUpdateStatus holds the string denoting the last_auto_update_status field in the database.
+	FieldLastAutoUpdateStatus = "last_auto_update_status"
+	// FieldLastAutoUpdateError holds the string denoting the last_auto_update_error field in the database.
+	FieldLastAutoUpdateError = "last_auto_update_error"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -46,6 +56,11 @@ var Columns = []string{
 	FieldLastAutoSyncAt,
 	FieldLastAutoSyncStatus,
 	FieldLastAutoSyncError,
+	FieldAutoUpdateEnabled,
+	FieldAutoUpdateIntervalMinutes,
+	FieldLastAutoUpdateAt,
+	FieldLastAutoUpdateStatus,
+	FieldLastAutoUpdateError,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -69,6 +84,10 @@ var (
 	DefaultAutoSyncIntervalMinutes int
 	// DefaultSyncOnStartup holds the default value on creation for the "sync_on_startup" field.
 	DefaultSyncOnStartup bool
+	// DefaultAutoUpdateEnabled holds the default value on creation for the "auto_update_enabled" field.
+	DefaultAutoUpdateEnabled bool
+	// DefaultAutoUpdateIntervalMinutes holds the default value on creation for the "auto_update_interval_minutes" field.
+	DefaultAutoUpdateIntervalMinutes int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -98,6 +117,31 @@ func LastAutoSyncStatusValidator(lass LastAutoSyncStatus) error {
 		return nil
 	default:
 		return fmt.Errorf("clientsyncsetting: invalid enum value for last_auto_sync_status field: %q", lass)
+	}
+}
+
+// LastAutoUpdateStatus defines the type for the "last_auto_update_status" enum field.
+type LastAutoUpdateStatus string
+
+// LastAutoUpdateStatus values.
+const (
+	LastAutoUpdateStatusSuccess LastAutoUpdateStatus = "success"
+	LastAutoUpdateStatusPartial LastAutoUpdateStatus = "partial"
+	LastAutoUpdateStatusFailed  LastAutoUpdateStatus = "failed"
+	LastAutoUpdateStatusSkipped LastAutoUpdateStatus = "skipped"
+)
+
+func (laus LastAutoUpdateStatus) String() string {
+	return string(laus)
+}
+
+// LastAutoUpdateStatusValidator is a validator for the "last_auto_update_status" field enum values. It is called by the builders before save.
+func LastAutoUpdateStatusValidator(laus LastAutoUpdateStatus) error {
+	switch laus {
+	case LastAutoUpdateStatusSuccess, LastAutoUpdateStatusPartial, LastAutoUpdateStatusFailed, LastAutoUpdateStatusSkipped:
+		return nil
+	default:
+		return fmt.Errorf("clientsyncsetting: invalid enum value for last_auto_update_status field: %q", laus)
 	}
 }
 
@@ -142,6 +186,31 @@ func ByLastAutoSyncStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByLastAutoSyncError orders the results by the last_auto_sync_error field.
 func ByLastAutoSyncError(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastAutoSyncError, opts...).ToFunc()
+}
+
+// ByAutoUpdateEnabled orders the results by the auto_update_enabled field.
+func ByAutoUpdateEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoUpdateEnabled, opts...).ToFunc()
+}
+
+// ByAutoUpdateIntervalMinutes orders the results by the auto_update_interval_minutes field.
+func ByAutoUpdateIntervalMinutes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoUpdateIntervalMinutes, opts...).ToFunc()
+}
+
+// ByLastAutoUpdateAt orders the results by the last_auto_update_at field.
+func ByLastAutoUpdateAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastAutoUpdateAt, opts...).ToFunc()
+}
+
+// ByLastAutoUpdateStatus orders the results by the last_auto_update_status field.
+func ByLastAutoUpdateStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastAutoUpdateStatus, opts...).ToFunc()
+}
+
+// ByLastAutoUpdateError orders the results by the last_auto_update_error field.
+func ByLastAutoUpdateError(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastAutoUpdateError, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

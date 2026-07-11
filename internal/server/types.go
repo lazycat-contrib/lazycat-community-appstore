@@ -203,6 +203,7 @@ type appDetail struct {
 	CanUploadVersion      bool                    `json:"canUploadVersion"`
 	CanClearOutdatedMarks bool                    `json:"canClearOutdatedMarks"`
 	VersionRetention      *versionRetentionPolicy `json:"versionRetention,omitzero"`
+	LPKInspection         *lpkInspectionStatusDTO `json:"lpkInspection,omitempty"`
 }
 
 type screenshot struct {

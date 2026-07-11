@@ -21,10 +21,11 @@ import (
 const sessionCookie = "lazycat_store_session"
 
 type userContextKey struct{}
+type apiTokenContextKey struct{}
 
 func (s *Server) withAuth(next func(http.ResponseWriter, *http.Request, *ent.User)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		u, ok := s.authenticate(r)
+		u, apiToken, ok := s.authenticateWithMethod(r)
 		if !ok {
 			writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required", nil)
 			return
@@ -33,7 +34,9 @@ func (s *Server) withAuth(next func(http.ResponseWriter, *http.Request, *ent.Use
 			writeError(w, http.StatusForbidden, "EMAIL_NOT_VERIFIED", "Email verification is required before using this account", nil)
 			return
 		}
-		next(w, r.WithContext(context.WithValue(r.Context(), userContextKey{}, u)), u)
+		ctx := context.WithValue(r.Context(), userContextKey{}, u)
+		ctx = context.WithValue(ctx, apiTokenContextKey{}, apiToken)
+		next(w, r.WithContext(ctx), u)
 	}
 }
 
@@ -54,24 +57,34 @@ func (s *Server) withRole(roles ...user.Role) func(func(http.ResponseWriter, *ht
 }
 
 func (s *Server) authenticate(r *http.Request) (*ent.User, bool) {
+	u, _, ok := s.authenticateWithMethod(r)
+	return u, ok
+}
+
+func (s *Server) authenticateWithMethod(r *http.Request) (*ent.User, bool, bool) {
 	if token := bearerToken(r); token != "" {
 		if u, ok := s.authenticateToken(r.Context(), token); ok {
-			return u, true
+			return u, true, true
 		}
 	}
 	cookie, err := r.Cookie(sessionCookie)
 	if err != nil {
-		return nil, false
+		return nil, false, false
 	}
 	userID, ok := s.verifySession(cookie.Value)
 	if !ok {
-		return nil, false
+		return nil, false, false
 	}
 	u, err := s.db.User.Get(r.Context(), userID)
 	if err != nil || u.Disabled {
-		return nil, false
+		return nil, false, false
 	}
-	return u, true
+	return u, false, true
+}
+
+func apiTokenAuthenticatedRequest(r *http.Request) bool {
+	value, _ := r.Context().Value(apiTokenContextKey{}).(bool)
+	return value
 }
 
 func (s *Server) optionalUser(r *http.Request) *ent.User {

@@ -93,6 +93,7 @@ func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string
 		CommentDisplayName:           commentDisplayName,
 		DefaultPageSize:              pagination.ClampPageSize(defaultPageSize, pagination.DefaultPageSize, 100),
 		AutoSyncIntervalMinutes:      defaultAutoSyncIntervalMinutes,
+		AutoUpdateIntervalMinutes:    defaultAutoSyncIntervalMinutes,
 		InstallSuccessDismissSeconds: sanitizeInstallSuccessDismissSeconds(installSuccessDismissSeconds),
 	}
 	if syncSetting == nil {
@@ -107,6 +108,15 @@ func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string
 	}
 	if syncSetting.LastAutoSyncError != nil {
 		dto.LastAutoSyncError = *syncSetting.LastAutoSyncError
+	}
+	dto.AutoUpdateEnabled = syncSetting.AutoUpdateEnabled
+	dto.AutoUpdateIntervalMinutes = sanitizeAutoSyncInterval(syncSetting.AutoUpdateIntervalMinutes)
+	dto.LastAutoUpdateAt = syncSetting.LastAutoUpdateAt
+	if syncSetting.LastAutoUpdateStatus != nil {
+		dto.LastAutoUpdateStatus = syncSetting.LastAutoUpdateStatus.String()
+	}
+	if syncSetting.LastAutoUpdateError != nil {
+		dto.LastAutoUpdateError = *syncSetting.LastAutoUpdateError
 	}
 	return dto
 }
@@ -188,6 +198,8 @@ func (s *Server) setClientSyncSetting(ctx context.Context, userID string, input 
 			SetAutoSyncEnabled(input.AutoSyncEnabled).
 			SetAutoSyncIntervalMinutes(interval).
 			SetSyncOnStartup(input.SyncOnStartup).
+			SetAutoUpdateEnabled(input.AutoUpdateEnabled).
+			SetAutoUpdateIntervalMinutes(sanitizeAutoSyncInterval(input.AutoUpdateIntervalMinutes)).
 			Save(ctx)
 	}
 	if !ent.IsNotFound(err) {
@@ -198,6 +210,8 @@ func (s *Server) setClientSyncSetting(ctx context.Context, userID string, input 
 		SetAutoSyncEnabled(input.AutoSyncEnabled).
 		SetAutoSyncIntervalMinutes(interval).
 		SetSyncOnStartup(input.SyncOnStartup).
+		SetAutoUpdateEnabled(input.AutoUpdateEnabled).
+		SetAutoUpdateIntervalMinutes(sanitizeAutoSyncInterval(input.AutoUpdateIntervalMinutes)).
 		Save(ctx)
 }
 

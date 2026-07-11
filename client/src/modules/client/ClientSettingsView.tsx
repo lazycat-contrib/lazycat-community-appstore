@@ -25,11 +25,15 @@ export function ClientSettingsView({
   settings,
   sourceStats,
   onSave,
+  onRunUpdates,
+  isUpdateQueueRunning = false,
   setToast,
 }: {
   settings: ClientSettings;
   sourceStats: ClientSourceStats;
   onSave: (settings: ClientSettings) => Promise<void>;
+  onRunUpdates?: () => Promise<void>;
+  isUpdateQueueRunning?: boolean;
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
@@ -75,10 +79,15 @@ export function ClientSettingsView({
   }, [
     settings.autoSyncEnabled,
     settings.autoSyncIntervalMinutes,
+	settings.autoUpdateEnabled,
+	settings.autoUpdateIntervalMinutes,
     settings.clientTitle,
     settings.commentDisplayName,
     settings.defaultPageSize,
     settings.installSuccessDismissSeconds,
+	settings.lastAutoUpdateAt,
+	settings.lastAutoUpdateError,
+	settings.lastAutoUpdateStatus,
     settings.syncOnStartup,
   ]);
 
@@ -91,7 +100,18 @@ export function ClientSettingsView({
   }, [draft.autoSyncEnabled, settings.lastAutoSyncAt, settings.lastAutoSyncStatus]);
 
   const intervalValue = String(draft.autoSyncIntervalMinutes || 60);
+  const updateIntervalValue = String(draft.autoUpdateIntervalMinutes || 60);
   const syncStatusClass = syncState === 'failed' ? 'failed' : syncState === 'partial' ? 'stale' : syncState === 'off' ? 'unsynced' : 'synced';
+  const autoUpdateState = !draft.autoUpdateEnabled
+    ? 'off'
+    : settings.lastAutoUpdateStatus === 'failed'
+      ? 'failed'
+      : settings.lastAutoUpdateStatus === 'partial'
+        ? 'partial'
+        : settings.lastAutoUpdateAt
+          ? 'ready'
+          : 'waiting';
+  const autoUpdateStatusClass = autoUpdateState === 'failed' ? 'failed' : autoUpdateState === 'partial' ? 'stale' : autoUpdateState === 'off' ? 'unsynced' : 'synced';
   const effectiveClientTitle = draft.clientTitle.trim() || t('appName');
   const settingsTabs = [
     { key: 'sync', label: t('clientSettings.tabs.sync'), icon: Clock3 },
@@ -211,6 +231,43 @@ export function ClientSettingsView({
             width="100%"
             onChange={(checked) => updateDraft({ ...draft, syncOnStartup: checked })}
           />
+
+		  <div className="client-auto-update-control">
+			<div className="settings-card-head">
+			  <div>
+				<RefreshCw size={19} />
+				<h3>{t('clientSettings.autoUpdate')}</h3>
+			  </div>
+			  <StatusBadge tone={autoUpdateStatusClass} label={t(`clientSettings.syncStates.${autoUpdateState}`)} />
+			</div>
+			<p className="muted-text">{t('clientSettings.autoUpdateHelp')}</p>
+			<XSwitch
+			  label={t('clientSettings.autoUpdate')}
+			  description={t('clientSettings.autoUpdatePasswordHint')}
+			  value={draft.autoUpdateEnabled}
+			  labelSpacing="spread"
+			  width="100%"
+			  onChange={(checked) => updateDraft({ ...draft, autoUpdateEnabled: checked })}
+			/>
+			<XSelector
+			  label={t('clientSettings.autoUpdateInterval')}
+			  value={updateIntervalValue}
+			  options={syncIntervalOptions.map((value) => ({ value: String(value), label: t('clientSettings.intervalOption', { count: value }) }))}
+			  onChange={(value) => updateDraft({ ...draft, autoUpdateIntervalMinutes: Number(value) || 60 })}
+			/>
+			<small>{settings.lastAutoUpdateAt ? t('clientSettings.autoUpdateLastRun', { time: formatDate(settings.lastAutoUpdateAt) }) : t('clientSettings.neverRun')}</small>
+			{settings.lastAutoUpdateError && <small className="client-auto-update-error">{settings.lastAutoUpdateError}</small>}
+			{onRunUpdates && (
+			  <XButton
+				type="button"
+				variant="secondary"
+				label={isUpdateQueueRunning ? t('updateQueue.running') : t('clientSettings.runUpdateNow')}
+				icon={<RefreshCw size={17} className={isUpdateQueueRunning ? 'spin' : undefined} />}
+				isDisabled={isUpdateQueueRunning}
+				onClick={() => void onRunUpdates()}
+			  />
+			)}
+		  </div>
         </section>
         )}
 

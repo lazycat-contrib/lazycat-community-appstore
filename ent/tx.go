@@ -76,6 +76,8 @@ type Tx struct {
 	Favorite *FavoriteClient
 	// GroupMember is the client for interacting with the GroupMember builders.
 	GroupMember *GroupMemberClient
+	// LPKInspectionJob is the client for interacting with the LPKInspectionJob builders.
+	LPKInspectionJob *LPKInspectionJobClient
 	// MCPToken is the client for interacting with the MCPToken builders.
 	MCPToken *MCPTokenClient
 	// OutdatedMark is the client for interacting with the OutdatedMark builders.
@@ -257,6 +259,7 @@ func (tx *Tx) init() {
 	tx.CommentNotification = NewCommentNotificationClient(tx.config)
 	tx.Favorite = NewFavoriteClient(tx.config)
 	tx.GroupMember = NewGroupMemberClient(tx.config)
+	tx.LPKInspectionJob = NewLPKInspectionJobClient(tx.config)
 	tx.MCPToken = NewMCPTokenClient(tx.config)
 	tx.OutdatedMark = NewOutdatedMarkClient(tx.config)
 	tx.RegistrationInvite = NewRegistrationInviteClient(tx.config)

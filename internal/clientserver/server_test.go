@@ -366,7 +366,7 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 		t.Fatalf("source did not expose mirrors: %s", sources.Body.String())
 	}
 	install := app.request("POST", "/api/client/v1/install", `{"appId":1,"mirrorId":"`+mirrorID+`"}`, "alice")
-	if install.Code != http.StatusOK {
+	if install.Code != http.StatusAccepted || !strings.Contains(install.Body.String(), `"taskId":"task-mirror"`) {
 		t.Fatalf("install with mirror = %d %s", install.Code, install.Body.String())
 	}
 	wantURL := "https://ghproxy.example/https://github.com/org/notes/releases/download/a/notes.lpk"
@@ -620,8 +620,10 @@ func TestSyncSourceAuthFailureIsStored(t *testing.T) {
 type fakePackageManager struct {
 	installed []InstalledApplicationDTO
 	install   InstallResultDTO
+	task      InstallTaskDTO
 	err       error
 	req       InstallRequestDTO
+	cancelled string
 }
 
 func (f *fakePackageManager) QueryInstalled(ctx context.Context, userID string) ([]InstalledApplicationDTO, error) {
@@ -634,6 +636,21 @@ func (f *fakePackageManager) InstallLPK(ctx context.Context, userID string, req 
 		return InstallResultDTO{}, f.err
 	}
 	return f.install, nil
+}
+
+func (f *fakePackageManager) GetInstallTask(_ context.Context, _ string, taskID string) (InstallTaskDTO, error) {
+	if f.err != nil {
+		return InstallTaskDTO{}, f.err
+	}
+	if f.task.TaskID != taskID {
+		return InstallTaskDTO{}, errors.New("task not found")
+	}
+	return f.task, nil
+}
+
+func (f *fakePackageManager) CancelInstall(_ context.Context, _ string, taskID string) error {
+	f.cancelled = taskID
+	return f.err
 }
 
 func TestInstalledAppsUsesPackageManager(t *testing.T) {
@@ -651,7 +668,7 @@ func TestInstallUsesCachedAppVersion(t *testing.T) {
 	app.server.pkg = pm
 	seedCachedApp(t, app.server.db, "alice")
 	rec := app.request("POST", "/api/client/v1/install", `{"appId":1}`, "alice")
-	if rec.Code != http.StatusOK {
+	if rec.Code != http.StatusAccepted || !strings.Contains(rec.Body.String(), `"taskId":"task-1"`) {
 		t.Fatalf("install = %d %s", rec.Code, rec.Body.String())
 	}
 	if pm.req.DownloadURL == "" || pm.req.SHA256 == "" || pm.req.PackageID != "cloud.lazycat.app.notes" {
@@ -669,22 +686,36 @@ func TestAppVersionsEndpointReturnsCachedVersions(t *testing.T) {
 	}
 }
 
-func TestInstallCanSelectOlderVersionAndRecordsHistory(t *testing.T) {
+func TestInstallCanSelectOlderVersion(t *testing.T) {
 	app := testServer(t)
 	pm := &fakePackageManager{install: InstallResultDTO{Mode: "lazycat-go-sdk", TaskID: "task-rollback"}}
 	app.server.pkg = pm
 	seedCachedApp(t, app.server.db, "alice")
 
 	rec := app.request("POST", "/api/client/v1/install", `{"appId":1,"version":"1.0.0"}`, "alice")
-	if rec.Code != http.StatusOK {
+	if rec.Code != http.StatusAccepted || !strings.Contains(rec.Body.String(), `"taskId":"task-rollback"`) {
 		t.Fatalf("install old version = %d %s", rec.Code, rec.Body.String())
 	}
 	if pm.req.Version != "1.0.0" || !strings.Contains(pm.req.DownloadURL, "/old/notes.lpk") || pm.req.SHA256 != strings.Repeat("b", 64) {
 		t.Fatalf("bad rollback request: %#v", pm.req)
 	}
-	history := app.request("GET", "/api/client/v1/history", ``, "alice")
-	if history.Code != http.StatusOK || !strings.Contains(history.Body.String(), `"version":"1.0.0"`) || !strings.Contains(history.Body.String(), `"result":"SUCCESS"`) {
-		t.Fatalf("history missing success = %d %s", history.Code, history.Body.String())
+}
+
+func TestInstallTaskStatusAndCancel(t *testing.T) {
+	app := testServer(t)
+	pm := &fakePackageManager{task: InstallTaskDTO{TaskID: "task-1", Status: "DOWNLOADING", DownloadedSize: 5}}
+	app.server.pkg = pm
+
+	rec := app.request("GET", "/api/client/v1/install-tasks/task-1", ``, "alice")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"status":"DOWNLOADING"`) {
+		t.Fatalf("task = %d %s", rec.Code, rec.Body.String())
+	}
+	rec = app.request("DELETE", "/api/client/v1/install-tasks/task-1", ``, "alice")
+	if rec.Code != http.StatusOK || pm.cancelled != "task-1" {
+		t.Fatalf("cancel = %d %s task=%q", rec.Code, rec.Body.String(), pm.cancelled)
+	}
+	if rec = app.request("GET", "/api/client/v1/install-tasks/missing", ``, "alice"); rec.Code != http.StatusNotFound {
+		t.Fatalf("missing = %d %s", rec.Code, rec.Body.String())
 	}
 }
 

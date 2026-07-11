@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"lazycat.community/appstore/internal/lpkmeta"
 	"lazycat.community/appstore/internal/mirror"
 	"lazycat.community/appstore/internal/storage"
 )
@@ -27,7 +26,7 @@ const (
 )
 
 type Inspection struct {
-	Metadata lpkmeta.Metadata
+	Metadata Metadata
 	SHA256   string
 	Size     int64
 }
@@ -41,14 +40,14 @@ type URLOptions struct {
 	CandidateTimeout  time.Duration
 }
 
-func ParseUploaded(file multipart.File, header *multipart.FileHeader, maxBytes int64) (lpkmeta.Metadata, error) {
+func ParseUploaded(file multipart.File, header *multipart.FileHeader, maxBytes int64) (Metadata, error) {
 	if strings.ToLower(filepath.Ext(header.Filename)) != ".lpk" {
-		return lpkmeta.Metadata{}, storage.ErrInvalidLPK
+		return Metadata{}, storage.ErrInvalidLPK
 	}
 	if maxBytes > 0 && header.Size > maxBytes {
-		return lpkmeta.Metadata{}, storage.ErrTooLarge
+		return Metadata{}, storage.ErrTooLarge
 	}
-	meta, err := lpkmeta.ParseReaderAt(file, header.Size)
+	meta, err := parseLPKReaderAt(context.Background(), file, header.Size, maxBytes)
 	if _, seekErr := file.Seek(0, io.SeekStart); seekErr != nil && err == nil {
 		err = seekErr
 	}
@@ -278,7 +277,7 @@ func inspectFetchCandidate(ctx context.Context, parsed *url.URL, opts URLOptions
 	if err := tmp.Close(); err != nil {
 		return Inspection{}, err
 	}
-	meta, err := lpkmeta.ParseFile(tmpName)
+	meta, err := parseLPKFile(ctx, tmpName, opts.MaxBytes)
 	if err != nil {
 		return Inspection{}, err
 	}

@@ -393,6 +393,18 @@ func (f GroupMemberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value,
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GroupMemberMutation", m)
 }
 
+// The LPKInspectionJobFunc type is an adapter to allow the use of ordinary
+// function as LPKInspectionJob mutator.
+type LPKInspectionJobFunc func(context.Context, *ent.LPKInspectionJobMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LPKInspectionJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LPKInspectionJobMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LPKInspectionJobMutation", m)
+}
+
 // The MCPTokenFunc type is an adapter to allow the use of ordinary
 // function as MCPToken mutator.
 type MCPTokenFunc func(context.Context, *ent.MCPTokenMutation) (ent.Value, error)

@@ -14,7 +14,7 @@ import { canUserManageApp, canUserUploadVersion, defaultUploadStorageKey, displa
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { Category, ClientSourceStats, CollaborationData, FavoriteData, InstalledApplication, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, StorageOption, StoreApp, Toast, User } from '../../shared/types';
+import type { Category, ClientSourceStats, CollaborationData, FavoriteData, InstalledApplication, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, StorageOption, StoreApp, Toast, UpdateQueueResult, User } from '../../shared/types';
 import { cx, formatDate, hasInstallableVersion, runAction, statusKey } from '../../shared/utils';
 import { InstalledAppsView } from '../client/InstalledAppsView';
 import type { AppDetailMode } from '../storefront/AppDrawer';
@@ -53,6 +53,10 @@ export function ProfileView({
   installedState,
   installedError,
   onLoadInstalled,
+	  onRunUpdates,
+	  onCancelUpdates,
+	  updateQueueResult,
+	  isUpdateQueueRunning,
   onOpen,
   onLogout,
   refreshAll,
@@ -78,6 +82,10 @@ export function ProfileView({
   installedState: 'idle' | 'loading' | 'loaded' | 'error';
   installedError: string;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
+	  onRunUpdates?: () => Promise<void>;
+	  onCancelUpdates?: () => Promise<void>;
+	  updateQueueResult?: UpdateQueueResult | null;
+	  isUpdateQueueRunning?: boolean;
   onOpen: (app: StoreApp, mode?: AppDetailMode) => void;
   onLogout: () => Promise<void>;
   refreshAll: (options?: { silent?: boolean }) => Promise<void>;
@@ -487,6 +495,10 @@ export function ProfileView({
           installedError={installedError}
           installedReadinessBody={installedReadinessBody}
           onLoadInstalled={onLoadInstalled}
+		  onRunUpdates={onRunUpdates}
+		  onCancelUpdates={onCancelUpdates}
+		  updateQueueResult={updateQueueResult}
+		  isUpdateQueueRunning={isUpdateQueueRunning}
         />
       </section>
     );

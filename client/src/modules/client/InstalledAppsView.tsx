@@ -1,13 +1,14 @@
-import { AlertCircle, Download, RefreshCw } from 'lucide-react';
-import { useMemo } from 'react';
+import { AlertCircle, Download, RefreshCw, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { AvatarIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
+import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { InstalledApplication, SourceApp } from '../../shared/types';
+import type { InstalledApplication, SourceApp, UpdateQueueResult } from '../../shared/types';
 import { compareVersions, cx } from '../../shared/utils';
-import { findStableSourceApp } from './clientUxState';
+import { buildUpdateConfirmation, findStableSourceApp } from './clientUxState';
 
 type InstalledRow = { item: InstalledApplication; source?: SourceApp };
 type InstalledGroupKind = 'updates' | 'managed' | 'local';
@@ -19,6 +20,10 @@ export function InstalledAppsView({
   installedError,
   installedReadinessBody,
   onLoadInstalled,
+  onRunUpdates,
+  onCancelUpdates,
+  updateQueueResult,
+  isUpdateQueueRunning = false,
 }: {
   installedApps: InstalledApplication[];
   sourceApps: SourceApp[];
@@ -26,8 +31,13 @@ export function InstalledAppsView({
   installedError: string;
   installedReadinessBody: string;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
+  onRunUpdates?: () => Promise<void>;
+  onCancelUpdates?: () => Promise<void>;
+  updateQueueResult?: UpdateQueueResult | null;
+  isUpdateQueueRunning?: boolean;
 }) {
   const { t } = useTranslation();
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const installedGroups = useMemo(() => {
     const updates: InstalledRow[] = [];
     const managed: InstalledRow[] = [];
@@ -48,6 +58,13 @@ export function InstalledAppsView({
   }, [installedApps, sourceApps]);
   const installedEmptyTitle = installedState === 'loaded' ? t('profile.installedEmptyLoaded') : t('profile.installedEmpty');
   const installedEmptyBody = installedState === 'idle' ? t('profile.installedIdleBody') : undefined;
+  const updateConfirmation = useMemo(() => buildUpdateConfirmation(installedGroups.updates), [installedGroups.updates]);
+  const canRunUpdates = Boolean(onRunUpdates && updateConfirmation.eligible.length > 0 && installedState === 'loaded');
+  const updateItems = updateQueueResult?.items || [];
+  const updateSummary = updateItems.reduce<Record<string, number>>((summary, item) => {
+    summary[item.status] = (summary[item.status] || 0) + 1;
+    return summary;
+  }, {});
 
   function InstalledGroup({
     title,
@@ -97,7 +114,8 @@ export function InstalledAppsView({
   }
 
   return (
-    <section className="panel install-center-panel">
+    <>
+      <section className="panel install-center-panel">
       <div className="install-center-head">
         <div className="install-center-title">
           <AvatarIcon seed="lazycat-standalone-client" title={t('profile.clientTitle')} size={58} className="avatar-large" />
@@ -120,6 +138,16 @@ export function InstalledAppsView({
             isDisabled={installedState === 'loading'}
             onClick={() => void onLoadInstalled()}
           />
+		  {canRunUpdates && (
+			<XButton
+			  type="button"
+			  variant="secondary"
+			  label={isUpdateQueueRunning ? t('updateQueue.running') : t('updateQueue.updateAll', { count: updateConfirmation.eligible.length })}
+			  icon={<RefreshCw size={18} className={isUpdateQueueRunning ? 'spin' : undefined} />}
+			  isDisabled={isUpdateQueueRunning}
+			  onClick={() => setIsConfirmOpen(true)}
+			/>
+		  )}
         </div>
       </div>
       <div className="install-center-metrics" aria-label={t('profile.clientInstalledTitle')}>
@@ -142,6 +170,20 @@ export function InstalledAppsView({
           <span>{installedError}</span>
         </p>
       )}
+	  {updateQueueResult && (
+		<aside className={cx('update-queue-summary', `is-${updateQueueResult.status}`)} aria-live="polite">
+		  <div>
+			<strong>{t(`updateQueue.result.${updateQueueResult.status}`)}</strong>
+			<span>{updateQueueResult.error || t('updateQueue.summary', { count: updateItems.length })}</span>
+		  </div>
+		  {updateItems.length > 0 && (
+			<small>{Object.entries(updateSummary).map(([status, count]) => t('updateQueue.itemCount', { status: t(`updateQueue.itemStates.${status}`), count })).join(' · ')}</small>
+		  )}
+		  {isUpdateQueueRunning && onCancelUpdates && (
+			<XButton type="button" variant="secondary" size="sm" label={t('updateQueue.cancel')} icon={<X size={16} />} onClick={() => void onCancelUpdates()} />
+		  )}
+		</aside>
+	  )}
       {installedApps.length === 0 ? (
         <EmptyState icon={Download} title={installedEmptyTitle} body={installedEmptyBody} />
       ) : (
@@ -151,6 +193,25 @@ export function InstalledAppsView({
           <InstalledGroup title={t('profile.installedLocalGroup')} tone="unsynced" kind="local" rows={installedGroups.local} />
         </div>
       )}
-    </section>
+      </section>
+	  {isConfirmOpen && (
+		<ModalLayer onClose={() => setIsConfirmOpen(false)} purpose="form" width="min(480px, calc(100vw - 36px))">
+		  <section className="modal-panel update-confirm-dialog" aria-labelledby="update-confirm-title">
+			<div>
+			  <h2 id="update-confirm-title">{t('updateQueue.confirmTitle')}</h2>
+			  <p>{t('updateQueue.confirmBody', { count: updateConfirmation.eligible.length })}</p>
+			  {updateConfirmation.skipped.length > 0 && <small>{t('updateQueue.protectedSkipped', { count: updateConfirmation.skipped.length })}</small>}
+			</div>
+			<div className="dialog-actions">
+			  <XButton type="button" variant="secondary" label={t('common.cancel')} onClick={() => setIsConfirmOpen(false)} />
+			  <XButton type="button" variant="primary" label={t('updateQueue.start')} icon={<RefreshCw size={17} />} onClick={() => {
+				setIsConfirmOpen(false);
+				void onRunUpdates?.();
+			  }} />
+			</div>
+		  </section>
+		</ModalLayer>
+	  )}
+	</>
   );
 }

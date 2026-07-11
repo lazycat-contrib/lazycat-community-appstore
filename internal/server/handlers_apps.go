@@ -33,7 +33,7 @@ import (
 	userpkg "lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/auth"
 	"lazycat.community/appstore/internal/catalogmeta"
-	"lazycat.community/appstore/internal/lpkmeta"
+	"lazycat.community/appstore/internal/lpkinspect"
 	"lazycat.community/appstore/internal/mirror"
 	"lazycat.community/appstore/internal/pagination"
 	"lazycat.community/appstore/internal/storage"
@@ -213,6 +213,9 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 	if canManageReleases {
 		policy := s.versionRetentionPolicyForApp(r.Context(), record)
 		detail.VersionRetention = &policy
+		if inspection, err := s.latestLPKInspectionStatus(r.Context(), record.ID); err == nil {
+			detail.LPKInspection = inspection
+		}
 	}
 	detail.Screenshots, _ = s.loadScreenshots(r, record.ID)
 	comments, _ := s.loadComments(r, record.ID)
@@ -348,7 +351,8 @@ func (s *Server) handleCreateApp(w http.ResponseWriter, r *http.Request, u *entg
 	}
 	input.DownloadURL = normalizeGitHubRawURL(input.DownloadURL)
 	var inspected lpkInspection
-	if input.DownloadURL != "" && appInputNeedsLPKInspection(input) {
+	automaticLPKInspection := apiTokenAuthenticatedRequest(r) && input.DownloadURL != ""
+	if input.DownloadURL != "" && appInputNeedsLPKInspection(input) && !automaticLPKInspection {
 		var err error
 		inspected, err = s.inspectLPKURL(r.Context(), input.DownloadURL, s.effectiveMaxLPKSize(r.Context()), input.UseMirrorDownload)
 		if err != nil {
@@ -368,11 +372,17 @@ func (s *Server) handleCreateApp(w http.ResponseWriter, r *http.Request, u *entg
 		writeError(w, http.StatusUnprocessableEntity, "APP_CREATE_FAILED", err.Error(), nil)
 		return
 	}
+	var createdVersion *entgo.AppVersion
 	if input.DownloadURL != "" {
-		_, err = s.createExternalVersion(r, u, record, input.Version, input.Changelog, input.DownloadURL, input.SourceType, input.SHA256, inspected.Size)
+		createdVersion, err = s.createExternalVersion(r, u, record, input.Version, input.Changelog, input.DownloadURL, input.SourceType, input.SHA256, inspected.Size)
 		if err != nil {
 			writeError(w, http.StatusUnprocessableEntity, "VERSION_CREATE_FAILED", err.Error(), nil)
 			return
+		}
+	}
+	if automaticLPKInspection && createdVersion != nil {
+		if err := s.enqueueAutomaticLPKInspection(r.Context(), record.ID, createdVersion.ID, u.ID, input.DownloadURL); err != nil {
+			slog.Warn("Could not enqueue automatic LPK inspection", "app_id", record.ID, "version_id", createdVersion.ID, "error", err)
 		}
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"app": s.appSummaryDTO(r, record, u)})
@@ -910,7 +920,7 @@ func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *e
 	return created, nil
 }
 
-func (s *Server) updateAppFromApprovedLPKMetadata(r *http.Request, appID int, meta lpkmeta.Metadata) error {
+func (s *Server) updateAppFromApprovedLPKMetadata(r *http.Request, appID int, meta lpkinspect.Metadata) error {
 	update := s.db.App.UpdateOneID(appID).SetStatus(app.StatusAPPROVED)
 	iconAssetID := 0
 	if !meta.NameI18n.IsZero() {
@@ -966,7 +976,7 @@ func versionInputNeedsLPKInspection(input createAppJSON) bool {
 	return strings.TrimSpace(input.Version) == "" || strings.TrimSpace(input.SHA256) == ""
 }
 
-func (s *Server) applyAppMetadata(ctx context.Context, input *createAppJSON, meta lpkmeta.Metadata) error {
+func (s *Server) applyAppMetadata(ctx context.Context, input *createAppJSON, meta lpkinspect.Metadata) error {
 	if input.PackageID != "" && meta.PackageID != "" && input.PackageID != meta.PackageID {
 		return fmt.Errorf("LPK package %q does not match packageId %q", meta.PackageID, input.PackageID)
 	}

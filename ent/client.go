@@ -47,6 +47,7 @@ import (
 	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/groupmember"
+	"lazycat.community/appstore/ent/lpkinspectionjob"
 	"lazycat.community/appstore/ent/mcptoken"
 	"lazycat.community/appstore/ent/outdatedmark"
 	"lazycat.community/appstore/ent/registrationinvite"
@@ -127,6 +128,8 @@ type Client struct {
 	Favorite *FavoriteClient
 	// GroupMember is the client for interacting with the GroupMember builders.
 	GroupMember *GroupMemberClient
+	// LPKInspectionJob is the client for interacting with the LPKInspectionJob builders.
+	LPKInspectionJob *LPKInspectionJobClient
 	// MCPToken is the client for interacting with the MCPToken builders.
 	MCPToken *MCPTokenClient
 	// OutdatedMark is the client for interacting with the OutdatedMark builders.
@@ -188,6 +191,7 @@ func (c *Client) init() {
 	c.CommentNotification = NewCommentNotificationClient(c.config)
 	c.Favorite = NewFavoriteClient(c.config)
 	c.GroupMember = NewGroupMemberClient(c.config)
+	c.LPKInspectionJob = NewLPKInspectionJobClient(c.config)
 	c.MCPToken = NewMCPTokenClient(c.config)
 	c.OutdatedMark = NewOutdatedMarkClient(c.config)
 	c.RegistrationInvite = NewRegistrationInviteClient(c.config)
@@ -321,6 +325,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		CommentNotification:  NewCommentNotificationClient(cfg),
 		Favorite:             NewFavoriteClient(cfg),
 		GroupMember:          NewGroupMemberClient(cfg),
+		LPKInspectionJob:     NewLPKInspectionJobClient(cfg),
 		MCPToken:             NewMCPTokenClient(cfg),
 		OutdatedMark:         NewOutdatedMarkClient(cfg),
 		RegistrationInvite:   NewRegistrationInviteClient(cfg),
@@ -381,6 +386,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		CommentNotification:  NewCommentNotificationClient(cfg),
 		Favorite:             NewFavoriteClient(cfg),
 		GroupMember:          NewGroupMemberClient(cfg),
+		LPKInspectionJob:     NewLPKInspectionJobClient(cfg),
 		MCPToken:             NewMCPTokenClient(cfg),
 		OutdatedMark:         NewOutdatedMarkClient(cfg),
 		RegistrationInvite:   NewRegistrationInviteClient(cfg),
@@ -425,9 +431,9 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ClientAsset, c.ClientAssetLink, c.ClientInstallHistory, c.ClientSetting,
 		c.ClientSource, c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator,
 		c.CollaboratorInvite, c.CollaboratorRequest, c.Collection, c.CollectionApp,
-		c.Comment, c.CommentNotification, c.Favorite, c.GroupMember, c.MCPToken,
-		c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest, c.SiteSetting,
-		c.StorageConfig, c.Tag, c.User, c.UserGroup,
+		c.Comment, c.CommentNotification, c.Favorite, c.GroupMember,
+		c.LPKInspectionJob, c.MCPToken, c.OutdatedMark, c.RegistrationInvite,
+		c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -443,9 +449,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ClientAsset, c.ClientAssetLink, c.ClientInstallHistory, c.ClientSetting,
 		c.ClientSource, c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator,
 		c.CollaboratorInvite, c.CollaboratorRequest, c.Collection, c.CollectionApp,
-		c.Comment, c.CommentNotification, c.Favorite, c.GroupMember, c.MCPToken,
-		c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest, c.SiteSetting,
-		c.StorageConfig, c.Tag, c.User, c.UserGroup,
+		c.Comment, c.CommentNotification, c.Favorite, c.GroupMember,
+		c.LPKInspectionJob, c.MCPToken, c.OutdatedMark, c.RegistrationInvite,
+		c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -518,6 +524,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Favorite.mutate(ctx, m)
 	case *GroupMemberMutation:
 		return c.GroupMember.mutate(ctx, m)
+	case *LPKInspectionJobMutation:
+		return c.LPKInspectionJob.mutate(ctx, m)
 	case *MCPTokenMutation:
 		return c.MCPToken.mutate(ctx, m)
 	case *OutdatedMarkMutation:
@@ -4829,6 +4837,139 @@ func (c *GroupMemberClient) mutate(ctx context.Context, m *GroupMemberMutation) 
 	}
 }
 
+// LPKInspectionJobClient is a client for the LPKInspectionJob schema.
+type LPKInspectionJobClient struct {
+	config
+}
+
+// NewLPKInspectionJobClient returns a client for the LPKInspectionJob from the given config.
+func NewLPKInspectionJobClient(c config) *LPKInspectionJobClient {
+	return &LPKInspectionJobClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `lpkinspectionjob.Hooks(f(g(h())))`.
+func (c *LPKInspectionJobClient) Use(hooks ...Hook) {
+	c.hooks.LPKInspectionJob = append(c.hooks.LPKInspectionJob, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `lpkinspectionjob.Intercept(f(g(h())))`.
+func (c *LPKInspectionJobClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LPKInspectionJob = append(c.inters.LPKInspectionJob, interceptors...)
+}
+
+// Create returns a builder for creating a LPKInspectionJob entity.
+func (c *LPKInspectionJobClient) Create() *LPKInspectionJobCreate {
+	mutation := newLPKInspectionJobMutation(c.config, OpCreate)
+	return &LPKInspectionJobCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LPKInspectionJob entities.
+func (c *LPKInspectionJobClient) CreateBulk(builders ...*LPKInspectionJobCreate) *LPKInspectionJobCreateBulk {
+	return &LPKInspectionJobCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LPKInspectionJobClient) MapCreateBulk(slice any, setFunc func(*LPKInspectionJobCreate, int)) *LPKInspectionJobCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LPKInspectionJobCreateBulk{err: fmt.Errorf("calling to LPKInspectionJobClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LPKInspectionJobCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LPKInspectionJobCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LPKInspectionJob.
+func (c *LPKInspectionJobClient) Update() *LPKInspectionJobUpdate {
+	mutation := newLPKInspectionJobMutation(c.config, OpUpdate)
+	return &LPKInspectionJobUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LPKInspectionJobClient) UpdateOne(_m *LPKInspectionJob) *LPKInspectionJobUpdateOne {
+	mutation := newLPKInspectionJobMutation(c.config, OpUpdateOne, withLPKInspectionJob(_m))
+	return &LPKInspectionJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LPKInspectionJobClient) UpdateOneID(id int) *LPKInspectionJobUpdateOne {
+	mutation := newLPKInspectionJobMutation(c.config, OpUpdateOne, withLPKInspectionJobID(id))
+	return &LPKInspectionJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LPKInspectionJob.
+func (c *LPKInspectionJobClient) Delete() *LPKInspectionJobDelete {
+	mutation := newLPKInspectionJobMutation(c.config, OpDelete)
+	return &LPKInspectionJobDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LPKInspectionJobClient) DeleteOne(_m *LPKInspectionJob) *LPKInspectionJobDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LPKInspectionJobClient) DeleteOneID(id int) *LPKInspectionJobDeleteOne {
+	builder := c.Delete().Where(lpkinspectionjob.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LPKInspectionJobDeleteOne{builder}
+}
+
+// Query returns a query builder for LPKInspectionJob.
+func (c *LPKInspectionJobClient) Query() *LPKInspectionJobQuery {
+	return &LPKInspectionJobQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLPKInspectionJob},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LPKInspectionJob entity by its id.
+func (c *LPKInspectionJobClient) Get(ctx context.Context, id int) (*LPKInspectionJob, error) {
+	return c.Query().Where(lpkinspectionjob.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LPKInspectionJobClient) GetX(ctx context.Context, id int) *LPKInspectionJob {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LPKInspectionJobClient) Hooks() []Hook {
+	return c.hooks.LPKInspectionJob
+}
+
+// Interceptors returns the client interceptors.
+func (c *LPKInspectionJobClient) Interceptors() []Interceptor {
+	return c.inters.LPKInspectionJob
+}
+
+func (c *LPKInspectionJobClient) mutate(ctx context.Context, m *LPKInspectionJobMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LPKInspectionJobCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LPKInspectionJobUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LPKInspectionJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LPKInspectionJobDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LPKInspectionJob mutation op: %q", m.Op())
+	}
+}
+
 // MCPTokenClient is a client for the MCPToken schema.
 type MCPTokenClient struct {
 	config
@@ -6035,8 +6176,8 @@ type (
 		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
 		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
 		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
-		MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting,
-		StorageConfig, Tag, User, UserGroup []ent.Hook
+		LPKInspectionJob, MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest,
+		SiteSetting, StorageConfig, Tag, User, UserGroup []ent.Hook
 	}
 	inters struct {
 		APIToken, Ad, Announcement, App, AppDownload, AppScreenshot, AppTag, AppVersion,
@@ -6045,7 +6186,7 @@ type (
 		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
 		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
 		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
-		MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting,
-		StorageConfig, Tag, User, UserGroup []ent.Interceptor
+		LPKInspectionJob, MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest,
+		SiteSetting, StorageConfig, Tag, User, UserGroup []ent.Interceptor
 	}
 )

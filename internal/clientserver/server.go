@@ -16,23 +16,24 @@ import (
 )
 
 type Server struct {
-	cfg           Config
-	db            *ent.Client
-	sqlDB         *sql.DB
-	pkg           PackageManager
-	mux           *http.ServeMux
-	syncScheduler *sourceSyncScheduler
-	auth          *clientAuth
-	httpClient    *http.Client
-	streamClient  *http.Client
-	httpClientsMu sync.Mutex
-	sourcePolicy  sourceURLPolicy
-	stopOnce      sync.Once
-	stopDone      chan struct{}
-	stopErr       error
-	closeOnce     sync.Once
-	closeDone     chan struct{}
-	closeErr      error
+	cfg                Config
+	db                 *ent.Client
+	sqlDB              *sql.DB
+	pkg                PackageManager
+	installCoordinator *installCoordinator
+	mux                *http.ServeMux
+	syncScheduler      *sourceSyncScheduler
+	auth               *clientAuth
+	httpClient         *http.Client
+	streamClient       *http.Client
+	httpClientsMu      sync.Mutex
+	sourcePolicy       sourceURLPolicy
+	stopOnce           sync.Once
+	stopDone           chan struct{}
+	stopErr            error
+	closeOnce          sync.Once
+	closeDone          chan struct{}
+	closeErr           error
 }
 
 func New(cfg Config) (*Server, error) {
@@ -51,17 +52,18 @@ func New(cfg Config) (*Server, error) {
 	}
 	httpClient, streamClient := newHTTPClients()
 	s := &Server{
-		cfg:          cfg,
-		db:           db,
-		sqlDB:        sqlDB,
-		pkg:          NewLazyCatPackageManager(),
-		mux:          http.NewServeMux(),
-		auth:         auth,
-		httpClient:   httpClient,
-		streamClient: streamClient,
-		sourcePolicy: allowSourceURLPolicy{},
-		stopDone:     make(chan struct{}),
-		closeDone:    make(chan struct{}),
+		cfg:                cfg,
+		db:                 db,
+		sqlDB:              sqlDB,
+		pkg:                NewLazyCatPackageManager(),
+		installCoordinator: newInstallCoordinator(),
+		mux:                http.NewServeMux(),
+		auth:               auth,
+		httpClient:         httpClient,
+		streamClient:       streamClient,
+		sourcePolicy:       allowSourceURLPolicy{},
+		stopDone:           make(chan struct{}),
+		closeDone:          make(chan struct{}),
 	}
 	s.routes()
 	syncScheduler, err := newSourceSyncScheduler(s)
@@ -76,16 +78,17 @@ func New(cfg Config) (*Server, error) {
 func newTestServer(db *ent.Client) *Server {
 	httpClient, streamClient := newHTTPClients()
 	s := &Server{
-		cfg:          Config{DefaultSourceName: "喵喵私有商店", SessionSecret: "test-client-session-secret"},
-		db:           db,
-		pkg:          unavailablePackageManager{},
-		mux:          http.NewServeMux(),
-		auth:         &clientAuth{secret: []byte("test-client-session-secret")},
-		httpClient:   httpClient,
-		streamClient: streamClient,
-		sourcePolicy: allowSourceURLPolicy{},
-		stopDone:     make(chan struct{}),
-		closeDone:    make(chan struct{}),
+		cfg:                Config{DefaultSourceName: "喵喵私有商店", SessionSecret: "test-client-session-secret"},
+		db:                 db,
+		pkg:                unavailablePackageManager{},
+		installCoordinator: newInstallCoordinator(),
+		mux:                http.NewServeMux(),
+		auth:               &clientAuth{secret: []byte("test-client-session-secret")},
+		httpClient:         httpClient,
+		streamClient:       streamClient,
+		sourcePolicy:       allowSourceURLPolicy{},
+		stopDone:           make(chan struct{}),
+		closeDone:          make(chan struct{}),
 	}
 	s.routes()
 	return s
@@ -189,6 +192,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/client/v1/sources/sync", s.clientAPI(s.handleSyncAllSources))
 	s.mux.HandleFunc("GET /api/client/v1/settings", s.clientAPI(s.handleGetSettings))
 	s.mux.HandleFunc("PATCH /api/client/v1/settings", s.clientAPI(s.handleUpdateSettings))
+	s.mux.HandleFunc("POST /api/client/v1/updates/run", s.clientAPI(s.handleRunUpdateQueue))
+	s.mux.HandleFunc("DELETE /api/client/v1/updates/run", s.clientAPI(s.handleCancelUpdateQueue))
 	s.mux.HandleFunc("GET /api/client/v1/apps", s.clientAPI(s.handleListApps))
 	s.mux.HandleFunc("GET /api/client/v1/apps/{id}", s.clientAPI(s.handleGetApp))
 	s.mux.HandleFunc("GET /api/client/v1/apps/{id}/versions", s.clientAPI(s.handleGetAppVersions))
@@ -206,6 +211,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/client/v1/chat/events", s.clientAPI(s.handleChatEvents))
 	s.mux.HandleFunc("GET /api/client/v1/installed", s.clientAPI(s.handleInstalled))
 	s.mux.HandleFunc("POST /api/client/v1/install", s.clientAPI(s.handleInstall))
+	s.mux.HandleFunc("GET /api/client/v1/install-tasks/{taskId}", s.clientAPI(s.handleGetInstallTask))
+	s.mux.HandleFunc("DELETE /api/client/v1/install-tasks/{taskId}", s.clientAPI(s.handleCancelInstallTask))
 	s.mux.HandleFunc("GET /api/client/v1/history", s.clientAPI(s.handleInstallHistory))
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "service": "lazycat-private-store-client"})
