@@ -1,13 +1,15 @@
-import { AlertCircle, Download, RefreshCw, X } from 'lucide-react';
+import { AlertCircle, Download, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
+import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { AvatarIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { InstalledApplication, SourceApp, UpdateQueueResult } from '../../shared/types';
-import { compareVersions, cx } from '../../shared/utils';
+import type { InstalledApplication, SourceApp, SourceSubscription, UpdateQueueRequest, UpdateQueueResult } from '../../shared/types';
+import { compareVersions, cx, sourceMirrorOptions } from '../../shared/utils';
 import { buildUpdateConfirmation, findStableSourceApp } from './clientUxState';
 
 type InstalledRow = { item: InstalledApplication; source?: SourceApp };
@@ -16,28 +18,30 @@ type InstalledGroupKind = 'updates' | 'managed' | 'local';
 export function InstalledAppsView({
   installedApps,
   sourceApps,
+  sources,
   installedState,
   installedError,
   installedReadinessBody,
   onLoadInstalled,
   onRunUpdates,
-  onCancelUpdates,
   updateQueueResult,
   isUpdateQueueRunning = false,
 }: {
   installedApps: InstalledApplication[];
   sourceApps: SourceApp[];
+  sources: SourceSubscription[];
   installedState: 'idle' | 'loading' | 'loaded' | 'error';
   installedError: string;
   installedReadinessBody: string;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
-  onRunUpdates?: () => Promise<void>;
-  onCancelUpdates?: () => Promise<void>;
+  onRunUpdates?: (options?: UpdateQueueRequest) => Promise<void>;
   updateQueueResult?: UpdateQueueResult | null;
   isUpdateQueueRunning?: boolean;
 }) {
   const { t } = useTranslation();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [mirrorOverrides, setMirrorOverrides] = useState<Record<string, { downloadMirrorId: string; rawMirrorId: string }>>({});
   const installedGroups = useMemo(() => {
     const updates: InstalledRow[] = [];
     const managed: InstalledRow[] = [];
@@ -65,6 +69,13 @@ export function InstalledAppsView({
     summary[item.status] = (summary[item.status] || 0) + 1;
     return summary;
   }, {});
+  const updateSources = useMemo(() => {
+    const ids = new Set(installedGroups.updates.map(({ source }) => Number(source?.sourceId)).filter((id) => id > 0));
+    return sources.filter((source) => ids.has(Number(source.id)));
+  }, [installedGroups.updates, sources]);
+  const currentItem = updateItems.find((item) => item.status === 'running');
+  const completedCount = updateItems.filter((item) => ['success', 'failed', 'cancelled'].includes(item.status)).length;
+  const currentNumber = currentItem ? Math.min(completedCount + 1, updateItems.length) : completedCount;
 
   function InstalledGroup({
     title,
@@ -144,8 +155,11 @@ export function InstalledAppsView({
 			  variant="secondary"
 			  label={isUpdateQueueRunning ? t('updateQueue.running') : t('updateQueue.updateAll', { count: updateConfirmation.eligible.length })}
 			  icon={<RefreshCw size={18} className={isUpdateQueueRunning ? 'spin' : undefined} />}
-			  isDisabled={isUpdateQueueRunning}
-			  onClick={() => setIsConfirmOpen(true)}
+			  isDisabled={false}
+			  onClick={() => {
+				setHasStarted(isUpdateQueueRunning);
+				setIsConfirmOpen(true);
+              }}
 			/>
 		  )}
         </div>
@@ -174,13 +188,10 @@ export function InstalledAppsView({
 		<aside className={cx('update-queue-summary', `is-${updateQueueResult.status}`)} aria-live="polite">
 		  <div>
 			<strong>{t(`updateQueue.result.${updateQueueResult.status}`)}</strong>
-			<span>{updateQueueResult.error || t('updateQueue.summary', { count: updateItems.length })}</span>
+			<span>{updateQueueResult.error || (updateQueueResult.status === 'running' && updateItems.length === 0 ? t('updateQueue.checkingSources') : t('updateQueue.summary', { count: updateItems.length }))}</span>
 		  </div>
 		  {updateItems.length > 0 && (
 			<small>{Object.entries(updateSummary).map(([status, count]) => t('updateQueue.itemCount', { status: t(`updateQueue.itemStates.${status}`), count })).join(' · ')}</small>
-		  )}
-		  {isUpdateQueueRunning && onCancelUpdates && (
-			<XButton type="button" variant="secondary" size="sm" label={t('updateQueue.cancel')} icon={<X size={16} />} onClick={() => void onCancelUpdates()} />
 		  )}
 		</aside>
 	  )}
@@ -195,20 +206,51 @@ export function InstalledAppsView({
       )}
       </section>
 	  {isConfirmOpen && (
-		<ModalLayer onClose={() => setIsConfirmOpen(false)} purpose="form" width="min(480px, calc(100vw - 36px))">
+		<ModalLayer onClose={() => setIsConfirmOpen(false)} purpose="form" width="min(640px, calc(100vw - 36px))" maxHeight="min(88vh, 820px)">
 		  <section className="modal-panel update-confirm-dialog" aria-labelledby="update-confirm-title">
-			<div>
+			{!hasStarted ? <><div>
 			  <h2 id="update-confirm-title">{t('updateQueue.confirmTitle')}</h2>
 			  <p>{t('updateQueue.confirmBody', { count: updateConfirmation.eligible.length })}</p>
 			  {updateConfirmation.skipped.length > 0 && <small>{t('updateQueue.protectedSkipped', { count: updateConfirmation.skipped.length })}</small>}
 			</div>
+			<div className="update-mirror-groups">
+			  <strong>{t('updateQueue.mirrorTitle')}</strong>
+			  <small>{t('updateQueue.mirrorHelp')}</small>
+			  {updateSources.map((source) => {
+				const current = mirrorOverrides[String(source.id)] || { downloadMirrorId: source.defaultDownloadMirrorId || '', rawMirrorId: source.defaultRawMirrorId || '' };
+				const downloadOptions = sourceMirrorOptions(source, 'download', t('installOptions.direct'));
+				const rawOptions = sourceMirrorOptions(source, 'raw', t('installOptions.direct'));
+				return <div className="update-mirror-source" key={source.id}>
+				  <strong>{source.name}</strong>
+				  {downloadOptions.length > 1 && <XSelector label={t('updateQueue.downloadMirror')} value={current.downloadMirrorId} options={downloadOptions} onChange={(value) => setMirrorOverrides((old) => ({ ...old, [String(source.id)]: { ...current, downloadMirrorId: value } }))} />}
+				  {rawOptions.length > 1 && <XSelector label={t('updateQueue.rawMirror')} value={current.rawMirrorId} options={rawOptions} onChange={(value) => setMirrorOverrides((old) => ({ ...old, [String(source.id)]: { ...current, rawMirrorId: value } }))} />}
+				</div>;
+			  })}
+			</div>
+			<div className="update-app-preview">
+			  {installedGroups.updates.map(({ item, source }) => <div key={item.appid || source?.id}><strong>{item.title || source?.name || item.appid}</strong><span>{item.version || '-'} → {source?.latestVersion?.version || '-'}</span></div>)}
+			</div>
 			<div className="dialog-actions">
 			  <XButton type="button" variant="secondary" label={t('common.cancel')} onClick={() => setIsConfirmOpen(false)} />
 			  <XButton type="button" variant="primary" label={t('updateQueue.start')} icon={<RefreshCw size={17} />} onClick={() => {
-				setIsConfirmOpen(false);
-				void onRunUpdates?.();
+				setHasStarted(true);
+				void onRunUpdates?.({ mirrorOverrides: updateSources.map((source) => {
+				  const value = mirrorOverrides[String(source.id)];
+				  return { sourceId: Number(source.id), downloadMirrorId: value?.downloadMirrorId ?? source.defaultDownloadMirrorId ?? '', rawMirrorId: value?.rawMirrorId ?? source.defaultRawMirrorId ?? '' };
+				}) });
 			  }} />
 			</div>
+			</> : <div className="update-progress-dialog">
+			  <div className="update-progress-head"><div><h2 id="update-confirm-title">{t(`updateQueue.result.${updateQueueResult?.status || 'running'}`)}</h2><p>{updateItems.length ? t('updateQueue.overallProgress', { current: currentNumber, total: updateItems.length }) : t('updateQueue.checkingSources')}</p></div>{updateItems.length > 0 && <strong>{currentNumber} / {updateItems.length}</strong>}</div>
+			  {currentItem ? <div className="update-current-app">
+				<strong>{currentItem.appName}</strong>
+				<span>{t('updateQueue.stageStableInstall')}</span>
+				<XProgressBar label={t('installActivity.progressLabel')} isLabelHidden value={0} isIndeterminate variant="accent" />
+				<ol className="update-stage-timeline"><li className="complete">{t('installActivity.steps.queued')}</li><li className="current">{t('updateQueue.stageProcessing')}</li><li>{t('installActivity.steps.result')}</li></ol>
+			  </div> : updateItems.length === 0 ? <XProgressBar label={t('installActivity.progressLabel')} isLabelHidden value={0} isIndeterminate variant="accent" /> : null}
+			  {updateItems.length > 0 && <small>{t('updateQueue.queueCounts', { success: updateSummary.success || 0, failed: updateSummary.failed || 0, queued: (updateSummary.queued || 0) + (updateSummary.running || 0) })}</small>}
+			  <div className="dialog-actions"><XButton type="button" variant="secondary" label={t('common.close')} onClick={() => setIsConfirmOpen(false)} /></div>
+			</div>}
 		  </section>
 		</ModalLayer>
 	  )}

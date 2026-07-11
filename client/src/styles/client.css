@@ -331,6 +331,82 @@
   line-height: 1.55;
 }
 
+.update-mirror-groups,
+.update-progress-dialog,
+.update-current-app {
+  display: grid;
+  gap: 10px;
+}
+
+.update-mirror-source {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+.update-app-preview {
+  display: grid;
+  max-height: 180px;
+  overflow: auto;
+  border-block: 1px solid var(--line);
+}
+
+.update-app-preview > div,
+.update-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+}
+
+.update-app-preview span {
+  color: var(--muted);
+}
+
+.update-progress-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.update-stage-timeline {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.update-stage-timeline li::before {
+  content: '';
+  display: block;
+  height: 3px;
+  margin-bottom: 6px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.update-stage-timeline li.current,
+.update-stage-timeline li.complete {
+  color: var(--text);
+}
+
+.update-stage-timeline li.current::before,
+.update-stage-timeline li.complete::before {
+  background: var(--green-strong);
+}
+
+@media (max-width: 720px) {
+  .update-mirror-source {
+    grid-template-columns: 1fr;
+  }
+}
+
 .installed-groups,
 .installed-group {
   display: grid;

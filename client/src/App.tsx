@@ -39,7 +39,6 @@ import { displayUserName } from './shared/appHelpers';
 import type {
   Category,
   ClientAuthStatus,
-  ClientInstallTask,
   CollaborationData,
   ClientSettings,
   ClientSourceStats,
@@ -67,6 +66,7 @@ import type {
   ThemeMode,
   Toast,
   UpdateQueueResult,
+  UpdateQueueRequest,
   User,
   Version,
 } from './shared/types';
@@ -96,7 +96,6 @@ import { useChatEntryActions } from './modules/chat/useChatEntryActions';
 import type { AppDetailMode } from './modules/storefront/AppDrawer';
 import { StorefrontHome } from './modules/storefront/StorefrontHome';
 import { buildNavItems, type TabKey } from './modules/shell/navigation';
-import { installTaskProgress, installTaskState } from './modules/client/clientUxState';
 
 const AdminPanel = lazy(() => import('./modules/admin/AdminPanel').then((module) => ({ default: module.AdminPanel })));
 const LoginPage = lazy(() => import('./modules/auth/LoginPage').then((module) => ({ default: module.LoginPage })));
@@ -264,7 +263,7 @@ export function App() {
 	const defaultSourceCheckedRef = useRef(false);
 	const clientLandingResolvedRef = useRef(false);
 	const installInFlightRef = useRef(false);
-	const activeInstallTaskIDRef = useRef('');
+	const updateQueuePollRef = useRef(0);
 	const lastInstallRequestRef = useRef<{ app: StoreApp | SourceApp; options: InstallOptions } | null>(null);
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const serverChatVisible = HAS_API && Boolean(user && siteProfile.chat?.enabled);
@@ -882,108 +881,6 @@ export function App() {
     }
   }
 
-  async function pollInstallTask(taskID: string, activityBase: Omit<InstallActivity, 'taskId' | 'status' | 'progress' | 'stageKey'>) {
-	try {
-	  for (;;) {
-		if (activeInstallTaskIDRef.current !== taskID) return;
-		const value = await clientApi<{ task: ClientInstallTask }>(`/install-tasks/${encodeURIComponent(taskID)}`);
-		if (activeInstallTaskIDRef.current !== taskID) return;
-		const task = value.task;
-		if (!task?.taskId) throw new Error(t('toast.installFailed'));
-		const taskState = installTaskState(task);
-		const progress = installTaskProgress(task);
-		setInstallActivity((current) => {
-		  if (current?.taskId !== taskID) return current;
-		  return {
-			...activityBase,
-			taskId: taskID,
-			status: taskState.status,
-			stageKey: taskState.stageKey,
-			...progress,
-			detail: task.detail || undefined,
-			resultMode: taskState.status === 'success' ? 'lazycat-go-sdk' : undefined,
-			messageKey: taskState.status === 'success'
-			  ? 'installResult.sdkInstalled'
-			  : taskState.status === 'error'
-				? 'installActivity.failureMessage'
-				: undefined,
-			messageParams: taskState.status === 'error'
-			  ? { message: task.detail || t('toast.installFailed') }
-			  : undefined,
-		  };
-		});
-		if (!taskState.isTerminal) {
-		  await new Promise<void>((resolve) => window.setTimeout(resolve, 1000));
-		  continue;
-		}
-		activeInstallTaskIDRef.current = '';
-		installInFlightRef.current = false;
-		if (taskState.status === 'success') {
-		  void loadInstalledApps({ quiet: true });
-		  void loadInstallHistory();
-		  setToast({ tone: 'success', message: t('installResult.sdkInstalled') });
-		} else if (taskState.status === 'cancelled') {
-		  setToast({ tone: 'neutral', message: t('installActivity.cancelledMessage') });
-		} else {
-		  setToast({ tone: 'error', message: task.detail || t('toast.installFailed') });
-		}
-		return;
-	  }
-	} catch (error) {
-	  if (activeInstallTaskIDRef.current !== taskID) return;
-	  activeInstallTaskIDRef.current = '';
-	  installInFlightRef.current = false;
-	  const message = errorMessage(error, t('toast.installFailed'));
-	  setInstallActivity((current) => {
-		if (current?.taskId !== taskID) return current;
-		return {
-		  ...current,
-		  status: 'error',
-		  progress: 100,
-		  progressKnown: true,
-		  stageKey: 'installActivity.stageFailed',
-		  messageKey: 'installActivity.failureMessage',
-		  messageParams: { message },
-		};
-	  });
-	  setToast({ tone: 'error', message });
-	}
-  }
-
-  async function cancelInstallTask() {
-	const activity = installActivity;
-	if (!activity?.taskId || activity.status !== 'running' || activity.isCancelling) return;
-	const taskID = activity.taskId;
-	setInstallActivity((current) => (
-	  current?.taskId === taskID ? { ...current, isCancelling: true } : current
-	));
-	try {
-	  await clientApi(`/install-tasks/${encodeURIComponent(taskID)}`, { method: 'DELETE' });
-	  if (activeInstallTaskIDRef.current !== taskID) return;
-	  activeInstallTaskIDRef.current = '';
-	  installInFlightRef.current = false;
-	  setInstallActivity((current) => (
-		current?.taskId === taskID
-		  ? {
-			  ...current,
-			  status: 'cancelled',
-			  stageKey: 'installActivity.stageCancelled',
-			  isCancelling: false,
-			  messageKey: 'installActivity.cancelledMessage',
-			  }
-		  : current
-	  ));
-	  setToast({ tone: 'neutral', message: t('installActivity.cancelledMessage') });
-	  void loadInstallHistory();
-	} catch (error) {
-	  const message = errorMessage(error, t('installActivity.cancelFailed'));
-	  setInstallActivity((current) => (
-		current?.taskId === taskID ? { ...current, isCancelling: false } : current
-	  ));
-	  setToast({ tone: 'error', message });
-	}
-  }
-
   async function installApp(app: StoreApp | SourceApp, options: InstallOptions = {}): Promise<void> {
 	if (installInFlightRef.current) {
 	  setToast({ tone: 'neutral', message: t('installActivity.status.running') });
@@ -1015,12 +912,11 @@ export function App() {
 	installInFlightRef.current = true;
 	lastInstallRequestRef.current = { app, options: { ...options, version: version.version } };
 	setInstallActivity({ ...activityBase, status: 'running', progress: 0, progressKnown: false, stageKey: 'installActivity.stageQueued' });
-	let submittedTask = false;
 	try {
 	  setInstallActivity({ ...activityBase, status: 'running', progress: 0, progressKnown: false, stageKey: 'installActivity.stagePrepare' });
 	  let result: { mode: string; messageKey: string; messageParams?: Record<string, string | number> };
 	  if (isSourceApp) {
-		const value = await clientApi<{ task: ClientInstallTask }>('/install', {
+		const value = await clientApi<{ mode?: string; taskId?: string }>('/install', {
 		  method: 'POST',
 		  body: JSON.stringify({
 			appId: app.id,
@@ -1029,23 +925,11 @@ export function App() {
 			mirrorId: options.mirrorId || '',
 		  }),
 		});
-		if (!value.task?.taskId) throw new Error(t('toast.installFailed'));
-		const task = value.task;
-		const taskState = installTaskState(task);
-		const progress = installTaskProgress(task);
-		activeInstallTaskIDRef.current = task.taskId;
-		submittedTask = true;
-		setInstallActivity({
-		  ...activityBase,
-		  taskId: task.taskId,
-		  status: taskState.status,
-		  stageKey: taskState.stageKey,
-		  ...progress,
-		  detail: task.detail || undefined,
-		});
-		void pollInstallTask(task.taskId, activityBase);
-		setToast({ tone: 'neutral', message: t('installActivity.status.running') });
-		return;
+		result = {
+		  mode: value.mode || 'lazycat-go-sdk',
+		  messageKey: 'installResult.sdkInstalled',
+		  messageParams: value.taskId ? { taskId: value.taskId } : undefined,
+		};
 	  } else {
 		const downloadUrl = `${API_BASE}/api/v1/apps/${app.id}/versions/${(version as Version).id}/download`;
 		window.open(withInstallPassword(downloadUrl, options.installPassword), '_blank', 'noopener,noreferrer');
@@ -1080,7 +964,7 @@ export function App() {
 	  });
 	  setToast({ tone: 'error', message });
 	} finally {
-	  if (!submittedTask) installInFlightRef.current = false;
+	  installInFlightRef.current = false;
 	}
 	return;
   }
@@ -1182,12 +1066,28 @@ export function App() {
     setClientSettings(data.settings || nextSettings);
   }
 
-  async function runAvailableUpdates() {
+  async function pollAvailableUpdates(token: number) {
+	while (updateQueuePollRef.current === token) {
+	  try {
+		const result = await clientApi<UpdateQueueResult>('/updates/run');
+		if (updateQueuePollRef.current !== token) return;
+		setUpdateQueueResult(result);
+	  } catch {
+		// Source sync finishes before the queue snapshot exists.
+	  }
+	  await new Promise<void>((resolve) => window.setTimeout(resolve, 800));
+	}
+  }
+
+  async function runAvailableUpdates(options: UpdateQueueRequest = {}) {
 	if (isUpdateQueueRunning) return;
 	setIsUpdateQueueRunning(true);
 	setUpdateQueueResult({ status: 'running' });
+	const token = Date.now();
+	updateQueuePollRef.current = token;
+	void pollAvailableUpdates(token);
 	try {
-	  const result = await clientApi<UpdateQueueResult>('/updates/run', { method: 'POST' });
+	  const result = await clientApi<UpdateQueueResult>('/updates/run', { method: 'POST', body: JSON.stringify(options) });
 	  setUpdateQueueResult(result);
 	  const tone = result.status === 'success' ? 'success' : result.status === 'failed' ? 'error' : 'neutral';
 	  setToast({ tone, message: t(`updateQueue.result.${result.status}`) });
@@ -1197,18 +1097,8 @@ export function App() {
 	  setUpdateQueueResult({ status: 'failed', error: message });
 	  setToast({ tone: 'error', message });
 	} finally {
+	  if (updateQueuePollRef.current === token) updateQueuePollRef.current = 0;
 	  setIsUpdateQueueRunning(false);
-	}
-  }
-
-  async function cancelAvailableUpdates() {
-	if (!isUpdateQueueRunning) return;
-	try {
-	  await clientApi('/updates/run', { method: 'DELETE' });
-	  setUpdateQueueResult((current) => ({ ...(current || {}), status: 'cancelling' }));
-	  setToast({ tone: 'neutral', message: t('updateQueue.cancelling') });
-	} catch (error) {
-	  setToast({ tone: 'error', message: errorMessage(error, t('updateQueue.cancelFailed')) });
 	}
   }
 
@@ -1605,13 +1495,13 @@ export function App() {
                 categories={categories}
                 tagOptions={tagOptions}
                 sourceApps={sourceApps}
+                sources={sources}
                 sourceStats={sourceStats}
                 installedApps={installedApps}
                 installedState={installedState}
                 installedError={installedError}
                 onLoadInstalled={loadInstalledApps}
 				onRunUpdates={runAvailableUpdates}
-				onCancelUpdates={cancelAvailableUpdates}
 				updateQueueResult={updateQueueResult}
 				isUpdateQueueRunning={isUpdateQueueRunning}
                 onOpen={openApp}
@@ -1699,7 +1589,6 @@ export function App() {
 			  await installApp(target, { ...options, version: targetVersion, confirmed: true });
 			  if (!('sourceName' in target)) setInstallPasswordRequest(null);
             }}
-            onCancelInstallation={() => void cancelInstallTask()}
             onRetry={installDialogActivity && installDialogActivity.status !== 'running' && lastInstallRequestRef.current
               ? () => {
                   const request = lastInstallRequestRef.current;
@@ -1768,7 +1657,6 @@ export function App() {
 				  if (request) void installApp(request.app, request.options);
 				}
 			  : undefined}
-			onCancel={() => void cancelInstallTask()}
 			onOpenHistory={!HAS_API ? () => navigateTo('history') : undefined}
 		  />
         </Suspense>

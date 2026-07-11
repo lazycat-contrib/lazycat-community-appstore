@@ -183,13 +183,24 @@ type InstallTaskDTO struct {
 
 type UpdateQueueItemDTO struct {
 	AppID            int    `json:"appId"`
+	SourceID         int    `json:"sourceId"`
+	SourceName       string `json:"sourceName"`
 	PackageID        string `json:"packageId"`
 	AppName          string `json:"appName"`
 	InstalledVersion string `json:"installedVersion,omitempty"`
 	Version          string `json:"version,omitempty"`
 	Status           string `json:"status"`
-	TaskID           string `json:"taskId,omitempty"`
 	Detail           string `json:"detail,omitempty"`
+}
+
+type UpdateQueueMirrorOverrideDTO struct {
+	SourceID         int    `json:"sourceId"`
+	DownloadMirrorID string `json:"downloadMirrorId"`
+	RawMirrorID      string `json:"rawMirrorId"`
+}
+
+type UpdateQueueRequestDTO struct {
+	MirrorOverrides []UpdateQueueMirrorOverrideDTO `json:"mirrorOverrides,omitempty"`
 }
 
 type UpdateQueueResultDTO struct {

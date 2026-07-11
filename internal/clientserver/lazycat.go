@@ -52,6 +52,10 @@ func (lazyCatPackageManager) QueryInstalled(ctx context.Context, userID string) 
 }
 
 func (lazyCatPackageManager) InstallLPK(ctx context.Context, userID string, req InstallRequestDTO) (InstallResultDTO, error) {
+	return installLPK(ctx, userID, synchronousInstallLPKRequest(req))
+}
+
+func installLPK(ctx context.Context, userID string, in *sys.InstallLPKRequest) (InstallResultDTO, error) {
 	ctx, cancel := context.WithTimeout(lazycatContext(ctx, userID), 60*time.Second)
 	defer cancel()
 	gw, err := gohelper.NewAPIGateway(ctx)
@@ -59,7 +63,6 @@ func (lazyCatPackageManager) InstallLPK(ctx context.Context, userID string, req 
 		return InstallResultDTO{}, err
 	}
 	defer func() { _ = gw.Close() }()
-	in := asyncInstallLPKRequest(req)
 	resp, err := gw.PkgManager.InstallLPK(ctx, in)
 	if err != nil {
 		return InstallResultDTO{}, err
@@ -73,15 +76,15 @@ func (lazyCatPackageManager) InstallLPK(ctx context.Context, userID string, req 
 	return result, nil
 }
 
-func asyncInstallLPKRequest(req InstallRequestDTO) *sys.InstallLPKRequest {
-	wait := false
+func synchronousInstallLPKRequest(req InstallRequestDTO) *sys.InstallLPKRequest {
+	wait := true
 	in := &sys.InstallLPKRequest{LpkUrl: req.DownloadURL, WaitUnitDone: &wait}
 	if req.SHA256 != "" {
 		in.Sha256 = &req.SHA256
 	}
-	// Do not set PkgId for asynchronous installs. LazyCat derives the real
-	// package ID from the downloaded LPK; pinning an already-installed ID can
-	// make the background task fail with "App not found".
+	if req.PackageID != "" {
+		in.PkgId = &req.PackageID
+	}
 	if req.Name != "" {
 		in.TmpTitle = &req.Name
 	}

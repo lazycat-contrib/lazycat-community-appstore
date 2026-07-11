@@ -193,6 +193,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/client/v1/settings", s.clientAPI(s.handleGetSettings))
 	s.mux.HandleFunc("PATCH /api/client/v1/settings", s.clientAPI(s.handleUpdateSettings))
 	s.mux.HandleFunc("POST /api/client/v1/updates/run", s.clientAPI(s.handleRunUpdateQueue))
+	s.mux.HandleFunc("GET /api/client/v1/updates/run", s.clientAPI(s.handleGetUpdateQueue))
 	s.mux.HandleFunc("DELETE /api/client/v1/updates/run", s.clientAPI(s.handleCancelUpdateQueue))
 	s.mux.HandleFunc("GET /api/client/v1/apps", s.clientAPI(s.handleListApps))
 	s.mux.HandleFunc("GET /api/client/v1/apps/{id}", s.clientAPI(s.handleGetApp))

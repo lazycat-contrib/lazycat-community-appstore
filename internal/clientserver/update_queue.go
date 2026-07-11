@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientinstallhistory"
@@ -16,8 +15,6 @@ import (
 	"lazycat.community/appstore/ent/clientsourceapp"
 	"lazycat.community/appstore/internal/mirror"
 )
-
-const updateTaskPollInterval = time.Second
 
 type updateCandidate struct {
 	App              *ent.ClientSourceApp
@@ -37,6 +34,7 @@ type installOperation struct {
 	kind      installOperationKind
 	taskID    string
 	cancelled bool
+	result    UpdateQueueResultDTO
 }
 
 // installCoordinator serializes all LazyCat installs for a client user. It keeps
@@ -57,9 +55,33 @@ func (c *installCoordinator) begin(userID string, kind installOperationKind) (*i
 	if _, exists := c.operations[userID]; exists {
 		return nil, false
 	}
-	operation := &installOperation{kind: kind}
+	operation := &installOperation{kind: kind, result: UpdateQueueResultDTO{Status: "running"}}
 	c.operations[userID] = operation
 	return operation, true
+}
+
+func cloneUpdateQueueResult(result UpdateQueueResultDTO) UpdateQueueResultDTO {
+	cloned := result
+	cloned.Items = append([]UpdateQueueItemDTO(nil), result.Items...)
+	return cloned
+}
+
+func (c *installCoordinator) publish(userID string, operation *installOperation, result UpdateQueueResultDTO) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.operations[userID] == operation {
+		operation.result = cloneUpdateQueueResult(result)
+	}
+}
+
+func (c *installCoordinator) queueSnapshot(userID string) (UpdateQueueResultDTO, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	operation := c.operations[userID]
+	if operation == nil || operation.kind != installOperationQueue {
+		return UpdateQueueResultDTO{}, false
+	}
+	return cloneUpdateQueueResult(operation.result), true
 }
 
 func (c *installCoordinator) release(userID string, operation *installOperation) {
@@ -213,6 +235,10 @@ func numericVersionParts(value string) ([]int, bool) {
 }
 
 func (s *Server) RunUpdateQueue(ctx context.Context, userID string) UpdateQueueResultDTO {
+	return s.RunUpdateQueueWithOptions(ctx, userID, UpdateQueueRequestDTO{})
+}
+
+func (s *Server) RunUpdateQueueWithOptions(ctx context.Context, userID string, options UpdateQueueRequestDTO) UpdateQueueResultDTO {
 	operation, started := s.installCoordinator.begin(userID, installOperationQueue)
 	if !started {
 		return UpdateQueueResultDTO{Status: "already_running"}
@@ -240,15 +266,26 @@ func (s *Server) RunUpdateQueue(ctx context.Context, userID string) UpdateQueueR
 	for index, candidate := range candidates {
 		result.Items[index] = updateQueueItem(candidate, "queued", "")
 	}
+	s.installCoordinator.publish(userID, operation, result)
+	overrides := make(map[int]UpdateQueueMirrorOverrideDTO, len(options.MirrorOverrides))
+	for _, override := range options.MirrorOverrides {
+		overrides[override.SourceID] = override
+	}
 	for index, candidate := range candidates {
 		if s.installCoordinator.isCancelled(userID, operation) {
 			result.Items[index] = updateQueueItem(candidate, "cancelled", "")
 			continue
 		}
 		result.Items[index] = updateQueueItem(candidate, "running", "")
-		result.Items[index] = s.installUpdateCandidate(ctx, userID, operation, candidate)
+		s.installCoordinator.publish(userID, operation, result)
+		result.Items[index] = s.installUpdateCandidate(ctx, userID, operation, candidate, overrides[candidate.App.SourceID], func(item UpdateQueueItemDTO) {
+			result.Items[index] = item
+			s.installCoordinator.publish(userID, operation, result)
+		})
+		s.installCoordinator.publish(userID, operation, result)
 	}
 	result.Status = updateQueueResultStatus(result.Items)
+	s.installCoordinator.publish(userID, operation, result)
 	return result
 }
 
@@ -262,6 +299,13 @@ func (s *Server) CancelUpdateQueue(ctx context.Context, userID string) error {
 
 func (s *Server) handleRunUpdateQueue(w http.ResponseWriter, r *http.Request) {
 	userID := currentUserID(r)
+	var input UpdateQueueRequestDTO
+	if r.ContentLength != 0 {
+		if err := decodeJSON(r, &input); err != nil {
+			writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON request body")
+			return
+		}
+	}
 	syncResult, err := s.syncAllSources(r.Context(), userID)
 	if err != nil {
 		writeError(w, 502, "SOURCE_SYNC_FAILED", "Could not sync application sources before updating")
@@ -271,7 +315,16 @@ func (s *Server) handleRunUpdateQueue(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 502, "SOURCE_SYNC_FAILED", "All application source syncs failed")
 		return
 	}
-	writeJSON(w, 200, s.RunUpdateQueue(r.Context(), userID))
+	writeJSON(w, 200, s.RunUpdateQueueWithOptions(r.Context(), userID, input))
+}
+
+func (s *Server) handleGetUpdateQueue(w http.ResponseWriter, r *http.Request) {
+	result, ok := s.installCoordinator.queueSnapshot(currentUserID(r))
+	if !ok {
+		writeError(w, http.StatusNotFound, "UPDATE_QUEUE_NOT_RUNNING", "No application update queue is running")
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *Server) handleCancelUpdateQueue(w http.ResponseWriter, r *http.Request) {
@@ -282,7 +335,7 @@ func (s *Server) handleCancelUpdateQueue(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, 200, map[string]any{"status": "cancelling"})
 }
 
-func (s *Server) installUpdateCandidate(ctx context.Context, userID string, operation *installOperation, candidate updateCandidate) UpdateQueueItemDTO {
+func (s *Server) installUpdateCandidate(ctx context.Context, userID string, operation *installOperation, candidate updateCandidate, override UpdateQueueMirrorOverrideDTO, onProgress func(UpdateQueueItemDTO)) UpdateQueueItemDTO {
 	if s.installCoordinator.isCancelled(userID, operation) {
 		return updateQueueItem(candidate, "cancelled", "")
 	}
@@ -295,76 +348,39 @@ func (s *Server) installUpdateCandidate(ctx context.Context, userID string, oper
 		return s.recordUpdateFailure(ctx, userID, candidate, dto, err)
 	}
 	mirrorID := defaultUpdateMirrorID(source, candidate.Version)
+	if override.SourceID == source.ID {
+		upstream := strings.TrimSpace(candidate.Version.UpstreamDownloadURL)
+		if upstream == "" {
+			upstream = strings.TrimSpace(candidate.Version.DownloadURL)
+		}
+		if mirror.KindForURL(upstream) == mirror.KindRaw {
+			mirrorID = strings.TrimSpace(override.RawMirrorID)
+		} else if mirror.KindForURL(upstream) == mirror.KindDownload {
+			mirrorID = strings.TrimSpace(override.DownloadMirrorID)
+		}
+	}
 	downloadURL, err := s.installDownloadURL(candidate.App, &candidate.Version, InstallRequestDTO{MirrorID: mirrorID})
 	if err != nil {
 		return s.recordUpdateFailure(ctx, userID, candidate, dto, err)
 	}
-	install, err := s.pkg.InstallLPK(ctx, userID, InstallRequestDTO{
+	installRequest := InstallRequestDTO{
 		AppID:       candidate.App.ID,
 		Version:     candidate.Version.Version,
 		Name:        dto.Name,
 		PackageID:   dto.PackageID,
 		DownloadURL: downloadURL,
 		SHA256:      candidate.Version.SHA256,
-	})
-	if err != nil {
-		return s.recordUpdateFailure(ctx, userID, candidate, dto, err)
-	}
-	if strings.TrimSpace(install.TaskID) == "" {
-		return s.recordUpdateFailure(ctx, userID, candidate, dto, errors.New("LazyCat did not return an install task"))
 	}
 	item := updateQueueItem(candidate, "running", "")
-	item.TaskID = install.TaskID
-	if s.installCoordinator.setTask(userID, operation, install.TaskID) {
-		_ = s.pkg.CancelInstall(ctx, userID, install.TaskID)
-		item.Status = "cancelled"
-		_ = s.recordInstallHistory(ctx, userID, candidate.App, dto, &candidate.Version, clientinstallhistory.ResultFAILED, "installation cancelled")
-		return item
-	}
-	task, err := s.waitForUpdateTask(ctx, userID, operation, install.TaskID)
-	s.installCoordinator.clearTask(userID, operation, install.TaskID)
-	if s.installCoordinator.isCancelled(userID, operation) {
-		item.Status = "cancelled"
-		_ = s.recordInstallHistory(ctx, userID, candidate.App, dto, &candidate.Version, clientinstallhistory.ResultFAILED, "installation cancelled")
-		return item
-	}
+	onProgress(item)
+	install, err := s.pkg.InstallLPK(ctx, userID, installRequest)
 	if err != nil {
 		return s.recordUpdateFailure(ctx, userID, candidate, dto, err)
 	}
-	item.Detail = task.Detail
-	if installTaskSucceeded(task.Status) {
-		item.Status = "success"
-		_ = s.recordInstallHistory(ctx, userID, candidate.App, dto, &candidate.Version, clientinstallhistory.ResultSUCCESS, "")
-		return item
-	}
-	if installTaskCancelled(task.Status) {
-		item.Status = "cancelled"
-		_ = s.recordInstallHistory(ctx, userID, candidate.App, dto, &candidate.Version, clientinstallhistory.ResultFAILED, "installation cancelled")
-		return item
-	}
-	return s.recordUpdateFailure(ctx, userID, candidate, dto, errors.New(taskFailureDetail(task)))
-}
-
-func (s *Server) waitForUpdateTask(ctx context.Context, userID string, operation *installOperation, taskID string) (InstallTaskDTO, error) {
-	for {
-		if s.installCoordinator.isCancelled(userID, operation) {
-			return InstallTaskDTO{}, nil
-		}
-		task, err := s.pkg.GetInstallTask(ctx, userID, taskID)
-		if err != nil {
-			return InstallTaskDTO{}, err
-		}
-		if installTaskTerminal(task.Status) {
-			return task, nil
-		}
-		timer := time.NewTimer(updateTaskPollInterval)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return InstallTaskDTO{}, ctx.Err()
-		case <-timer.C:
-		}
-	}
+	item.Detail = install.Detail
+	item.Status = "success"
+	_ = s.recordInstallHistory(ctx, userID, candidate.App, dto, &candidate.Version, clientinstallhistory.ResultSUCCESS, "")
+	return item
 }
 
 func defaultUpdateMirrorID(source *ent.ClientSource, version VersionDTO) string {
@@ -383,8 +399,15 @@ func defaultUpdateMirrorID(source *ent.ClientSource, version VersionDTO) string 
 }
 
 func updateQueueItem(candidate updateCandidate, status, detail string) UpdateQueueItemDTO {
+	source, _ := candidate.App.Edges.SourceOrErr()
+	var sourceName string
+	if source != nil {
+		sourceName = source.Name
+	}
 	return UpdateQueueItemDTO{
 		AppID:            candidate.App.ID,
+		SourceID:         candidate.App.SourceID,
+		SourceName:       sourceName,
 		PackageID:        candidate.PackageID,
 		AppName:          candidate.App.Name,
 		InstalledVersion: candidate.InstalledVersion,

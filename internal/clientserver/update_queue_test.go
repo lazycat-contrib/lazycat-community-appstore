@@ -56,83 +56,23 @@ func TestUpdateQueueRejectsConcurrentUserRun(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
 	app.server.pkg = &updateQueuePackageManager{
-		installed: []InstalledApplicationDTO{{AppID: "notes", Version: "1.0.0"}},
-		install:   []InstallResultDTO{{TaskID: "task-1", Status: "CREATING"}},
-		tasks:     map[string]InstallTaskDTO{"task-1": {TaskID: "task-1", Status: "DOWNLOADING"}},
-		started:   started,
-		release:   release,
+		installed:      []InstalledApplicationDTO{{AppID: "notes", Version: "1.0.0"}},
+		install:        []InstallResultDTO{{TaskID: "task-1", Status: "INSTALL_OK"}},
+		blockInstallAt: 1,
+		installBlocked: started,
+		releaseInstall: release,
 	}
 	done := make(chan UpdateQueueResultDTO, 1)
 	go func() { done <- app.server.RunUpdateQueue(context.Background(), "alice") }()
 	<-started
+	if snapshot, ok := app.server.installCoordinator.queueSnapshot("alice"); !ok || len(snapshot.Items) != 1 || snapshot.Items[0].Status != "running" {
+		t.Fatalf("snapshot = %#v, ok = %v", snapshot, ok)
+	}
 	if result := app.server.RunUpdateQueue(t.Context(), "alice"); result.Status != "already_running" {
 		t.Fatalf("status = %q", result.Status)
 	}
 	close(release)
 	<-done
-}
-
-func TestCancelUpdateQueueCancelsActiveTask(t *testing.T) {
-	app := testServer(t)
-	sourceAppsForUpdateTestOnClient(t, app.server.db, updateTestSourceApp{PackageID: "notes", Version: "2.0.0"})
-	started := make(chan struct{})
-	release := make(chan struct{})
-	pm := &updateQueuePackageManager{
-		installed: []InstalledApplicationDTO{{AppID: "notes", Version: "1.0.0"}},
-		install:   []InstallResultDTO{{TaskID: "task-1", Status: "CREATING"}},
-		tasks:     map[string]InstallTaskDTO{"task-1": {TaskID: "task-1", Status: "DOWNLOADING"}},
-		started:   started,
-		release:   release,
-	}
-	app.server.pkg = pm
-	done := make(chan UpdateQueueResultDTO, 1)
-	go func() { done <- app.server.RunUpdateQueue(context.Background(), "alice") }()
-	<-started
-	if err := app.server.CancelUpdateQueue(t.Context(), "alice"); err != nil {
-		t.Fatal(err)
-	}
-	close(release)
-	if result := <-done; result.Status != "cancelled" {
-		t.Fatalf("status = %q", result.Status)
-	}
-	if pm.cancelledTaskID != "task-1" {
-		t.Fatalf("cancelled task = %q", pm.cancelledTaskID)
-	}
-}
-
-func TestCancelUpdateQueueDoesNotCancelCompletedTaskBetweenItems(t *testing.T) {
-	app := testServer(t)
-	sourceAppsForUpdateTestOnClient(t, app.server.db,
-		updateTestSourceApp{PackageID: "first", Version: "2.0.0"},
-		updateTestSourceApp{PackageID: "second", Version: "2.0.0"},
-	)
-	installBlocked := make(chan struct{})
-	releaseInstall := make(chan struct{})
-	pm := &updateQueuePackageManager{
-		installed:      []InstalledApplicationDTO{{AppID: "first", Version: "1.0.0"}, {AppID: "second", Version: "1.0.0"}},
-		install:        []InstallResultDTO{{TaskID: "first-task"}, {TaskID: "second-task"}},
-		tasks:          map[string]InstallTaskDTO{"first-task": {TaskID: "first-task", Status: "INSTALL_OK"}},
-		blockInstallAt: 2,
-		installBlocked: installBlocked,
-		releaseInstall: releaseInstall,
-		cancelErrors:   map[string]error{"first-task": errors.New("task already finished")},
-	}
-	app.server.pkg = pm
-	done := make(chan UpdateQueueResultDTO, 1)
-	go func() { done <- app.server.RunUpdateQueue(context.Background(), "alice") }()
-	<-installBlocked
-
-	rec := app.request(http.MethodDelete, "/api/client/v1/updates/run", "", "alice")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("cancel between items = %d %s", rec.Code, rec.Body.String())
-	}
-	close(releaseInstall)
-	if result := <-done; result.Status != "cancelled" {
-		t.Fatalf("result = %#v", result)
-	}
-	if pm.cancelledTaskID != "second-task" {
-		t.Fatalf("cancelled task = %q", pm.cancelledTaskID)
-	}
 }
 
 func TestManualInstallRejectsActiveUpdateQueue(t *testing.T) {
@@ -141,11 +81,11 @@ func TestManualInstallRejectsActiveUpdateQueue(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
 	app.server.pkg = &updateQueuePackageManager{
-		installed: []InstalledApplicationDTO{{AppID: "notes", Version: "1.0.0"}},
-		install:   []InstallResultDTO{{TaskID: "task-1", Status: "CREATING"}},
-		tasks:     map[string]InstallTaskDTO{"task-1": {TaskID: "task-1", Status: "DOWNLOADING"}},
-		started:   started,
-		release:   release,
+		installed:      []InstalledApplicationDTO{{AppID: "notes", Version: "1.0.0"}},
+		install:        []InstallResultDTO{{TaskID: "task-1", Status: "INSTALL_OK"}},
+		blockInstallAt: 1,
+		installBlocked: started,
+		releaseInstall: release,
 	}
 	done := make(chan UpdateQueueResultDTO, 1)
 	go func() { done <- app.server.RunUpdateQueue(context.Background(), "alice") }()

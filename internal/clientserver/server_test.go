@@ -366,7 +366,7 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 		t.Fatalf("source did not expose mirrors: %s", sources.Body.String())
 	}
 	install := app.request("POST", "/api/client/v1/install", `{"appId":1,"mirrorId":"`+mirrorID+`"}`, "alice")
-	if install.Code != http.StatusAccepted || !strings.Contains(install.Body.String(), `"taskId":"task-mirror"`) {
+	if install.Code != http.StatusOK || !strings.Contains(install.Body.String(), `"taskId":"task-mirror"`) {
 		t.Fatalf("install with mirror = %d %s", install.Code, install.Body.String())
 	}
 	wantURL := "https://ghproxy.example/https://github.com/org/notes/releases/download/a/notes.lpk"
@@ -668,7 +668,7 @@ func TestInstallUsesCachedAppVersion(t *testing.T) {
 	app.server.pkg = pm
 	seedCachedApp(t, app.server.db, "alice")
 	rec := app.request("POST", "/api/client/v1/install", `{"appId":1}`, "alice")
-	if rec.Code != http.StatusAccepted || !strings.Contains(rec.Body.String(), `"taskId":"task-1"`) {
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"taskId":"task-1"`) {
 		t.Fatalf("install = %d %s", rec.Code, rec.Body.String())
 	}
 	if pm.req.DownloadURL == "" || pm.req.SHA256 == "" || pm.req.PackageID != "cloud.lazycat.app.notes" {
@@ -693,7 +693,7 @@ func TestInstallCanSelectOlderVersion(t *testing.T) {
 	seedCachedApp(t, app.server.db, "alice")
 
 	rec := app.request("POST", "/api/client/v1/install", `{"appId":1,"version":"1.0.0"}`, "alice")
-	if rec.Code != http.StatusAccepted || !strings.Contains(rec.Body.String(), `"taskId":"task-rollback"`) {
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"taskId":"task-rollback"`) {
 		t.Fatalf("install old version = %d %s", rec.Code, rec.Body.String())
 	}
 	if pm.req.Version != "1.0.0" || !strings.Contains(pm.req.DownloadURL, "/old/notes.lpk") || pm.req.SHA256 != strings.Repeat("b", 64) {

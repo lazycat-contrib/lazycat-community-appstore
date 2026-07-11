@@ -14,7 +14,7 @@ import { canUserManageApp, canUserUploadVersion, defaultUploadStorageKey, displa
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { Category, ClientSourceStats, CollaborationData, FavoriteData, InstalledApplication, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, StorageOption, StoreApp, Toast, UpdateQueueResult, User } from '../../shared/types';
+import type { Category, ClientSourceStats, CollaborationData, FavoriteData, InstalledApplication, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, SourceSubscription, StorageOption, StoreApp, Toast, UpdateQueueRequest, UpdateQueueResult, User } from '../../shared/types';
 import { cx, formatDate, hasInstallableVersion, runAction, statusKey } from '../../shared/utils';
 import { InstalledAppsView } from '../client/InstalledAppsView';
 import type { AppDetailMode } from '../storefront/AppDrawer';
@@ -48,13 +48,13 @@ export function ProfileView({
   managedApps,
   categories,
   sourceApps,
+  sources,
   sourceStats,
   installedApps,
   installedState,
   installedError,
   onLoadInstalled,
 	  onRunUpdates,
-	  onCancelUpdates,
 	  updateQueueResult,
 	  isUpdateQueueRunning,
   onOpen,
@@ -77,13 +77,13 @@ export function ProfileView({
   managedApps: StoreApp[];
   categories: Category[];
   sourceApps: SourceApp[];
+  sources: SourceSubscription[];
   sourceStats: ClientSourceStats;
   installedApps: InstalledApplication[];
   installedState: 'idle' | 'loading' | 'loaded' | 'error';
   installedError: string;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
-	  onRunUpdates?: () => Promise<void>;
-	  onCancelUpdates?: () => Promise<void>;
+	  onRunUpdates?: (options?: UpdateQueueRequest) => Promise<void>;
 	  updateQueueResult?: UpdateQueueResult | null;
 	  isUpdateQueueRunning?: boolean;
   onOpen: (app: StoreApp, mode?: AppDetailMode) => void;
@@ -491,12 +491,12 @@ export function ProfileView({
         <InstalledAppsView
           installedApps={installedApps}
           sourceApps={sourceApps}
+          sources={sources}
           installedState={installedState}
           installedError={installedError}
           installedReadinessBody={installedReadinessBody}
           onLoadInstalled={onLoadInstalled}
 		  onRunUpdates={onRunUpdates}
-		  onCancelUpdates={onCancelUpdates}
 		  updateQueueResult={updateQueueResult}
 		  isUpdateQueueRunning={isUpdateQueueRunning}
         />

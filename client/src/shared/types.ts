@@ -593,13 +593,22 @@ export type ClientInstallTask = {
 
 export type UpdateQueueItem = {
   appId: number;
+  sourceId: number;
+  sourceName: string;
   packageId: string;
   appName: string;
   installedVersion?: string;
   version?: string;
   status: 'queued' | 'running' | 'success' | 'failed' | 'cancelled' | string;
-  taskId?: string;
   detail?: string;
+};
+
+export type UpdateQueueRequest = {
+  mirrorOverrides?: Array<{
+    sourceId: number;
+    downloadMirrorId: string;
+    rawMirrorId: string;
+  }>;
 };
 
 export type UpdateQueueResult = {
