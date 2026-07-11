@@ -347,6 +347,38 @@ paths:
         "422":
           $ref: "#/components/responses/Error"
 
+  /api/v1/apps/by-name:
+    get:
+      tags: [Apps]
+      summary: Resolve a writable app by its exact name
+      description: Returns the single app with the exact case-sensitive name for which the authenticated user can upload versions. Unrelated public apps are ignored. Multiple writable matches return a conflict so automation cannot select an app ambiguously.
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: The uniquely resolved writable app.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [app]
+                properties:
+                  app:
+                    $ref: "#/components/schemas/AppSummary"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+
   /api/v1/apps/{id}:
     get:
       tags: [Apps]

@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
+	"lazycat.community/appstore/clientembed"
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/internal/buildinfo"
 	"lazycat.community/appstore/internal/config"
 	"lazycat.community/appstore/internal/dbpool"
 	"lazycat.community/appstore/internal/storage"
-	"lazycat.community/appstore/web"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib-x/entsqlite"
@@ -354,6 +354,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/packages/{packageId}/latest-version", s.handleGetPackageLatestVersion)
 	s.mux.HandleFunc("GET /api/v1/apps", s.handleListApps)
 	s.mux.HandleFunc("POST /api/v1/apps", s.withAuth(s.handleCreateApp))
+	s.mux.HandleFunc("GET /api/v1/apps/by-name", s.withAuth(s.handleGetWritableAppByName))
 	s.mux.HandleFunc("GET /api/v1/apps/{id}", s.handleGetApp)
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}", s.withAuth(s.handleUpdateApp))
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}", s.withAuth(s.handleDeleteApp))
@@ -499,7 +500,7 @@ func (s *Server) handleFavicon(w http.ResponseWriter, r *http.Request) {
 }
 
 func embeddedWebHandler(cfg config.Config) http.Handler {
-	dist, err := web.Dist()
+	dist, err := fs.Sub(clientembed.Dist, "dist")
 	if err != nil {
 		return nil
 	}
