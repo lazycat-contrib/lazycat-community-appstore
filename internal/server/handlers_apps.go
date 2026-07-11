@@ -228,6 +228,31 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"app": detail})
 }
 
+func (s *Server) handleGetPackageLatestVersion(w http.ResponseWriter, r *http.Request) {
+	packageID := strings.TrimSpace(r.PathValue("packageId"))
+	record, err := s.db.App.Query().Where(app.PackageIDEQ(packageID)).Only(r.Context())
+	if err != nil || record.Status != app.StatusAPPROVED {
+		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+		return
+	}
+	if !s.userCanSeeApp(r, record, s.optionalUser(r)) {
+		allowed, err := s.requestHasGroupCodeForApp(r, record.ID)
+		if err != nil || !allowed {
+			writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+			return
+		}
+	}
+	latest, err := s.db.AppVersion.Query().
+		Where(appversion.AppIDEQ(record.ID), appversion.StatusEQ(appversion.StatusAPPROVED)).
+		Order(entgo.Desc(appversion.FieldPublishedAt), entgo.Desc(appversion.FieldCreatedAt)).
+		First(r.Context())
+	if err != nil {
+		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"packageId": record.PackageID, "latestVersion": toVersionDTO(latest)})
+}
+
 type createAppJSON struct {
 	Name                      string            `json:"name"`
 	NameI18n                  map[string]string `json:"nameI18n"`

@@ -251,6 +251,38 @@ paths:
               schema:
                 $ref: "#/components/schemas/FavoriteData"
 
+  /api/v1/packages/{packageId}/latest-version:
+    get:
+      tags: [Apps]
+      summary: Get the latest approved version by exact package ID
+      security: []
+      parameters:
+        - name: packageId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Exact LPK package identity from package.yml.
+        - name: groupCodes
+          in: query
+          schema:
+            type: string
+          description: Comma-separated group access codes.
+        - name: X-Group-Codes
+          in: header
+          schema:
+            type: string
+          description: Comma-separated group access codes.
+      responses:
+        "200":
+          description: The newest approved version visible to the current request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PackageLatestVersion"
+        "404":
+          $ref: "#/components/responses/Error"
+
   /api/v1/apps:
     get:
       tags: [Apps]
@@ -2145,6 +2177,16 @@ components:
         year:
           type: integer
           description: Downloads since January 1 in the configured site time zone.
+
+    PackageLatestVersion:
+      type: object
+      required: [packageId, latestVersion]
+      properties:
+        packageId:
+          type: string
+          description: Exact LPK package identity from package.yml.
+        latestVersion:
+          $ref: "#/components/schemas/Version"
 
     AppRating:
       type: object

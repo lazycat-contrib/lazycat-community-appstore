@@ -351,6 +351,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/me/comment-notifications/read", s.withAuth(s.handleReadAllCommentNotifications))
 	s.mux.HandleFunc("POST /api/v1/me/comment-notifications/{id}/read", s.withAuth(s.handleReadCommentNotification))
 
+	s.mux.HandleFunc("GET /api/v1/packages/{packageId}/latest-version", s.handleGetPackageLatestVersion)
 	s.mux.HandleFunc("GET /api/v1/apps", s.handleListApps)
 	s.mux.HandleFunc("POST /api/v1/apps", s.withAuth(s.handleCreateApp))
 	s.mux.HandleFunc("GET /api/v1/apps/{id}", s.handleGetApp)

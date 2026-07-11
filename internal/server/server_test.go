@@ -852,6 +852,7 @@ func TestListAppsSupportsDownloadPeriodSorts(t *testing.T) {
 	ctx := t.Context()
 	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
 	now := time.Date(2026, 7, 10, 12, 0, 0, 0, time.FixedZone("CST", 8*60*60))
+	app.server.now = func() time.Time { return now }
 	records := map[string]*entclient.App{}
 	for _, name := range []string{"day", "week", "month"} {
 		records[name] = app.server.db.App.Create().
