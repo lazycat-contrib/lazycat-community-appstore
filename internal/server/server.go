@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
+	"lazycat.community/appstore/clientembed"
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/internal/buildinfo"
 	"lazycat.community/appstore/internal/config"
 	"lazycat.community/appstore/internal/dbpool"
 	"lazycat.community/appstore/internal/storage"
-	"lazycat.community/appstore/web"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib-x/entsqlite"
@@ -500,7 +500,7 @@ func (s *Server) handleFavicon(w http.ResponseWriter, r *http.Request) {
 }
 
 func embeddedWebHandler(cfg config.Config) http.Handler {
-	dist, err := web.Dist()
+	dist, err := fs.Sub(clientembed.Dist, "dist")
 	if err != nil {
 		return nil
 	}
