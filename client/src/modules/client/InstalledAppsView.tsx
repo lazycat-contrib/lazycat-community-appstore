@@ -126,7 +126,7 @@ export function InstalledAppsView({
                   <AvatarIcon seed={item.appid || item.title || 'installed-app'} title={item.title || item.appid} size={42} />
                 )}
                 <div className="installed-app-identity">
-                  <strong>{item.title || item.appid || t('common.app')}</strong>
+                  <strong title={item.title || item.appid || undefined}>{item.title || item.appid || t('common.app')}</strong>
                   <span title={item.appid || undefined}>{item.appid || t('profile.installedAppIdMissing')}</span>
                   <small>{source ? t('profile.installedFromSource', { source: source.sourceName }) : t('profile.installedLocalExisting')}</small>
                 </div>
@@ -141,19 +141,19 @@ export function InstalledAppsView({
                       </div>
                     </XTooltip>
                   )}
-                  {source && packageID && onSetAutoUpdatePolicy && (
-                    <div className="installed-auto-update-control">
-                      <XSwitch
-                        label={t('updatePolicy.autoUpdate')}
-                        labelTooltip={t(`updatePolicy.states.${updatePolicy.state}`)}
-                        value={updatePolicy.enabled}
-                        isDisabled={isPolicySaving}
-                        disabledMessage={isPolicySaving ? t('updatePolicy.saving') : undefined}
-                        onChange={(checked) => void onSetAutoUpdatePolicy(packageID, checked)}
-                      />
-                    </div>
-                  )}
                 </div>
+                {source && packageID && onSetAutoUpdatePolicy && (
+                  <div className="installed-auto-update-control">
+                    <XSwitch
+                      label={t('updatePolicy.autoUpdate')}
+                      labelTooltip={t(`updatePolicy.states.${updatePolicy.state}`)}
+                      value={updatePolicy.enabled}
+                      isDisabled={isPolicySaving}
+                      disabledMessage={isPolicySaving ? t('updatePolicy.saving') : undefined}
+                      onChange={(checked) => void onSetAutoUpdatePolicy(packageID, checked)}
+                    />
+                  </div>
+                )}
               </article>
             );
           })}

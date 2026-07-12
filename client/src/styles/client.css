@@ -436,6 +436,7 @@
 }
 
 .installed-auto-update-control {
+  grid-column: 2 / -1;
   width: max-content;
   max-width: 100%;
   justify-self: end;

@@ -12,7 +12,7 @@
 
 - Keep `lazycat/client/package.yml` at version `0.1.25`.
 - Never render raw SDK status values as visible card text.
-- Keep the installed-app grid minimum card width at `260px`.
+- Keep the installed-app grid minimum card width at `320px` and allow three title lines.
 - Preserve keyboard-accessible labels and tips.
 
 ---

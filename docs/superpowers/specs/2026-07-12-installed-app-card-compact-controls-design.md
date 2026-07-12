@@ -6,7 +6,8 @@ Fix the installed-app grid regression where the automatic-update control and raw
 
 ## Card layout
 
-- Keep the existing dense installed-app grid and its `260px` minimum card width.
+- Keep the installed-app grid dense while reserving a `320px` minimum card width for readable names.
+- Allow application names to use up to three lines and expose the full name through the native title tip.
 - Keep icon, application identity, version, and status in the primary row.
 - Replace the current full-width switch field with a compact automatic-update control.
 - The visible control contains only the localized `自动更新` / `Auto update` label and the switch.
@@ -37,7 +38,7 @@ Fix the installed-app grid regression where the automatic-update control and raw
 ## Responsive behavior
 
 - The compact control must not contribute a `240px` minimum width to the card metadata column.
-- The metadata column stays intrinsic and capped; long values cannot overlap adjacent cards.
+- The metadata column stays intrinsic and capped; long values cannot overlap adjacent cards or reduce names to an unusably narrow column.
 - Existing mobile behavior remains two-column inside the card, with metadata and the compact update control aligned under the application identity.
 
 ## Verification

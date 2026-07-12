@@ -2678,7 +2678,7 @@ body,
 
 .installed-app-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   align-items: start;
   gap: 10px;
 }
@@ -2731,7 +2731,7 @@ body,
 .installed-app-identity strong {
   display: -webkit-box;
   line-height: 1.25;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
