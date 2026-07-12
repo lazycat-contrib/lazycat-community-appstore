@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Check, ChevronRight, Cloud, Gauge, Heart, KeyRound, LogIn, LogOut, PackagePlus, RefreshCw, Search, Server, Settings, Trash2, Upload, Users, X } from 'lucide-react';
+import { AlertCircle, Check, ChevronRight, Cloud, Gauge, Heart, KeyRound, ListChecks, LogIn, LogOut, PackagePlus, RefreshCw, Search, Server, Settings, Trash2, Upload, Users, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
@@ -209,6 +209,7 @@ export function ProfileView({
   const bulkRefreshCompleted = bulkRefreshItems.filter((item) => terminalInspectionStates.has(item.inspection.state)).length;
   const bulkRefreshFailed = bulkRefreshItems.filter((item) => ['FAILED', 'TIMED_OUT', 'CANCELLED'].includes(item.inspection.state)).length;
   const bulkRefreshProgress = bulkRefreshItems.length > 0 ? Math.round((bulkRefreshCompleted / bulkRefreshItems.length) * 100) : 0;
+  const allOwnedAppsSelected = ownedApps.length > 0 && selectedOwnedAppIDs.size === ownedApps.length;
 
   async function refreshOwnedLPKMetadata() {
     if (bulkRefreshPhase !== 'idle' || selectedOwnedAppIDs.size === 0) return;
@@ -314,6 +315,11 @@ export function ProfileView({
       else next.delete(appID);
       return next;
     });
+  }
+
+  function toggleAllOwnedApps() {
+    if (bulkRefreshPhase !== 'idle' || isBulkDeleting) return;
+    setSelectedOwnedAppIDs(allOwnedAppsSelected ? new Set() : new Set(ownedApps.map((app) => app.id)));
   }
   const sourceCacheReady = sourceStats.syncedSourceCount > 0;
   const installCatalogReady = sourceStats.installableSourceAppCount > 0;
@@ -770,6 +776,16 @@ export function ProfileView({
                   type="button"
                   variant="secondary"
                   size="sm"
+                  label={t(allOwnedAppsSelected ? 'profile.clearAllSelection' : 'profile.selectAllApps')}
+                  tooltip={t(allOwnedAppsSelected ? 'profile.clearAllSelection' : 'profile.selectAllApps')}
+                  icon={<ListChecks size={17} />}
+                  isDisabled={bulkRefreshPhase !== 'idle' || isBulkDeleting}
+                  onClick={toggleAllOwnedApps}
+                />
+                <XIconButton
+                  type="button"
+                  variant="secondary"
+                  size="sm"
                   label={bulkRefreshPhase === 'queueing'
                     ? t('profile.bulkRefreshQueueing')
                     : bulkRefreshPhase === 'running'
@@ -886,7 +902,7 @@ export function ProfileView({
       )}
       {workspaceTab === 'apps' && bulkAction && (
         <ModalLayer onClose={() => { if (!isBulkDeleting) { setBulkAction(null); setBulkRefreshOverwrite(false); } }} purpose="required" width="min(480px, calc(100vw - 32px))">
-          <section className="bulk-action-confirmation" aria-labelledby="bulk-action-confirmation-title">
+          <section className="modal-panel bulk-action-confirmation" aria-labelledby="bulk-action-confirmation-title">
             <div className="section-title">
               {bulkAction === 'delete' ? <Trash2 size={19} /> : <RefreshCw size={19} />}
               <h2 id="bulk-action-confirmation-title">{t(bulkAction === 'delete' ? 'profile.bulkDeleteConfirmTitle' : 'profile.bulkRefreshConfirmTitle')}</h2>

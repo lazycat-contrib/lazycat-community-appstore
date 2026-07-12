@@ -733,6 +733,8 @@ const zh = {
         bulkRefreshCompletedWithFailures: '刷新完成：{{count}} 个任务中 {{failed}} 个失败，跳过 {{skipped}} 个',
         bulkRefreshFailed: '批量刷新软件信息失败',
         selectedApps: '已选择的应用',
+        selectAllApps: '全选应用',
+        clearAllSelection: '取消全选',
         bulkRefreshConfirmTitle: '重新解析应用信息？',
         bulkRefreshConfirmBody: '将从 {{count}} 个应用的最新 LPK 重新读取信息。默认只补齐缺失字段，不覆盖你手动维护的内容。',
         bulkRefreshConfirmAction: '允许重新解析',

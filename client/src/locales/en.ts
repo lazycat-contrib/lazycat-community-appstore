@@ -733,6 +733,8 @@ const en = {
         bulkRefreshCompletedWithFailures: 'Refresh finished with {{failed}} failures across {{count}} jobs; {{skipped}} skipped',
         bulkRefreshFailed: 'Could not refresh app information',
         selectedApps: 'Selected apps',
+        selectAllApps: 'Select all apps',
+        clearAllSelection: 'Clear selection',
         bulkRefreshConfirmTitle: 'Reparse app information?',
         bulkRefreshConfirmBody: 'Read information again from the latest LPK for {{count}} apps. Missing fields are filled by default; manually maintained content is not overwritten.',
         bulkRefreshConfirmAction: 'Allow reparsing',

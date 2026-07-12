@@ -7,6 +7,8 @@ const source = await readFile(new URL('./ProfileView.tsx', import.meta.url), 'ut
 test('bulk metadata refresh is selection-driven and stays anchored in My software', () => {
   assert.match(source, /selectedOwnedAppIDs\.size > 0/);
   assert.match(source, /<XCheckboxInput/);
+  assert.match(source, /toggleAllOwnedApps/);
+  assert.match(source, /profile\.selectAllApps/);
   assert.match(source, /<XIconButton[\s\S]*bulkRefreshSelected/);
   assert.match(source, /setBulkAction\('refresh'\)/);
   assert.match(source, /setBulkAction\('delete'\)/);
@@ -16,4 +18,5 @@ test('bulk metadata refresh is selection-driven and stays anchored in My softwar
   assert.match(source, /bulkDeleteConfirmAction/);
   assert.match(source, /className="bulk-metadata-refresh"/);
   assert.match(source, /purpose="required"/);
+  assert.match(source, /className="modal-panel bulk-action-confirmation"/);
 });
