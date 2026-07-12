@@ -1,9 +1,11 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Check, ChevronRight, Cloud, Gauge, Heart, KeyRound, LogIn, LogOut, PackagePlus, RefreshCw, Search, Server, Settings, Upload, Users, X } from 'lucide-react';
+import { AlertCircle, Check, ChevronRight, Cloud, Gauge, Heart, KeyRound, LogIn, LogOut, PackagePlus, RefreshCw, Search, Server, Settings, Trash2, Upload, Users, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
+import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
@@ -14,7 +16,7 @@ import { canUserManageApp, canUserUploadVersion, defaultUploadStorageKey, displa
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { Category, ClientSourceStats, CollaborationData, FavoriteData, InstalledApplication, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, SourceSubscription, StorageOption, StoreApp, Toast, UpdateQueueRequest, UpdateQueueResult, User } from '../../shared/types';
+import type { Category, ClientSourceStats, CollaborationData, FavoriteData, InstalledApplication, LPKInspectionStatus, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, SourceSubscription, StorageOption, StoreApp, Toast, UpdateQueueRequest, UpdateQueueResult, User } from '../../shared/types';
 import { cx, formatDate, hasInstallableVersion, runAction, statusKey } from '../../shared/utils';
 import { InstalledAppsView } from '../client/InstalledAppsView';
 import type { AppDetailMode } from '../storefront/AppDrawer';
@@ -28,6 +30,14 @@ type ProfileNavigationTarget = 'sources' | 'search';
 
 const DEFAULT_FAVORITE_PAGINATION: PaginationMeta = { page: 1, pageSize: 0, totalItems: 0, totalPages: 0 };
 const FAVORITE_PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
+
+type BulkLPKInspectionItem = { appId: number; appName: string; inspection: LPKInspectionStatus };
+type BulkLPKInspectionResponse = {
+  inspections: BulkLPKInspectionItem[];
+  skipped: Array<{ appId: number; appName: string; reason: string }>;
+};
+
+const terminalInspectionStates = new Set(['SUCCEEDED', 'FAILED', 'TIMED_OUT', 'CANCELLED']);
 
 function verificationTokenFromURL() {
   const params = new URLSearchParams(window.location.search);
@@ -107,6 +117,14 @@ export function ProfileView({
   const { t } = useTranslation();
   const [workspaceTab, setWorkspaceTab] = useState<ProfileWorkspaceTab>(() => (collaborationInviteTokenFromURL() ? 'collaboration' : 'overview'));
   const [isSubmitOpen, setIsSubmitOpen] = useState(false);
+  const [selectedOwnedAppIDs, setSelectedOwnedAppIDs] = useState<Set<number>>(() => new Set());
+  const [bulkAction, setBulkAction] = useState<'refresh' | 'delete' | null>(null);
+  const [bulkRefreshOverwrite, setBulkRefreshOverwrite] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkRefreshPhase, setBulkRefreshPhase] = useState<'idle' | 'queueing' | 'running'>('idle');
+  const [bulkRefreshItems, setBulkRefreshItems] = useState<BulkLPKInspectionItem[]>([]);
+  const [bulkRefreshSkipped, setBulkRefreshSkipped] = useState(0);
+  const bulkRefreshRunRef = useRef(0);
   const [managedSubmitter, setManagedSubmitter] = useState('all');
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
   const [uploadForm, setUploadForm] = useState({
@@ -188,6 +206,115 @@ export function ProfileView({
       needsVersion: ownedApps.filter((app) => app.status === 'APPROVED' && !hasInstallableVersion(app)).length,
     };
   }, [ownedApps]);
+  const bulkRefreshCompleted = bulkRefreshItems.filter((item) => terminalInspectionStates.has(item.inspection.state)).length;
+  const bulkRefreshFailed = bulkRefreshItems.filter((item) => ['FAILED', 'TIMED_OUT', 'CANCELLED'].includes(item.inspection.state)).length;
+  const bulkRefreshProgress = bulkRefreshItems.length > 0 ? Math.round((bulkRefreshCompleted / bulkRefreshItems.length) * 100) : 0;
+
+  async function refreshOwnedLPKMetadata() {
+    if (bulkRefreshPhase !== 'idle' || selectedOwnedAppIDs.size === 0) return;
+    const runID = ++bulkRefreshRunRef.current;
+    setBulkRefreshPhase('queueing');
+    setBulkRefreshItems([]);
+    setBulkRefreshSkipped(0);
+    try {
+      const queued = await api<BulkLPKInspectionResponse>('/api/v1/me/apps/lpk-inspections', {
+        method: 'POST',
+        body: JSON.stringify({ appIds: Array.from(selectedOwnedAppIDs), overwriteExistingMetadata: bulkRefreshOverwrite }),
+      });
+      if (runID !== bulkRefreshRunRef.current) return;
+      setBulkRefreshItems(queued.inspections);
+      setBulkRefreshSkipped(queued.skipped.length);
+      if (queued.inspections.length === 0) {
+        setBulkRefreshPhase('idle');
+        setToast({ tone: 'neutral', message: t('profile.bulkRefreshNone') });
+        return;
+      }
+      setBulkRefreshPhase('running');
+      const ids = queued.inspections.map((item) => item.inspection.id);
+      while (runID === bulkRefreshRunRef.current) {
+        const status = await api<BulkLPKInspectionResponse>('/api/v1/me/apps/lpk-inspections/status', {
+          method: 'POST',
+          body: JSON.stringify({ ids }),
+        });
+        if (runID !== bulkRefreshRunRef.current) return;
+        setBulkRefreshItems(status.inspections);
+        const completed = status.inspections.filter((item) => terminalInspectionStates.has(item.inspection.state));
+        if (completed.length === status.inspections.length) {
+          const failed = completed.filter((item) => item.inspection.state !== 'SUCCEEDED').length;
+          await refreshAll({ silent: true });
+          if (runID !== bulkRefreshRunRef.current) return;
+          setBulkRefreshPhase('idle');
+          setBulkRefreshItems([]);
+          setSelectedOwnedAppIDs(new Set());
+          setBulkRefreshOverwrite(false);
+          setToast({
+            tone: failed > 0 ? 'neutral' : 'success',
+            message: t(failed > 0 ? 'profile.bulkRefreshCompletedWithFailures' : 'profile.bulkRefreshCompleted', {
+              count: completed.length,
+              failed,
+              skipped: queued.skipped.length,
+            }),
+          });
+          return;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+      }
+    } catch {
+      if (runID !== bulkRefreshRunRef.current) return;
+      setBulkRefreshPhase('idle');
+      setBulkRefreshItems([]);
+      setToast({ tone: 'error', message: t('profile.bulkRefreshFailed') });
+    }
+  }
+
+  async function deleteSelectedOwnedApps() {
+    if (isBulkDeleting || selectedOwnedAppIDs.size === 0) return;
+    setIsBulkDeleting(true);
+    const appIDs = Array.from(selectedOwnedAppIDs);
+    let failed = 0;
+    try {
+      for (const appID of appIDs) {
+        try {
+          await api(`/api/v1/apps/${appID}`, { method: 'DELETE' });
+        } catch {
+          failed += 1;
+        }
+      }
+      await refreshAll({ silent: true });
+      setSelectedOwnedAppIDs(new Set());
+      setBulkAction(null);
+      setToast({
+        tone: failed > 0 ? 'neutral' : 'success',
+        message: t(failed > 0 ? 'profile.bulkDeleteCompletedWithFailures' : 'profile.bulkDeleteCompleted', { count: appIDs.length - failed, failed }),
+      });
+    } catch {
+      setToast({ tone: 'error', message: t('profile.bulkDeleteFailed') });
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }
+
+  useEffect(() => () => {
+    bulkRefreshRunRef.current += 1;
+  }, []);
+
+  useEffect(() => {
+    const ownedIDs = new Set(ownedApps.map((app) => app.id));
+    setSelectedOwnedAppIDs((current) => {
+      const next = new Set(Array.from(current).filter((id) => ownedIDs.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [ownedApps]);
+
+  function toggleOwnedAppSelection(appID: number, selected: boolean) {
+    if (bulkRefreshPhase !== 'idle') return;
+    setSelectedOwnedAppIDs((current) => {
+      const next = new Set(current);
+      if (selected) next.add(appID);
+      else next.delete(appID);
+      return next;
+    });
+  }
   const sourceCacheReady = sourceStats.syncedSourceCount > 0;
   const installCatalogReady = sourceStats.installableSourceAppCount > 0;
   const installedLookupReady = installedState === 'loaded';
@@ -636,15 +763,54 @@ export function ProfileView({
             <PackagePlus size={19} />
             <h2>{t('profile.mySubmissions')}</h2>
           </div>
-          <XButton
-            type="button"
-            variant="primary"
-            size="sm"
-            label={isSubmitOpen ? t('common.close') : t('submitApp.title')}
-            icon={isSubmitOpen ? <X size={17} /> : <Upload size={17} />}
-            onClick={() => setIsSubmitOpen((open) => !open)}
-          />
+          <div className="section-title-actions">
+            {selectedOwnedAppIDs.size > 0 && (
+              <>
+                <XIconButton
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  label={bulkRefreshPhase === 'queueing'
+                    ? t('profile.bulkRefreshQueueing')
+                    : bulkRefreshPhase === 'running'
+                      ? t('profile.bulkRefreshing', { completed: bulkRefreshCompleted, total: bulkRefreshItems.length })
+                      : t('profile.bulkRefreshSelected', { count: selectedOwnedAppIDs.size })}
+                  tooltip={bulkRefreshPhase === 'idle' ? t('profile.bulkRefreshSelected', { count: selectedOwnedAppIDs.size }) : undefined}
+                  icon={<RefreshCw size={17} className={bulkRefreshPhase !== 'idle' ? 'spin' : undefined} />}
+                  isDisabled={bulkRefreshPhase !== 'idle' || isBulkDeleting}
+                  onClick={() => { setBulkRefreshOverwrite(false); setBulkAction('refresh'); }}
+                />
+                <XIconButton
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  label={t('profile.bulkDeleteSelected', { count: selectedOwnedAppIDs.size })}
+                  tooltip={t('profile.bulkDeleteSelected', { count: selectedOwnedAppIDs.size })}
+                  icon={<Trash2 size={17} />}
+                  isDisabled={bulkRefreshPhase !== 'idle' || isBulkDeleting}
+                  onClick={() => setBulkAction('delete')}
+                />
+              </>
+            )}
+            <XButton
+              type="button"
+              variant="primary"
+              size="sm"
+              label={isSubmitOpen ? t('common.close') : t('submitApp.title')}
+              icon={isSubmitOpen ? <X size={17} /> : <Upload size={17} />}
+              onClick={() => setIsSubmitOpen((open) => !open)}
+            />
+          </div>
         </div>
+        {bulkRefreshPhase === 'running' && (
+          <div className="bulk-metadata-refresh" role="status" aria-live="polite">
+            <div className="bulk-metadata-refresh-copy">
+              <strong>{t('profile.bulkRefreshProgressTitle')}</strong>
+              <span>{t('profile.bulkRefreshProgressBody', { completed: bulkRefreshCompleted, total: bulkRefreshItems.length, failed: bulkRefreshFailed, skipped: bulkRefreshSkipped })}</span>
+            </div>
+            <XProgressBar label={t('profile.bulkRefreshProgressLabel')} isLabelHidden value={bulkRefreshProgress} hasValueLabel variant={bulkRefreshFailed > 0 ? 'warning' : 'accent'} />
+          </div>
+        )}
         {ownedApps.length === 0 ? (
           <EmptyState icon={PackagePlus} title={t('profile.mySubmissionsEmpty')} body={t('profile.mySubmissionsEmptyBody')} />
         ) : (
@@ -652,6 +818,16 @@ export function ProfileView({
             {ownedApps.map((item) => (
               <XListItem
                 key={item.id}
+                isSelected={selectedOwnedAppIDs.has(item.id)}
+                startContent={(
+                  <XCheckboxInput
+                    label={t('profile.selectForBulkAction', { name: item.name })}
+                    isLabelHidden
+                    value={selectedOwnedAppIDs.has(item.id)}
+                    isDisabled={bulkRefreshPhase !== 'idle' || isBulkDeleting}
+                    onChange={(selected) => toggleOwnedAppSelection(item.id, selected)}
+                  />
+                )}
                 label={item.name}
                 description={(
                   <span className="action-list-description">
@@ -707,6 +883,49 @@ export function ProfileView({
           onCancel={() => setIsSubmitOpen(false)}
         />
       </ModalLayer>
+      )}
+      {workspaceTab === 'apps' && bulkAction && (
+        <ModalLayer onClose={() => { if (!isBulkDeleting) { setBulkAction(null); setBulkRefreshOverwrite(false); } }} purpose="required" width="min(480px, calc(100vw - 32px))">
+          <section className="bulk-action-confirmation" aria-labelledby="bulk-action-confirmation-title">
+            <div className="section-title">
+              {bulkAction === 'delete' ? <Trash2 size={19} /> : <RefreshCw size={19} />}
+              <h2 id="bulk-action-confirmation-title">{t(bulkAction === 'delete' ? 'profile.bulkDeleteConfirmTitle' : 'profile.bulkRefreshConfirmTitle')}</h2>
+            </div>
+            <p>{t(bulkAction === 'delete' ? 'profile.bulkDeleteConfirmBody' : 'profile.bulkRefreshConfirmBody', { count: selectedOwnedAppIDs.size })}</p>
+            {bulkAction === 'refresh' && (
+              <XCheckboxInput
+                label={t('profile.bulkRefreshOverwrite')}
+                description={t('profile.bulkRefreshOverwriteHelp')}
+                value={bulkRefreshOverwrite}
+                onChange={setBulkRefreshOverwrite}
+              />
+            )}
+            <div className="bulk-action-selection" role="list" aria-label={t('profile.selectedApps')}>
+              {ownedApps.filter((app) => selectedOwnedAppIDs.has(app.id)).map((app) => <span role="listitem" key={app.id}>{app.name}</span>)}
+            </div>
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} isDisabled={isBulkDeleting} onClick={() => { setBulkAction(null); setBulkRefreshOverwrite(false); }} />
+              <XButton
+                type="button"
+                variant={bulkAction === 'delete' ? 'destructive' : 'primary'}
+                label={t(bulkAction === 'delete'
+                  ? (isBulkDeleting ? 'profile.bulkDeleting' : 'profile.bulkDeleteConfirmAction')
+                  : bulkRefreshOverwrite
+                    ? 'profile.bulkRefreshOverwriteConfirmAction'
+                    : 'profile.bulkRefreshConfirmAction')}
+                icon={bulkAction === 'delete' ? <Trash2 size={17} /> : <RefreshCw size={17} />}
+                isDisabled={isBulkDeleting}
+                onClick={() => {
+                  if (bulkAction === 'delete') void deleteSelectedOwnedApps();
+                  else {
+                    setBulkAction(null);
+                    void refreshOwnedLPKMetadata();
+                  }
+                }}
+              />
+            </div>
+          </section>
+        </ModalLayer>
       )}
       {workspaceTab === 'collaboration' && (
       <section className="workspace-pane">

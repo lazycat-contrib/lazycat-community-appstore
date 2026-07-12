@@ -33,7 +33,6 @@ import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
 import { MetadataList as XMetadataList, MetadataListItem as XMetadataListItem } from '@astryxdesign/core/MetadataList';
 import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
-import { StatusDot as XStatusDot } from '@astryxdesign/core/StatusDot';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
@@ -54,7 +53,6 @@ import type {
   CollaboratorRequest,
   Group,
   InstallOptions,
-	LPKInspectionStatus,
   Review,
   StorageOption,
   StoreApp,
@@ -82,12 +80,11 @@ import {
   shortSHA,
 } from '../../shared/utils';
 import type { SubmissionProgress } from '../profile/AppSubmissionForm';
-import { inspectionPresentation } from '../client/clientUxState';
 import { VersionDeleteDialog, VersionRetentionDialog } from './VersionManagementDialogs';
 import { nextLatestVersion } from './versionManagementState';
 
 export type AppDetailMode = 'detail' | 'manage';
-type ManagementDialog = 'app-info' | 'publish-version' | 'screenshots' | 'visibility' | 'collaborators' | 'version-retention' | 'lpk-inspection';
+type ManagementDialog = 'app-info' | 'publish-version' | 'screenshots' | 'visibility' | 'collaborators' | 'version-retention';
 type VersionManagementResult = {
   tone: 'success' | 'warning' | 'error';
   message: string;
@@ -147,9 +144,6 @@ export function AppDrawer({
   const [versionProgress, setVersionProgress] = useState<SubmissionProgress | null>(null);
   const [versionStorageKey, setVersionStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [collaboratorRequests, setCollaboratorRequests] = useState<CollaboratorRequest[]>([]);
-	const [lpkInspection, setLPKInspection] = useState<LPKInspectionStatus | null>(() => app.lpkInspection || null);
-	const [lpkInspectionOverwrite, setLPKInspectionOverwrite] = useState(false);
-	const [isStartingLPKInspection, setIsStartingLPKInspection] = useState(false);
   const [confirmAction, setConfirmAction] = useState<string | null>(null);
   const [managementDialog, setManagementDialog] = useState<ManagementDialog | null>(null);
   const [versionDeleteTarget, setVersionDeleteTarget] = useState<Version | null>(null);
@@ -181,8 +175,6 @@ export function AppDrawer({
   const versionFileInputRef = useRef<HTMLInputElement>(null);
   const drawerTitleId = `app-drawer-title-${app.id}`;
   const latestVersion = app.latestVersion;
-	const lpkInspectionState = inspectionPresentation(lpkInspection?.state);
-	const canInspectLPK = canUploadVersion && Boolean(latestVersion?.downloadUrl);
   const latestChangelog = latestVersion?.changelog?.trim() || '';
   const appName = localizedAppName(app);
   const homepageURL = safeExternalURL(app.homepage);
@@ -257,9 +249,6 @@ export function AppDrawer({
     setVersionFile(null);
     setIsSubmittingVersion(false);
     setVersionProgress(null);
-		setLPKInspection(app.lpkInspection || null);
-		setLPKInspectionOverwrite(false);
-		setIsStartingLPKInspection(false);
     setScreenshotCaptionDrafts(Object.fromEntries((app.screenshots || []).map((shot) => [shot.id, shot.caption || ''])));
     if (versionFileInputRef.current) versionFileInputRef.current.value = '';
   }, [app]);
@@ -279,13 +268,6 @@ export function AppDrawer({
     if (!isManageMode) setManagementDialog(null);
   }, [isManageMode]);
 
-	useEffect(() => {
-		if (!lpkInspection || !lpkInspectionState.isActive) return;
-		const timer = window.setInterval(() => {
-			void onRefresh().catch(() => undefined);
-		}, 1000);
-		return () => window.clearInterval(timer);
-	}, [app.id, lpkInspection?.id, lpkInspectionState.isActive, onRefresh]);
 
   useEffect(() => {
     setVersionDeleteTarget(null);
@@ -466,25 +448,6 @@ export function AppDrawer({
       setIsSubmittingVersion(false);
     }
   }
-
-	async function startLPKInspection() {
-		if (!canInspectLPK || lpkInspectionState.isActive || isStartingLPKInspection) return;
-		setIsStartingLPKInspection(true);
-		try {
-			const data = await api<{ inspection: LPKInspectionStatus }>(`/api/v1/apps/${app.id}/lpk-inspections`, {
-				method: 'POST',
-				body: JSON.stringify({ overwriteExistingMetadata: lpkInspectionOverwrite }),
-			});
-			setLPKInspection(data.inspection);
-			setManagementDialog(null);
-			setToast({ tone: 'success', message: t('drawer.lpkInspectionQueued') });
-			await onRefresh();
-		} catch (error) {
-			setToast({ tone: 'error', message: errorMessage(error, t('drawer.lpkInspectionStartFailed')) });
-		} finally {
-			setIsStartingLPKInspection(false);
-		}
-	}
 
   function confirmDanger(key: string, message: string) {
     if (confirmAction !== key) {
@@ -863,34 +826,6 @@ export function AppDrawer({
     );
   }
 
-	function renderLPKInspectionCard() {
-		if (!canUploadVersion) return null;
-		const statusLabel = lpkInspection
-			? t(`drawer.lpkInspectionStates.${lpkInspectionState.stateKey}`)
-			: t('drawer.lpkInspectionNotRun');
-		return (
-			<XCard className="lpk-inspection-card" variant="muted" padding={4} aria-live="polite">
-				<div className="lpk-inspection-card-head">
-					<div>
-						<Archive size={19} aria-hidden="true" />
-						<h3>{t('drawer.lpkInspectionTitle')}</h3>
-					</div>
-					<span className="lpk-inspection-status">
-						<XStatusDot
-							variant={lpkInspectionState.statusVariant}
-							label={statusLabel}
-							isPulsing={lpkInspectionState.isActive}
-						/>
-						<span>{statusLabel}</span>
-					</span>
-				</div>
-				<p>{t('drawer.lpkInspectionBody')}</p>
-				{lpkInspection?.lastError && <p className="lpk-inspection-error" role="alert">{lpkInspection.lastError}</p>}
-				{!canInspectLPK && <small>{t('drawer.lpkInspectionUnavailable')}</small>}
-			</XCard>
-		);
-	}
-
   function renderLatestChangelog() {
     if (!latestChangelog) return null;
     return (
@@ -908,40 +843,6 @@ export function AppDrawer({
 
   function renderManagementDialogs() {
     if (!managementDialog) return null;
-
-		if (managementDialog === 'lpk-inspection') {
-			return (
-				<ModalLayer purpose="form" width="min(620px, calc(100vw - 32px))" onClose={() => setManagementDialog(null)}>
-					<form
-						className="modal-panel lpk-inspection-dialog"
-						onSubmit={(event) => {
-							event.preventDefault();
-							void startLPKInspection();
-						}}
-					>
-						<XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={() => setManagementDialog(null)} />
-						<SectionTitle icon={Archive} title={t('drawer.lpkInspectionStartTitle')} />
-						<p>{t('drawer.lpkInspectionStartBody')}</p>
-						<XCheckboxInput
-							label={t('drawer.lpkInspectionOverwrite')}
-							description={t('drawer.lpkInspectionOverwriteHelp')}
-							value={lpkInspectionOverwrite}
-							onChange={setLPKInspectionOverwrite}
-						/>
-						<div className="dialog-actions">
-							<XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} isDisabled={isStartingLPKInspection} onClick={() => setManagementDialog(null)} />
-							<XButton
-								type="submit"
-								variant="primary"
-								label={isStartingLPKInspection ? t('common.submitting') : t('drawer.lpkInspectionStart')}
-								icon={<RefreshCw size={17} className={isStartingLPKInspection ? 'spin' : undefined} />}
-								isDisabled={isStartingLPKInspection || !canInspectLPK}
-							/>
-						</div>
-					</form>
-				</ModalLayer>
-			);
-		}
 
     if (managementDialog === 'version-retention') {
       return app.versionRetention ? (
@@ -1434,7 +1335,6 @@ export function AppDrawer({
               )}
             </div>
             {renderManagementMetadataCard()}
-				{renderLPKInspectionCard()}
           </XCard>
         )}
         {renderLatestChangelog()}
@@ -1458,24 +1358,6 @@ export function AppDrawer({
                   action={<XButton type="button" variant="secondary" size="sm" label={t('drawer.publishVersion')} icon={<Upload size={17} />} onClick={() => setManagementDialog('publish-version')} />}
                 />
               )}
-				{canUploadVersion && (
-					<ManagementActionCard
-						icon={<Archive size={19} />}
-						title={t('drawer.lpkInspectionTitle')}
-						body={t('drawer.lpkInspectionActionBody')}
-						action={(
-							<XButton
-								type="button"
-								variant="secondary"
-								size="sm"
-								label={lpkInspectionState.isActive ? t('drawer.lpkInspectionRunning') : t('drawer.lpkInspectionStart')}
-								icon={<RefreshCw size={17} className={lpkInspectionState.isActive ? 'spin' : undefined} />}
-								isDisabled={!canInspectLPK || lpkInspectionState.isActive || isStartingLPKInspection}
-								onClick={() => setManagementDialog('lpk-inspection')}
-							/>
-						)}
-					/>
-				)}
               {canMaintain && (
                 <ManagementActionCard
                   icon={<Archive size={19} />}

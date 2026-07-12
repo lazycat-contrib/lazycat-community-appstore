@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,10 +12,52 @@ import (
 	"testing"
 	"time"
 
+	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/lpkinspectionjob"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/lpkinspect"
 )
+
+func TestBulkLPKInspectionQueuesEligibleOwnedAppsAndProtectsStatus(t *testing.T) {
+	store := newTestApp(t)
+	ctx := t.Context()
+	store.login("admin", "changeme")
+	owner := store.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	eligible := store.server.db.App.Create().SetOwnerID(owner.ID).SetPackageID("cloud.lazycat.test.bulk-eligible").SetName("Eligible").SetSlug("bulk-eligible").SaveX(ctx)
+	store.server.db.AppVersion.Create().SetAppID(eligible.ID).SetUploaderID(owner.ID).SetVersion("1.0.0").SetDownloadURL("https://example.test/eligible.lpk").SetSourceType(appversion.SourceTypeGITHUB).SaveX(ctx)
+	ineligible := store.server.db.App.Create().SetOwnerID(owner.ID).SetPackageID("cloud.lazycat.test.bulk-ineligible").SetName("Ineligible").SetSlug("bulk-ineligible").SaveX(ctx)
+
+	rec := store.do(http.MethodPost, "/api/v1/me/apps/lpk-inspections", map[string]any{"appIds": []int{eligible.ID, ineligible.ID}, "overwriteExistingMetadata": false})
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("bulk enqueue status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response bulkLPKInspectionResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Inspections) != 1 || response.Inspections[0].AppID != eligible.ID {
+		t.Fatalf("inspections = %#v", response.Inspections)
+	}
+	if len(response.Skipped) != 1 || response.Skipped[0].AppID != ineligible.ID {
+		t.Fatalf("skipped = %#v", response.Skipped)
+	}
+
+	outsider := store.server.db.User.Create().SetUsername("bulk-outsider").SetPasswordHash("x").SetEmailVerified(true).SaveX(ctx)
+	token := "lcst_bulk_outsider"
+	store.server.db.APIToken.Create().SetUserID(outsider.ID).SetName("bulk outsider").SetPrefix(tokenPrefix(token)).SetTokenHash(tokenHash(token)).SaveX(ctx)
+	statusBody, err := json.Marshal(bulkLPKInspectionStatusRequest{IDs: []int{response.Inspections[0].Inspection.ID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/me/apps/lpk-inspections/status", bytes.NewReader(statusBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	statusRec := httptest.NewRecorder()
+	store.handler.ServeHTTP(statusRec, req)
+	if statusRec.Code != http.StatusOK || strings.Contains(statusRec.Body.String(), `"appId":`+strconv.Itoa(eligible.ID)) {
+		t.Fatalf("outsider status = %d, body = %s", statusRec.Code, statusRec.Body.String())
+	}
+}
 
 func TestApplyLPKInspectionMetadataFillsAndOverwritesApplicationMetadata(t *testing.T) {
 	store := newTestApp(t)

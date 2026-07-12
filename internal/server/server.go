@@ -361,6 +361,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/me/favorites", s.withAuth(s.handleListFavorites))
 	s.mux.HandleFunc("GET /api/v1/me/collaboration", s.withAuth(s.handleMyCollaboration))
 	s.mux.HandleFunc("GET /api/v1/me/comment-notifications", s.withAuth(s.handleListCommentNotifications))
+	s.mux.HandleFunc("POST /api/v1/me/apps/lpk-inspections", s.withAuth(s.handleCreateBulkLPKInspections))
+	s.mux.HandleFunc("POST /api/v1/me/apps/lpk-inspections/status", s.withAuth(s.handleBulkLPKInspectionStatus))
 	s.mux.HandleFunc("POST /api/v1/me/comment-notifications/read", s.withAuth(s.handleReadAllCommentNotifications))
 	s.mux.HandleFunc("POST /api/v1/me/comment-notifications/{id}/read", s.withAuth(s.handleReadCommentNotification))
 

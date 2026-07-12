@@ -13,6 +13,7 @@ import (
 	"github.com/cloudflare/backoff"
 
 	entgo "lazycat.community/appstore/ent"
+	"lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/lpkinspectionjob"
 	"lazycat.community/appstore/internal/catalogmeta"
@@ -182,6 +183,102 @@ func (s *Server) enqueueManualLPKInspection(ctx context.Context, appID, userID i
 
 type createLPKInspectionRequest struct {
 	OverwriteExistingMetadata bool `json:"overwriteExistingMetadata"`
+}
+
+type bulkLPKInspectionItem struct {
+	AppID      int                    `json:"appId"`
+	AppName    string                 `json:"appName"`
+	Inspection lpkInspectionStatusDTO `json:"inspection"`
+}
+
+type bulkLPKInspectionSkip struct {
+	AppID   int    `json:"appId"`
+	AppName string `json:"appName"`
+	Reason  string `json:"reason"`
+}
+
+type bulkLPKInspectionResponse struct {
+	Inspections []bulkLPKInspectionItem `json:"inspections"`
+	Skipped     []bulkLPKInspectionSkip `json:"skipped"`
+}
+
+type bulkLPKInspectionStatusRequest struct {
+	IDs []int `json:"ids"`
+}
+
+type createBulkLPKInspectionRequest struct {
+	AppIDs                    []int `json:"appIds"`
+	OverwriteExistingMetadata bool  `json:"overwriteExistingMetadata"`
+}
+
+func (s *Server) handleCreateBulkLPKInspections(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	var input createBulkLPKInspectionRequest
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	if len(input.AppIDs) == 0 || len(input.AppIDs) > 200 {
+		badRequest(w, errors.New("app ids must contain between 1 and 200 entries"))
+		return
+	}
+	records, err := s.db.App.Query().
+		Where(app.OwnerIDEQ(u.ID), app.IDIn(input.AppIDs...)).
+		Order(entgo.Desc(app.FieldUpdatedAt)).
+		All(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "LPK_INSPECTION_LIST_FAILED", "Could not list owned apps", nil)
+		return
+	}
+	response := bulkLPKInspectionResponse{Inspections: []bulkLPKInspectionItem{}, Skipped: []bulkLPKInspectionSkip{}}
+	for _, record := range records {
+		job, enqueueErr := s.enqueueManualLPKInspection(r.Context(), record.ID, u.ID, input.OverwriteExistingMetadata)
+		if enqueueErr != nil {
+			response.Skipped = append(response.Skipped, bulkLPKInspectionSkip{AppID: record.ID, AppName: record.Name, Reason: enqueueErr.Error()})
+			continue
+		}
+		response.Inspections = append(response.Inspections, bulkLPKInspectionItem{AppID: record.ID, AppName: record.Name, Inspection: toLPKInspectionStatusDTO(job)})
+	}
+	writeJSON(w, http.StatusAccepted, response)
+}
+
+func (s *Server) handleBulkLPKInspectionStatus(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	var input bulkLPKInspectionStatusRequest
+	if err := decodeJSON(r, &input); err != nil {
+		badRequest(w, err)
+		return
+	}
+	if len(input.IDs) == 0 || len(input.IDs) > 200 {
+		badRequest(w, errors.New("inspection ids must contain between 1 and 200 entries"))
+		return
+	}
+	records, err := s.db.App.Query().Where(app.OwnerIDEQ(u.ID)).All(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "LPK_INSPECTION_LIST_FAILED", "Could not list owned apps", nil)
+		return
+	}
+	appNames := make(map[int]string, len(records))
+	appIDs := make([]int, 0, len(records))
+	for _, record := range records {
+		appNames[record.ID] = record.Name
+		appIDs = append(appIDs, record.ID)
+	}
+	response := bulkLPKInspectionResponse{Inspections: []bulkLPKInspectionItem{}, Skipped: []bulkLPKInspectionSkip{}}
+	if len(appIDs) == 0 {
+		writeJSON(w, http.StatusOK, response)
+		return
+	}
+	jobs, err := s.db.LPKInspectionJob.Query().
+		Where(lpkinspectionjob.IDIn(input.IDs...), lpkinspectionjob.AppIDIn(appIDs...)).
+		Order(entgo.Asc(lpkinspectionjob.FieldID)).
+		All(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "LPK_INSPECTION_STATUS_FAILED", "Could not load inspection status", nil)
+		return
+	}
+	for _, job := range jobs {
+		response.Inspections = append(response.Inspections, bulkLPKInspectionItem{AppID: job.AppID, AppName: appNames[job.AppID], Inspection: toLPKInspectionStatusDTO(job)})
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *Server) handleCreateLPKInspection(w http.ResponseWriter, r *http.Request, u *entgo.User) {

@@ -6,14 +6,14 @@
 
 **Architecture:** Reuse existing inspection jobs through two owner-scoped bulk endpoints. Keep batch state local to `ProfileView`, poll compact status DTOs, and reload the app list after terminal completion.
 
-**Tech Stack:** Go, Ent, React, TypeScript, A stryx design components, i18next.
+**Tech Stack:** Go, Ent, React, TypeScript, ASTRYX design components, i18next.
 
 ## Global Constraints
 
 - Default to fill-missing mode.
 - Never duplicate active jobs.
 - Never expose another owner’s applications or jobs.
-- Do not use a modal or decorative list animation.
+- Require a confirmation dialog for reparse and delete; do not use decorative list animation.
 
 ### Task 1: Owner-scoped bulk inspection API
 
@@ -26,6 +26,9 @@
 
 - [ ] Add TypeScript DTOs and localized copy.
 - [ ] Add a secondary header action and anchored inline progress panel to `ProfileView.tsx`.
+- [ ] Make actions selection-driven, add delete, and require explicit confirmation for both operations.
+- [ ] Add an opt-in overwrite-existing-information control to the reparse confirmation.
+- [ ] Remove the duplicate single-app inspection UI from application detail.
 - [ ] Poll status with bounded intervals, reload authoritative apps on completion, and summarize failures.
 - [ ] Add narrowly scoped CSS with reduced-motion handling and a source contract test.
 - [ ] Run frontend tests and production build.

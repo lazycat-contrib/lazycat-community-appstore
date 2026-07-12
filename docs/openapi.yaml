@@ -251,6 +251,61 @@ paths:
               schema:
                 $ref: "#/components/schemas/FavoriteData"
 
+  /api/v1/me/apps/lpk-inspections:
+    post:
+      tags: [Apps]
+      summary: Queue LPK metadata inspections for selected owned apps
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appIds]
+              properties:
+                appIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: integer
+                overwriteExistingMetadata:
+                  type: boolean
+                  default: false
+      responses:
+        "202":
+          description: Eligible inspections queued and unavailable apps reported as skipped.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkLPKInspectionResponse"
+
+  /api/v1/me/apps/lpk-inspections/status:
+    post:
+      tags: [Apps]
+      summary: Read selected owned LPK inspection statuses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: integer
+      responses:
+        "200":
+          description: Inspection statuses visible to the current owner.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkLPKInspectionResponse"
+
   /api/v1/packages/{packageId}/latest-version:
     get:
       tags: [Apps]
@@ -2439,6 +2494,35 @@ components:
         completedAt:
           type: string
           format: date-time
+
+    BulkLPKInspectionResponse:
+      type: object
+      required: [inspections, skipped]
+      properties:
+        inspections:
+          type: array
+          items:
+            type: object
+            required: [appId, appName, inspection]
+            properties:
+              appId:
+                type: integer
+              appName:
+                type: string
+              inspection:
+                $ref: "#/components/schemas/LPKInspectionStatus"
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [appId, appName, reason]
+            properties:
+              appId:
+                type: integer
+              appName:
+                type: string
+              reason:
+                type: string
 
     VersionRetentionPolicy:
       type: object
