@@ -244,6 +244,7 @@ export function App() {
   const [installPasswordRequest, setInstallPasswordRequest] = useState<InstallPasswordRequest | null>(null);
   const [updateQueueResult, setUpdateQueueResult] = useState<UpdateQueueResult | null>(null);
   const [isUpdateQueueRunning, setIsUpdateQueueRunning] = useState(false);
+  const [autoUpdatePolicySaving, setAutoUpdatePolicySaving] = useState<Set<string>>(() => new Set());
   const [siteProfile, setSiteProfile] = useState<SiteProfile>(() => defaultSiteProfile(t('appName')));
   const [dismissedAnnouncement, setDismissedAnnouncement] = useState(() => {
     try {
@@ -881,6 +882,37 @@ export function App() {
     }
   }
 
+  async function setInstalledAppAutoUpdatePolicy(packageID: string, enabled: boolean) {
+	const normalized = packageID.trim().toLowerCase();
+	if (!normalized || autoUpdatePolicySaving.has(normalized)) return;
+	const previous = installedApps.find((item) => (item.appid || '').trim().toLowerCase() === normalized)?.autoUpdateEnabled;
+	setAutoUpdatePolicySaving((current) => new Set(current).add(normalized));
+	setInstalledApps((current) => current.map((item) => (
+	  (item.appid || '').trim().toLowerCase() === normalized ? { ...item, autoUpdateEnabled: enabled } : item
+	)));
+	try {
+	  const value = await clientApi<{ policy: { packageId: string; autoUpdateEnabled: boolean } }>(`/installed-apps/${encodeURIComponent(packageID)}/update-policy`, {
+		method: 'PATCH',
+		body: JSON.stringify({ autoUpdateEnabled: enabled }),
+	  });
+	  setInstalledApps((current) => current.map((item) => (
+		(item.appid || '').trim().toLowerCase() === normalized ? { ...item, autoUpdateEnabled: value.policy.autoUpdateEnabled } : item
+	  )));
+	  setToast({ tone: 'success', message: t(enabled ? 'updatePolicy.enabled' : 'updatePolicy.disabled') });
+	} catch (error) {
+	  setInstalledApps((current) => current.map((item) => (
+		(item.appid || '').trim().toLowerCase() === normalized ? { ...item, autoUpdateEnabled: previous } : item
+	  )));
+	  setToast({ tone: 'error', message: errorMessage(error, t('updatePolicy.saveFailed')) });
+	} finally {
+	  setAutoUpdatePolicySaving((current) => {
+		const next = new Set(current);
+		next.delete(normalized);
+		return next;
+	  });
+	}
+  }
+
   async function installApp(app: StoreApp | SourceApp, options: InstallOptions = {}): Promise<void> {
 	if (installInFlightRef.current) {
 	  setToast({ tone: 'neutral', message: t('installActivity.status.running') });
@@ -1501,6 +1533,8 @@ export function App() {
                 installedState={installedState}
                 installedError={installedError}
                 onLoadInstalled={loadInstalledApps}
+				onSetAutoUpdatePolicy={setInstalledAppAutoUpdatePolicy}
+				autoUpdatePolicySaving={autoUpdatePolicySaving}
 				onRunUpdates={runAvailableUpdates}
 				updateQueueResult={updateQueueResult}
 				isUpdateQueueRunning={isUpdateQueueRunning}

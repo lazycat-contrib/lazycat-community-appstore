@@ -581,6 +581,7 @@ export type InstalledApplication = {
   status?: string;
   instanceStatus?: string;
   icon?: string;
+  autoUpdateEnabled?: boolean;
 };
 
 export type ClientInstallTask = {

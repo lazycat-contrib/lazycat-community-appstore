@@ -435,6 +435,22 @@
   background: var(--status-warning-bg);
 }
 
+.installed-auto-update-control {
+  width: min(240px, 100%);
+}
+
+.manual-update-only {
+  display: inline-flex;
+  margin-inline-start: 8px;
+  padding: 2px 6px;
+  border: 1px solid var(--status-warning-line);
+  border-radius: 999px;
+  color: var(--status-warning-ink);
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 .detail-page-shell {
   width: 100%;
   min-width: 0;

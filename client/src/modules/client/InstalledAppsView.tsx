@@ -4,13 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
+import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { AvatarIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { InstalledApplication, SourceApp, SourceSubscription, UpdateQueueRequest, UpdateQueueResult } from '../../shared/types';
 import { compareVersions, cx, sourceMirrorOptions } from '../../shared/utils';
-import { buildUpdateConfirmation, findStableSourceApp } from './clientUxState';
+import { autoUpdatePolicyPresentation, buildUpdateConfirmation, findStableSourceApp } from './clientUxState';
 
 type InstalledRow = { item: InstalledApplication; source?: SourceApp };
 type InstalledGroupKind = 'updates' | 'managed' | 'local';
@@ -23,6 +24,8 @@ export function InstalledAppsView({
   installedError,
   installedReadinessBody,
   onLoadInstalled,
+  onSetAutoUpdatePolicy,
+  autoUpdatePolicySaving = new Set(),
   onRunUpdates,
   updateQueueResult,
   isUpdateQueueRunning = false,
@@ -34,6 +37,8 @@ export function InstalledAppsView({
   installedError: string;
   installedReadinessBody: string;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
+  onSetAutoUpdatePolicy?: (packageID: string, enabled: boolean) => Promise<void>;
+  autoUpdatePolicySaving?: Set<string>;
   onRunUpdates?: (options?: UpdateQueueRequest) => Promise<void>;
   updateQueueResult?: UpdateQueueResult | null;
   isUpdateQueueRunning?: boolean;
@@ -100,6 +105,9 @@ export function InstalledAppsView({
             const updateAvailable = Boolean(
               source?.latestVersion?.version && item.version && compareVersions(item.version, source.latestVersion.version) < 0,
             );
+            const updatePolicy = autoUpdatePolicyPresentation(item.autoUpdateEnabled);
+            const packageID = item.appid || source?.packageId || '';
+            const isPolicySaving = autoUpdatePolicySaving.has(packageID.trim().toLowerCase());
             return (
               <article className="installed-app-card" key={item.appid || item.title}>
                 {item.icon ? (
@@ -115,6 +123,18 @@ export function InstalledAppsView({
                 <div className="installed-app-meta">
                   <span>{item.version || '-'}</span>
                   <small>{updateAvailable ? t('app.updateAvailable') : item.instanceStatus || item.status || t('statusLabels.unknown')}</small>
+                  {source && packageID && onSetAutoUpdatePolicy && (
+                    <div className="installed-auto-update-control">
+                      <XSwitch
+                        label={t('updatePolicy.autoUpdate')}
+                        description={t(`updatePolicy.states.${updatePolicy.state}`)}
+                        value={updatePolicy.enabled}
+                        isDisabled={isPolicySaving}
+                        width="100%"
+                        onChange={(checked) => void onSetAutoUpdatePolicy(packageID, checked)}
+                      />
+                    </div>
+                  )}
                 </div>
               </article>
             );
@@ -228,7 +248,7 @@ export function InstalledAppsView({
 			  })}
 			</div>
 			<div className="update-app-preview">
-			  {installedGroups.updates.map(({ item, source }) => <div key={item.appid || source?.id}><strong>{item.title || source?.name || item.appid}</strong><span>{item.version || '-'} → {source?.latestVersion?.version || '-'}</span></div>)}
+			  {installedGroups.updates.map(({ item, source }) => <div key={item.appid || source?.id}><strong>{item.title || source?.name || item.appid}{item.autoUpdateEnabled === false && <small className="manual-update-only">{t('updatePolicy.manualOnlyBadge')}</small>}</strong><span>{item.version || '-'} → {source?.latestVersion?.version || '-'}</span></div>)}
 			</div>
 			<div className="dialog-actions">
 			  <XButton type="button" variant="secondary" label={t('common.cancel')} onClick={() => setIsConfirmOpen(false)} />

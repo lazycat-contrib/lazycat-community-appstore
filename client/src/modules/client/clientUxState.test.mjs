@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  autoUpdatePolicyPresentation,
   buildInstallTimeline,
   buildUpdateConfirmation,
   findStableSourceApp,
@@ -10,6 +11,11 @@ import {
   normalizeEditableClientSettings,
   sameEditableClientSettings,
 } from './clientUxState.ts';
+
+test('installed app automatic update policy defaults to enabled', () => {
+  assert.deepEqual(autoUpdatePolicyPresentation(undefined), { enabled: true, state: 'automatic' });
+  assert.deepEqual(autoUpdatePolicyPresentation(false), { enabled: false, state: 'manualOnly' });
+});
 
 test('install timeline exposes the system step without inventing determinate progress', () => {
   assert.deepEqual(

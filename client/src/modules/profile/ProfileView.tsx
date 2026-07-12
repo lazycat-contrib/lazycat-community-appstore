@@ -54,6 +54,8 @@ export function ProfileView({
   installedState,
   installedError,
   onLoadInstalled,
+	  onSetAutoUpdatePolicy,
+	  autoUpdatePolicySaving,
 	  onRunUpdates,
 	  updateQueueResult,
 	  isUpdateQueueRunning,
@@ -83,6 +85,8 @@ export function ProfileView({
   installedState: 'idle' | 'loading' | 'loaded' | 'error';
   installedError: string;
   onLoadInstalled: (options?: { quiet?: boolean }) => Promise<void>;
+	  onSetAutoUpdatePolicy?: (packageID: string, enabled: boolean) => Promise<void>;
+	  autoUpdatePolicySaving?: Set<string>;
 	  onRunUpdates?: (options?: UpdateQueueRequest) => Promise<void>;
 	  updateQueueResult?: UpdateQueueResult | null;
 	  isUpdateQueueRunning?: boolean;
@@ -496,6 +500,8 @@ export function ProfileView({
           installedError={installedError}
           installedReadinessBody={installedReadinessBody}
           onLoadInstalled={onLoadInstalled}
+		  onSetAutoUpdatePolicy={onSetAutoUpdatePolicy}
+		  autoUpdatePolicySaving={autoUpdatePolicySaving}
 		  onRunUpdates={onRunUpdates}
 		  updateQueueResult={updateQueueResult}
 		  isUpdateQueueRunning={isUpdateQueueRunning}

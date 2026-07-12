@@ -590,6 +590,17 @@ const en = {
           already_running: 'An app update is already running',
         },
       },
+      updatePolicy: {
+        autoUpdate: 'Automatic updates',
+        enabled: 'Automatic updates enabled for this app',
+        disabled: 'This app will update manually only',
+        saveFailed: 'Could not save the app update setting',
+        manualOnlyBadge: 'Manual updates only',
+        states: {
+          automatic: 'Included in scheduled client updates',
+          manualOnly: 'Scheduled updates will skip this app',
+        },
+      },
       clientPolicy: {
         title: 'Client version does not meet the requirement',
         body: 'This client is running {{version}}. The following sources require a newer client for reliable use.',

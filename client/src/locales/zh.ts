@@ -590,6 +590,17 @@ const zh = {
           already_running: '已有应用更新任务在运行',
         },
       },
+      updatePolicy: {
+        autoUpdate: '自动更新',
+        enabled: '已开启该应用的自动更新',
+        disabled: '该应用将仅手动更新',
+        saveFailed: '无法保存应用自动更新设置',
+        manualOnlyBadge: '仅手动更新',
+        states: {
+          automatic: '跟随客户端定时自动更新',
+          manualOnly: '定时更新会跳过此应用',
+        },
+      },
       clientPolicy: {
         title: '客户端版本不满足要求',
         body: '当前客户端版本为 {{version}}，以下软件源要求更新的客户端版本才能继续可靠使用。',

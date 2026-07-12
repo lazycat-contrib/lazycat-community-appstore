@@ -1,5 +1,10 @@
 import type { ClientInstallTask, InstallActivity } from '../../shared/types';
 
+export function autoUpdatePolicyPresentation(value?: boolean) {
+  const enabled = value !== false;
+  return { enabled, state: enabled ? 'automatic' : 'manualOnly' } as const;
+}
+
 export type InstallActivitySnapshot = {
   status: InstallActivity['status'];
   stageKey: string;
