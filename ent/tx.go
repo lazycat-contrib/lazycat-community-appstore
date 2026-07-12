@@ -44,6 +44,8 @@ type Tx struct {
 	ChatMessage *ChatMessageClient
 	// ChatParticipant is the client for interacting with the ChatParticipant builders.
 	ChatParticipant *ChatParticipantClient
+	// ClientAppUpdatePolicy is the client for interacting with the ClientAppUpdatePolicy builders.
+	ClientAppUpdatePolicy *ClientAppUpdatePolicyClient
 	// ClientAsset is the client for interacting with the ClientAsset builders.
 	ClientAsset *ClientAssetClient
 	// ClientAssetLink is the client for interacting with the ClientAssetLink builders.
@@ -243,6 +245,7 @@ func (tx *Tx) init() {
 	tx.ChatConversation = NewChatConversationClient(tx.config)
 	tx.ChatMessage = NewChatMessageClient(tx.config)
 	tx.ChatParticipant = NewChatParticipantClient(tx.config)
+	tx.ClientAppUpdatePolicy = NewClientAppUpdatePolicyClient(tx.config)
 	tx.ClientAsset = NewClientAssetClient(tx.config)
 	tx.ClientAssetLink = NewClientAssetLinkClient(tx.config)
 	tx.ClientInstallHistory = NewClientInstallHistoryClient(tx.config)

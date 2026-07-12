@@ -201,6 +201,18 @@ func (f ChatParticipantFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChatParticipantMutation", m)
 }
 
+// The ClientAppUpdatePolicyFunc type is an adapter to allow the use of ordinary
+// function as ClientAppUpdatePolicy mutator.
+type ClientAppUpdatePolicyFunc func(context.Context, *ent.ClientAppUpdatePolicyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ClientAppUpdatePolicyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ClientAppUpdatePolicyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ClientAppUpdatePolicyMutation", m)
+}
+
 // The ClientAssetFunc type is an adapter to allow the use of ordinary
 // function as ClientAsset mutator.
 type ClientAssetFunc func(context.Context, *ent.ClientAssetMutation) (ent.Value, error)

@@ -21,6 +21,7 @@ import (
 	"lazycat.community/appstore/ent/chatconversation"
 	"lazycat.community/appstore/ent/chatmessage"
 	"lazycat.community/appstore/ent/chatparticipant"
+	"lazycat.community/appstore/ent/clientappupdatepolicy"
 	"lazycat.community/appstore/ent/clientasset"
 	"lazycat.community/appstore/ent/clientassetlink"
 	"lazycat.community/appstore/ent/clientinstallhistory"
@@ -486,6 +487,30 @@ func init() {
 	chatparticipant.DefaultUpdatedAt = chatparticipantDescUpdatedAt.Default.(func() time.Time)
 	// chatparticipant.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	chatparticipant.UpdateDefaultUpdatedAt = chatparticipantDescUpdatedAt.UpdateDefault.(func() time.Time)
+	clientappupdatepolicyFields := schema.ClientAppUpdatePolicy{}.Fields()
+	_ = clientappupdatepolicyFields
+	// clientappupdatepolicyDescUserID is the schema descriptor for user_id field.
+	clientappupdatepolicyDescUserID := clientappupdatepolicyFields[0].Descriptor()
+	// clientappupdatepolicy.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	clientappupdatepolicy.UserIDValidator = clientappupdatepolicyDescUserID.Validators[0].(func(string) error)
+	// clientappupdatepolicyDescPackageID is the schema descriptor for package_id field.
+	clientappupdatepolicyDescPackageID := clientappupdatepolicyFields[1].Descriptor()
+	// clientappupdatepolicy.PackageIDValidator is a validator for the "package_id" field. It is called by the builders before save.
+	clientappupdatepolicy.PackageIDValidator = clientappupdatepolicyDescPackageID.Validators[0].(func(string) error)
+	// clientappupdatepolicyDescAutoUpdateEnabled is the schema descriptor for auto_update_enabled field.
+	clientappupdatepolicyDescAutoUpdateEnabled := clientappupdatepolicyFields[2].Descriptor()
+	// clientappupdatepolicy.DefaultAutoUpdateEnabled holds the default value on creation for the auto_update_enabled field.
+	clientappupdatepolicy.DefaultAutoUpdateEnabled = clientappupdatepolicyDescAutoUpdateEnabled.Default.(bool)
+	// clientappupdatepolicyDescCreatedAt is the schema descriptor for created_at field.
+	clientappupdatepolicyDescCreatedAt := clientappupdatepolicyFields[3].Descriptor()
+	// clientappupdatepolicy.DefaultCreatedAt holds the default value on creation for the created_at field.
+	clientappupdatepolicy.DefaultCreatedAt = clientappupdatepolicyDescCreatedAt.Default.(func() time.Time)
+	// clientappupdatepolicyDescUpdatedAt is the schema descriptor for updated_at field.
+	clientappupdatepolicyDescUpdatedAt := clientappupdatepolicyFields[4].Descriptor()
+	// clientappupdatepolicy.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	clientappupdatepolicy.DefaultUpdatedAt = clientappupdatepolicyDescUpdatedAt.Default.(func() time.Time)
+	// clientappupdatepolicy.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	clientappupdatepolicy.UpdateDefaultUpdatedAt = clientappupdatepolicyDescUpdatedAt.UpdateDefault.(func() time.Time)
 	clientassetFields := schema.ClientAsset{}.Fields()
 	_ = clientassetFields
 	// clientassetDescSha256 is the schema descriptor for sha256 field.

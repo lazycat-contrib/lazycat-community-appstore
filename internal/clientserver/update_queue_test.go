@@ -26,7 +26,7 @@ func TestEligibleUpdatesSkipsProtectedCurrentAndUnknownApps(t *testing.T) {
 		{AppID: "protected", Version: "1.0.0"},
 		{AppID: "current", Version: "2.0.0"},
 		{AppID: "unknown", Version: "1.0.0"},
-	}, apps)
+	}, apps, nil)
 	if len(candidates) != 1 || candidates[0].PackageID != "eligible" {
 		t.Fatalf("candidates = %#v", candidates)
 	}

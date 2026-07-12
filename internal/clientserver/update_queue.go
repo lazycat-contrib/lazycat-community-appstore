@@ -136,7 +136,7 @@ func (c *installCoordinator) cancelQueue(userID string) (taskID string, err erro
 	return operation.taskID, nil
 }
 
-func eligibleUpdates(installed []InstalledApplicationDTO, apps []*ent.ClientSourceApp) []updateCandidate {
+func eligibleUpdates(installed []InstalledApplicationDTO, apps []*ent.ClientSourceApp, disabled map[string]struct{}) []updateCandidate {
 	installedByPackage := make(map[string]InstalledApplicationDTO, len(installed))
 	for _, item := range installed {
 		packageID := strings.ToLower(strings.TrimSpace(item.AppID))
@@ -152,6 +152,9 @@ func eligibleUpdates(installed []InstalledApplicationDTO, apps []*ent.ClientSour
 			continue
 		}
 		packageID := strings.TrimSpace(app.PackageID)
+		if _, isDisabled := disabled[normalizePolicyPackageID(packageID)]; isDisabled {
+			continue
+		}
 		installed, ok := installedByPackage[strings.ToLower(packageID)]
 		if !ok {
 			continue
@@ -257,7 +260,14 @@ func (s *Server) RunUpdateQueueWithOptions(ctx context.Context, userID string, o
 	if err != nil {
 		return UpdateQueueResultDTO{Status: "failed", Error: err.Error()}
 	}
-	candidates := eligibleUpdates(installed, apps)
+	disabled := map[string]struct{}{}
+	if options.RespectAutoUpdatePolicy {
+		disabled, err = s.disabledAutoUpdatePackageIDs(ctx, userID)
+		if err != nil {
+			return UpdateQueueResultDTO{Status: "failed", Error: err.Error()}
+		}
+	}
+	candidates := eligibleUpdates(installed, apps, disabled)
 	if len(candidates) == 0 {
 		return UpdateQueueResultDTO{Status: "no_updates"}
 	}

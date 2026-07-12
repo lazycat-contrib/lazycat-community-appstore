@@ -31,6 +31,7 @@ import (
 	"lazycat.community/appstore/ent/chatconversation"
 	"lazycat.community/appstore/ent/chatmessage"
 	"lazycat.community/appstore/ent/chatparticipant"
+	"lazycat.community/appstore/ent/clientappupdatepolicy"
 	"lazycat.community/appstore/ent/clientasset"
 	"lazycat.community/appstore/ent/clientassetlink"
 	"lazycat.community/appstore/ent/clientinstallhistory"
@@ -96,6 +97,8 @@ type Client struct {
 	ChatMessage *ChatMessageClient
 	// ChatParticipant is the client for interacting with the ChatParticipant builders.
 	ChatParticipant *ChatParticipantClient
+	// ClientAppUpdatePolicy is the client for interacting with the ClientAppUpdatePolicy builders.
+	ClientAppUpdatePolicy *ClientAppUpdatePolicyClient
 	// ClientAsset is the client for interacting with the ClientAsset builders.
 	ClientAsset *ClientAssetClient
 	// ClientAssetLink is the client for interacting with the ClientAssetLink builders.
@@ -175,6 +178,7 @@ func (c *Client) init() {
 	c.ChatConversation = NewChatConversationClient(c.config)
 	c.ChatMessage = NewChatMessageClient(c.config)
 	c.ChatParticipant = NewChatParticipantClient(c.config)
+	c.ClientAppUpdatePolicy = NewClientAppUpdatePolicyClient(c.config)
 	c.ClientAsset = NewClientAssetClient(c.config)
 	c.ClientAssetLink = NewClientAssetLinkClient(c.config)
 	c.ClientInstallHistory = NewClientInstallHistoryClient(c.config)
@@ -291,50 +295,51 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                  ctx,
-		config:               cfg,
-		APIToken:             NewAPITokenClient(cfg),
-		Ad:                   NewAdClient(cfg),
-		Announcement:         NewAnnouncementClient(cfg),
-		App:                  NewAppClient(cfg),
-		AppDownload:          NewAppDownloadClient(cfg),
-		AppScreenshot:        NewAppScreenshotClient(cfg),
-		AppTag:               NewAppTagClient(cfg),
-		AppVersion:           NewAppVersionClient(cfg),
-		AppVisibility:        NewAppVisibilityClient(cfg),
-		AppVote:              NewAppVoteClient(cfg),
-		Asset:                NewAssetClient(cfg),
-		AssetLink:            NewAssetLinkClient(cfg),
-		Category:             NewCategoryClient(cfg),
-		ChatConversation:     NewChatConversationClient(cfg),
-		ChatMessage:          NewChatMessageClient(cfg),
-		ChatParticipant:      NewChatParticipantClient(cfg),
-		ClientAsset:          NewClientAssetClient(cfg),
-		ClientAssetLink:      NewClientAssetLinkClient(cfg),
-		ClientInstallHistory: NewClientInstallHistoryClient(cfg),
-		ClientSetting:        NewClientSettingClient(cfg),
-		ClientSource:         NewClientSourceClient(cfg),
-		ClientSourceApp:      NewClientSourceAppClient(cfg),
-		ClientSyncSetting:    NewClientSyncSettingClient(cfg),
-		Collaborator:         NewCollaboratorClient(cfg),
-		CollaboratorInvite:   NewCollaboratorInviteClient(cfg),
-		CollaboratorRequest:  NewCollaboratorRequestClient(cfg),
-		Collection:           NewCollectionClient(cfg),
-		CollectionApp:        NewCollectionAppClient(cfg),
-		Comment:              NewCommentClient(cfg),
-		CommentNotification:  NewCommentNotificationClient(cfg),
-		Favorite:             NewFavoriteClient(cfg),
-		GroupMember:          NewGroupMemberClient(cfg),
-		LPKInspectionJob:     NewLPKInspectionJobClient(cfg),
-		MCPToken:             NewMCPTokenClient(cfg),
-		OutdatedMark:         NewOutdatedMarkClient(cfg),
-		RegistrationInvite:   NewRegistrationInviteClient(cfg),
-		ReviewRequest:        NewReviewRequestClient(cfg),
-		SiteSetting:          NewSiteSettingClient(cfg),
-		StorageConfig:        NewStorageConfigClient(cfg),
-		Tag:                  NewTagClient(cfg),
-		User:                 NewUserClient(cfg),
-		UserGroup:            NewUserGroupClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		APIToken:              NewAPITokenClient(cfg),
+		Ad:                    NewAdClient(cfg),
+		Announcement:          NewAnnouncementClient(cfg),
+		App:                   NewAppClient(cfg),
+		AppDownload:           NewAppDownloadClient(cfg),
+		AppScreenshot:         NewAppScreenshotClient(cfg),
+		AppTag:                NewAppTagClient(cfg),
+		AppVersion:            NewAppVersionClient(cfg),
+		AppVisibility:         NewAppVisibilityClient(cfg),
+		AppVote:               NewAppVoteClient(cfg),
+		Asset:                 NewAssetClient(cfg),
+		AssetLink:             NewAssetLinkClient(cfg),
+		Category:              NewCategoryClient(cfg),
+		ChatConversation:      NewChatConversationClient(cfg),
+		ChatMessage:           NewChatMessageClient(cfg),
+		ChatParticipant:       NewChatParticipantClient(cfg),
+		ClientAppUpdatePolicy: NewClientAppUpdatePolicyClient(cfg),
+		ClientAsset:           NewClientAssetClient(cfg),
+		ClientAssetLink:       NewClientAssetLinkClient(cfg),
+		ClientInstallHistory:  NewClientInstallHistoryClient(cfg),
+		ClientSetting:         NewClientSettingClient(cfg),
+		ClientSource:          NewClientSourceClient(cfg),
+		ClientSourceApp:       NewClientSourceAppClient(cfg),
+		ClientSyncSetting:     NewClientSyncSettingClient(cfg),
+		Collaborator:          NewCollaboratorClient(cfg),
+		CollaboratorInvite:    NewCollaboratorInviteClient(cfg),
+		CollaboratorRequest:   NewCollaboratorRequestClient(cfg),
+		Collection:            NewCollectionClient(cfg),
+		CollectionApp:         NewCollectionAppClient(cfg),
+		Comment:               NewCommentClient(cfg),
+		CommentNotification:   NewCommentNotificationClient(cfg),
+		Favorite:              NewFavoriteClient(cfg),
+		GroupMember:           NewGroupMemberClient(cfg),
+		LPKInspectionJob:      NewLPKInspectionJobClient(cfg),
+		MCPToken:              NewMCPTokenClient(cfg),
+		OutdatedMark:          NewOutdatedMarkClient(cfg),
+		RegistrationInvite:    NewRegistrationInviteClient(cfg),
+		ReviewRequest:         NewReviewRequestClient(cfg),
+		SiteSetting:           NewSiteSettingClient(cfg),
+		StorageConfig:         NewStorageConfigClient(cfg),
+		Tag:                   NewTagClient(cfg),
+		User:                  NewUserClient(cfg),
+		UserGroup:             NewUserGroupClient(cfg),
 	}, nil
 }
 
@@ -352,50 +357,51 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                  ctx,
-		config:               cfg,
-		APIToken:             NewAPITokenClient(cfg),
-		Ad:                   NewAdClient(cfg),
-		Announcement:         NewAnnouncementClient(cfg),
-		App:                  NewAppClient(cfg),
-		AppDownload:          NewAppDownloadClient(cfg),
-		AppScreenshot:        NewAppScreenshotClient(cfg),
-		AppTag:               NewAppTagClient(cfg),
-		AppVersion:           NewAppVersionClient(cfg),
-		AppVisibility:        NewAppVisibilityClient(cfg),
-		AppVote:              NewAppVoteClient(cfg),
-		Asset:                NewAssetClient(cfg),
-		AssetLink:            NewAssetLinkClient(cfg),
-		Category:             NewCategoryClient(cfg),
-		ChatConversation:     NewChatConversationClient(cfg),
-		ChatMessage:          NewChatMessageClient(cfg),
-		ChatParticipant:      NewChatParticipantClient(cfg),
-		ClientAsset:          NewClientAssetClient(cfg),
-		ClientAssetLink:      NewClientAssetLinkClient(cfg),
-		ClientInstallHistory: NewClientInstallHistoryClient(cfg),
-		ClientSetting:        NewClientSettingClient(cfg),
-		ClientSource:         NewClientSourceClient(cfg),
-		ClientSourceApp:      NewClientSourceAppClient(cfg),
-		ClientSyncSetting:    NewClientSyncSettingClient(cfg),
-		Collaborator:         NewCollaboratorClient(cfg),
-		CollaboratorInvite:   NewCollaboratorInviteClient(cfg),
-		CollaboratorRequest:  NewCollaboratorRequestClient(cfg),
-		Collection:           NewCollectionClient(cfg),
-		CollectionApp:        NewCollectionAppClient(cfg),
-		Comment:              NewCommentClient(cfg),
-		CommentNotification:  NewCommentNotificationClient(cfg),
-		Favorite:             NewFavoriteClient(cfg),
-		GroupMember:          NewGroupMemberClient(cfg),
-		LPKInspectionJob:     NewLPKInspectionJobClient(cfg),
-		MCPToken:             NewMCPTokenClient(cfg),
-		OutdatedMark:         NewOutdatedMarkClient(cfg),
-		RegistrationInvite:   NewRegistrationInviteClient(cfg),
-		ReviewRequest:        NewReviewRequestClient(cfg),
-		SiteSetting:          NewSiteSettingClient(cfg),
-		StorageConfig:        NewStorageConfigClient(cfg),
-		Tag:                  NewTagClient(cfg),
-		User:                 NewUserClient(cfg),
-		UserGroup:            NewUserGroupClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		APIToken:              NewAPITokenClient(cfg),
+		Ad:                    NewAdClient(cfg),
+		Announcement:          NewAnnouncementClient(cfg),
+		App:                   NewAppClient(cfg),
+		AppDownload:           NewAppDownloadClient(cfg),
+		AppScreenshot:         NewAppScreenshotClient(cfg),
+		AppTag:                NewAppTagClient(cfg),
+		AppVersion:            NewAppVersionClient(cfg),
+		AppVisibility:         NewAppVisibilityClient(cfg),
+		AppVote:               NewAppVoteClient(cfg),
+		Asset:                 NewAssetClient(cfg),
+		AssetLink:             NewAssetLinkClient(cfg),
+		Category:              NewCategoryClient(cfg),
+		ChatConversation:      NewChatConversationClient(cfg),
+		ChatMessage:           NewChatMessageClient(cfg),
+		ChatParticipant:       NewChatParticipantClient(cfg),
+		ClientAppUpdatePolicy: NewClientAppUpdatePolicyClient(cfg),
+		ClientAsset:           NewClientAssetClient(cfg),
+		ClientAssetLink:       NewClientAssetLinkClient(cfg),
+		ClientInstallHistory:  NewClientInstallHistoryClient(cfg),
+		ClientSetting:         NewClientSettingClient(cfg),
+		ClientSource:          NewClientSourceClient(cfg),
+		ClientSourceApp:       NewClientSourceAppClient(cfg),
+		ClientSyncSetting:     NewClientSyncSettingClient(cfg),
+		Collaborator:          NewCollaboratorClient(cfg),
+		CollaboratorInvite:    NewCollaboratorInviteClient(cfg),
+		CollaboratorRequest:   NewCollaboratorRequestClient(cfg),
+		Collection:            NewCollectionClient(cfg),
+		CollectionApp:         NewCollectionAppClient(cfg),
+		Comment:               NewCommentClient(cfg),
+		CommentNotification:   NewCommentNotificationClient(cfg),
+		Favorite:              NewFavoriteClient(cfg),
+		GroupMember:           NewGroupMemberClient(cfg),
+		LPKInspectionJob:      NewLPKInspectionJobClient(cfg),
+		MCPToken:              NewMCPTokenClient(cfg),
+		OutdatedMark:          NewOutdatedMarkClient(cfg),
+		RegistrationInvite:    NewRegistrationInviteClient(cfg),
+		ReviewRequest:         NewReviewRequestClient(cfg),
+		SiteSetting:           NewSiteSettingClient(cfg),
+		StorageConfig:         NewStorageConfigClient(cfg),
+		Tag:                   NewTagClient(cfg),
+		User:                  NewUserClient(cfg),
+		UserGroup:             NewUserGroupClient(cfg),
 	}, nil
 }
 
@@ -428,12 +434,13 @@ func (c *Client) Use(hooks ...Hook) {
 		c.APIToken, c.Ad, c.Announcement, c.App, c.AppDownload, c.AppScreenshot,
 		c.AppTag, c.AppVersion, c.AppVisibility, c.AppVote, c.Asset, c.AssetLink,
 		c.Category, c.ChatConversation, c.ChatMessage, c.ChatParticipant,
-		c.ClientAsset, c.ClientAssetLink, c.ClientInstallHistory, c.ClientSetting,
-		c.ClientSource, c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator,
-		c.CollaboratorInvite, c.CollaboratorRequest, c.Collection, c.CollectionApp,
-		c.Comment, c.CommentNotification, c.Favorite, c.GroupMember,
-		c.LPKInspectionJob, c.MCPToken, c.OutdatedMark, c.RegistrationInvite,
-		c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
+		c.ClientAppUpdatePolicy, c.ClientAsset, c.ClientAssetLink,
+		c.ClientInstallHistory, c.ClientSetting, c.ClientSource, c.ClientSourceApp,
+		c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
+		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
+		c.CommentNotification, c.Favorite, c.GroupMember, c.LPKInspectionJob,
+		c.MCPToken, c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest,
+		c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -446,12 +453,13 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.APIToken, c.Ad, c.Announcement, c.App, c.AppDownload, c.AppScreenshot,
 		c.AppTag, c.AppVersion, c.AppVisibility, c.AppVote, c.Asset, c.AssetLink,
 		c.Category, c.ChatConversation, c.ChatMessage, c.ChatParticipant,
-		c.ClientAsset, c.ClientAssetLink, c.ClientInstallHistory, c.ClientSetting,
-		c.ClientSource, c.ClientSourceApp, c.ClientSyncSetting, c.Collaborator,
-		c.CollaboratorInvite, c.CollaboratorRequest, c.Collection, c.CollectionApp,
-		c.Comment, c.CommentNotification, c.Favorite, c.GroupMember,
-		c.LPKInspectionJob, c.MCPToken, c.OutdatedMark, c.RegistrationInvite,
-		c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
+		c.ClientAppUpdatePolicy, c.ClientAsset, c.ClientAssetLink,
+		c.ClientInstallHistory, c.ClientSetting, c.ClientSource, c.ClientSourceApp,
+		c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
+		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
+		c.CommentNotification, c.Favorite, c.GroupMember, c.LPKInspectionJob,
+		c.MCPToken, c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest,
+		c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -492,6 +500,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ChatMessage.mutate(ctx, m)
 	case *ChatParticipantMutation:
 		return c.ChatParticipant.mutate(ctx, m)
+	case *ClientAppUpdatePolicyMutation:
+		return c.ClientAppUpdatePolicy.mutate(ctx, m)
 	case *ClientAssetMutation:
 		return c.ClientAsset.mutate(ctx, m)
 	case *ClientAssetLinkMutation:
@@ -2674,6 +2684,139 @@ func (c *ChatParticipantClient) mutate(ctx context.Context, m *ChatParticipantMu
 		return (&ChatParticipantDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ChatParticipant mutation op: %q", m.Op())
+	}
+}
+
+// ClientAppUpdatePolicyClient is a client for the ClientAppUpdatePolicy schema.
+type ClientAppUpdatePolicyClient struct {
+	config
+}
+
+// NewClientAppUpdatePolicyClient returns a client for the ClientAppUpdatePolicy from the given config.
+func NewClientAppUpdatePolicyClient(c config) *ClientAppUpdatePolicyClient {
+	return &ClientAppUpdatePolicyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `clientappupdatepolicy.Hooks(f(g(h())))`.
+func (c *ClientAppUpdatePolicyClient) Use(hooks ...Hook) {
+	c.hooks.ClientAppUpdatePolicy = append(c.hooks.ClientAppUpdatePolicy, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `clientappupdatepolicy.Intercept(f(g(h())))`.
+func (c *ClientAppUpdatePolicyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ClientAppUpdatePolicy = append(c.inters.ClientAppUpdatePolicy, interceptors...)
+}
+
+// Create returns a builder for creating a ClientAppUpdatePolicy entity.
+func (c *ClientAppUpdatePolicyClient) Create() *ClientAppUpdatePolicyCreate {
+	mutation := newClientAppUpdatePolicyMutation(c.config, OpCreate)
+	return &ClientAppUpdatePolicyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ClientAppUpdatePolicy entities.
+func (c *ClientAppUpdatePolicyClient) CreateBulk(builders ...*ClientAppUpdatePolicyCreate) *ClientAppUpdatePolicyCreateBulk {
+	return &ClientAppUpdatePolicyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ClientAppUpdatePolicyClient) MapCreateBulk(slice any, setFunc func(*ClientAppUpdatePolicyCreate, int)) *ClientAppUpdatePolicyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ClientAppUpdatePolicyCreateBulk{err: fmt.Errorf("calling to ClientAppUpdatePolicyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ClientAppUpdatePolicyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ClientAppUpdatePolicyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ClientAppUpdatePolicy.
+func (c *ClientAppUpdatePolicyClient) Update() *ClientAppUpdatePolicyUpdate {
+	mutation := newClientAppUpdatePolicyMutation(c.config, OpUpdate)
+	return &ClientAppUpdatePolicyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ClientAppUpdatePolicyClient) UpdateOne(_m *ClientAppUpdatePolicy) *ClientAppUpdatePolicyUpdateOne {
+	mutation := newClientAppUpdatePolicyMutation(c.config, OpUpdateOne, withClientAppUpdatePolicy(_m))
+	return &ClientAppUpdatePolicyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ClientAppUpdatePolicyClient) UpdateOneID(id int) *ClientAppUpdatePolicyUpdateOne {
+	mutation := newClientAppUpdatePolicyMutation(c.config, OpUpdateOne, withClientAppUpdatePolicyID(id))
+	return &ClientAppUpdatePolicyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ClientAppUpdatePolicy.
+func (c *ClientAppUpdatePolicyClient) Delete() *ClientAppUpdatePolicyDelete {
+	mutation := newClientAppUpdatePolicyMutation(c.config, OpDelete)
+	return &ClientAppUpdatePolicyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ClientAppUpdatePolicyClient) DeleteOne(_m *ClientAppUpdatePolicy) *ClientAppUpdatePolicyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ClientAppUpdatePolicyClient) DeleteOneID(id int) *ClientAppUpdatePolicyDeleteOne {
+	builder := c.Delete().Where(clientappupdatepolicy.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ClientAppUpdatePolicyDeleteOne{builder}
+}
+
+// Query returns a query builder for ClientAppUpdatePolicy.
+func (c *ClientAppUpdatePolicyClient) Query() *ClientAppUpdatePolicyQuery {
+	return &ClientAppUpdatePolicyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeClientAppUpdatePolicy},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ClientAppUpdatePolicy entity by its id.
+func (c *ClientAppUpdatePolicyClient) Get(ctx context.Context, id int) (*ClientAppUpdatePolicy, error) {
+	return c.Query().Where(clientappupdatepolicy.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ClientAppUpdatePolicyClient) GetX(ctx context.Context, id int) *ClientAppUpdatePolicy {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *ClientAppUpdatePolicyClient) Hooks() []Hook {
+	return c.hooks.ClientAppUpdatePolicy
+}
+
+// Interceptors returns the client interceptors.
+func (c *ClientAppUpdatePolicyClient) Interceptors() []Interceptor {
+	return c.inters.ClientAppUpdatePolicy
+}
+
+func (c *ClientAppUpdatePolicyClient) mutate(ctx context.Context, m *ClientAppUpdatePolicyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ClientAppUpdatePolicyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ClientAppUpdatePolicyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ClientAppUpdatePolicyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ClientAppUpdatePolicyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ClientAppUpdatePolicy mutation op: %q", m.Op())
 	}
 }
 
@@ -6172,21 +6315,23 @@ type (
 	hooks struct {
 		APIToken, Ad, Announcement, App, AppDownload, AppScreenshot, AppTag, AppVersion,
 		AppVisibility, AppVote, Asset, AssetLink, Category, ChatConversation,
-		ChatMessage, ChatParticipant, ClientAsset, ClientAssetLink,
-		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
-		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
-		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
-		LPKInspectionJob, MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest,
-		SiteSetting, StorageConfig, Tag, User, UserGroup []ent.Hook
+		ChatMessage, ChatParticipant, ClientAppUpdatePolicy, ClientAsset,
+		ClientAssetLink, ClientInstallHistory, ClientSetting, ClientSource,
+		ClientSourceApp, ClientSyncSetting, Collaborator, CollaboratorInvite,
+		CollaboratorRequest, Collection, CollectionApp, Comment, CommentNotification,
+		Favorite, GroupMember, LPKInspectionJob, MCPToken, OutdatedMark,
+		RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
+		UserGroup []ent.Hook
 	}
 	inters struct {
 		APIToken, Ad, Announcement, App, AppDownload, AppScreenshot, AppTag, AppVersion,
 		AppVisibility, AppVote, Asset, AssetLink, Category, ChatConversation,
-		ChatMessage, ChatParticipant, ClientAsset, ClientAssetLink,
-		ClientInstallHistory, ClientSetting, ClientSource, ClientSourceApp,
-		ClientSyncSetting, Collaborator, CollaboratorInvite, CollaboratorRequest,
-		Collection, CollectionApp, Comment, CommentNotification, Favorite, GroupMember,
-		LPKInspectionJob, MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest,
-		SiteSetting, StorageConfig, Tag, User, UserGroup []ent.Interceptor
+		ChatMessage, ChatParticipant, ClientAppUpdatePolicy, ClientAsset,
+		ClientAssetLink, ClientInstallHistory, ClientSetting, ClientSource,
+		ClientSourceApp, ClientSyncSetting, Collaborator, CollaboratorInvite,
+		CollaboratorRequest, Collection, CollectionApp, Comment, CommentNotification,
+		Favorite, GroupMember, LPKInspectionJob, MCPToken, OutdatedMark,
+		RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
+		UserGroup []ent.Interceptor
 	}
 )

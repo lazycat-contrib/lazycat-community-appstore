@@ -233,7 +233,7 @@ func (s *sourceSyncScheduler) updateUser(ctx context.Context, userID string) {
 		_ = s.recordAutoUpdateResult(ctx, userID, clientsyncsetting.LastAutoUpdateStatusFailed, fmt.Sprintf("%d source syncs failed", syncResult.Failed))
 		return
 	}
-	queueResult := s.server.RunUpdateQueue(ctx, userID)
+	queueResult := s.server.RunUpdateQueueWithOptions(ctx, userID, UpdateQueueRequestDTO{RespectAutoUpdatePolicy: true})
 	status, message := autoUpdateResultStatus(syncResult, queueResult)
 	_ = s.recordAutoUpdateResult(ctx, userID, status, message)
 }

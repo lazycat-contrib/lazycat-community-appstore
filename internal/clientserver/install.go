@@ -14,10 +14,23 @@ import (
 )
 
 func (s *Server) handleInstalled(w http.ResponseWriter, r *http.Request) {
-	apps, err := s.pkg.QueryInstalled(r.Context(), currentUserID(r))
+	userID := currentUserID(r)
+	apps, err := s.pkg.QueryInstalled(r.Context(), userID)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "LAZYCAT_SDK_UNAVAILABLE", err.Error())
 		return
+	}
+	packageIDs := make([]string, 0, len(apps))
+	for _, app := range apps {
+		packageIDs = append(packageIDs, app.AppID)
+	}
+	policies, err := s.effectiveAutoUpdatePolicies(r.Context(), userID, packageIDs)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "UPDATE_POLICY_LOAD_FAILED", "Could not load automatic update policies")
+		return
+	}
+	for index := range apps {
+		apps[index].AutoUpdateEnabled = policies[normalizePolicyPackageID(apps[index].AppID)]
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"apps": apps})
 }

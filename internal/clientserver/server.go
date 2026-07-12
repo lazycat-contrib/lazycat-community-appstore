@@ -211,6 +211,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/client/v1/chat/conversations/{id}", s.clientAPI(s.handleDeleteChatConversation))
 	s.mux.HandleFunc("GET /api/client/v1/chat/events", s.clientAPI(s.handleChatEvents))
 	s.mux.HandleFunc("GET /api/client/v1/installed", s.clientAPI(s.handleInstalled))
+	s.mux.HandleFunc("PATCH /api/client/v1/installed-apps/{packageId}/update-policy", s.clientAPI(s.handleSetAutoUpdatePolicy))
 	s.mux.HandleFunc("POST /api/client/v1/install", s.clientAPI(s.handleInstall))
 	s.mux.HandleFunc("GET /api/client/v1/install-tasks/{taskId}", s.clientAPI(s.handleGetInstallTask))
 	s.mux.HandleFunc("DELETE /api/client/v1/install-tasks/{taskId}", s.clientAPI(s.handleCancelInstallTask))

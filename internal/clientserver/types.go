@@ -147,12 +147,22 @@ type SyncAllResult struct {
 }
 
 type InstalledApplicationDTO struct {
-	AppID          string `json:"appid"`
-	Title          string `json:"title,omitempty"`
-	Version        string `json:"version,omitempty"`
-	Status         string `json:"status,omitempty"`
-	InstanceStatus string `json:"instanceStatus,omitempty"`
-	Icon           string `json:"icon,omitempty"`
+	AppID             string `json:"appid"`
+	Title             string `json:"title,omitempty"`
+	Version           string `json:"version,omitempty"`
+	Status            string `json:"status,omitempty"`
+	InstanceStatus    string `json:"instanceStatus,omitempty"`
+	Icon              string `json:"icon,omitempty"`
+	AutoUpdateEnabled bool   `json:"autoUpdateEnabled"`
+}
+
+type ClientAppUpdatePolicyDTO struct {
+	PackageID         string `json:"packageId"`
+	AutoUpdateEnabled bool   `json:"autoUpdateEnabled"`
+}
+
+type ClientAppUpdatePolicyInput struct {
+	AutoUpdateEnabled *bool `json:"autoUpdateEnabled"`
 }
 
 type InstallRequestDTO struct {
@@ -200,7 +210,8 @@ type UpdateQueueMirrorOverrideDTO struct {
 }
 
 type UpdateQueueRequestDTO struct {
-	MirrorOverrides []UpdateQueueMirrorOverrideDTO `json:"mirrorOverrides,omitempty"`
+	MirrorOverrides         []UpdateQueueMirrorOverrideDTO `json:"mirrorOverrides,omitempty"`
+	RespectAutoUpdatePolicy bool                           `json:"-"`
 }
 
 type UpdateQueueResultDTO struct {

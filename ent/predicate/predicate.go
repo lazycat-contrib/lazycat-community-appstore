@@ -54,6 +54,9 @@ type ChatMessage func(*sql.Selector)
 // ChatParticipant is the predicate function for chatparticipant builders.
 type ChatParticipant func(*sql.Selector)
 
+// ClientAppUpdatePolicy is the predicate function for clientappupdatepolicy builders.
+type ClientAppUpdatePolicy func(*sql.Selector)
+
 // ClientAsset is the predicate function for clientasset builders.
 type ClientAsset func(*sql.Selector)
 

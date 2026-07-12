@@ -552,6 +552,28 @@ var (
 			},
 		},
 	}
+	// ClientAppUpdatePoliciesColumns holds the columns for the "client_app_update_policies" table.
+	ClientAppUpdatePoliciesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeString},
+		{Name: "package_id", Type: field.TypeString},
+		{Name: "auto_update_enabled", Type: field.TypeBool, Default: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// ClientAppUpdatePoliciesTable holds the schema information for the "client_app_update_policies" table.
+	ClientAppUpdatePoliciesTable = &schema.Table{
+		Name:       "client_app_update_policies",
+		Columns:    ClientAppUpdatePoliciesColumns,
+		PrimaryKey: []*schema.Column{ClientAppUpdatePoliciesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "clientappupdatepolicy_user_id_package_id",
+				Unique:  true,
+				Columns: []*schema.Column{ClientAppUpdatePoliciesColumns[1], ClientAppUpdatePoliciesColumns[2]},
+			},
+		},
+	}
 	// ClientAssetsColumns holds the columns for the "client_assets" table.
 	ClientAssetsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1447,6 +1469,7 @@ var (
 		ChatConversationsTable,
 		ChatMessagesTable,
 		ChatParticipantsTable,
+		ClientAppUpdatePoliciesTable,
 		ClientAssetsTable,
 		ClientAssetLinksTable,
 		ClientInstallHistoriesTable,
