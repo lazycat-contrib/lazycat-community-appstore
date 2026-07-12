@@ -2721,14 +2721,14 @@ body,
   background: var(--surface);
 }
 
-.installed-app-card strong,
-.installed-app-card span,
-.installed-app-card small {
+.installed-app-identity strong,
+.installed-app-identity span,
+.installed-app-identity small {
   overflow-wrap: normal;
   word-break: normal;
 }
 
-.installed-app-card strong {
+.installed-app-identity strong {
   display: -webkit-box;
   line-height: 1.25;
   -webkit-line-clamp: 2;
@@ -2736,7 +2736,7 @@ body,
   overflow: hidden;
 }
 
-.installed-app-card span {
+.installed-app-identity span {
   display: block;
   margin-top: 3px;
   color: var(--muted);
@@ -2746,7 +2746,7 @@ body,
   white-space: nowrap;
 }
 
-.installed-app-card small {
+.installed-app-identity small {
   display: block;
   margin-top: 4px;
   color: var(--muted);
@@ -2757,21 +2757,27 @@ body,
 }
 
 .installed-app-meta {
-  min-width: 76px;
-  max-width: 132px;
+  min-width: 0;
+  max-width: 148px;
   text-align: right;
   display: grid;
   gap: 3px;
+  justify-items: end;
 }
 
-.installed-app-meta span {
+.installed-app-meta > span {
   color: var(--ink);
   font-weight: 700;
 }
 
-.installed-app-meta small {
+.installed-app-meta > small {
   color: var(--muted);
   font-size: 12px;
+}
+
+.installed-runtime-status-tip {
+  display: inline-flex;
+  max-width: 100%;
 }
 
 .workspace-pane {
@@ -4559,6 +4565,15 @@ code {
     grid-column: 2;
     min-width: 0;
     text-align: left;
+    justify-items: start;
+  }
+
+  .installed-auto-update-control {
+    justify-self: start;
+  }
+
+  .installed-auto-update-control .astryx-switch {
+    transform-origin: left center;
   }
 
   .hero-band,

@@ -592,6 +592,7 @@ const zh = {
       },
       updatePolicy: {
         autoUpdate: '自动更新',
+        saving: '正在保存自动更新设置',
         enabled: '已开启该应用的自动更新',
         disabled: '该应用将仅手动更新',
         saveFailed: '无法保存应用自动更新设置',
@@ -600,6 +601,15 @@ const zh = {
           automatic: '跟随客户端定时自动更新',
           manualOnly: '定时更新会跳过此应用',
         },
+      },
+      installedRuntimeStatus: {
+        running: '运行中',
+        stopped: '已停止',
+        paused: '已暂停',
+        processing: '处理中',
+        error: '异常',
+        unknown: '未知',
+        unknownTip: '系统未提供可识别的运行状态',
       },
       clientPolicy: {
         title: '客户端版本不满足要求',

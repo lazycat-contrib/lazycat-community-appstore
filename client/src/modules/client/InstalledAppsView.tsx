@@ -5,13 +5,14 @@ import { Button as XButton } from '@astryxdesign/core/Button';
 import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
+import { Tooltip as XTooltip } from '@astryxdesign/core/Tooltip';
 import { AvatarIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { InstalledApplication, SourceApp, SourceSubscription, UpdateQueueRequest, UpdateQueueResult } from '../../shared/types';
 import { compareVersions, cx, sourceMirrorOptions } from '../../shared/utils';
-import { autoUpdatePolicyPresentation, buildUpdateConfirmation, findStableSourceApp } from './clientUxState';
+import { autoUpdatePolicyPresentation, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation } from './clientUxState';
 
 type InstalledRow = { item: InstalledApplication; source?: SourceApp };
 type InstalledGroupKind = 'updates' | 'managed' | 'local';
@@ -108,6 +109,15 @@ export function InstalledAppsView({
             const updatePolicy = autoUpdatePolicyPresentation(item.autoUpdateEnabled);
             const packageID = item.appid || source?.packageId || '';
             const isPolicySaving = autoUpdatePolicySaving.has(packageID.trim().toLowerCase());
+            const runtimeStatus = installedRuntimeStatusPresentation(item.instanceStatus || item.status);
+            const runtimeStatusTone = {
+              running: 'synced',
+              stopped: 'neutral',
+              paused: 'warning',
+              processing: 'pending',
+              error: 'failed',
+              unknown: 'unsynced',
+            }[runtimeStatus.key];
             return (
               <article className="installed-app-card" key={item.appid || item.title}>
                 {item.icon ? (
@@ -115,22 +125,30 @@ export function InstalledAppsView({
                 ) : (
                   <AvatarIcon seed={item.appid || item.title || 'installed-app'} title={item.title || item.appid} size={42} />
                 )}
-                <div>
+                <div className="installed-app-identity">
                   <strong>{item.title || item.appid || t('common.app')}</strong>
                   <span title={item.appid || undefined}>{item.appid || t('profile.installedAppIdMissing')}</span>
                   <small>{source ? t('profile.installedFromSource', { source: source.sourceName }) : t('profile.installedLocalExisting')}</small>
                 </div>
                 <div className="installed-app-meta">
                   <span>{item.version || '-'}</span>
-                  <small>{updateAvailable ? t('app.updateAvailable') : item.instanceStatus || item.status || t('statusLabels.unknown')}</small>
+                  {updateAvailable ? (
+                    <StatusBadge tone="stale" label={t('app.updateAvailable')} />
+                  ) : (
+                    <XTooltip content={runtimeStatus.raw || t('installedRuntimeStatus.unknownTip')} placement="above" delay={180}>
+                      <div className="installed-runtime-status-tip">
+                        <StatusBadge tone={runtimeStatusTone} label={t(`installedRuntimeStatus.${runtimeStatus.key}`)} />
+                      </div>
+                    </XTooltip>
+                  )}
                   {source && packageID && onSetAutoUpdatePolicy && (
                     <div className="installed-auto-update-control">
                       <XSwitch
                         label={t('updatePolicy.autoUpdate')}
-                        description={t(`updatePolicy.states.${updatePolicy.state}`)}
+                        labelTooltip={t(`updatePolicy.states.${updatePolicy.state}`)}
                         value={updatePolicy.enabled}
                         isDisabled={isPolicySaving}
-                        width="100%"
+                        disabledMessage={isPolicySaving ? t('updatePolicy.saving') : undefined}
                         onChange={(checked) => void onSetAutoUpdatePolicy(packageID, checked)}
                       />
                     </div>

@@ -436,7 +436,15 @@
 }
 
 .installed-auto-update-control {
-  width: min(240px, 100%);
+  width: max-content;
+  max-width: 100%;
+  justify-self: end;
+  margin-top: 3px;
+}
+
+.installed-auto-update-control .astryx-switch {
+  transform: scale(0.82);
+  transform-origin: right center;
 }
 
 .manual-update-only {

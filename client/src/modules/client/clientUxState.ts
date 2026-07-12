@@ -5,6 +5,26 @@ export function autoUpdatePolicyPresentation(value?: boolean) {
   return { enabled, state: enabled ? 'automatic' : 'manualOnly' } as const;
 }
 
+export type InstalledRuntimeStatusKey = 'running' | 'stopped' | 'paused' | 'processing' | 'error' | 'unknown';
+
+export function installedRuntimeStatusPresentation(value?: string): { key: InstalledRuntimeStatusKey; raw: string } {
+  const raw = (value || '').trim();
+  const tokens = raw
+    .replace(/([a-z])([A-Z])/g, '$1_$2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .filter((token) => !['status', 'instance', 'lazycat'].includes(token));
+  const has = (...values: string[]) => values.some((candidate) => tokens.includes(candidate));
+
+  if (has('failed', 'failure', 'error', 'err')) return { key: 'error', raw };
+  if (has('paused', 'pause')) return { key: 'paused', raw };
+  if (has('starting', 'installing', 'updating', 'processing', 'creating', 'queued')) return { key: 'processing', raw };
+  if (has('running', 'active', 'started')) return { key: 'running', raw };
+  if (has('stopped', 'inactive', 'exited', 'exit')) return { key: 'stopped', raw };
+  return { key: 'unknown', raw };
+}
+
 export type InstallActivitySnapshot = {
   status: InstallActivity['status'];
   stageKey: string;

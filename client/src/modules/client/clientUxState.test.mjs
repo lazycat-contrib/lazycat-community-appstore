@@ -7,6 +7,7 @@ import {
   findStableSourceApp,
   installTaskProgress,
   installTaskState,
+	installedRuntimeStatusPresentation,
 	inspectionPresentation,
   normalizeEditableClientSettings,
   sameEditableClientSettings,
@@ -15,6 +16,16 @@ import {
 test('installed app automatic update policy defaults to enabled', () => {
   assert.deepEqual(autoUpdatePolicyPresentation(undefined), { enabled: true, state: 'automatic' });
   assert.deepEqual(autoUpdatePolicyPresentation(false), { enabled: false, state: 'manualOnly' });
+});
+
+test('installed app runtime status hides LazyCat SDK enum formatting', () => {
+  assert.deepEqual(installedRuntimeStatusPresentation('Status_Running'), { key: 'running', raw: 'Status_Running' });
+  assert.deepEqual(installedRuntimeStatusPresentation('STATUS_PAUSED'), { key: 'paused', raw: 'STATUS_PAUSED' });
+  assert.deepEqual(installedRuntimeStatusPresentation('instance-status-stopped'), { key: 'stopped', raw: 'instance-status-stopped' });
+  assert.deepEqual(installedRuntimeStatusPresentation('updating'), { key: 'processing', raw: 'updating' });
+  assert.deepEqual(installedRuntimeStatusPresentation('install_err'), { key: 'error', raw: 'install_err' });
+  assert.deepEqual(installedRuntimeStatusPresentation('Future_State'), { key: 'unknown', raw: 'Future_State' });
+  assert.deepEqual(installedRuntimeStatusPresentation(''), { key: 'unknown', raw: '' });
 });
 
 test('install timeline exposes the system step without inventing determinate progress', () => {

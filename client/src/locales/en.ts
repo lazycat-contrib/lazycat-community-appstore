@@ -591,7 +591,8 @@ const en = {
         },
       },
       updatePolicy: {
-        autoUpdate: 'Automatic updates',
+        autoUpdate: 'Auto update',
+        saving: 'Saving automatic update setting',
         enabled: 'Automatic updates enabled for this app',
         disabled: 'This app will update manually only',
         saveFailed: 'Could not save the app update setting',
@@ -600,6 +601,15 @@ const en = {
           automatic: 'Included in scheduled client updates',
           manualOnly: 'Scheduled updates will skip this app',
         },
+      },
+      installedRuntimeStatus: {
+        running: 'Running',
+        stopped: 'Stopped',
+        paused: 'Paused',
+        processing: 'Processing',
+        error: 'Error',
+        unknown: 'Unknown',
+        unknownTip: 'The system did not provide a recognized runtime status',
       },
       clientPolicy: {
         title: 'Client version does not meet the requirement',
