@@ -891,6 +891,58 @@ func (s *Server) createExternalVersion(r *http.Request, u *entgo.User, record *e
 	if isAdmin(u) || record.AllowUnreviewedUpdates {
 		status = appversion.StatusAPPROVED
 	}
+	if apiTokenAuthenticatedRequest(r) {
+		existing, err := s.db.AppVersion.Query().
+			Where(appversion.AppIDEQ(record.ID), appversion.VersionEQ(versionName)).
+			Only(r.Context())
+		if err == nil {
+			update := existing.Update().
+				SetUploaderID(u.ID).
+				SetChangelog(changelog).
+				SetStatus(status).
+				SetSourceType(source).
+				SetDownloadURL(downloadURL).
+				SetSha256(sha256).
+				SetFileSize(fileSize)
+			if status == appversion.StatusAPPROVED {
+				update.SetPublishedAt(time.Now())
+			} else {
+				update.ClearPublishedAt()
+			}
+			updated, err := update.Save(r.Context())
+			if err != nil {
+				return nil, err
+			}
+			if status == appversion.StatusPENDING {
+				hasPendingReview, _ := s.db.ReviewRequest.Query().
+					Where(
+						reviewrequest.KindEQ(reviewrequest.KindVERSION_UPLOAD),
+						reviewrequest.StatusEQ(reviewrequest.StatusPENDING),
+						reviewrequest.VersionIDEQ(updated.ID),
+					).
+					Exist(r.Context())
+				if !hasPendingReview {
+					_, _ = s.db.ReviewRequest.Create().
+						SetKind(reviewrequest.KindVERSION_UPLOAD).
+						SetStatus(reviewrequest.StatusPENDING).
+						SetAppID(record.ID).
+						SetVersionID(updated.ID).
+						SetRequesterID(u.ID).
+						Save(r.Context())
+				}
+			} else {
+				_, _ = s.db.App.UpdateOneID(record.ID).SetStatus(app.StatusAPPROVED).Save(r.Context())
+				s.clearAppOutdatedMarks(r, record.ID)
+				if _, _, err := s.enforceVersionRetention(r.Context(), record.ID); err != nil {
+					slog.Warn("Could not enforce version retention", "app_id", record.ID, "error", err)
+				}
+			}
+			return updated, nil
+		}
+		if !entgo.IsNotFound(err) {
+			return nil, err
+		}
+	}
 	create := s.db.AppVersion.Create().
 		SetAppID(record.ID).
 		SetUploaderID(u.ID).

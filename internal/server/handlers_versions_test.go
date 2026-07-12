@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync"
@@ -217,6 +218,63 @@ func TestExternalVersionWithCICDMetadataDoesNotFetchPackage(t *testing.T) {
 		OnlyX(ctx)
 	if created.Sha256 != strings.Repeat("b", 64) {
 		t.Fatalf("stored sha256 = %q", created.Sha256)
+	}
+}
+
+func TestAPITokenRepublishSameVersionUpdatesRebuiltArtifact(t *testing.T) {
+	testApp := newTestApp(t)
+	ctx := t.Context()
+	owner := testApp.server.db.User.Create().
+		SetUsername("api-token-rebuild-owner").
+		SetPasswordHash("unused").
+		SetEmailVerified(true).
+		SaveX(ctx)
+	record := testApp.server.db.App.Create().
+		SetOwnerID(owner.ID).
+		SetPackageID("community.lazycat.api-token-rebuild").
+		SetName("API token rebuild").
+		SetSlug("api-token-rebuild").
+		SetStatus(app.StatusAPPROVED).
+		SetAllowUnreviewedUpdates(true).
+		SaveX(ctx)
+	token := "lcst_api_token_rebuild"
+	testApp.server.db.APIToken.Create().
+		SetUserID(owner.ID).
+		SetName("rebuild publisher").
+		SetPrefix(tokenPrefix(token)).
+		SetTokenHash(tokenHash(token)).
+		SaveX(ctx)
+	publish := func(sha string) *httptest.ResponseRecorder {
+		body := `{"version":"1.0.0","sourceType":"GITHUB","downloadUrl":"https://github.com/acme/app/releases/latest/download/app.lpk","sha256":"` + sha + `"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/apps/"+strconv.Itoa(record.ID)+"/versions", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		testApp.handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	firstSHA := strings.Repeat("a", 64)
+	if rec := publish(firstSHA); rec.Code != http.StatusCreated {
+		t.Fatalf("first publish status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	first := testApp.server.db.AppVersion.Query().Where(appversion.AppIDEQ(record.ID), appversion.VersionEQ("1.0.0")).OnlyX(ctx)
+	firstPublishedAt := *first.PublishedAt
+
+	secondSHA := strings.Repeat("b", 64)
+	if rec := publish(secondSHA); rec.Code != http.StatusCreated {
+		t.Fatalf("rebuilt publish status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	versions := testApp.server.db.AppVersion.Query().Where(appversion.AppIDEQ(record.ID), appversion.VersionEQ("1.0.0")).AllX(ctx)
+	if len(versions) != 1 {
+		t.Fatalf("same-version records = %d, want 1", len(versions))
+	}
+	updated := versions[0]
+	if updated.ID != first.ID || updated.Sha256 != secondSHA || updated.DownloadURL != "https://github.com/acme/app/releases/latest/download/app.lpk" {
+		t.Fatalf("rebuilt version = %+v", updated)
+	}
+	if updated.PublishedAt == nil || !updated.PublishedAt.After(firstPublishedAt) {
+		t.Fatalf("published_at = %v, want after %v", updated.PublishedAt, firstPublishedAt)
 	}
 }
 
