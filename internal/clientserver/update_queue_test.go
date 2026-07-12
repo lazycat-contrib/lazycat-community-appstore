@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -101,7 +100,7 @@ func TestManualInstallRejectsActiveUpdateQueue(t *testing.T) {
 func TestClientSettingsPersistAutoUpdate(t *testing.T) {
 	app := testServer(t)
 	rec := app.request(http.MethodPatch, "/api/client/v1/settings", `{"autoUpdateEnabled":true,"autoUpdateIntervalMinutes":1}`, "alice")
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"autoUpdateEnabled":true`) || !strings.Contains(rec.Body.String(), `"autoUpdateIntervalMinutes":5`) {
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"autoUpdateEnabled":true`) || !strings.Contains(rec.Body.String(), `"autoSyncEnabled":true`) || !strings.Contains(rec.Body.String(), `"autoSyncIntervalMinutes":5`) || !strings.Contains(rec.Body.String(), `"autoUpdateIntervalMinutes":5`) {
 		t.Fatalf("settings = %d %s", rec.Code, rec.Body.String())
 	}
 }
@@ -118,11 +117,28 @@ func TestAutoUpdateDueUsesLastRunAndInterval(t *testing.T) {
 	}
 }
 
-func TestRunUpdateQueueSyncsSourcesBeforeInstallation(t *testing.T) {
-	feed := updateQueueFeed(t, "notes", "2.0.0")
-	defer feed.Close()
+func TestAutoUpdateSchedulerNormalizesSourceSyncDependency(t *testing.T) {
 	app := testServer(t)
-	app.server.db.ClientSource.Create().SetUserID("alice").SetName("Feed").SetURL(feed.URL).SaveX(t.Context())
+	setting := app.server.db.ClientSyncSetting.Create().
+		SetUserID("alice").
+		SetAutoSyncEnabled(false).
+		SetAutoSyncIntervalMinutes(60).
+		SetAutoUpdateEnabled(true).
+		SetAutoUpdateIntervalMinutes(15).
+		SaveX(t.Context())
+	scheduler := &sourceSyncScheduler{server: app.server, running: make(map[string]struct{})}
+	if err := scheduler.normalizeAutoUpdateSyncDependencies(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	setting = app.server.db.ClientSyncSetting.GetX(t.Context(), setting.ID)
+	if !setting.AutoSyncEnabled || setting.AutoSyncIntervalMinutes != 15 {
+		t.Fatalf("setting = %#v", setting)
+	}
+}
+
+func TestRunUpdateQueueUsesCachedApplicationsWithoutSourceSync(t *testing.T) {
+	app := testServer(t)
+	sourceAppsForUpdateTestOnClient(t, app.server.db, updateTestSourceApp{PackageID: "notes", Version: "2.0.0"})
 	pm := &updateQueuePackageManager{
 		installed: []InstalledApplicationDTO{{AppID: "notes", Version: "1.0.0"}},
 		install:   []InstallResultDTO{{TaskID: "task-1", Status: "CREATING"}},
@@ -133,16 +149,14 @@ func TestRunUpdateQueueSyncsSourcesBeforeInstallation(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"status":"success"`) {
 		t.Fatalf("run updates = %d %s", rec.Code, rec.Body.String())
 	}
-	if len(pm.install) != 0 {
-		t.Fatalf("source sync did not make the update installable")
+	if pm.installCalls != 1 {
+		t.Fatalf("install calls = %d", pm.installCalls)
 	}
 }
 
-func TestAutoUpdateSchedulerSyncsSourcesBeforeQueue(t *testing.T) {
-	feed := updateQueueFeed(t, "notes", "2.0.0")
-	defer feed.Close()
+func TestAutoUpdateSchedulerUsesCachedApplications(t *testing.T) {
 	app := testServer(t)
-	app.server.db.ClientSource.Create().SetUserID("alice").SetName("Feed").SetURL(feed.URL).SaveX(t.Context())
+	sourceAppsForUpdateTestOnClient(t, app.server.db, updateTestSourceApp{PackageID: "notes", Version: "2.0.0"})
 	app.server.db.ClientSyncSetting.Create().
 		SetUserID("alice").
 		SetAutoUpdateEnabled(true).
@@ -162,29 +176,49 @@ func TestAutoUpdateSchedulerSyncsSourcesBeforeQueue(t *testing.T) {
 	if setting.LastAutoUpdateAt == nil || setting.LastAutoUpdateStatus == nil || setting.LastAutoUpdateStatus.String() != "success" {
 		t.Fatalf("auto update result = %#v", setting)
 	}
-	if len(pm.install) != 0 {
-		t.Fatalf("scheduled update did not install the synced app")
+	if pm.installCalls != 1 {
+		t.Fatalf("install calls = %d", pm.installCalls)
 	}
 }
 
-func updateQueueFeed(t *testing.T, packageID, version string) *httptest.Server {
-	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"schema": "lazycat.appstore.source.v2",
-			"apps": []map[string]any{{
-				"id":        1,
-				"packageId": packageID,
-				"name":      packageID,
-				"slug":      packageID,
-				"latestVersion": map[string]any{
-					"version":     version,
-					"downloadUrl": "https://download.example/" + packageID + ".lpk",
-					"sha256":      "checksum",
-				},
-			}},
-		})
-	}))
+func TestRequestedUpdateCandidatesInstallOnlySubmittedSnapshot(t *testing.T) {
+	app := testServer(t)
+	apps := sourceAppsForUpdateTestOnClient(t, app.server.db,
+		updateTestSourceApp{PackageID: "first", Version: "2.0.0"},
+		updateTestSourceApp{PackageID: "second", Version: "2.0.0"},
+	)
+	pm := &updateQueuePackageManager{
+		installed: []InstalledApplicationDTO{{AppID: "first", Version: "1.0.0"}, {AppID: "second", Version: "1.0.0"}},
+		install:   []InstallResultDTO{{TaskID: "task-1", Status: "CREATING"}},
+		tasks:     map[string]InstallTaskDTO{"task-1": {TaskID: "task-1", Status: "INSTALL_OK"}},
+	}
+	app.server.pkg = pm
+	result := app.server.RunUpdateQueueWithOptions(t.Context(), "alice", UpdateQueueRequestDTO{Candidates: []UpdateQueueCandidateDTO{{
+		AppID: apps[0].ID, SourceID: apps[0].SourceID, PackageID: "first", InstalledVersion: "1.0.0", TargetVersion: "2.0.0",
+	}}})
+	if result.Status != "success" || len(result.Items) != 1 || result.Items[0].PackageID != "first" || pm.installCalls != 1 {
+		t.Fatalf("result = %#v, calls = %d", result, pm.installCalls)
+	}
+}
+
+func TestRequestedUpdateCandidatesSkipChangedOrMismatchedSnapshot(t *testing.T) {
+	app := testServer(t)
+	apps := sourceAppsForUpdateTestOnClient(t, app.server.db, updateTestSourceApp{PackageID: "notes", Version: "2.0.0"})
+	app.server.pkg = &updateQueuePackageManager{installed: []InstalledApplicationDTO{{AppID: "notes", Version: "1.1.0"}}}
+	result := app.server.RunUpdateQueueWithOptions(t.Context(), "alice", UpdateQueueRequestDTO{Candidates: []UpdateQueueCandidateDTO{{
+		AppID: apps[0].ID, SourceID: apps[0].SourceID, PackageID: "other", InstalledVersion: "1.0.0", TargetVersion: "2.0.0",
+	}}})
+	if result.Status != "no_updates" {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
+func TestRunUpdateQueueRejectsIncompleteCandidate(t *testing.T) {
+	app := testServer(t)
+	rec := app.request(http.MethodPost, "/api/client/v1/updates/run", `{"candidates":[{"appId":1}]}`, "alice")
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), `"INVALID_UPDATE_CANDIDATE"`) {
+		t.Fatalf("response = %d %s", rec.Code, rec.Body.String())
+	}
 }
 
 type updateTestSourceApp struct {

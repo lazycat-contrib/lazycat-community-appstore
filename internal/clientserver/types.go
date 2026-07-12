@@ -209,8 +209,17 @@ type UpdateQueueMirrorOverrideDTO struct {
 	RawMirrorID      string `json:"rawMirrorId"`
 }
 
+type UpdateQueueCandidateDTO struct {
+	AppID            int    `json:"appId"`
+	SourceID         int    `json:"sourceId"`
+	PackageID        string `json:"packageId"`
+	InstalledVersion string `json:"installedVersion"`
+	TargetVersion    string `json:"targetVersion"`
+}
+
 type UpdateQueueRequestDTO struct {
 	MirrorOverrides         []UpdateQueueMirrorOverrideDTO `json:"mirrorOverrides,omitempty"`
+	Candidates              []UpdateQueueCandidateDTO      `json:"candidates,omitempty"`
 	RespectAutoUpdatePolicy bool                           `json:"-"`
 }
 

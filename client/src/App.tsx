@@ -1105,7 +1105,7 @@ export function App() {
 		if (updateQueuePollRef.current !== token) return;
 		setUpdateQueueResult(result);
 	  } catch {
-		// Source sync finishes before the queue snapshot exists.
+		// Queue creation may not have published its first snapshot yet.
 	  }
 	  await new Promise<void>((resolve) => window.setTimeout(resolve, 800));
 	}

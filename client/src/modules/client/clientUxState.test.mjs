@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   autoUpdatePolicyPresentation,
+  buildUpdateCandidateSnapshot,
   buildInstallTimeline,
   buildUpdateConfirmation,
   findStableSourceApp,
@@ -10,6 +11,7 @@ import {
 	installedRuntimeStatusPresentation,
 	inspectionPresentation,
   normalizeEditableClientSettings,
+  normalizeAutomationSettings,
   sameEditableClientSettings,
 } from './clientUxState.ts';
 
@@ -159,6 +161,22 @@ test('bulk update confirmation excludes password-protected applications', () => 
     ]),
     { eligible: ['eligible'], skipped: ['protected'] },
   );
+});
+
+test('bulk update candidate snapshot matches the visible confirmation rows', () => {
+  assert.deepEqual(buildUpdateCandidateSnapshot([
+    { item: { appid: 'first', version: '1.0.0' }, source: { id: 11, sourceId: 2, packageId: 'first', latestVersion: { version: '2.0.0' } } },
+    { item: { appid: 'protected', version: '1.0.0' }, source: { id: 12, sourceId: 2, packageId: 'protected', installProtected: true, latestVersion: { version: '2.0.0' } } },
+  ]), [{ appId: 11, sourceId: 2, packageId: 'first', installedVersion: '1.0.0', targetVersion: '2.0.0' }]);
+});
+
+test('automatic updates require source sync and a fresh-enough sync interval', () => {
+  assert.deepEqual(normalizeAutomationSettings({ autoSyncEnabled: false, autoSyncIntervalMinutes: 60, autoUpdateEnabled: true, autoUpdateIntervalMinutes: 15 }), {
+    autoSyncEnabled: true,
+    autoSyncIntervalMinutes: 15,
+    autoUpdateEnabled: true,
+    autoUpdateIntervalMinutes: 15,
+  });
 });
 
 test('installed app source matching requires package or slug identity and never falls back to title', () => {

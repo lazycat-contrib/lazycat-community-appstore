@@ -11,7 +11,7 @@ import { APP_VERSION } from '../../config';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { ClientSettings, ClientSourceStats, Toast } from '../../shared/types';
 import { cx, errorMessage, formatDate } from '../../shared/utils';
-import { normalizeEditableClientSettings, sameEditableClientSettings } from './clientUxState';
+import { normalizeAutomationSettings, normalizeEditableClientSettings, sameEditableClientSettings } from './clientUxState';
 
 const syncIntervalOptions = [5, 15, 30, 60, 360, 720, 1440];
 const pageSizeOptions = [12, 24, 48, 96, 100];
@@ -208,8 +208,10 @@ export function ClientSettingsView({
 
           <XSwitch
             label={t('clientSettings.autoSync')}
-            description={t('clientSettings.autoSyncHelp')}
+            labelTooltip={draft.autoUpdateEnabled ? t('clientSettings.autoSyncRequiredByUpdates') : t('clientSettings.autoSyncHelp')}
             value={draft.autoSyncEnabled}
+            isDisabled={draft.autoUpdateEnabled}
+            disabledMessage={draft.autoUpdateEnabled ? t('clientSettings.autoSyncRequiredByUpdates') : undefined}
             labelSpacing="spread"
             width="100%"
             onChange={(checked) => updateDraft({ ...draft, autoSyncEnabled: checked })}
@@ -218,8 +220,9 @@ export function ClientSettingsView({
           <XSelector
             label={t('clientSettings.interval')}
             description={t('clientSettings.intervalHelp')}
+            labelTooltip={draft.autoUpdateEnabled ? t('clientSettings.syncIntervalBoundByUpdates') : undefined}
             value={intervalValue}
-            options={syncIntervalOptions.map((value) => ({ value: String(value), label: t('clientSettings.intervalOption', { count: value }) }))}
+            options={syncIntervalOptions.filter((value) => !draft.autoUpdateEnabled || value <= (draft.autoUpdateIntervalMinutes || 60)).map((value) => ({ value: String(value), label: t('clientSettings.intervalOption', { count: value }) }))}
             onChange={(value) => updateDraft({ ...draft, autoSyncIntervalMinutes: Number(value) || 60 })}
           />
 
@@ -243,17 +246,17 @@ export function ClientSettingsView({
 			<p className="muted-text">{t('clientSettings.autoUpdateHelp')}</p>
 			<XSwitch
 			  label={t('clientSettings.autoUpdate')}
-			  description={t('clientSettings.autoUpdatePasswordHint')}
+			  labelTooltip={t('clientSettings.autoUpdatePasswordHint')}
 			  value={draft.autoUpdateEnabled}
 			  labelSpacing="spread"
 			  width="100%"
-			  onChange={(checked) => updateDraft({ ...draft, autoUpdateEnabled: checked })}
+			  onChange={(checked) => updateDraft(normalizeAutomationSettings({ ...draft, autoUpdateEnabled: checked }))}
 			/>
 			<XSelector
 			  label={t('clientSettings.autoUpdateInterval')}
 			  value={updateIntervalValue}
 			  options={syncIntervalOptions.map((value) => ({ value: String(value), label: t('clientSettings.intervalOption', { count: value }) }))}
-			  onChange={(value) => updateDraft({ ...draft, autoUpdateIntervalMinutes: Number(value) || 60 })}
+			  onChange={(value) => updateDraft(normalizeAutomationSettings({ ...draft, autoUpdateIntervalMinutes: Number(value) || 60 }))}
 			/>
 			<small>{settings.lastAutoUpdateAt ? t('clientSettings.autoUpdateLastRun', { time: formatDate(settings.lastAutoUpdateAt) }) : t('clientSettings.neverRun')}</small>
 			{settings.lastAutoUpdateError && <small className="client-auto-update-error">{settings.lastAutoUpdateError}</small>}

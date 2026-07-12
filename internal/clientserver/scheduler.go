@@ -125,6 +125,9 @@ func (s *sourceSyncScheduler) startStartupSyncs() {
 }
 
 func (s *sourceSyncScheduler) runDueAutoSyncs(ctx context.Context, _ string) error {
+	if err := s.normalizeAutoUpdateSyncDependencies(ctx); err != nil {
+		return err
+	}
 	now := time.Now()
 	settings, err := s.server.db.ClientSyncSetting.Query().
 		Where(clientsyncsetting.AutoSyncEnabledEQ(true)).
@@ -142,6 +145,32 @@ func (s *sourceSyncScheduler) runDueAutoSyncs(ctx context.Context, _ string) err
 		s.syncUser(ctx, setting.UserID)
 	}
 	return s.runDueAutoUpdates(ctx, "")
+}
+
+func (s *sourceSyncScheduler) normalizeAutoUpdateSyncDependencies(ctx context.Context) error {
+	settings, err := s.server.db.ClientSyncSetting.Query().
+		Where(clientsyncsetting.AutoUpdateEnabledEQ(true)).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, setting := range settings {
+		updateInterval := sanitizeAutoSyncInterval(setting.AutoUpdateIntervalMinutes)
+		syncInterval := sanitizeAutoSyncInterval(setting.AutoSyncIntervalMinutes)
+		if setting.AutoSyncEnabled && syncInterval <= updateInterval {
+			continue
+		}
+		if syncInterval > updateInterval {
+			syncInterval = updateInterval
+		}
+		if _, err := s.server.db.ClientSyncSetting.UpdateOneID(setting.ID).
+			SetAutoSyncEnabled(true).
+			SetAutoSyncIntervalMinutes(syncInterval).
+			Save(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *sourceSyncScheduler) runDueAutoUpdates(ctx context.Context, _ string) error {
@@ -221,20 +250,8 @@ func (s *sourceSyncScheduler) updateUser(ctx context.Context, userID string) {
 	}
 	defer s.unmarkRunning(userID)
 
-	syncResult, err := s.server.syncAllSources(ctx, userID)
-	if ctx.Err() != nil {
-		return
-	}
-	if err != nil {
-		_ = s.recordAutoUpdateResult(ctx, userID, clientsyncsetting.LastAutoUpdateStatusFailed, err.Error())
-		return
-	}
-	if syncResult.Success == 0 && syncResult.Failed > 0 {
-		_ = s.recordAutoUpdateResult(ctx, userID, clientsyncsetting.LastAutoUpdateStatusFailed, fmt.Sprintf("%d source syncs failed", syncResult.Failed))
-		return
-	}
 	queueResult := s.server.RunUpdateQueueWithOptions(ctx, userID, UpdateQueueRequestDTO{RespectAutoUpdatePolicy: true})
-	status, message := autoUpdateResultStatus(syncResult, queueResult)
+	status, message := autoUpdateResultStatus(queueResult)
 	_ = s.recordAutoUpdateResult(ctx, userID, status, message)
 }
 
@@ -301,7 +318,7 @@ func (s *sourceSyncScheduler) recordAutoSyncResult(ctx context.Context, userID s
 	return err
 }
 
-func autoUpdateResultStatus(syncResult SyncAllResult, queueResult UpdateQueueResultDTO) (clientsyncsetting.LastAutoUpdateStatus, string) {
+func autoUpdateResultStatus(queueResult UpdateQueueResultDTO) (clientsyncsetting.LastAutoUpdateStatus, string) {
 	message := strings.TrimSpace(queueResult.Error)
 	switch queueResult.Status {
 	case "failed":
@@ -317,9 +334,6 @@ func autoUpdateResultStatus(syncResult SyncAllResult, queueResult UpdateQueueRes
 	case "already_running", "no_updates", "cancelled":
 		return clientsyncsetting.LastAutoUpdateStatusSkipped, message
 	default:
-		if syncResult.Failed > 0 {
-			return clientsyncsetting.LastAutoUpdateStatusPartial, fmt.Sprintf("%d source syncs failed", syncResult.Failed)
-		}
 		return clientsyncsetting.LastAutoUpdateStatusSuccess, message
 	}
 }

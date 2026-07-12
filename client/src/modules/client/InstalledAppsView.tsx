@@ -12,7 +12,7 @@ import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { InstalledApplication, SourceApp, SourceSubscription, UpdateQueueRequest, UpdateQueueResult } from '../../shared/types';
 import { compareVersions, cx, sourceMirrorOptions } from '../../shared/utils';
-import { autoUpdatePolicyPresentation, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation } from './clientUxState';
+import { autoUpdatePolicyPresentation, buildUpdateCandidateSnapshot, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation } from './clientUxState';
 
 type InstalledRow = { item: InstalledApplication; source?: SourceApp };
 type InstalledGroupKind = 'updates' | 'managed' | 'local';
@@ -69,6 +69,7 @@ export function InstalledAppsView({
   const installedEmptyTitle = installedState === 'loaded' ? t('profile.installedEmptyLoaded') : t('profile.installedEmpty');
   const installedEmptyBody = installedState === 'idle' ? t('profile.installedIdleBody') : undefined;
   const updateConfirmation = useMemo(() => buildUpdateConfirmation(installedGroups.updates), [installedGroups.updates]);
+  const updateCandidates = useMemo(() => buildUpdateCandidateSnapshot(installedGroups.updates), [installedGroups.updates]);
   const canRunUpdates = Boolean(onRunUpdates && updateConfirmation.eligible.length > 0 && installedState === 'loaded');
   const updateItems = updateQueueResult?.items || [];
   const updateSummary = updateItems.reduce<Record<string, number>>((summary, item) => {
@@ -272,7 +273,7 @@ export function InstalledAppsView({
 			  <XButton type="button" variant="secondary" label={t('common.cancel')} onClick={() => setIsConfirmOpen(false)} />
 			  <XButton type="button" variant="primary" label={t('updateQueue.start')} icon={<RefreshCw size={17} />} onClick={() => {
 				setHasStarted(true);
-				void onRunUpdates?.({ mirrorOverrides: updateSources.map((source) => {
+				void onRunUpdates?.({ candidates: updateCandidates, mirrorOverrides: updateSources.map((source) => {
 				  const value = mirrorOverrides[String(source.id)];
 				  return { sourceId: Number(source.id), downloadMirrorId: value?.downloadMirrorId ?? source.defaultDownloadMirrorId ?? '', rawMirrorId: value?.rawMirrorId ?? source.defaultRawMirrorId ?? '' };
 				}) });

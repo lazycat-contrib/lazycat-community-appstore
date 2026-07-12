@@ -187,6 +187,74 @@ func cachedLatestVersion(app *ent.ClientSourceApp) (VersionDTO, bool) {
 	return version, true
 }
 
+func cachedUpdateVersion(app *ent.ClientSourceApp, target string) (VersionDTO, bool) {
+	target = strings.TrimSpace(target)
+	if target == "" || app == nil {
+		return VersionDTO{}, false
+	}
+	if latest, ok := cachedLatestVersion(app); ok && strings.TrimSpace(latest.Version) == target {
+		return latest, strings.TrimSpace(latest.DownloadURL) != ""
+	}
+	if strings.TrimSpace(app.VersionsJSON) == "" {
+		return VersionDTO{}, false
+	}
+	var versions []VersionDTO
+	if err := json.Unmarshal([]byte(app.VersionsJSON), &versions); err != nil {
+		return VersionDTO{}, false
+	}
+	for _, version := range versions {
+		if strings.TrimSpace(version.Version) == target && strings.TrimSpace(version.DownloadURL) != "" {
+			return version, true
+		}
+	}
+	return VersionDTO{}, false
+}
+
+func (s *Server) resolveRequestedUpdateCandidates(ctx context.Context, userID string, installed []InstalledApplicationDTO, requested []UpdateQueueCandidateDTO) ([]updateCandidate, error) {
+	apps, err := s.db.ClientSourceApp.Query().
+		Where(clientsourceapp.HasSourceWith(clientsource.UserIDEQ(userID))).
+		WithSource().
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	appsByID := make(map[int]*ent.ClientSourceApp, len(apps))
+	for _, app := range apps {
+		appsByID[app.ID] = app
+	}
+	installedByPackage := make(map[string]InstalledApplicationDTO, len(installed))
+	for _, item := range installed {
+		installedByPackage[normalizePolicyPackageID(item.AppID)] = item
+	}
+	seen := make(map[string]struct{}, len(requested))
+	candidates := make([]updateCandidate, 0, len(requested))
+	for _, item := range requested {
+		packageID := strings.TrimSpace(item.PackageID)
+		normalized := normalizePolicyPackageID(packageID)
+		if item.AppID <= 0 || item.SourceID <= 0 || normalized == "" || strings.TrimSpace(item.InstalledVersion) == "" || strings.TrimSpace(item.TargetVersion) == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		app := appsByID[item.AppID]
+		if app == nil || app.SourceID != item.SourceID || normalizePolicyPackageID(app.PackageID) != normalized || app.InstallProtected {
+			continue
+		}
+		current, ok := installedByPackage[normalized]
+		if !ok || strings.TrimSpace(current.Version) != strings.TrimSpace(item.InstalledVersion) || compareUpdateVersions(current.Version, item.TargetVersion) >= 0 {
+			continue
+		}
+		version, ok := cachedUpdateVersion(app, item.TargetVersion)
+		if !ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		candidates = append(candidates, updateCandidate{App: app, PackageID: strings.TrimSpace(app.PackageID), InstalledVersion: current.Version, Version: version})
+	}
+	return candidates, nil
+}
+
 func compareUpdateVersions(left, right string) int {
 	leftParts, leftOK := numericVersionParts(left)
 	rightParts, rightOK := numericVersionParts(right)
@@ -252,22 +320,30 @@ func (s *Server) RunUpdateQueueWithOptions(ctx context.Context, userID string, o
 	if err != nil {
 		return UpdateQueueResultDTO{Status: "failed", Error: err.Error()}
 	}
-	apps, err := s.db.ClientSourceApp.Query().
-		Where(clientsourceapp.HasSourceWith(clientsource.UserIDEQ(userID))).
-		WithSource().
-		Order(ent.Asc(clientsourceapp.FieldName)).
-		All(ctx)
-	if err != nil {
-		return UpdateQueueResultDTO{Status: "failed", Error: err.Error()}
-	}
-	disabled := map[string]struct{}{}
-	if options.RespectAutoUpdatePolicy {
-		disabled, err = s.disabledAutoUpdatePackageIDs(ctx, userID)
+	var candidates []updateCandidate
+	if options.Candidates != nil {
+		candidates, err = s.resolveRequestedUpdateCandidates(ctx, userID, installed, options.Candidates)
 		if err != nil {
 			return UpdateQueueResultDTO{Status: "failed", Error: err.Error()}
 		}
+	} else {
+		apps, queryErr := s.db.ClientSourceApp.Query().
+			Where(clientsourceapp.HasSourceWith(clientsource.UserIDEQ(userID))).
+			WithSource().
+			Order(ent.Asc(clientsourceapp.FieldName)).
+			All(ctx)
+		if queryErr != nil {
+			return UpdateQueueResultDTO{Status: "failed", Error: queryErr.Error()}
+		}
+		disabled := map[string]struct{}{}
+		if options.RespectAutoUpdatePolicy {
+			disabled, err = s.disabledAutoUpdatePackageIDs(ctx, userID)
+			if err != nil {
+				return UpdateQueueResultDTO{Status: "failed", Error: err.Error()}
+			}
+		}
+		candidates = eligibleUpdates(installed, apps, disabled)
 	}
-	candidates := eligibleUpdates(installed, apps, disabled)
 	if len(candidates) == 0 {
 		return UpdateQueueResultDTO{Status: "no_updates"}
 	}
@@ -316,14 +392,11 @@ func (s *Server) handleRunUpdateQueue(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	syncResult, err := s.syncAllSources(r.Context(), userID)
-	if err != nil {
-		writeError(w, 502, "SOURCE_SYNC_FAILED", "Could not sync application sources before updating")
-		return
-	}
-	if syncResult.Success == 0 && syncResult.Failed > 0 {
-		writeError(w, 502, "SOURCE_SYNC_FAILED", "All application source syncs failed")
-		return
+	for _, candidate := range input.Candidates {
+		if candidate.AppID <= 0 || candidate.SourceID <= 0 || strings.TrimSpace(candidate.PackageID) == "" || strings.TrimSpace(candidate.InstalledVersion) == "" || strings.TrimSpace(candidate.TargetVersion) == "" {
+			writeError(w, http.StatusBadRequest, "INVALID_UPDATE_CANDIDATE", "Update candidate is incomplete")
+			return
+		}
 	}
 	writeJSON(w, 200, s.RunUpdateQueueWithOptions(r.Context(), userID, input))
 }

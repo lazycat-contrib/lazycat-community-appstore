@@ -111,6 +111,12 @@ func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string
 	}
 	dto.AutoUpdateEnabled = syncSetting.AutoUpdateEnabled
 	dto.AutoUpdateIntervalMinutes = sanitizeAutoSyncInterval(syncSetting.AutoUpdateIntervalMinutes)
+	if dto.AutoUpdateEnabled {
+		dto.AutoSyncEnabled = true
+		if dto.AutoSyncIntervalMinutes > dto.AutoUpdateIntervalMinutes {
+			dto.AutoSyncIntervalMinutes = dto.AutoUpdateIntervalMinutes
+		}
+	}
 	dto.LastAutoUpdateAt = syncSetting.LastAutoUpdateAt
 	if syncSetting.LastAutoUpdateStatus != nil {
 		dto.LastAutoUpdateStatus = syncSetting.LastAutoUpdateStatus.String()
@@ -189,7 +195,14 @@ func (s *Server) clientSyncSetting(ctx context.Context, userID string) (*ent.Cli
 }
 
 func (s *Server) setClientSyncSetting(ctx context.Context, userID string, input ClientSettingsUpdateDTO) (*ent.ClientSyncSetting, error) {
+	updateInterval := sanitizeAutoSyncInterval(input.AutoUpdateIntervalMinutes)
 	interval := sanitizeAutoSyncInterval(input.AutoSyncIntervalMinutes)
+	if input.AutoUpdateEnabled {
+		input.AutoSyncEnabled = true
+		if interval > updateInterval {
+			interval = updateInterval
+		}
+	}
 	record, err := s.db.ClientSyncSetting.Query().
 		Where(clientsyncsetting.UserIDEQ(userID)).
 		Only(ctx)
@@ -199,7 +212,7 @@ func (s *Server) setClientSyncSetting(ctx context.Context, userID string, input 
 			SetAutoSyncIntervalMinutes(interval).
 			SetSyncOnStartup(input.SyncOnStartup).
 			SetAutoUpdateEnabled(input.AutoUpdateEnabled).
-			SetAutoUpdateIntervalMinutes(sanitizeAutoSyncInterval(input.AutoUpdateIntervalMinutes)).
+			SetAutoUpdateIntervalMinutes(updateInterval).
 			Save(ctx)
 	}
 	if !ent.IsNotFound(err) {
@@ -211,7 +224,7 @@ func (s *Server) setClientSyncSetting(ctx context.Context, userID string, input 
 		SetAutoSyncIntervalMinutes(interval).
 		SetSyncOnStartup(input.SyncOnStartup).
 		SetAutoUpdateEnabled(input.AutoUpdateEnabled).
-		SetAutoUpdateIntervalMinutes(sanitizeAutoSyncInterval(input.AutoUpdateIntervalMinutes)).
+		SetAutoUpdateIntervalMinutes(updateInterval).
 		Save(ctx)
 }
 

@@ -605,6 +605,13 @@ export type UpdateQueueItem = {
 };
 
 export type UpdateQueueRequest = {
+  candidates?: Array<{
+    appId: number;
+    sourceId: number;
+    packageId: string;
+    installedVersion: string;
+    targetVersion: string;
+  }>;
   mirrorOverrides?: Array<{
     sourceId: number;
     downloadMirrorId: string;

@@ -118,6 +118,22 @@ export function buildUpdateConfirmation<T extends {
 	return { eligible, skipped };
 }
 
+export function buildUpdateCandidateSnapshot<T extends {
+  item: { appid?: string; version?: string };
+  source?: { id?: number | string; sourceId?: number | string; packageId?: string; installProtected?: boolean; latestVersion?: { version?: string } };
+}>(rows: T[]) {
+  return rows.flatMap((row) => {
+    const source = row.source;
+    const packageID = (source?.packageId || row.item.appid || '').trim();
+    const installedVersion = (row.item.version || '').trim();
+    const targetVersion = (source?.latestVersion?.version || '').trim();
+    const appId = Number(source?.id);
+    const sourceId = Number(source?.sourceId);
+    if (!source || source.installProtected || !Number.isInteger(appId) || appId <= 0 || !Number.isInteger(sourceId) || sourceId <= 0 || !packageID || !installedVersion || !targetVersion) return [];
+    return [{ appId, sourceId, packageId: packageID, installedVersion, targetVersion }];
+  });
+}
+
 export type EditableClientSettings = {
   clientTitle: string;
   commentDisplayName: string;
@@ -136,8 +152,25 @@ export type EditableClientSettings = {
   lastAutoUpdateError?: string;
 };
 
-export function normalizeEditableClientSettings(settings: EditableClientSettings): EditableClientSettings {
+export function normalizeAutomationSettings<T extends {
+  autoSyncEnabled: boolean;
+  autoSyncIntervalMinutes: number;
+  autoUpdateEnabled: boolean;
+  autoUpdateIntervalMinutes: number;
+}>(settings: T): T {
+  if (!settings.autoUpdateEnabled) return settings;
+  const updateInterval = Number(settings.autoUpdateIntervalMinutes) || 60;
+  const syncInterval = Number(settings.autoSyncIntervalMinutes) || 60;
   return {
+    ...settings,
+    autoSyncEnabled: true,
+    autoSyncIntervalMinutes: Math.min(syncInterval, updateInterval),
+    autoUpdateIntervalMinutes: updateInterval,
+  };
+}
+
+export function normalizeEditableClientSettings(settings: EditableClientSettings): EditableClientSettings {
+  return normalizeAutomationSettings({
     clientTitle: settings.clientTitle.trim(),
     commentDisplayName: settings.commentDisplayName.trim(),
     defaultPageSize: Number(settings.defaultPageSize) || 24,
@@ -149,7 +182,7 @@ export function normalizeEditableClientSettings(settings: EditableClientSettings
       : 3,
     autoUpdateEnabled: Boolean(settings.autoUpdateEnabled),
     autoUpdateIntervalMinutes: Number(settings.autoUpdateIntervalMinutes) || 60,
-  };
+  });
 }
 
 export function sameEditableClientSettings(left: EditableClientSettings, right: EditableClientSettings) {
