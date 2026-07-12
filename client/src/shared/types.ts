@@ -75,6 +75,10 @@ export type StoreApp = {
   summaryI18n?: Record<string, string>;
   description: string;
   descriptionI18n?: Record<string, string>;
+  author?: string;
+  homepage?: string;
+  license?: string;
+  minOSVersion?: string;
   iconUrl?: string;
   status: string;
   category?: string;
@@ -396,6 +400,10 @@ export type SourceApp = {
   summary: string;
   summaryI18n?: Record<string, string>;
   descriptionI18n?: Record<string, string>;
+  author?: string;
+  homepage?: string;
+  license?: string;
+  minOSVersion?: string;
   categoryId?: number;
   category?: string;
   categoryI18n?: Record<string, string>;

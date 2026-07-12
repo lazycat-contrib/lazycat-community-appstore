@@ -13,7 +13,52 @@ import (
 
 	"lazycat.community/appstore/ent/lpkinspectionjob"
 	"lazycat.community/appstore/ent/user"
+	"lazycat.community/appstore/internal/lpkinspect"
 )
+
+func TestApplyLPKInspectionMetadataFillsAndOverwritesApplicationMetadata(t *testing.T) {
+	store := newTestApp(t)
+	ctx := t.Context()
+	owner := store.server.db.User.Create().SetUsername("metadata-owner").SetPasswordHash("x").SaveX(ctx)
+	record := store.server.db.App.Create().
+		SetOwnerID(owner.ID).
+		SetPackageID("cloud.lazycat.test.metadata-inspection").
+		SetName("Metadata inspection").
+		SetSlug("metadata-inspection").
+		SetAuthor("Existing author").
+		SaveX(ctx)
+	job := store.server.db.LPKInspectionJob.Create().
+		SetAppID(record.ID).
+		SetUserID(owner.ID).
+		SetDownloadURL("https://example.test/app.lpk").
+		SetTrigger(lpkinspectionjob.TriggerMANUAL).
+		SetState(lpkinspectionjob.StateRUNNING).
+		SetDeadlineAt(time.Now().Add(time.Minute)).
+		SetOverwriteExistingMetadata(false).
+		SaveX(ctx)
+	metadata := lpkinspect.Metadata{
+		PackageID:    record.PackageID,
+		Author:       "LPK author",
+		Homepage:     "https://example.com/app",
+		License:      "MIT",
+		MinOSVersion: "1.3.0",
+	}
+	if err := store.server.applyLPKInspectionMetadata(ctx, job, lpkInspection{Metadata: metadata}); err != nil {
+		t.Fatal(err)
+	}
+	filled := store.server.db.App.GetX(ctx, record.ID)
+	if filled.Author != "Existing author" || filled.Homepage != metadata.Homepage || filled.License != metadata.License || filled.MinOsVersion != metadata.MinOSVersion {
+		t.Fatalf("fill-missing metadata = %+v", filled)
+	}
+	job = job.Update().SetOverwriteExistingMetadata(true).SaveX(ctx)
+	if err := store.server.applyLPKInspectionMetadata(ctx, job, lpkInspection{Metadata: metadata}); err != nil {
+		t.Fatal(err)
+	}
+	overwritten := store.server.db.App.GetX(ctx, record.ID)
+	if overwritten.Author != metadata.Author {
+		t.Fatalf("overwrite metadata = %+v", overwritten)
+	}
+}
 
 func TestLPKInspectionJobLifecycle(t *testing.T) {
 	store := newTestApp(t)

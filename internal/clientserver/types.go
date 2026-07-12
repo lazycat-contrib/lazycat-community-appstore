@@ -129,6 +129,10 @@ type SourceAppDTO struct {
 	Summary          string                   `json:"summary"`
 	SummaryI18n      map[string]string        `json:"summaryI18n,omitempty"`
 	DescriptionI18n  map[string]string        `json:"descriptionI18n,omitempty"`
+	Author           string                   `json:"author,omitempty"`
+	Homepage         string                   `json:"homepage,omitempty"`
+	License          string                   `json:"license,omitempty"`
+	MinOSVersion     string                   `json:"minOSVersion,omitempty"`
 	CategoryID       *int                     `json:"categoryId,omitempty"`
 	Category         string                   `json:"category,omitempty"`
 	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`

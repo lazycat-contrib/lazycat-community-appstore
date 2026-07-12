@@ -311,6 +311,10 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 				"name":            "Notes",
 				"slug":            "notes",
 				"summary":         "Write notes",
+				"author":          "LazyCat Community",
+				"homepage":        "https://example.com/notes",
+				"license":         "MIT",
+				"minOSVersion":    "1.3.0",
 				"categoryId":      2,
 				"category":        "tools",
 				"iconUrl":         feed.URL + "/icons/notes.png",
@@ -357,7 +361,7 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	}
 	apps := app.request("GET", "/api/client/v1/apps", ``, "alice")
 	body := apps.Body.String()
-	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, `"categoryId":2`) || !strings.Contains(body, `"iconUrl":"`+feed.URL+`/icons/notes.png"`) || !strings.Contains(body, `"commentsEnabled":false`) || strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) || !strings.Contains(body, `"changelog":"Fix sync and polish UI"`) {
+	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, `"author":"LazyCat Community"`) || !strings.Contains(body, `"homepage":"https://example.com/notes"`) || !strings.Contains(body, `"license":"MIT"`) || !strings.Contains(body, `"minOSVersion":"1.3.0"`) || !strings.Contains(body, `"categoryId":2`) || !strings.Contains(body, `"iconUrl":"`+feed.URL+`/icons/notes.png"`) || !strings.Contains(body, `"commentsEnabled":false`) || strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) || !strings.Contains(body, `"changelog":"Fix sync and polish UI"`) {
 		t.Fatalf("cached app should keep original download URL: %s", body)
 	}
 	sources := app.request("GET", "/api/client/v1/sources", ``, "alice")

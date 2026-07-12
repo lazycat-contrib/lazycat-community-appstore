@@ -2669,6 +2669,10 @@ type AppMutation struct {
 	summary_i18n_json           *string
 	description                 *string
 	description_i18n_json       *string
+	author                      *string
+	homepage                    *string
+	license                     *string
+	min_os_version              *string
 	icon_url                    *string
 	status                      *app.Status
 	allow_unreviewed_updates    *bool
@@ -3199,6 +3203,150 @@ func (m *AppMutation) ResetDescriptionI18nJSON() {
 	m.description_i18n_json = nil
 }
 
+// SetAuthor sets the "author" field.
+func (m *AppMutation) SetAuthor(s string) {
+	m.author = &s
+}
+
+// Author returns the value of the "author" field in the mutation.
+func (m *AppMutation) Author() (r string, exists bool) {
+	v := m.author
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthor returns the old "author" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldAuthor(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthor is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthor requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthor: %w", err)
+	}
+	return oldValue.Author, nil
+}
+
+// ResetAuthor resets all changes to the "author" field.
+func (m *AppMutation) ResetAuthor() {
+	m.author = nil
+}
+
+// SetHomepage sets the "homepage" field.
+func (m *AppMutation) SetHomepage(s string) {
+	m.homepage = &s
+}
+
+// Homepage returns the value of the "homepage" field in the mutation.
+func (m *AppMutation) Homepage() (r string, exists bool) {
+	v := m.homepage
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHomepage returns the old "homepage" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldHomepage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHomepage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHomepage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHomepage: %w", err)
+	}
+	return oldValue.Homepage, nil
+}
+
+// ResetHomepage resets all changes to the "homepage" field.
+func (m *AppMutation) ResetHomepage() {
+	m.homepage = nil
+}
+
+// SetLicense sets the "license" field.
+func (m *AppMutation) SetLicense(s string) {
+	m.license = &s
+}
+
+// License returns the value of the "license" field in the mutation.
+func (m *AppMutation) License() (r string, exists bool) {
+	v := m.license
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLicense returns the old "license" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldLicense(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLicense is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLicense requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLicense: %w", err)
+	}
+	return oldValue.License, nil
+}
+
+// ResetLicense resets all changes to the "license" field.
+func (m *AppMutation) ResetLicense() {
+	m.license = nil
+}
+
+// SetMinOsVersion sets the "min_os_version" field.
+func (m *AppMutation) SetMinOsVersion(s string) {
+	m.min_os_version = &s
+}
+
+// MinOsVersion returns the value of the "min_os_version" field in the mutation.
+func (m *AppMutation) MinOsVersion() (r string, exists bool) {
+	v := m.min_os_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMinOsVersion returns the old "min_os_version" field's value of the App entity.
+// If the App object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppMutation) OldMinOsVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMinOsVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMinOsVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMinOsVersion: %w", err)
+	}
+	return oldValue.MinOsVersion, nil
+}
+
+// ResetMinOsVersion resets all changes to the "min_os_version" field.
+func (m *AppMutation) ResetMinOsVersion() {
+	m.min_os_version = nil
+}
+
 // SetIconURL sets the "icon_url" field.
 func (m *AppMutation) SetIconURL(s string) {
 	m.icon_url = &s
@@ -3660,7 +3808,7 @@ func (m *AppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AppMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 24)
 	if m.owner_id != nil {
 		fields = append(fields, app.FieldOwnerID)
 	}
@@ -3690,6 +3838,18 @@ func (m *AppMutation) Fields() []string {
 	}
 	if m.description_i18n_json != nil {
 		fields = append(fields, app.FieldDescriptionI18nJSON)
+	}
+	if m.author != nil {
+		fields = append(fields, app.FieldAuthor)
+	}
+	if m.homepage != nil {
+		fields = append(fields, app.FieldHomepage)
+	}
+	if m.license != nil {
+		fields = append(fields, app.FieldLicense)
+	}
+	if m.min_os_version != nil {
+		fields = append(fields, app.FieldMinOsVersion)
 	}
 	if m.icon_url != nil {
 		fields = append(fields, app.FieldIconURL)
@@ -3749,6 +3909,14 @@ func (m *AppMutation) Field(name string) (ent.Value, bool) {
 		return m.Description()
 	case app.FieldDescriptionI18nJSON:
 		return m.DescriptionI18nJSON()
+	case app.FieldAuthor:
+		return m.Author()
+	case app.FieldHomepage:
+		return m.Homepage()
+	case app.FieldLicense:
+		return m.License()
+	case app.FieldMinOsVersion:
+		return m.MinOsVersion()
 	case app.FieldIconURL:
 		return m.IconURL()
 	case app.FieldStatus:
@@ -3798,6 +3966,14 @@ func (m *AppMutation) OldField(ctx context.Context, name string) (ent.Value, err
 		return m.OldDescription(ctx)
 	case app.FieldDescriptionI18nJSON:
 		return m.OldDescriptionI18nJSON(ctx)
+	case app.FieldAuthor:
+		return m.OldAuthor(ctx)
+	case app.FieldHomepage:
+		return m.OldHomepage(ctx)
+	case app.FieldLicense:
+		return m.OldLicense(ctx)
+	case app.FieldMinOsVersion:
+		return m.OldMinOsVersion(ctx)
 	case app.FieldIconURL:
 		return m.OldIconURL(ctx)
 	case app.FieldStatus:
@@ -3896,6 +4072,34 @@ func (m *AppMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescriptionI18nJSON(v)
+		return nil
+	case app.FieldAuthor:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthor(v)
+		return nil
+	case app.FieldHomepage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHomepage(v)
+		return nil
+	case app.FieldLicense:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLicense(v)
+		return nil
+	case app.FieldMinOsVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMinOsVersion(v)
 		return nil
 	case app.FieldIconURL:
 		v, ok := value.(string)
@@ -4117,6 +4321,18 @@ func (m *AppMutation) ResetField(name string) error {
 		return nil
 	case app.FieldDescriptionI18nJSON:
 		m.ResetDescriptionI18nJSON()
+		return nil
+	case app.FieldAuthor:
+		m.ResetAuthor()
+		return nil
+	case app.FieldHomepage:
+		m.ResetHomepage()
+		return nil
+	case app.FieldLicense:
+		m.ResetLicense()
+		return nil
+	case app.FieldMinOsVersion:
+		m.ResetMinOsVersion()
 		return nil
 	case app.FieldIconURL:
 		m.ResetIconURL()
@@ -18293,6 +18509,10 @@ type ClientSourceAppMutation struct {
 	summary               *string
 	summary_i18n_json     *string
 	description_i18n_json *string
+	author                *string
+	homepage              *string
+	license               *string
+	min_os_version        *string
 	category_id           *int
 	addcategory_id        *int
 	category              *string
@@ -18735,6 +18955,150 @@ func (m *ClientSourceAppMutation) OldDescriptionI18nJSON(ctx context.Context) (v
 // ResetDescriptionI18nJSON resets all changes to the "description_i18n_json" field.
 func (m *ClientSourceAppMutation) ResetDescriptionI18nJSON() {
 	m.description_i18n_json = nil
+}
+
+// SetAuthor sets the "author" field.
+func (m *ClientSourceAppMutation) SetAuthor(s string) {
+	m.author = &s
+}
+
+// Author returns the value of the "author" field in the mutation.
+func (m *ClientSourceAppMutation) Author() (r string, exists bool) {
+	v := m.author
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthor returns the old "author" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldAuthor(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthor is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthor requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthor: %w", err)
+	}
+	return oldValue.Author, nil
+}
+
+// ResetAuthor resets all changes to the "author" field.
+func (m *ClientSourceAppMutation) ResetAuthor() {
+	m.author = nil
+}
+
+// SetHomepage sets the "homepage" field.
+func (m *ClientSourceAppMutation) SetHomepage(s string) {
+	m.homepage = &s
+}
+
+// Homepage returns the value of the "homepage" field in the mutation.
+func (m *ClientSourceAppMutation) Homepage() (r string, exists bool) {
+	v := m.homepage
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHomepage returns the old "homepage" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldHomepage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHomepage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHomepage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHomepage: %w", err)
+	}
+	return oldValue.Homepage, nil
+}
+
+// ResetHomepage resets all changes to the "homepage" field.
+func (m *ClientSourceAppMutation) ResetHomepage() {
+	m.homepage = nil
+}
+
+// SetLicense sets the "license" field.
+func (m *ClientSourceAppMutation) SetLicense(s string) {
+	m.license = &s
+}
+
+// License returns the value of the "license" field in the mutation.
+func (m *ClientSourceAppMutation) License() (r string, exists bool) {
+	v := m.license
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLicense returns the old "license" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldLicense(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLicense is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLicense requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLicense: %w", err)
+	}
+	return oldValue.License, nil
+}
+
+// ResetLicense resets all changes to the "license" field.
+func (m *ClientSourceAppMutation) ResetLicense() {
+	m.license = nil
+}
+
+// SetMinOsVersion sets the "min_os_version" field.
+func (m *ClientSourceAppMutation) SetMinOsVersion(s string) {
+	m.min_os_version = &s
+}
+
+// MinOsVersion returns the value of the "min_os_version" field in the mutation.
+func (m *ClientSourceAppMutation) MinOsVersion() (r string, exists bool) {
+	v := m.min_os_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMinOsVersion returns the old "min_os_version" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldMinOsVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMinOsVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMinOsVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMinOsVersion: %w", err)
+	}
+	return oldValue.MinOsVersion, nil
+}
+
+// ResetMinOsVersion resets all changes to the "min_os_version" field.
+func (m *ClientSourceAppMutation) ResetMinOsVersion() {
+	m.min_os_version = nil
 }
 
 // SetCategoryID sets the "category_id" field.
@@ -19284,7 +19648,7 @@ func (m *ClientSourceAppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceAppMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 25)
 	if m.source != nil {
 		fields = append(fields, clientsourceapp.FieldSourceID)
 	}
@@ -19311,6 +19675,18 @@ func (m *ClientSourceAppMutation) Fields() []string {
 	}
 	if m.description_i18n_json != nil {
 		fields = append(fields, clientsourceapp.FieldDescriptionI18nJSON)
+	}
+	if m.author != nil {
+		fields = append(fields, clientsourceapp.FieldAuthor)
+	}
+	if m.homepage != nil {
+		fields = append(fields, clientsourceapp.FieldHomepage)
+	}
+	if m.license != nil {
+		fields = append(fields, clientsourceapp.FieldLicense)
+	}
+	if m.min_os_version != nil {
+		fields = append(fields, clientsourceapp.FieldMinOsVersion)
 	}
 	if m.category_id != nil {
 		fields = append(fields, clientsourceapp.FieldCategoryID)
@@ -19374,6 +19750,14 @@ func (m *ClientSourceAppMutation) Field(name string) (ent.Value, bool) {
 		return m.SummaryI18nJSON()
 	case clientsourceapp.FieldDescriptionI18nJSON:
 		return m.DescriptionI18nJSON()
+	case clientsourceapp.FieldAuthor:
+		return m.Author()
+	case clientsourceapp.FieldHomepage:
+		return m.Homepage()
+	case clientsourceapp.FieldLicense:
+		return m.License()
+	case clientsourceapp.FieldMinOsVersion:
+		return m.MinOsVersion()
 	case clientsourceapp.FieldCategoryID:
 		return m.CategoryID()
 	case clientsourceapp.FieldCategory:
@@ -19425,6 +19809,14 @@ func (m *ClientSourceAppMutation) OldField(ctx context.Context, name string) (en
 		return m.OldSummaryI18nJSON(ctx)
 	case clientsourceapp.FieldDescriptionI18nJSON:
 		return m.OldDescriptionI18nJSON(ctx)
+	case clientsourceapp.FieldAuthor:
+		return m.OldAuthor(ctx)
+	case clientsourceapp.FieldHomepage:
+		return m.OldHomepage(ctx)
+	case clientsourceapp.FieldLicense:
+		return m.OldLicense(ctx)
+	case clientsourceapp.FieldMinOsVersion:
+		return m.OldMinOsVersion(ctx)
 	case clientsourceapp.FieldCategoryID:
 		return m.OldCategoryID(ctx)
 	case clientsourceapp.FieldCategory:
@@ -19520,6 +19912,34 @@ func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescriptionI18nJSON(v)
+		return nil
+	case clientsourceapp.FieldAuthor:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthor(v)
+		return nil
+	case clientsourceapp.FieldHomepage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHomepage(v)
+		return nil
+	case clientsourceapp.FieldLicense:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLicense(v)
+		return nil
+	case clientsourceapp.FieldMinOsVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMinOsVersion(v)
 		return nil
 	case clientsourceapp.FieldCategoryID:
 		v, ok := value.(int)
@@ -19716,6 +20136,18 @@ func (m *ClientSourceAppMutation) ResetField(name string) error {
 		return nil
 	case clientsourceapp.FieldDescriptionI18nJSON:
 		m.ResetDescriptionI18nJSON()
+		return nil
+	case clientsourceapp.FieldAuthor:
+		m.ResetAuthor()
+		return nil
+	case clientsourceapp.FieldHomepage:
+		m.ResetHomepage()
+		return nil
+	case clientsourceapp.FieldLicense:
+		m.ResetLicense()
+		return nil
+	case clientsourceapp.FieldMinOsVersion:
+		m.ResetMinOsVersion()
 		return nil
 	case clientsourceapp.FieldCategoryID:
 		m.ResetCategoryID()

@@ -214,6 +214,9 @@ func TestImporterMergeCreatesRecordsByStableKeys(t *testing.T) {
 		t.Fatal("owner user was not imported")
 	}
 	record := target.App.Query().Where(apppkg.PackageIDEQ("cloud.lazycat.example")).OnlyX(ctx)
+	if record.Author != "LazyCat Community" || record.Homepage != "https://example.com/app" || record.License != "MIT" || record.MinOsVersion != "1.3.0" {
+		t.Fatalf("app metadata was not imported: %+v", record)
+	}
 	if target.AppVersion.Query().Where(versionpkg.AppIDEQ(record.ID), versionpkg.VersionEQ("1.0.0")).CountX(ctx) != 1 {
 		t.Fatal("app version was not imported")
 	}
@@ -917,6 +920,10 @@ func seedMigrationData(t testing.TB, db *ent.Client) {
 		SetName("Example").
 		SetNameI18nJSON(`{"zh-CN":"示例","en":"Example"}`).
 		SetSlug("example").
+		SetAuthor("LazyCat Community").
+		SetHomepage("https://example.com/app").
+		SetLicense("MIT").
+		SetMinOsVersion("1.3.0").
 		SetStatus(apppkg.StatusAPPROVED).
 		SetCreatedAt(now).
 		SetUpdatedAt(now).

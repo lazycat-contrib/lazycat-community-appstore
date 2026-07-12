@@ -100,6 +100,26 @@ func DescriptionI18nJSON(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldDescriptionI18nJSON, v))
 }
 
+// Author applies equality check predicate on the "author" field. It's identical to AuthorEQ.
+func Author(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldAuthor, v))
+}
+
+// Homepage applies equality check predicate on the "homepage" field. It's identical to HomepageEQ.
+func Homepage(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldHomepage, v))
+}
+
+// License applies equality check predicate on the "license" field. It's identical to LicenseEQ.
+func License(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldLicense, v))
+}
+
+// MinOsVersion applies equality check predicate on the "min_os_version" field. It's identical to MinOsVersionEQ.
+func MinOsVersion(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldMinOsVersion, v))
+}
+
 // CategoryID applies equality check predicate on the "category_id" field. It's identical to CategoryIDEQ.
 func CategoryID(v int) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldCategoryID, v))
@@ -698,6 +718,266 @@ func DescriptionI18nJSONEqualFold(v string) predicate.ClientSourceApp {
 // DescriptionI18nJSONContainsFold applies the ContainsFold predicate on the "description_i18n_json" field.
 func DescriptionI18nJSONContainsFold(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldDescriptionI18nJSON, v))
+}
+
+// AuthorEQ applies the EQ predicate on the "author" field.
+func AuthorEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldAuthor, v))
+}
+
+// AuthorNEQ applies the NEQ predicate on the "author" field.
+func AuthorNEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldAuthor, v))
+}
+
+// AuthorIn applies the In predicate on the "author" field.
+func AuthorIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldAuthor, vs...))
+}
+
+// AuthorNotIn applies the NotIn predicate on the "author" field.
+func AuthorNotIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldAuthor, vs...))
+}
+
+// AuthorGT applies the GT predicate on the "author" field.
+func AuthorGT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldAuthor, v))
+}
+
+// AuthorGTE applies the GTE predicate on the "author" field.
+func AuthorGTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldAuthor, v))
+}
+
+// AuthorLT applies the LT predicate on the "author" field.
+func AuthorLT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldAuthor, v))
+}
+
+// AuthorLTE applies the LTE predicate on the "author" field.
+func AuthorLTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldAuthor, v))
+}
+
+// AuthorContains applies the Contains predicate on the "author" field.
+func AuthorContains(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContains(FieldAuthor, v))
+}
+
+// AuthorHasPrefix applies the HasPrefix predicate on the "author" field.
+func AuthorHasPrefix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasPrefix(FieldAuthor, v))
+}
+
+// AuthorHasSuffix applies the HasSuffix predicate on the "author" field.
+func AuthorHasSuffix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasSuffix(FieldAuthor, v))
+}
+
+// AuthorEqualFold applies the EqualFold predicate on the "author" field.
+func AuthorEqualFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEqualFold(FieldAuthor, v))
+}
+
+// AuthorContainsFold applies the ContainsFold predicate on the "author" field.
+func AuthorContainsFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldAuthor, v))
+}
+
+// HomepageEQ applies the EQ predicate on the "homepage" field.
+func HomepageEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldHomepage, v))
+}
+
+// HomepageNEQ applies the NEQ predicate on the "homepage" field.
+func HomepageNEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldHomepage, v))
+}
+
+// HomepageIn applies the In predicate on the "homepage" field.
+func HomepageIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldHomepage, vs...))
+}
+
+// HomepageNotIn applies the NotIn predicate on the "homepage" field.
+func HomepageNotIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldHomepage, vs...))
+}
+
+// HomepageGT applies the GT predicate on the "homepage" field.
+func HomepageGT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldHomepage, v))
+}
+
+// HomepageGTE applies the GTE predicate on the "homepage" field.
+func HomepageGTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldHomepage, v))
+}
+
+// HomepageLT applies the LT predicate on the "homepage" field.
+func HomepageLT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldHomepage, v))
+}
+
+// HomepageLTE applies the LTE predicate on the "homepage" field.
+func HomepageLTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldHomepage, v))
+}
+
+// HomepageContains applies the Contains predicate on the "homepage" field.
+func HomepageContains(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContains(FieldHomepage, v))
+}
+
+// HomepageHasPrefix applies the HasPrefix predicate on the "homepage" field.
+func HomepageHasPrefix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasPrefix(FieldHomepage, v))
+}
+
+// HomepageHasSuffix applies the HasSuffix predicate on the "homepage" field.
+func HomepageHasSuffix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasSuffix(FieldHomepage, v))
+}
+
+// HomepageEqualFold applies the EqualFold predicate on the "homepage" field.
+func HomepageEqualFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEqualFold(FieldHomepage, v))
+}
+
+// HomepageContainsFold applies the ContainsFold predicate on the "homepage" field.
+func HomepageContainsFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldHomepage, v))
+}
+
+// LicenseEQ applies the EQ predicate on the "license" field.
+func LicenseEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldLicense, v))
+}
+
+// LicenseNEQ applies the NEQ predicate on the "license" field.
+func LicenseNEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldLicense, v))
+}
+
+// LicenseIn applies the In predicate on the "license" field.
+func LicenseIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldLicense, vs...))
+}
+
+// LicenseNotIn applies the NotIn predicate on the "license" field.
+func LicenseNotIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldLicense, vs...))
+}
+
+// LicenseGT applies the GT predicate on the "license" field.
+func LicenseGT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldLicense, v))
+}
+
+// LicenseGTE applies the GTE predicate on the "license" field.
+func LicenseGTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldLicense, v))
+}
+
+// LicenseLT applies the LT predicate on the "license" field.
+func LicenseLT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldLicense, v))
+}
+
+// LicenseLTE applies the LTE predicate on the "license" field.
+func LicenseLTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldLicense, v))
+}
+
+// LicenseContains applies the Contains predicate on the "license" field.
+func LicenseContains(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContains(FieldLicense, v))
+}
+
+// LicenseHasPrefix applies the HasPrefix predicate on the "license" field.
+func LicenseHasPrefix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasPrefix(FieldLicense, v))
+}
+
+// LicenseHasSuffix applies the HasSuffix predicate on the "license" field.
+func LicenseHasSuffix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasSuffix(FieldLicense, v))
+}
+
+// LicenseEqualFold applies the EqualFold predicate on the "license" field.
+func LicenseEqualFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEqualFold(FieldLicense, v))
+}
+
+// LicenseContainsFold applies the ContainsFold predicate on the "license" field.
+func LicenseContainsFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldLicense, v))
+}
+
+// MinOsVersionEQ applies the EQ predicate on the "min_os_version" field.
+func MinOsVersionEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldMinOsVersion, v))
+}
+
+// MinOsVersionNEQ applies the NEQ predicate on the "min_os_version" field.
+func MinOsVersionNEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldMinOsVersion, v))
+}
+
+// MinOsVersionIn applies the In predicate on the "min_os_version" field.
+func MinOsVersionIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldMinOsVersion, vs...))
+}
+
+// MinOsVersionNotIn applies the NotIn predicate on the "min_os_version" field.
+func MinOsVersionNotIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldMinOsVersion, vs...))
+}
+
+// MinOsVersionGT applies the GT predicate on the "min_os_version" field.
+func MinOsVersionGT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldMinOsVersion, v))
+}
+
+// MinOsVersionGTE applies the GTE predicate on the "min_os_version" field.
+func MinOsVersionGTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldMinOsVersion, v))
+}
+
+// MinOsVersionLT applies the LT predicate on the "min_os_version" field.
+func MinOsVersionLT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldMinOsVersion, v))
+}
+
+// MinOsVersionLTE applies the LTE predicate on the "min_os_version" field.
+func MinOsVersionLTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldMinOsVersion, v))
+}
+
+// MinOsVersionContains applies the Contains predicate on the "min_os_version" field.
+func MinOsVersionContains(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContains(FieldMinOsVersion, v))
+}
+
+// MinOsVersionHasPrefix applies the HasPrefix predicate on the "min_os_version" field.
+func MinOsVersionHasPrefix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasPrefix(FieldMinOsVersion, v))
+}
+
+// MinOsVersionHasSuffix applies the HasSuffix predicate on the "min_os_version" field.
+func MinOsVersionHasSuffix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasSuffix(FieldMinOsVersion, v))
+}
+
+// MinOsVersionEqualFold applies the EqualFold predicate on the "min_os_version" field.
+func MinOsVersionEqualFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEqualFold(FieldMinOsVersion, v))
+}
+
+// MinOsVersionContainsFold applies the ContainsFold predicate on the "min_os_version" field.
+func MinOsVersionContainsFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldMinOsVersion, v))
 }
 
 // CategoryIDEQ applies the EQ predicate on the "category_id" field.

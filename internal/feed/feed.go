@@ -93,6 +93,10 @@ type AppInput struct {
 	SummaryI18n      map[string]string        `json:"summaryI18n,omitempty"`
 	Description      string                   `json:"description"`
 	DescriptionI18n  map[string]string        `json:"descriptionI18n,omitempty"`
+	Author           string                   `json:"author,omitempty"`
+	Homepage         string                   `json:"homepage,omitempty"`
+	License          string                   `json:"license,omitempty"`
+	MinOSVersion     string                   `json:"minOSVersion,omitempty"`
 	IconURL          string                   `json:"iconUrl,omitempty"`
 	CategoryID       *int                     `json:"categoryId,omitempty"`
 	Category         string                   `json:"category,omitempty"`
@@ -129,6 +133,10 @@ type App struct {
 	SummaryI18n      map[string]string        `json:"summaryI18n,omitempty"`
 	Description      string                   `json:"description"`
 	DescriptionI18n  map[string]string        `json:"descriptionI18n,omitempty"`
+	Author           string                   `json:"author,omitempty"`
+	Homepage         string                   `json:"homepage,omitempty"`
+	License          string                   `json:"license,omitempty"`
+	MinOSVersion     string                   `json:"minOSVersion,omitempty"`
 	IconURL          string                   `json:"iconUrl,omitempty"`
 	Category         string                   `json:"category,omitempty"`
 	CategoryI18n     map[string]string        `json:"categoryI18n,omitempty"`
@@ -173,6 +181,10 @@ func BuildApp(inApp AppInput) (App, bool) {
 		SummaryI18n:      inApp.SummaryI18n,
 		Description:      inApp.Description,
 		DescriptionI18n:  inApp.DescriptionI18n,
+		Author:           inApp.Author,
+		Homepage:         inApp.Homepage,
+		License:          inApp.License,
+		MinOSVersion:     inApp.MinOSVersion,
 		IconURL:          inApp.IconURL,
 		Category:         inApp.Category,
 		CategoryI18n:     inApp.CategoryI18n,

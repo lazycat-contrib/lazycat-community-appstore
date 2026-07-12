@@ -36,6 +36,14 @@ type ClientSourceApp struct {
 	SummaryI18nJSON string `json:"summary_i18n_json,omitempty"`
 	// DescriptionI18nJSON holds the value of the "description_i18n_json" field.
 	DescriptionI18nJSON string `json:"description_i18n_json,omitempty"`
+	// Author holds the value of the "author" field.
+	Author string `json:"author,omitempty"`
+	// Homepage holds the value of the "homepage" field.
+	Homepage string `json:"homepage,omitempty"`
+	// License holds the value of the "license" field.
+	License string `json:"license,omitempty"`
+	// MinOsVersion holds the value of the "min_os_version" field.
+	MinOsVersion string `json:"min_os_version,omitempty"`
 	// CategoryID holds the value of the "category_id" field.
 	CategoryID *int `json:"category_id,omitempty"`
 	// Category holds the value of the "category" field.
@@ -95,7 +103,7 @@ func (*ClientSourceApp) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID, clientsourceapp.FieldCategoryID, clientsourceapp.FieldOutdatedMarks:
 			values[i] = new(sql.NullInt64)
-		case clientsourceapp.FieldExternalID, clientsourceapp.FieldPackageID, clientsourceapp.FieldName, clientsourceapp.FieldNameI18nJSON, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldSummaryI18nJSON, clientsourceapp.FieldDescriptionI18nJSON, clientsourceapp.FieldCategory, clientsourceapp.FieldCategoryI18nJSON, clientsourceapp.FieldIconURL, clientsourceapp.FieldScreenshotsJSON, clientsourceapp.FieldLatestVersionJSON, clientsourceapp.FieldVersionsJSON:
+		case clientsourceapp.FieldExternalID, clientsourceapp.FieldPackageID, clientsourceapp.FieldName, clientsourceapp.FieldNameI18nJSON, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldSummaryI18nJSON, clientsourceapp.FieldDescriptionI18nJSON, clientsourceapp.FieldAuthor, clientsourceapp.FieldHomepage, clientsourceapp.FieldLicense, clientsourceapp.FieldMinOsVersion, clientsourceapp.FieldCategory, clientsourceapp.FieldCategoryI18nJSON, clientsourceapp.FieldIconURL, clientsourceapp.FieldScreenshotsJSON, clientsourceapp.FieldLatestVersionJSON, clientsourceapp.FieldVersionsJSON:
 			values[i] = new(sql.NullString)
 		case clientsourceapp.FieldCreatedAt, clientsourceapp.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -173,6 +181,30 @@ func (_m *ClientSourceApp) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field description_i18n_json", values[i])
 			} else if value.Valid {
 				_m.DescriptionI18nJSON = value.String
+			}
+		case clientsourceapp.FieldAuthor:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field author", values[i])
+			} else if value.Valid {
+				_m.Author = value.String
+			}
+		case clientsourceapp.FieldHomepage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field homepage", values[i])
+			} else if value.Valid {
+				_m.Homepage = value.String
+			}
+		case clientsourceapp.FieldLicense:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field license", values[i])
+			} else if value.Valid {
+				_m.License = value.String
+			}
+		case clientsourceapp.FieldMinOsVersion:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field min_os_version", values[i])
+			} else if value.Valid {
+				_m.MinOsVersion = value.String
 			}
 		case clientsourceapp.FieldCategoryID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -314,6 +346,18 @@ func (_m *ClientSourceApp) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("description_i18n_json=")
 	builder.WriteString(_m.DescriptionI18nJSON)
+	builder.WriteString(", ")
+	builder.WriteString("author=")
+	builder.WriteString(_m.Author)
+	builder.WriteString(", ")
+	builder.WriteString("homepage=")
+	builder.WriteString(_m.Homepage)
+	builder.WriteString(", ")
+	builder.WriteString("license=")
+	builder.WriteString(_m.License)
+	builder.WriteString(", ")
+	builder.WriteString("min_os_version=")
+	builder.WriteString(_m.MinOsVersion)
 	builder.WriteString(", ")
 	if v := _m.CategoryID; v != nil {
 		builder.WriteString("category_id=")

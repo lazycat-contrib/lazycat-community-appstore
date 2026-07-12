@@ -34,6 +34,14 @@ const (
 	FieldDescription = "description"
 	// FieldDescriptionI18nJSON holds the string denoting the description_i18n_json field in the database.
 	FieldDescriptionI18nJSON = "description_i18n_json"
+	// FieldAuthor holds the string denoting the author field in the database.
+	FieldAuthor = "author"
+	// FieldHomepage holds the string denoting the homepage field in the database.
+	FieldHomepage = "homepage"
+	// FieldLicense holds the string denoting the license field in the database.
+	FieldLicense = "license"
+	// FieldMinOsVersion holds the string denoting the min_os_version field in the database.
+	FieldMinOsVersion = "min_os_version"
 	// FieldIconURL holds the string denoting the icon_url field in the database.
 	FieldIconURL = "icon_url"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -71,6 +79,10 @@ var Columns = []string{
 	FieldSummaryI18nJSON,
 	FieldDescription,
 	FieldDescriptionI18nJSON,
+	FieldAuthor,
+	FieldHomepage,
+	FieldLicense,
+	FieldMinOsVersion,
 	FieldIconURL,
 	FieldStatus,
 	FieldAllowUnreviewedUpdates,
@@ -110,6 +122,14 @@ var (
 	DefaultDescription string
 	// DefaultDescriptionI18nJSON holds the default value on creation for the "description_i18n_json" field.
 	DefaultDescriptionI18nJSON string
+	// DefaultAuthor holds the default value on creation for the "author" field.
+	DefaultAuthor string
+	// DefaultHomepage holds the default value on creation for the "homepage" field.
+	DefaultHomepage string
+	// DefaultLicense holds the default value on creation for the "license" field.
+	DefaultLicense string
+	// DefaultMinOsVersion holds the default value on creation for the "min_os_version" field.
+	DefaultMinOsVersion string
 	// DefaultAllowUnreviewedUpdates holds the default value on creation for the "allow_unreviewed_updates" field.
 	DefaultAllowUnreviewedUpdates bool
 	// DefaultCommentsEnabled holds the default value on creation for the "comments_enabled" field.
@@ -213,6 +233,26 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByDescriptionI18nJSON orders the results by the description_i18n_json field.
 func ByDescriptionI18nJSON(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescriptionI18nJSON, opts...).ToFunc()
+}
+
+// ByAuthor orders the results by the author field.
+func ByAuthor(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAuthor, opts...).ToFunc()
+}
+
+// ByHomepage orders the results by the homepage field.
+func ByHomepage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHomepage, opts...).ToFunc()
+}
+
+// ByLicense orders the results by the license field.
+func ByLicense(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLicense, opts...).ToFunc()
+}
+
+// ByMinOsVersion orders the results by the min_os_version field.
+func ByMinOsVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMinOsVersion, opts...).ToFunc()
 }
 
 // ByIconURL orders the results by the icon_url field.

@@ -39,6 +39,10 @@ type feedApp struct {
 	Summary          string                   `json:"summary"`
 	SummaryI18n      map[string]string        `json:"summaryI18n"`
 	DescriptionI18n  map[string]string        `json:"descriptionI18n"`
+	Author           string                   `json:"author"`
+	Homepage         string                   `json:"homepage"`
+	License          string                   `json:"license"`
+	MinOSVersion     string                   `json:"minOSVersion"`
 	CategoryID       *int                     `json:"categoryId"`
 	Category         string                   `json:"category"`
 	CategoryI18n     map[string]string        `json:"categoryI18n"`
@@ -336,6 +340,10 @@ type sourceAppCacheRow struct {
 	Summary             string
 	SummaryI18nJSON     string
 	DescriptionI18nJSON string
+	Author              string
+	Homepage            string
+	License             string
+	MinOSVersion        string
 	CategoryID          *int
 	Category            string
 	CategoryI18nJSON    string
@@ -383,6 +391,10 @@ func buildSourceAppCacheRow(app feedApp) (sourceAppCacheRow, error) {
 		Summary:             app.Summary,
 		SummaryI18nJSON:     catalogmeta.EncodeLocalizedText(app.SummaryI18n),
 		DescriptionI18nJSON: catalogmeta.EncodeLocalizedText(app.DescriptionI18n),
+		Author:              strings.TrimSpace(app.Author),
+		Homepage:            strings.TrimSpace(app.Homepage),
+		License:             strings.TrimSpace(app.License),
+		MinOSVersion:        strings.TrimSpace(app.MinOSVersion),
 		CategoryID:          app.CategoryID,
 		Category:            app.Category,
 		CategoryI18nJSON:    catalogmeta.EncodeLocalizedText(app.CategoryI18n),
@@ -407,6 +419,10 @@ func sourceAppCreateBuilder(tx *ent.Tx, sourceID int, row sourceAppCacheRow) *en
 		SetSummary(row.Summary).
 		SetSummaryI18nJSON(row.SummaryI18nJSON).
 		SetDescriptionI18nJSON(row.DescriptionI18nJSON).
+		SetAuthor(row.Author).
+		SetHomepage(row.Homepage).
+		SetLicense(row.License).
+		SetMinOsVersion(row.MinOSVersion).
 		SetNillableCategoryID(row.CategoryID).
 		SetCategory(row.Category).
 		SetCategoryI18nJSON(row.CategoryI18nJSON).

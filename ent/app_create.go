@@ -128,6 +128,62 @@ func (_c *AppCreate) SetNillableDescriptionI18nJSON(v *string) *AppCreate {
 	return _c
 }
 
+// SetAuthor sets the "author" field.
+func (_c *AppCreate) SetAuthor(v string) *AppCreate {
+	_c.mutation.SetAuthor(v)
+	return _c
+}
+
+// SetNillableAuthor sets the "author" field if the given value is not nil.
+func (_c *AppCreate) SetNillableAuthor(v *string) *AppCreate {
+	if v != nil {
+		_c.SetAuthor(*v)
+	}
+	return _c
+}
+
+// SetHomepage sets the "homepage" field.
+func (_c *AppCreate) SetHomepage(v string) *AppCreate {
+	_c.mutation.SetHomepage(v)
+	return _c
+}
+
+// SetNillableHomepage sets the "homepage" field if the given value is not nil.
+func (_c *AppCreate) SetNillableHomepage(v *string) *AppCreate {
+	if v != nil {
+		_c.SetHomepage(*v)
+	}
+	return _c
+}
+
+// SetLicense sets the "license" field.
+func (_c *AppCreate) SetLicense(v string) *AppCreate {
+	_c.mutation.SetLicense(v)
+	return _c
+}
+
+// SetNillableLicense sets the "license" field if the given value is not nil.
+func (_c *AppCreate) SetNillableLicense(v *string) *AppCreate {
+	if v != nil {
+		_c.SetLicense(*v)
+	}
+	return _c
+}
+
+// SetMinOsVersion sets the "min_os_version" field.
+func (_c *AppCreate) SetMinOsVersion(v string) *AppCreate {
+	_c.mutation.SetMinOsVersion(v)
+	return _c
+}
+
+// SetNillableMinOsVersion sets the "min_os_version" field if the given value is not nil.
+func (_c *AppCreate) SetNillableMinOsVersion(v *string) *AppCreate {
+	if v != nil {
+		_c.SetMinOsVersion(*v)
+	}
+	return _c
+}
+
 // SetIconURL sets the "icon_url" field.
 func (_c *AppCreate) SetIconURL(v string) *AppCreate {
 	_c.mutation.SetIconURL(v)
@@ -323,6 +379,22 @@ func (_c *AppCreate) defaults() {
 		v := app.DefaultDescriptionI18nJSON
 		_c.mutation.SetDescriptionI18nJSON(v)
 	}
+	if _, ok := _c.mutation.Author(); !ok {
+		v := app.DefaultAuthor
+		_c.mutation.SetAuthor(v)
+	}
+	if _, ok := _c.mutation.Homepage(); !ok {
+		v := app.DefaultHomepage
+		_c.mutation.SetHomepage(v)
+	}
+	if _, ok := _c.mutation.License(); !ok {
+		v := app.DefaultLicense
+		_c.mutation.SetLicense(v)
+	}
+	if _, ok := _c.mutation.MinOsVersion(); !ok {
+		v := app.DefaultMinOsVersion
+		_c.mutation.SetMinOsVersion(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := app.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -400,6 +472,18 @@ func (_c *AppCreate) check() error {
 	}
 	if _, ok := _c.mutation.DescriptionI18nJSON(); !ok {
 		return &ValidationError{Name: "description_i18n_json", err: errors.New(`ent: missing required field "App.description_i18n_json"`)}
+	}
+	if _, ok := _c.mutation.Author(); !ok {
+		return &ValidationError{Name: "author", err: errors.New(`ent: missing required field "App.author"`)}
+	}
+	if _, ok := _c.mutation.Homepage(); !ok {
+		return &ValidationError{Name: "homepage", err: errors.New(`ent: missing required field "App.homepage"`)}
+	}
+	if _, ok := _c.mutation.License(); !ok {
+		return &ValidationError{Name: "license", err: errors.New(`ent: missing required field "App.license"`)}
+	}
+	if _, ok := _c.mutation.MinOsVersion(); !ok {
+		return &ValidationError{Name: "min_os_version", err: errors.New(`ent: missing required field "App.min_os_version"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "App.status"`)}
@@ -495,6 +579,22 @@ func (_c *AppCreate) createSpec() (*App, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DescriptionI18nJSON(); ok {
 		_spec.SetField(app.FieldDescriptionI18nJSON, field.TypeString, value)
 		_node.DescriptionI18nJSON = value
+	}
+	if value, ok := _c.mutation.Author(); ok {
+		_spec.SetField(app.FieldAuthor, field.TypeString, value)
+		_node.Author = value
+	}
+	if value, ok := _c.mutation.Homepage(); ok {
+		_spec.SetField(app.FieldHomepage, field.TypeString, value)
+		_node.Homepage = value
+	}
+	if value, ok := _c.mutation.License(); ok {
+		_spec.SetField(app.FieldLicense, field.TypeString, value)
+		_node.License = value
+	}
+	if value, ok := _c.mutation.MinOsVersion(); ok {
+		_spec.SetField(app.FieldMinOsVersion, field.TypeString, value)
+		_node.MinOsVersion = value
 	}
 	if value, ok := _c.mutation.IconURL(); ok {
 		_spec.SetField(app.FieldIconURL, field.TypeString, value)

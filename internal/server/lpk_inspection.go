@@ -321,6 +321,22 @@ func (s *Server) applyLPKInspectionMetadata(ctx context.Context, job *entgo.LPKI
 		update.SetSummaryI18nJSON(catalogmeta.EncodeLocalizedText(generated))
 		changed = true
 	}
+	if lpkTextShouldApply(record.Author, meta.Author, overwrite) {
+		update.SetAuthor(meta.Author)
+		changed = true
+	}
+	if lpkTextShouldApply(record.Homepage, meta.Homepage, overwrite) {
+		update.SetHomepage(meta.Homepage)
+		changed = true
+	}
+	if lpkTextShouldApply(record.License, meta.License, overwrite) {
+		update.SetLicense(meta.License)
+		changed = true
+	}
+	if lpkTextShouldApply(record.MinOsVersion, meta.MinOSVersion, overwrite) {
+		update.SetMinOsVersion(meta.MinOSVersion)
+		changed = true
+	}
 	iconAssetID := 0
 	if len(meta.IconData) > 0 && (overwrite || record.IconURL == nil || strings.TrimSpace(*record.IconURL) == "") {
 		iconURL, assetID, iconErr := s.saveLPKIconAsset(ctx, meta)

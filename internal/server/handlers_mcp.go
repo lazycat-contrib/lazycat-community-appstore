@@ -346,6 +346,10 @@ type mcpAppSummary struct {
 	Owner            string `json:"owner"`
 	PackageID        string `json:"packageId"`
 	Name             string `json:"name"`
+	Author           string `json:"author,omitempty"`
+	Homepage         string `json:"homepage,omitempty"`
+	License          string `json:"license,omitempty"`
+	MinOSVersion     string `json:"minOSVersion,omitempty"`
 	Status           string `json:"status"`
 	LatestVersion    string `json:"latestVersion,omitempty"`
 	CanManageApp     bool   `json:"canManageApp"`
@@ -608,6 +612,10 @@ func toMCPAppSummary(dto appSummary) mcpAppSummary {
 		Owner:            dto.Owner,
 		PackageID:        dto.PackageID,
 		Name:             dto.Name,
+		Author:           dto.Author,
+		Homepage:         dto.Homepage,
+		License:          dto.License,
+		MinOSVersion:     dto.MinOSVersion,
 		Status:           dto.Status,
 		LatestVersion:    latestVersion,
 		CanManageApp:     dto.CanManageApp,

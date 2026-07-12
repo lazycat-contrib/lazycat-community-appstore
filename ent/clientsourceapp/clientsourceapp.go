@@ -32,6 +32,14 @@ const (
 	FieldSummaryI18nJSON = "summary_i18n_json"
 	// FieldDescriptionI18nJSON holds the string denoting the description_i18n_json field in the database.
 	FieldDescriptionI18nJSON = "description_i18n_json"
+	// FieldAuthor holds the string denoting the author field in the database.
+	FieldAuthor = "author"
+	// FieldHomepage holds the string denoting the homepage field in the database.
+	FieldHomepage = "homepage"
+	// FieldLicense holds the string denoting the license field in the database.
+	FieldLicense = "license"
+	// FieldMinOsVersion holds the string denoting the min_os_version field in the database.
+	FieldMinOsVersion = "min_os_version"
 	// FieldCategoryID holds the string denoting the category_id field in the database.
 	FieldCategoryID = "category_id"
 	// FieldCategory holds the string denoting the category field in the database.
@@ -81,6 +89,10 @@ var Columns = []string{
 	FieldSummary,
 	FieldSummaryI18nJSON,
 	FieldDescriptionI18nJSON,
+	FieldAuthor,
+	FieldHomepage,
+	FieldLicense,
+	FieldMinOsVersion,
 	FieldCategoryID,
 	FieldCategory,
 	FieldCategoryI18nJSON,
@@ -122,6 +134,14 @@ var (
 	DefaultSummaryI18nJSON string
 	// DefaultDescriptionI18nJSON holds the default value on creation for the "description_i18n_json" field.
 	DefaultDescriptionI18nJSON string
+	// DefaultAuthor holds the default value on creation for the "author" field.
+	DefaultAuthor string
+	// DefaultHomepage holds the default value on creation for the "homepage" field.
+	DefaultHomepage string
+	// DefaultLicense holds the default value on creation for the "license" field.
+	DefaultLicense string
+	// DefaultMinOsVersion holds the default value on creation for the "min_os_version" field.
+	DefaultMinOsVersion string
 	// DefaultCategory holds the default value on creation for the "category" field.
 	DefaultCategory string
 	// DefaultCategoryI18nJSON holds the default value on creation for the "category_i18n_json" field.
@@ -199,6 +219,26 @@ func BySummaryI18nJSON(opts ...sql.OrderTermOption) OrderOption {
 // ByDescriptionI18nJSON orders the results by the description_i18n_json field.
 func ByDescriptionI18nJSON(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDescriptionI18nJSON, opts...).ToFunc()
+}
+
+// ByAuthor orders the results by the author field.
+func ByAuthor(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAuthor, opts...).ToFunc()
+}
+
+// ByHomepage orders the results by the homepage field.
+func ByHomepage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHomepage, opts...).ToFunc()
+}
+
+// ByLicense orders the results by the license field.
+func ByLicense(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLicense, opts...).ToFunc()
+}
+
+// ByMinOsVersion orders the results by the min_os_version field.
+func ByMinOsVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMinOsVersion, opts...).ToFunc()
 }
 
 // ByCategoryID orders the results by the category_id field.

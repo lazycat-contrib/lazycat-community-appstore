@@ -236,6 +236,10 @@ type AppRecord struct {
 	SummaryI18nJSON           string    `json:"summary_i18n_json"`
 	Description               string    `json:"description"`
 	DescriptionI18nJSON       string    `json:"description_i18n_json"`
+	Author                    string    `json:"author,omitempty"`
+	Homepage                  string    `json:"homepage,omitempty"`
+	License                   string    `json:"license,omitempty"`
+	MinOSVersion              string    `json:"min_os_version,omitempty"`
 	IconURL                   *string   `json:"icon_url,omitempty"`
 	Status                    string    `json:"status"`
 	AllowUnreviewedUpdates    bool      `json:"allow_unreviewed_updates"`
@@ -361,7 +365,7 @@ func collectAppsData(ctx context.Context, db *ent.Client) (AppsData, error) {
 	if err := db.Tag.Query().Select(tag.FieldID, tag.FieldName, tag.FieldNameI18n, tag.FieldSlug, tag.FieldCreatedAt, tag.FieldUpdatedAt).Scan(ctx, &data.Tags); err != nil {
 		return data, err
 	}
-	if err := db.App.Query().Select(app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldPackageID, app.FieldName, app.FieldNameI18nJSON, app.FieldSlug, app.FieldSummary, app.FieldSummaryI18nJSON, app.FieldDescription, app.FieldDescriptionI18nJSON, app.FieldIconURL, app.FieldStatus, app.FieldAllowUnreviewedUpdates, app.FieldCommentsEnabled, app.FieldEmailNotificationsEnabled, app.FieldInstallPasswordHash, app.FieldDownloadCount, app.FieldVersionRetentionCount, app.FieldCreatedAt, app.FieldUpdatedAt).Scan(ctx, &data.Apps); err != nil {
+	if err := db.App.Query().Select(app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldPackageID, app.FieldName, app.FieldNameI18nJSON, app.FieldSlug, app.FieldSummary, app.FieldSummaryI18nJSON, app.FieldDescription, app.FieldDescriptionI18nJSON, app.FieldAuthor, app.FieldHomepage, app.FieldLicense, app.FieldMinOsVersion, app.FieldIconURL, app.FieldStatus, app.FieldAllowUnreviewedUpdates, app.FieldCommentsEnabled, app.FieldEmailNotificationsEnabled, app.FieldInstallPasswordHash, app.FieldDownloadCount, app.FieldVersionRetentionCount, app.FieldCreatedAt, app.FieldUpdatedAt).Scan(ctx, &data.Apps); err != nil {
 		return data, err
 	}
 	if err := db.AppVersion.Query().Select(appversion.FieldID, appversion.FieldAppID, appversion.FieldUploaderID, appversion.FieldVersion, appversion.FieldChangelog, appversion.FieldStatus, appversion.FieldSourceType, appversion.FieldDownloadURL, appversion.FieldStorageKey, appversion.FieldStoragePath, appversion.FieldFileSize, appversion.FieldSha256, appversion.FieldPublishedAt, appversion.FieldCreatedAt, appversion.FieldUpdatedAt).Scan(ctx, &data.AppVersions); err != nil {

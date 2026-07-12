@@ -37,6 +37,14 @@ type App struct {
 	Description string `json:"description,omitempty"`
 	// DescriptionI18nJSON holds the value of the "description_i18n_json" field.
 	DescriptionI18nJSON string `json:"description_i18n_json,omitempty"`
+	// Author holds the value of the "author" field.
+	Author string `json:"author,omitempty"`
+	// Homepage holds the value of the "homepage" field.
+	Homepage string `json:"homepage,omitempty"`
+	// License holds the value of the "license" field.
+	License string `json:"license,omitempty"`
+	// MinOsVersion holds the value of the "min_os_version" field.
+	MinOsVersion string `json:"min_os_version,omitempty"`
 	// IconURL holds the value of the "icon_url" field.
 	IconURL *string `json:"icon_url,omitempty"`
 	// Status holds the value of the "status" field.
@@ -69,7 +77,7 @@ func (*App) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case app.FieldID, app.FieldOwnerID, app.FieldCategoryID, app.FieldDownloadCount, app.FieldVersionRetentionCount:
 			values[i] = new(sql.NullInt64)
-		case app.FieldPackageID, app.FieldName, app.FieldNameI18nJSON, app.FieldSlug, app.FieldSummary, app.FieldSummaryI18nJSON, app.FieldDescription, app.FieldDescriptionI18nJSON, app.FieldIconURL, app.FieldStatus, app.FieldInstallPasswordHash:
+		case app.FieldPackageID, app.FieldName, app.FieldNameI18nJSON, app.FieldSlug, app.FieldSummary, app.FieldSummaryI18nJSON, app.FieldDescription, app.FieldDescriptionI18nJSON, app.FieldAuthor, app.FieldHomepage, app.FieldLicense, app.FieldMinOsVersion, app.FieldIconURL, app.FieldStatus, app.FieldInstallPasswordHash:
 			values[i] = new(sql.NullString)
 		case app.FieldCreatedAt, app.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -154,6 +162,30 @@ func (_m *App) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field description_i18n_json", values[i])
 			} else if value.Valid {
 				_m.DescriptionI18nJSON = value.String
+			}
+		case app.FieldAuthor:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field author", values[i])
+			} else if value.Valid {
+				_m.Author = value.String
+			}
+		case app.FieldHomepage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field homepage", values[i])
+			} else if value.Valid {
+				_m.Homepage = value.String
+			}
+		case app.FieldLicense:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field license", values[i])
+			} else if value.Valid {
+				_m.License = value.String
+			}
+		case app.FieldMinOsVersion:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field min_os_version", values[i])
+			} else if value.Valid {
+				_m.MinOsVersion = value.String
 			}
 		case app.FieldIconURL:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -284,6 +316,18 @@ func (_m *App) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("description_i18n_json=")
 	builder.WriteString(_m.DescriptionI18nJSON)
+	builder.WriteString(", ")
+	builder.WriteString("author=")
+	builder.WriteString(_m.Author)
+	builder.WriteString(", ")
+	builder.WriteString("homepage=")
+	builder.WriteString(_m.Homepage)
+	builder.WriteString(", ")
+	builder.WriteString("license=")
+	builder.WriteString(_m.License)
+	builder.WriteString(", ")
+	builder.WriteString("min_os_version=")
+	builder.WriteString(_m.MinOsVersion)
 	builder.WriteString(", ")
 	if v := _m.IconURL; v != nil {
 		builder.WriteString("icon_url=")

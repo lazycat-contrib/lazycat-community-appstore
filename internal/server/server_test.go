@@ -1969,6 +1969,9 @@ func TestMultipartCreateAppFillsMetadataFromLPK(t *testing.T) {
 	if created.Name != "Upload Meta" || created.Slug != "upload-meta" || created.Summary != "Parsed from package.yml" {
 		t.Fatalf("metadata not applied: %+v", created)
 	}
+	if created.Author != "LazyCat Community" || created.Homepage != "https://example.com/app" || created.License != "MIT" || created.MinOsVersion != "1.3.0" {
+		t.Fatalf("LPK application metadata not applied: %+v", created)
+	}
 	if created.IconURL == nil || !strings.HasPrefix(*created.IconURL, "/api/v1/assets/") {
 		t.Fatalf("icon metadata not applied: icon=%v", created.IconURL)
 	}
@@ -3622,7 +3625,7 @@ func TestSiteAdminCanListAndUpdateUsers(t *testing.T) {
 
 func testLPKArchive(t *testing.T, packageID, version, name, description string) []byte {
 	t.Helper()
-	body := fmt.Sprintf("package: %s\nversion: %s\nname: %s\ndescription: %s\nicon: icon.png\n", packageID, version, name, description)
+	body := fmt.Sprintf("package: %s\nversion: %s\nname: %s\ndescription: %s\nauthor: LazyCat Community\nhomepage: https://example.com/app\nlicense: MIT\nmin_os_version: 1.3.0\nicon: icon.png\n", packageID, version, name, description)
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
 	writeTestTarFile(t, tw, "package.yml", []byte(body))

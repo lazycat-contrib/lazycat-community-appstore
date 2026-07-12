@@ -136,6 +136,10 @@ type appSummary struct {
 	SummaryI18n               map[string]string `json:"summaryI18n,omitempty"`
 	Description               string            `json:"description"`
 	DescriptionI18n           map[string]string `json:"descriptionI18n,omitempty"`
+	Author                    string            `json:"author,omitempty"`
+	Homepage                  string            `json:"homepage,omitempty"`
+	License                   string            `json:"license,omitempty"`
+	MinOSVersion              string            `json:"minOSVersion,omitempty"`
 	IconURL                   *string           `json:"iconUrl,omitempty"`
 	Status                    string            `json:"status"`
 	AllowUnreviewedUpdates    bool              `json:"allowUnreviewedUpdates"`

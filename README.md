@@ -103,7 +103,7 @@ lzc-cli project release -o ../../dist/lazycat-community-appstore-client.lpk
 - User registration/login, email verification token flow, API tokens.
 - Role-based access for users, software admins, and site admins.
 - App submission, `.lpk` upload, external GitHub/WebDAV/S3 URL versions, review approval.
-- V2 `.lpk` metadata parsing from `package.yml` for uploaded LPK files and reachable external LPK URLs. JSON/form fields win when present; missing package ID, name, summary, description, version, file size, and SHA256 can be filled from the LPK.
+- V2 `.lpk` metadata parsing from `package.yml` for uploaded LPK files and reachable external LPK URLs. JSON/form fields win when present; missing package ID, name, summary, description, version, author, homepage, license, minimum OS version, file size, and SHA256 can be filled from the LPK.
 - SHA256 calculation for uploaded LPK files; external URL versions can auto-detect SHA256 when the URL is reachable and points to a valid V2 LPK.
 - Local, WebDAV, S3-compatible storage backends, and GitHub external-link mode.
 - App screenshots, comments, favorites, outdated marks, collaborator requests.

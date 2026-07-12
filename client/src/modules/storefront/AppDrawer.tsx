@@ -78,6 +78,7 @@ import {
   localizedAppSummary,
   localizedCategory,
   runAction,
+  safeExternalURL,
   shortSHA,
 } from '../../shared/utils';
 import type { SubmissionProgress } from '../profile/AppSubmissionForm';
@@ -184,6 +185,7 @@ export function AppDrawer({
 	const canInspectLPK = canUploadVersion && Boolean(latestVersion?.downloadUrl);
   const latestChangelog = latestVersion?.changelog?.trim() || '';
   const appName = localizedAppName(app);
+  const homepageURL = safeExternalURL(app.homepage);
   const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
   const installable = hasInstallableVersion(app);
   const hasChecksum = Boolean(latestVersion?.sha256);
@@ -827,6 +829,14 @@ export function AppDrawer({
           <XMetadataListItem label={t('common.checksum')}>
             {t('drawer.sha256', { hash: shortSHA(latestVersion?.sha256) })}
           </XMetadataListItem>
+          {app.author && <XMetadataListItem label={t('drawer.softwareAuthor')}>{app.author}</XMetadataListItem>}
+          {homepageURL && (
+            <XMetadataListItem label={t('drawer.softwareHomepage')}>
+              <a href={homepageURL} target="_blank" rel="noreferrer">{app.homepage}</a>
+            </XMetadataListItem>
+          )}
+          {app.license && <XMetadataListItem label={t('drawer.softwareLicense')}>{app.license}</XMetadataListItem>}
+          {app.minOSVersion && <XMetadataListItem label={t('drawer.minimumOSVersion')}>{app.minOSVersion}</XMetadataListItem>}
         </XMetadataList>
       </XCard>
     );

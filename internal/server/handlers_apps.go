@@ -292,6 +292,10 @@ type createAppJSON struct {
 	SummaryI18n               map[string]string `json:"summaryI18n"`
 	Description               string            `json:"description"`
 	DescriptionI18n           map[string]string `json:"descriptionI18n"`
+	Author                    string            `json:"author"`
+	Homepage                  string            `json:"homepage"`
+	License                   string            `json:"license"`
+	MinOSVersion              string            `json:"minOSVersion"`
 	IconURL                   string            `json:"iconUrl"`
 	CategoryID                *int              `json:"categoryId"`
 	Tags                      []string          `json:"tags"`
@@ -484,6 +488,10 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 		SetSummaryI18nJSON(catalogmeta.EncodeLocalizedText(input.SummaryI18n)).
 		SetDescription(input.Description).
 		SetDescriptionI18nJSON(catalogmeta.EncodeLocalizedText(input.DescriptionI18n)).
+		SetAuthor(input.Author).
+		SetHomepage(input.Homepage).
+		SetLicense(input.License).
+		SetMinOsVersion(input.MinOSVersion).
 		SetStatus(status).
 		SetAllowUnreviewedUpdates(input.AllowUnreviewedUpdates).
 		SetCommentsEnabled(commentsEnabled).
@@ -942,6 +950,18 @@ func (s *Server) updateAppFromApprovedLPKMetadata(r *http.Request, appID int, me
 			update.SetSummary(summary)
 		}
 	}
+	if strings.TrimSpace(meta.Author) != "" {
+		update.SetAuthor(meta.Author)
+	}
+	if strings.TrimSpace(meta.Homepage) != "" {
+		update.SetHomepage(meta.Homepage)
+	}
+	if strings.TrimSpace(meta.License) != "" {
+		update.SetLicense(meta.License)
+	}
+	if strings.TrimSpace(meta.MinOSVersion) != "" {
+		update.SetMinOsVersion(meta.MinOSVersion)
+	}
 	if len(meta.IconData) > 0 {
 		iconURL, assetID, err := s.saveLPKIconAsset(r.Context(), meta)
 		if err != nil {
@@ -1003,6 +1023,18 @@ func (s *Server) applyAppMetadata(ctx context.Context, input *createAppJSON, met
 	}
 	if catalogmeta.LocalizedText(input.DescriptionI18n).IsZero() {
 		input.DescriptionI18n = meta.DescriptionI18n
+	}
+	if strings.TrimSpace(input.Author) == "" {
+		input.Author = meta.Author
+	}
+	if strings.TrimSpace(input.Homepage) == "" {
+		input.Homepage = meta.Homepage
+	}
+	if strings.TrimSpace(input.License) == "" {
+		input.License = meta.License
+	}
+	if strings.TrimSpace(input.MinOSVersion) == "" {
+		input.MinOSVersion = meta.MinOSVersion
 	}
 	if input.Version == "" {
 		input.Version = meta.Version
@@ -1101,6 +1133,10 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 		SummaryI18n:               catalogmeta.DecodeLocalizedText(record.SummaryI18nJSON),
 		Description:               record.Description,
 		DescriptionI18n:           catalogmeta.DecodeLocalizedText(record.DescriptionI18nJSON),
+		Author:                    record.Author,
+		Homepage:                  record.Homepage,
+		License:                   record.License,
+		MinOSVersion:              record.MinOsVersion,
 		IconURL:                   record.IconURL,
 		Status:                    string(record.Status),
 		AllowUnreviewedUpdates:    record.AllowUnreviewedUpdates,

@@ -188,6 +188,62 @@ func (_u *AppUpdate) SetNillableDescriptionI18nJSON(v *string) *AppUpdate {
 	return _u
 }
 
+// SetAuthor sets the "author" field.
+func (_u *AppUpdate) SetAuthor(v string) *AppUpdate {
+	_u.mutation.SetAuthor(v)
+	return _u
+}
+
+// SetNillableAuthor sets the "author" field if the given value is not nil.
+func (_u *AppUpdate) SetNillableAuthor(v *string) *AppUpdate {
+	if v != nil {
+		_u.SetAuthor(*v)
+	}
+	return _u
+}
+
+// SetHomepage sets the "homepage" field.
+func (_u *AppUpdate) SetHomepage(v string) *AppUpdate {
+	_u.mutation.SetHomepage(v)
+	return _u
+}
+
+// SetNillableHomepage sets the "homepage" field if the given value is not nil.
+func (_u *AppUpdate) SetNillableHomepage(v *string) *AppUpdate {
+	if v != nil {
+		_u.SetHomepage(*v)
+	}
+	return _u
+}
+
+// SetLicense sets the "license" field.
+func (_u *AppUpdate) SetLicense(v string) *AppUpdate {
+	_u.mutation.SetLicense(v)
+	return _u
+}
+
+// SetNillableLicense sets the "license" field if the given value is not nil.
+func (_u *AppUpdate) SetNillableLicense(v *string) *AppUpdate {
+	if v != nil {
+		_u.SetLicense(*v)
+	}
+	return _u
+}
+
+// SetMinOsVersion sets the "min_os_version" field.
+func (_u *AppUpdate) SetMinOsVersion(v string) *AppUpdate {
+	_u.mutation.SetMinOsVersion(v)
+	return _u
+}
+
+// SetNillableMinOsVersion sets the "min_os_version" field if the given value is not nil.
+func (_u *AppUpdate) SetNillableMinOsVersion(v *string) *AppUpdate {
+	if v != nil {
+		_u.SetMinOsVersion(*v)
+	}
+	return _u
+}
+
 // SetIconURL sets the "icon_url" field.
 func (_u *AppUpdate) SetIconURL(v string) *AppUpdate {
 	_u.mutation.SetIconURL(v)
@@ -463,6 +519,18 @@ func (_u *AppUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.DescriptionI18nJSON(); ok {
 		_spec.SetField(app.FieldDescriptionI18nJSON, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Author(); ok {
+		_spec.SetField(app.FieldAuthor, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Homepage(); ok {
+		_spec.SetField(app.FieldHomepage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.License(); ok {
+		_spec.SetField(app.FieldLicense, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MinOsVersion(); ok {
+		_spec.SetField(app.FieldMinOsVersion, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.IconURL(); ok {
 		_spec.SetField(app.FieldIconURL, field.TypeString, value)
 	}
@@ -681,6 +749,62 @@ func (_u *AppUpdateOne) SetDescriptionI18nJSON(v string) *AppUpdateOne {
 func (_u *AppUpdateOne) SetNillableDescriptionI18nJSON(v *string) *AppUpdateOne {
 	if v != nil {
 		_u.SetDescriptionI18nJSON(*v)
+	}
+	return _u
+}
+
+// SetAuthor sets the "author" field.
+func (_u *AppUpdateOne) SetAuthor(v string) *AppUpdateOne {
+	_u.mutation.SetAuthor(v)
+	return _u
+}
+
+// SetNillableAuthor sets the "author" field if the given value is not nil.
+func (_u *AppUpdateOne) SetNillableAuthor(v *string) *AppUpdateOne {
+	if v != nil {
+		_u.SetAuthor(*v)
+	}
+	return _u
+}
+
+// SetHomepage sets the "homepage" field.
+func (_u *AppUpdateOne) SetHomepage(v string) *AppUpdateOne {
+	_u.mutation.SetHomepage(v)
+	return _u
+}
+
+// SetNillableHomepage sets the "homepage" field if the given value is not nil.
+func (_u *AppUpdateOne) SetNillableHomepage(v *string) *AppUpdateOne {
+	if v != nil {
+		_u.SetHomepage(*v)
+	}
+	return _u
+}
+
+// SetLicense sets the "license" field.
+func (_u *AppUpdateOne) SetLicense(v string) *AppUpdateOne {
+	_u.mutation.SetLicense(v)
+	return _u
+}
+
+// SetNillableLicense sets the "license" field if the given value is not nil.
+func (_u *AppUpdateOne) SetNillableLicense(v *string) *AppUpdateOne {
+	if v != nil {
+		_u.SetLicense(*v)
+	}
+	return _u
+}
+
+// SetMinOsVersion sets the "min_os_version" field.
+func (_u *AppUpdateOne) SetMinOsVersion(v string) *AppUpdateOne {
+	_u.mutation.SetMinOsVersion(v)
+	return _u
+}
+
+// SetNillableMinOsVersion sets the "min_os_version" field if the given value is not nil.
+func (_u *AppUpdateOne) SetNillableMinOsVersion(v *string) *AppUpdateOne {
+	if v != nil {
+		_u.SetMinOsVersion(*v)
 	}
 	return _u
 }
@@ -989,6 +1113,18 @@ func (_u *AppUpdateOne) sqlSave(ctx context.Context) (_node *App, err error) {
 	}
 	if value, ok := _u.mutation.DescriptionI18nJSON(); ok {
 		_spec.SetField(app.FieldDescriptionI18nJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Author(); ok {
+		_spec.SetField(app.FieldAuthor, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Homepage(); ok {
+		_spec.SetField(app.FieldHomepage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.License(); ok {
+		_spec.SetField(app.FieldLicense, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MinOsVersion(); ok {
+		_spec.SetField(app.FieldMinOsVersion, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.IconURL(); ok {
 		_spec.SetField(app.FieldIconURL, field.TypeString, value)

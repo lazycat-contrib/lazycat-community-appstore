@@ -126,6 +126,10 @@ func TestParseUploadedReadsMetadataAndIconWithToolkit(t *testing.T) {
 	lpk := testLPKArchiveWithFiles(t, `package: cloud.lazycat.test.toolkit
 version: 1.2.3
 icon: assets/icon.png
+author: LazyCat Community
+license: MIT
+homepage: https://example.com/toolkit
+min_os_version: 1.3.0
 locales:
   zh:
     name: 工具包应用
@@ -154,6 +158,9 @@ locales:
 	}
 	if meta.Name != "工具包应用" || meta.Description != "工具包描述" || meta.NameI18n["en"] != "Toolkit app" {
 		t.Fatalf("localized metadata = %+v", meta)
+	}
+	if meta.Author != "LazyCat Community" || meta.License != "MIT" || meta.Homepage != "https://example.com/toolkit" || meta.MinOSVersion != "1.3.0" {
+		t.Fatalf("application metadata = %+v", meta)
 	}
 	if meta.IconPath != "assets/icon.png" || meta.IconMediaType != "image/png" || !bytes.Equal(meta.IconData, icon) {
 		t.Fatalf("icon metadata = %+v", meta)

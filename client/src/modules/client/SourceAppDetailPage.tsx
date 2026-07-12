@@ -27,6 +27,7 @@ import {
   localizedAppName,
   localizedAppSummary,
   localizedCategory,
+  safeExternalURL,
   shortSHA,
   sourceActionLabel,
   sourceInstallAction,
@@ -78,6 +79,7 @@ export function SourceAppDetailPage({
   const sourceVersions = app.versions && app.versions.length > 0 ? app.versions : latestVersion ? [latestVersion] : [];
   const sourceScreenshots = orderedScreenshots(app.screenshots, preferredScreenshotDevice);
   const appName = localizedAppName(app);
+  const homepageURL = safeExternalURL(app.homepage);
   const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
   const installable = hasInstallableVersion(app);
   const installAction = sourceInstallAction(app, installedMatch);
@@ -347,6 +349,14 @@ export function SourceAppDetailPage({
             <XMetadataListItem label={t('drawer.artifactSource')}>
               {latestVersion?.sourceType || t('drawer.sourceMissing')}
             </XMetadataListItem>
+            {app.author && <XMetadataListItem label={t('drawer.softwareAuthor')}>{app.author}</XMetadataListItem>}
+            {homepageURL && (
+              <XMetadataListItem label={t('drawer.softwareHomepage')}>
+                <a href={homepageURL} target="_blank" rel="noreferrer">{app.homepage}</a>
+              </XMetadataListItem>
+            )}
+            {app.license && <XMetadataListItem label={t('drawer.softwareLicense')}>{app.license}</XMetadataListItem>}
+            {app.minOSVersion && <XMetadataListItem label={t('drawer.minimumOSVersion')}>{app.minOSVersion}</XMetadataListItem>}
           </XMetadataList>
         </XCard>
 

@@ -115,6 +115,62 @@ func (_c *ClientSourceAppCreate) SetNillableDescriptionI18nJSON(v *string) *Clie
 	return _c
 }
 
+// SetAuthor sets the "author" field.
+func (_c *ClientSourceAppCreate) SetAuthor(v string) *ClientSourceAppCreate {
+	_c.mutation.SetAuthor(v)
+	return _c
+}
+
+// SetNillableAuthor sets the "author" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableAuthor(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetAuthor(*v)
+	}
+	return _c
+}
+
+// SetHomepage sets the "homepage" field.
+func (_c *ClientSourceAppCreate) SetHomepage(v string) *ClientSourceAppCreate {
+	_c.mutation.SetHomepage(v)
+	return _c
+}
+
+// SetNillableHomepage sets the "homepage" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableHomepage(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetHomepage(*v)
+	}
+	return _c
+}
+
+// SetLicense sets the "license" field.
+func (_c *ClientSourceAppCreate) SetLicense(v string) *ClientSourceAppCreate {
+	_c.mutation.SetLicense(v)
+	return _c
+}
+
+// SetNillableLicense sets the "license" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableLicense(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetLicense(*v)
+	}
+	return _c
+}
+
+// SetMinOsVersion sets the "min_os_version" field.
+func (_c *ClientSourceAppCreate) SetMinOsVersion(v string) *ClientSourceAppCreate {
+	_c.mutation.SetMinOsVersion(v)
+	return _c
+}
+
+// SetNillableMinOsVersion sets the "min_os_version" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableMinOsVersion(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetMinOsVersion(*v)
+	}
+	return _c
+}
+
 // SetCategoryID sets the "category_id" field.
 func (_c *ClientSourceAppCreate) SetCategoryID(v int) *ClientSourceAppCreate {
 	_c.mutation.SetCategoryID(v)
@@ -343,6 +399,22 @@ func (_c *ClientSourceAppCreate) defaults() {
 		v := clientsourceapp.DefaultDescriptionI18nJSON
 		_c.mutation.SetDescriptionI18nJSON(v)
 	}
+	if _, ok := _c.mutation.Author(); !ok {
+		v := clientsourceapp.DefaultAuthor
+		_c.mutation.SetAuthor(v)
+	}
+	if _, ok := _c.mutation.Homepage(); !ok {
+		v := clientsourceapp.DefaultHomepage
+		_c.mutation.SetHomepage(v)
+	}
+	if _, ok := _c.mutation.License(); !ok {
+		v := clientsourceapp.DefaultLicense
+		_c.mutation.SetLicense(v)
+	}
+	if _, ok := _c.mutation.MinOsVersion(); !ok {
+		v := clientsourceapp.DefaultMinOsVersion
+		_c.mutation.SetMinOsVersion(v)
+	}
 	if _, ok := _c.mutation.Category(); !ok {
 		v := clientsourceapp.DefaultCategory
 		_c.mutation.SetCategory(v)
@@ -432,6 +504,18 @@ func (_c *ClientSourceAppCreate) check() error {
 	}
 	if _, ok := _c.mutation.DescriptionI18nJSON(); !ok {
 		return &ValidationError{Name: "description_i18n_json", err: errors.New(`ent: missing required field "ClientSourceApp.description_i18n_json"`)}
+	}
+	if _, ok := _c.mutation.Author(); !ok {
+		return &ValidationError{Name: "author", err: errors.New(`ent: missing required field "ClientSourceApp.author"`)}
+	}
+	if _, ok := _c.mutation.Homepage(); !ok {
+		return &ValidationError{Name: "homepage", err: errors.New(`ent: missing required field "ClientSourceApp.homepage"`)}
+	}
+	if _, ok := _c.mutation.License(); !ok {
+		return &ValidationError{Name: "license", err: errors.New(`ent: missing required field "ClientSourceApp.license"`)}
+	}
+	if _, ok := _c.mutation.MinOsVersion(); !ok {
+		return &ValidationError{Name: "min_os_version", err: errors.New(`ent: missing required field "ClientSourceApp.min_os_version"`)}
 	}
 	if _, ok := _c.mutation.Category(); !ok {
 		return &ValidationError{Name: "category", err: errors.New(`ent: missing required field "ClientSourceApp.category"`)}
@@ -526,6 +610,22 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 	if value, ok := _c.mutation.DescriptionI18nJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldDescriptionI18nJSON, field.TypeString, value)
 		_node.DescriptionI18nJSON = value
+	}
+	if value, ok := _c.mutation.Author(); ok {
+		_spec.SetField(clientsourceapp.FieldAuthor, field.TypeString, value)
+		_node.Author = value
+	}
+	if value, ok := _c.mutation.Homepage(); ok {
+		_spec.SetField(clientsourceapp.FieldHomepage, field.TypeString, value)
+		_node.Homepage = value
+	}
+	if value, ok := _c.mutation.License(); ok {
+		_spec.SetField(clientsourceapp.FieldLicense, field.TypeString, value)
+		_node.License = value
+	}
+	if value, ok := _c.mutation.MinOsVersion(); ok {
+		_spec.SetField(clientsourceapp.FieldMinOsVersion, field.TypeString, value)
+		_node.MinOsVersion = value
 	}
 	if value, ok := _c.mutation.CategoryID(); ok {
 		_spec.SetField(clientsourceapp.FieldCategoryID, field.TypeInt, value)

@@ -155,6 +155,62 @@ func (_u *ClientSourceAppUpdate) SetNillableDescriptionI18nJSON(v *string) *Clie
 	return _u
 }
 
+// SetAuthor sets the "author" field.
+func (_u *ClientSourceAppUpdate) SetAuthor(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetAuthor(v)
+	return _u
+}
+
+// SetNillableAuthor sets the "author" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableAuthor(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetAuthor(*v)
+	}
+	return _u
+}
+
+// SetHomepage sets the "homepage" field.
+func (_u *ClientSourceAppUpdate) SetHomepage(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetHomepage(v)
+	return _u
+}
+
+// SetNillableHomepage sets the "homepage" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableHomepage(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetHomepage(*v)
+	}
+	return _u
+}
+
+// SetLicense sets the "license" field.
+func (_u *ClientSourceAppUpdate) SetLicense(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetLicense(v)
+	return _u
+}
+
+// SetNillableLicense sets the "license" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableLicense(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetLicense(*v)
+	}
+	return _u
+}
+
+// SetMinOsVersion sets the "min_os_version" field.
+func (_u *ClientSourceAppUpdate) SetMinOsVersion(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetMinOsVersion(v)
+	return _u
+}
+
+// SetNillableMinOsVersion sets the "min_os_version" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableMinOsVersion(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetMinOsVersion(*v)
+	}
+	return _u
+}
+
 // SetCategoryID sets the "category_id" field.
 func (_u *ClientSourceAppUpdate) SetCategoryID(v int) *ClientSourceAppUpdate {
 	_u.mutation.ResetCategoryID()
@@ -446,6 +502,18 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.DescriptionI18nJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldDescriptionI18nJSON, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Author(); ok {
+		_spec.SetField(clientsourceapp.FieldAuthor, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Homepage(); ok {
+		_spec.SetField(clientsourceapp.FieldHomepage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.License(); ok {
+		_spec.SetField(clientsourceapp.FieldLicense, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MinOsVersion(); ok {
+		_spec.SetField(clientsourceapp.FieldMinOsVersion, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.CategoryID(); ok {
 		_spec.SetField(clientsourceapp.FieldCategoryID, field.TypeInt, value)
 	}
@@ -662,6 +730,62 @@ func (_u *ClientSourceAppUpdateOne) SetDescriptionI18nJSON(v string) *ClientSour
 func (_u *ClientSourceAppUpdateOne) SetNillableDescriptionI18nJSON(v *string) *ClientSourceAppUpdateOne {
 	if v != nil {
 		_u.SetDescriptionI18nJSON(*v)
+	}
+	return _u
+}
+
+// SetAuthor sets the "author" field.
+func (_u *ClientSourceAppUpdateOne) SetAuthor(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetAuthor(v)
+	return _u
+}
+
+// SetNillableAuthor sets the "author" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableAuthor(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetAuthor(*v)
+	}
+	return _u
+}
+
+// SetHomepage sets the "homepage" field.
+func (_u *ClientSourceAppUpdateOne) SetHomepage(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetHomepage(v)
+	return _u
+}
+
+// SetNillableHomepage sets the "homepage" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableHomepage(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetHomepage(*v)
+	}
+	return _u
+}
+
+// SetLicense sets the "license" field.
+func (_u *ClientSourceAppUpdateOne) SetLicense(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetLicense(v)
+	return _u
+}
+
+// SetNillableLicense sets the "license" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableLicense(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetLicense(*v)
+	}
+	return _u
+}
+
+// SetMinOsVersion sets the "min_os_version" field.
+func (_u *ClientSourceAppUpdateOne) SetMinOsVersion(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetMinOsVersion(v)
+	return _u
+}
+
+// SetNillableMinOsVersion sets the "min_os_version" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableMinOsVersion(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetMinOsVersion(*v)
 	}
 	return _u
 }
@@ -986,6 +1110,18 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	}
 	if value, ok := _u.mutation.DescriptionI18nJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldDescriptionI18nJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Author(); ok {
+		_spec.SetField(clientsourceapp.FieldAuthor, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Homepage(); ok {
+		_spec.SetField(clientsourceapp.FieldHomepage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.License(); ok {
+		_spec.SetField(clientsourceapp.FieldLicense, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MinOsVersion(); ok {
+		_spec.SetField(clientsourceapp.FieldMinOsVersion, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CategoryID(); ok {
 		_spec.SetField(clientsourceapp.FieldCategoryID, field.TypeInt, value)

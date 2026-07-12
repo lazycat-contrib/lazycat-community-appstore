@@ -175,6 +175,16 @@ export function shortSHA(value?: string) {
   return value ? value.slice(0, 16) : '-';
 }
 
+export function safeExternalURL(value?: string) {
+  if (!value) return '';
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
 export function stripTrailingSlash(value: string) {
   return value.trim().replace(/\/+$/, '');
 }
