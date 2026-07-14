@@ -15,7 +15,10 @@ import (
 	"lazycat.community/appstore/ent/usergroup"
 )
 
-const groupCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+const (
+	groupCodeAlphabet   = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	maxSourceGroupCodes = 64
+)
 
 var errGroupCodeCollision = errors.New("group code collision")
 

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -49,28 +50,50 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, versi
 		}
 	}
 
-	groupAccess, err := s.resolveGroupCodeAccess(r.Context(), groupCodesFromRequest(r))
+	groupCodes := groupCodesFromRequest(r)
+	if len(groupCodes) > maxSourceGroupCodes {
+		writeError(w, http.StatusBadRequest, "TOO_MANY_GROUP_CODES", "At most 64 group codes may be requested", nil)
+		return
+	}
+	groupAccess, err := s.resolveGroupCodeAccess(r.Context(), groupCodes)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SOURCE_BUILD_FAILED", "Could not validate group codes", nil)
 		return
 	}
-
-	apps, err := s.db.App.Query().
-		Where(app.StatusEQ(app.StatusAPPROVED)).
-		Order(entgo.Desc(app.FieldUpdatedAt)).
-		All(r.Context())
+	scope := sourceFeedAccessScope{GroupIDs: groupAccess.validGroupIDs, Groups: groupAccess.validGroups}.canonical()
+	var snapshot sourceFeedSnapshot
+	if s.sourceFeedCache != nil && len(groupAccess.invalidGroupCodes) == 0 {
+		snapshot, err = s.sourceFeedCache.GetOrBuild(r.Context(), version, scope)
+	} else {
+		var raw []byte
+		raw, err = s.buildSourceFeed(r.Context(), version, scope, groupAccess.invalidGroupCodes)
+		if err == nil {
+			snapshot, err = newSourceFeedSnapshot(raw)
+		}
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SOURCE_BUILD_FAILED", "Could not build source index", nil)
 		return
 	}
+	serveSourceFeedSnapshot(w, r, snapshot)
+}
 
-	profile := s.siteProfile(r.Context())
+func (s *Server) buildSourceFeed(ctx context.Context, version int, scope sourceFeedAccessScope, invalidGroupCodes []string) ([]byte, error) {
+	apps, err := s.db.App.Query().
+		Where(app.StatusEQ(app.StatusAPPROVED)).
+		Order(entgo.Desc(app.FieldUpdatedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	profile := s.siteProfile(ctx)
 	input := feed.Input{
 		BaseURL:       profile.PublicURL,
-		GitHubMirrors: s.effectiveGitHubMirrors(r.Context()),
+		GitHubMirrors: s.effectiveGitHubMirrors(ctx),
 		Site: feed.SiteMeta{
 			Title:     profile.Title,
-			IconURL:   s.feedImageURL(r.Context(), profile.IconURL),
+			IconURL:   s.feedImageURL(ctx, profile.IconURL),
 			PublicURL: profile.PublicURL,
 			SourceURL: sourceFeedURL(profile.PublicURL, version),
 			Chat: feed.ChatMeta{
@@ -81,15 +104,14 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, versi
 		Announcement: siteAnnouncementToFeed(profile.Announcement),
 		Apps:         make([]feed.AppInput, 0, len(apps)),
 	}
-	for _, group := range groupAccess.validGroups {
+	for _, group := range scope.Groups {
 		input.Groups = append(input.Groups, feed.GroupMeta{ID: group.ID, Name: group.Name, Code: group.Code})
 	}
-	input.InvalidGroupCodes = groupAccess.invalidGroupCodes
-	siteCommentsEnabled := s.commentsEnabled(r.Context())
-	preload, err := s.sourceIndexPreload(r.Context(), apps, groupAccess.validGroupIDs)
+	input.InvalidGroupCodes = invalidGroupCodes
+	siteCommentsEnabled := s.commentsEnabled(ctx)
+	preload, err := s.sourceIndexPreload(ctx, apps, scope.GroupIDs)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "SOURCE_BUILD_FAILED", "Could not build source index", nil)
-		return
+		return nil, err
 	}
 	if version >= 2 {
 		input.Site.ClientPolicy = feed.ClientPolicyMeta{
@@ -129,7 +151,7 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, versi
 			Versions:         preload.versions[record.ID],
 		}
 		if record.IconURL != nil {
-			appInput.IconURL = s.feedImageURL(r.Context(), *record.IconURL)
+			appInput.IconURL = s.feedImageURL(ctx, *record.IconURL)
 		}
 		if record.CategoryID != nil {
 			if categoryRecord := preload.categories[*record.CategoryID]; categoryRecord != nil {
@@ -141,11 +163,17 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, versi
 		input.Apps = append(input.Apps, appInput)
 	}
 
+	var output any
 	if version >= 2 {
-		writeJSON(w, http.StatusOK, feedv2.BuildIndex(input))
-		return
+		output = feedv2.BuildIndex(input)
+	} else {
+		output = feedv1.BuildIndex(input)
 	}
-	writeJSON(w, http.StatusOK, feedv1.BuildIndex(input))
+	raw, err := json.Marshal(output)
+	if err != nil {
+		return nil, err
+	}
+	return append(raw, '\n'), nil
 }
 
 func (s *Server) feedImageURL(ctx context.Context, raw string) string {

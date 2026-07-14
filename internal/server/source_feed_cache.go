@@ -172,6 +172,10 @@ func (cache *sourceFeedCache) buildSnapshot(ctx context.Context, version int, sc
 	if err != nil {
 		return sourceFeedSnapshot{}, err
 	}
+	return newSourceFeedSnapshot(identity)
+}
+
+func newSourceFeedSnapshot(identity []byte) (sourceFeedSnapshot, error) {
 	brotliBytes, err := compressSourceFeedBrotli(identity)
 	if err != nil {
 		return sourceFeedSnapshot{}, fmt.Errorf("brotli source feed: %w", err)

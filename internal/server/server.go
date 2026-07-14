@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"os"
 	"path"
@@ -53,6 +54,7 @@ type Server struct {
 	backupRunMu             sync.Mutex
 	backupRunning           bool
 	firstLoadGroup          singleflight.Group
+	sourceFeedCache         *sourceFeedCache
 	sourcePasswordMu        sync.Mutex
 	ctx                     context.Context
 	cancel                  context.CancelFunc
@@ -116,10 +118,21 @@ func New(cfg config.Config) (*Server, error) {
 		_ = client.Close()
 		return nil, err
 	}
+	feedCache, cacheErr := newSourceFeedCache(appCtx, cfg.SourceCachePath, func(ctx context.Context, version int, scope sourceFeedAccessScope) ([]byte, error) {
+		return s.buildSourceFeed(ctx, version, scope, nil)
+	})
+	if cacheErr != nil {
+		slog.Warn("source feed cache disabled", "error", cacheErr)
+	} else {
+		s.sourceFeedCache = feedCache
+	}
 	s.routes()
 	inspectionScheduler, err := newLPKInspectionScheduler(s)
 	if err != nil {
 		appCancel()
+		if s.sourceFeedCache != nil {
+			_ = s.sourceFeedCache.Close()
+		}
 		_ = client.Close()
 		return nil, err
 	}
@@ -217,11 +230,14 @@ func (s *Server) startClose() {
 		}
 		go func() {
 			stopErr := s.Stop(context.Background())
-			var dbErr error
+			var cacheErr, dbErr error
+			if s.sourceFeedCache != nil {
+				cacheErr = s.sourceFeedCache.Close()
+			}
 			if s.db != nil {
 				dbErr = s.db.Close()
 			}
-			s.closeErr = errors.Join(stopErr, dbErr)
+			s.closeErr = errors.Join(stopErr, cacheErr, dbErr)
 			close(s.closeDone)
 		}()
 	})

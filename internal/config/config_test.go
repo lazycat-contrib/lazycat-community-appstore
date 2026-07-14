@@ -12,6 +12,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("SITE_MAX_LPK_SIZE", "")
 	t.Setenv("SITE_MAX_VERSIONS", "")
 	t.Setenv("SOURCE_V1_ENABLED", "")
+	t.Setenv("SOURCE_CACHE_PATH", "")
 	t.Setenv("ADMIN_USERNAME", "")
 	t.Setenv("ADMIN_PASSWORD", "")
 
@@ -31,6 +32,9 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if !cfg.SourceV1Enabled {
 		t.Fatal("SourceV1Enabled = false, want true by default")
+	}
+	if cfg.SourceCachePath != "./data/source-cache" {
+		t.Fatalf("SourceCachePath = %q, want ./data/source-cache", cfg.SourceCachePath)
 	}
 	if cfg.AdminBootstrap {
 		t.Fatal("AdminBootstrap = true, want false when ADMIN_USERNAME and ADMIN_PASSWORD are unset")
@@ -144,6 +148,16 @@ func TestLoadParsesSourceV1Enabled(t *testing.T) {
 
 	if cfg.SourceV1Enabled {
 		t.Fatal("SourceV1Enabled = true, want false")
+	}
+}
+
+func TestLoadParsesSourceCachePath(t *testing.T) {
+	t.Setenv("SOURCE_CACHE_PATH", "/var/cache/appstore/source")
+
+	cfg := Load()
+
+	if cfg.SourceCachePath != "/var/cache/appstore/source" {
+		t.Fatalf("SourceCachePath = %q", cfg.SourceCachePath)
 	}
 }
 

@@ -43,6 +43,7 @@ type Config struct {
 	SourcePassword             string
 	SourcePasswordRotation     int
 	SourceV1Enabled            bool
+	SourceCachePath            string
 	GitHubDownloadMirrors      string
 	GitHubRawMirrors           string
 	SMTPHost                   string
@@ -97,6 +98,7 @@ func Load() Config {
 		SourcePassword:             os.Getenv("SOURCE_PASSWORD"),
 		SourcePasswordRotation:     envInt("SOURCE_PASSWORD_ROTATION", 0),
 		SourceV1Enabled:            envBool("SOURCE_V1_ENABLED", true),
+		SourceCachePath:            env("SOURCE_CACHE_PATH", "./data/source-cache"),
 		GitHubDownloadMirrors:      strings.TrimSpace(os.Getenv("GITHUB_DOWNLOAD_MIRRORS")),
 		GitHubRawMirrors:           strings.TrimSpace(os.Getenv("GITHUB_RAW_MIRRORS")),
 		SMTPHost:                   os.Getenv("SMTP_HOST"),
