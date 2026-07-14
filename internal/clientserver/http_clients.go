@@ -2,6 +2,7 @@ package clientserver
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/andybalholm/brotli"
 )
 
 const (
@@ -82,6 +85,27 @@ func decodeLimitedJSON(r io.Reader, maxBytes int64, out any) error {
 		return fmt.Errorf("response must contain one JSON value: %w", err)
 	}
 	return nil
+}
+
+func sourceResponseBody(resp *http.Response) (io.ReadCloser, error) {
+	encoding := strings.ToLower(strings.TrimSpace(strings.Join(resp.Header.Values("Content-Encoding"), ",")))
+	if strings.Contains(encoding, ",") {
+		return nil, fmt.Errorf("unsupported source content encoding %q", encoding)
+	}
+	switch encoding {
+	case "", "identity":
+		return io.NopCloser(resp.Body), nil
+	case "br":
+		return io.NopCloser(brotli.NewReader(resp.Body)), nil
+	case "gzip":
+		reader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		return reader, nil
+	default:
+		return nil, fmt.Errorf("unsupported source content encoding %q", encoding)
+	}
 }
 
 func writeBoundedSourceResponse(w http.ResponseWriter, resp *http.Response, maxBytes int64) error {

@@ -379,6 +379,55 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	}
 }
 
+func TestSyncSourceUsesETagAndSkipsReplacementOnNotModified(t *testing.T) {
+	var requests atomic.Int32
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		request := requests.Add(1)
+		if got := r.Header.Get("Accept-Encoding"); !strings.Contains(got, "br") || !strings.Contains(got, "gzip") {
+			t.Errorf("Accept-Encoding = %q", got)
+		}
+		w.Header().Set("ETag", `W/"feed-v1"`)
+		if request > 1 {
+			if got := r.Header.Get("If-None-Match"); got != `W/"feed-v1"` {
+				t.Errorf("If-None-Match = %q", got)
+			}
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"apps": []map[string]any{{
+				"id": 1, "packageId": "cloud.lazycat.etag", "name": "ETag", "slug": "etag",
+			}},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("ETag Feed").SetURL(feed.URL).SaveX(t.Context())
+	first := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if first.Code != http.StatusOK {
+		t.Fatalf("first sync = %d %s", first.Code, first.Body.String())
+	}
+	firstApp := app.server.db.ClientSourceApp.Query().Where(clientsourceapp.SourceIDEQ(source.ID)).OnlyX(t.Context())
+	stored := app.server.db.ClientSource.GetX(t.Context(), source.ID)
+	if stored.LastEtag != `W/"feed-v1"` {
+		t.Fatalf("LastEtag = %q", stored.LastEtag)
+	}
+
+	second := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if second.Code != http.StatusOK {
+		t.Fatalf("second sync = %d %s", second.Code, second.Body.String())
+	}
+	secondApp := app.server.db.ClientSourceApp.Query().Where(clientsourceapp.SourceIDEQ(source.ID)).OnlyX(t.Context())
+	if secondApp.ID != firstApp.ID {
+		t.Fatalf("304 replaced cached row: %d -> %d", firstApp.ID, secondApp.ID)
+	}
+	if requests.Load() != 2 {
+		t.Fatalf("feed requests = %d", requests.Load())
+	}
+}
+
 func TestSyncSourceCachesDataURLIconAsClientAsset(t *testing.T) {
 	app := testServer(t)
 	iconDataURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(clientTestPNG1x1)

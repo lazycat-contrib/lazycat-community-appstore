@@ -48,6 +48,8 @@ const (
 	FieldCategoryI18nJSON = "category_i18n_json"
 	// FieldIconURL holds the string denoting the icon_url field in the database.
 	FieldIconURL = "icon_url"
+	// FieldIconOriginURL holds the string denoting the icon_origin_url field in the database.
+	FieldIconOriginURL = "icon_origin_url"
 	// FieldInstallProtected holds the string denoting the install_protected field in the database.
 	FieldInstallProtected = "install_protected"
 	// FieldCommentsEnabled holds the string denoting the comments_enabled field in the database.
@@ -97,6 +99,7 @@ var Columns = []string{
 	FieldCategory,
 	FieldCategoryI18nJSON,
 	FieldIconURL,
+	FieldIconOriginURL,
 	FieldInstallProtected,
 	FieldCommentsEnabled,
 	FieldOutdatedMarks,
@@ -148,6 +151,8 @@ var (
 	DefaultCategoryI18nJSON string
 	// DefaultIconURL holds the default value on creation for the "icon_url" field.
 	DefaultIconURL string
+	// DefaultIconOriginURL holds the default value on creation for the "icon_origin_url" field.
+	DefaultIconOriginURL string
 	// DefaultInstallProtected holds the default value on creation for the "install_protected" field.
 	DefaultInstallProtected bool
 	// DefaultCommentsEnabled holds the default value on creation for the "comments_enabled" field.
@@ -259,6 +264,11 @@ func ByCategoryI18nJSON(opts ...sql.OrderTermOption) OrderOption {
 // ByIconURL orders the results by the icon_url field.
 func ByIconURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIconURL, opts...).ToFunc()
+}
+
+// ByIconOriginURL orders the results by the icon_origin_url field.
+func ByIconOriginURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIconOriginURL, opts...).ToFunc()
 }
 
 // ByInstallProtected orders the results by the install_protected field.

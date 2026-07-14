@@ -52,6 +52,8 @@ type ClientSourceApp struct {
 	CategoryI18nJSON string `json:"category_i18n_json,omitempty"`
 	// IconURL holds the value of the "icon_url" field.
 	IconURL string `json:"icon_url,omitempty"`
+	// IconOriginURL holds the value of the "icon_origin_url" field.
+	IconOriginURL string `json:"icon_origin_url,omitempty"`
 	// InstallProtected holds the value of the "install_protected" field.
 	InstallProtected bool `json:"install_protected,omitempty"`
 	// CommentsEnabled holds the value of the "comments_enabled" field.
@@ -103,7 +105,7 @@ func (*ClientSourceApp) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID, clientsourceapp.FieldCategoryID, clientsourceapp.FieldOutdatedMarks:
 			values[i] = new(sql.NullInt64)
-		case clientsourceapp.FieldExternalID, clientsourceapp.FieldPackageID, clientsourceapp.FieldName, clientsourceapp.FieldNameI18nJSON, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldSummaryI18nJSON, clientsourceapp.FieldDescriptionI18nJSON, clientsourceapp.FieldAuthor, clientsourceapp.FieldHomepage, clientsourceapp.FieldLicense, clientsourceapp.FieldMinOsVersion, clientsourceapp.FieldCategory, clientsourceapp.FieldCategoryI18nJSON, clientsourceapp.FieldIconURL, clientsourceapp.FieldScreenshotsJSON, clientsourceapp.FieldLatestVersionJSON, clientsourceapp.FieldVersionsJSON:
+		case clientsourceapp.FieldExternalID, clientsourceapp.FieldPackageID, clientsourceapp.FieldName, clientsourceapp.FieldNameI18nJSON, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldSummaryI18nJSON, clientsourceapp.FieldDescriptionI18nJSON, clientsourceapp.FieldAuthor, clientsourceapp.FieldHomepage, clientsourceapp.FieldLicense, clientsourceapp.FieldMinOsVersion, clientsourceapp.FieldCategory, clientsourceapp.FieldCategoryI18nJSON, clientsourceapp.FieldIconURL, clientsourceapp.FieldIconOriginURL, clientsourceapp.FieldScreenshotsJSON, clientsourceapp.FieldLatestVersionJSON, clientsourceapp.FieldVersionsJSON:
 			values[i] = new(sql.NullString)
 		case clientsourceapp.FieldCreatedAt, clientsourceapp.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -230,6 +232,12 @@ func (_m *ClientSourceApp) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field icon_url", values[i])
 			} else if value.Valid {
 				_m.IconURL = value.String
+			}
+		case clientsourceapp.FieldIconOriginURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field icon_origin_url", values[i])
+			} else if value.Valid {
+				_m.IconOriginURL = value.String
 			}
 		case clientsourceapp.FieldInstallProtected:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -372,6 +380,9 @@ func (_m *ClientSourceApp) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("icon_url=")
 	builder.WriteString(_m.IconURL)
+	builder.WriteString(", ")
+	builder.WriteString("icon_origin_url=")
+	builder.WriteString(_m.IconOriginURL)
 	builder.WriteString(", ")
 	builder.WriteString("install_protected=")
 	builder.WriteString(fmt.Sprintf("%v", _m.InstallProtected))

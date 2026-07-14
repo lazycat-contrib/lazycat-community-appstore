@@ -281,6 +281,20 @@ func (_u *ClientSourceUpdate) SetNillableAdsPreference(v *clientsource.AdsPrefer
 	return _u
 }
 
+// SetLastEtag sets the "last_etag" field.
+func (_u *ClientSourceUpdate) SetLastEtag(v string) *ClientSourceUpdate {
+	_u.mutation.SetLastEtag(v)
+	return _u
+}
+
+// SetNillableLastEtag sets the "last_etag" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableLastEtag(v *string) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetLastEtag(*v)
+	}
+	return _u
+}
+
 // SetLastSync sets the "last_sync" field.
 func (_u *ClientSourceUpdate) SetLastSync(v time.Time) *ClientSourceUpdate {
 	_u.mutation.SetLastSync(v)
@@ -575,6 +589,9 @@ func (_u *ClientSourceUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AdsPreference(); ok {
 		_spec.SetField(clientsource.FieldAdsPreference, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.LastEtag(); ok {
+		_spec.SetField(clientsource.FieldLastEtag, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)
@@ -929,6 +946,20 @@ func (_u *ClientSourceUpdateOne) SetNillableAdsPreference(v *clientsource.AdsPre
 	return _u
 }
 
+// SetLastEtag sets the "last_etag" field.
+func (_u *ClientSourceUpdateOne) SetLastEtag(v string) *ClientSourceUpdateOne {
+	_u.mutation.SetLastEtag(v)
+	return _u
+}
+
+// SetNillableLastEtag sets the "last_etag" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableLastEtag(v *string) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetLastEtag(*v)
+	}
+	return _u
+}
+
 // SetLastSync sets the "last_sync" field.
 func (_u *ClientSourceUpdateOne) SetLastSync(v time.Time) *ClientSourceUpdateOne {
 	_u.mutation.SetLastSync(v)
@@ -1253,6 +1284,9 @@ func (_u *ClientSourceUpdateOne) sqlSave(ctx context.Context) (_node *ClientSour
 	}
 	if value, ok := _u.mutation.AdsPreference(); ok {
 		_spec.SetField(clientsource.FieldAdsPreference, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.LastEtag(); ok {
+		_spec.SetField(clientsource.FieldLastEtag, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)

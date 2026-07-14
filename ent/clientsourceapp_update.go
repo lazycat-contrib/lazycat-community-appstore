@@ -280,6 +280,20 @@ func (_u *ClientSourceAppUpdate) SetNillableIconURL(v *string) *ClientSourceAppU
 	return _u
 }
 
+// SetIconOriginURL sets the "icon_origin_url" field.
+func (_u *ClientSourceAppUpdate) SetIconOriginURL(v string) *ClientSourceAppUpdate {
+	_u.mutation.SetIconOriginURL(v)
+	return _u
+}
+
+// SetNillableIconOriginURL sets the "icon_origin_url" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableIconOriginURL(v *string) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetIconOriginURL(*v)
+	}
+	return _u
+}
+
 // SetInstallProtected sets the "install_protected" field.
 func (_u *ClientSourceAppUpdate) SetInstallProtected(v bool) *ClientSourceAppUpdate {
 	_u.mutation.SetInstallProtected(v)
@@ -531,6 +545,9 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.IconURL(); ok {
 		_spec.SetField(clientsourceapp.FieldIconURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.IconOriginURL(); ok {
+		_spec.SetField(clientsourceapp.FieldIconOriginURL, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)
@@ -859,6 +876,20 @@ func (_u *ClientSourceAppUpdateOne) SetNillableIconURL(v *string) *ClientSourceA
 	return _u
 }
 
+// SetIconOriginURL sets the "icon_origin_url" field.
+func (_u *ClientSourceAppUpdateOne) SetIconOriginURL(v string) *ClientSourceAppUpdateOne {
+	_u.mutation.SetIconOriginURL(v)
+	return _u
+}
+
+// SetNillableIconOriginURL sets the "icon_origin_url" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableIconOriginURL(v *string) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetIconOriginURL(*v)
+	}
+	return _u
+}
+
 // SetInstallProtected sets the "install_protected" field.
 func (_u *ClientSourceAppUpdateOne) SetInstallProtected(v bool) *ClientSourceAppUpdateOne {
 	_u.mutation.SetInstallProtected(v)
@@ -1140,6 +1171,9 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	}
 	if value, ok := _u.mutation.IconURL(); ok {
 		_spec.SetField(clientsourceapp.FieldIconURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.IconOriginURL(); ok {
+		_spec.SetField(clientsourceapp.FieldIconOriginURL, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)

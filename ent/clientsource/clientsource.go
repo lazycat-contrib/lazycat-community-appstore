@@ -51,6 +51,8 @@ const (
 	FieldChatEnabled = "chat_enabled"
 	// FieldAdsPreference holds the string denoting the ads_preference field in the database.
 	FieldAdsPreference = "ads_preference"
+	// FieldLastEtag holds the string denoting the last_etag field in the database.
+	FieldLastEtag = "last_etag"
 	// FieldLastSync holds the string denoting the last_sync field in the database.
 	FieldLastSync = "last_sync"
 	// FieldLastError holds the string denoting the last_error field in the database.
@@ -99,6 +101,7 @@ var Columns = []string{
 	FieldChatAvailable,
 	FieldChatEnabled,
 	FieldAdsPreference,
+	FieldLastEtag,
 	FieldLastSync,
 	FieldLastError,
 	FieldLastErrorCode,
@@ -153,6 +156,8 @@ var (
 	DefaultChatAvailable bool
 	// DefaultChatEnabled holds the default value on creation for the "chat_enabled" field.
 	DefaultChatEnabled bool
+	// DefaultLastEtag holds the default value on creation for the "last_etag" field.
+	DefaultLastEtag string
 	// DefaultLastAppCount holds the default value on creation for the "last_app_count" field.
 	DefaultLastAppCount int
 	// DefaultLastInstallableCount holds the default value on creation for the "last_installable_count" field.
@@ -313,6 +318,11 @@ func ByChatEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByAdsPreference orders the results by the ads_preference field.
 func ByAdsPreference(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAdsPreference, opts...).ToFunc()
+}
+
+// ByLastEtag orders the results by the last_etag field.
+func ByLastEtag(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastEtag, opts...).ToFunc()
 }
 
 // ByLastSync orders the results by the last_sync field.

@@ -53,6 +53,8 @@ type ClientSource struct {
 	ChatEnabled bool `json:"chat_enabled,omitempty"`
 	// AdsPreference holds the value of the "ads_preference" field.
 	AdsPreference clientsource.AdsPreference `json:"ads_preference,omitempty"`
+	// LastEtag holds the value of the "last_etag" field.
+	LastEtag string `json:"last_etag,omitempty"`
 	// LastSync holds the value of the "last_sync" field.
 	LastSync *time.Time `json:"last_sync,omitempty"`
 	// LastError holds the value of the "last_error" field.
@@ -100,7 +102,7 @@ func (*ClientSource) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case clientsource.FieldID, clientsource.FieldLastAppCount, clientsource.FieldLastInstallableCount:
 			values[i] = new(sql.NullInt64)
-		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldGroupCodesJSON, clientsource.FieldGroupNamesJSON, clientsource.FieldLastInvalidGroupCodesJSON, clientsource.FieldMirrorsJSON, clientsource.FieldCategoriesJSON, clientsource.FieldAnnouncementsJSON, clientsource.FieldAdsJSON, clientsource.FieldMinClientVersion, clientsource.FieldMinClientVersionMessage, clientsource.FieldAdsPreference, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
+		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldGroupCodesJSON, clientsource.FieldGroupNamesJSON, clientsource.FieldLastInvalidGroupCodesJSON, clientsource.FieldMirrorsJSON, clientsource.FieldCategoriesJSON, clientsource.FieldAnnouncementsJSON, clientsource.FieldAdsJSON, clientsource.FieldMinClientVersion, clientsource.FieldMinClientVersionMessage, clientsource.FieldAdsPreference, clientsource.FieldLastEtag, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
 			values[i] = new(sql.NullString)
 		case clientsource.FieldLastSync, clientsource.FieldCreatedAt, clientsource.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -232,6 +234,12 @@ func (_m *ClientSource) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field ads_preference", values[i])
 			} else if value.Valid {
 				_m.AdsPreference = clientsource.AdsPreference(value.String)
+			}
+		case clientsource.FieldLastEtag:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field last_etag", values[i])
+			} else if value.Valid {
+				_m.LastEtag = value.String
 			}
 		case clientsource.FieldLastSync:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -372,6 +380,9 @@ func (_m *ClientSource) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("ads_preference=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AdsPreference))
+	builder.WriteString(", ")
+	builder.WriteString("last_etag=")
+	builder.WriteString(_m.LastEtag)
 	builder.WriteString(", ")
 	if v := _m.LastSync; v != nil {
 		builder.WriteString("last_sync=")

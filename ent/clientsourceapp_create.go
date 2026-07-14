@@ -227,6 +227,20 @@ func (_c *ClientSourceAppCreate) SetNillableIconURL(v *string) *ClientSourceAppC
 	return _c
 }
 
+// SetIconOriginURL sets the "icon_origin_url" field.
+func (_c *ClientSourceAppCreate) SetIconOriginURL(v string) *ClientSourceAppCreate {
+	_c.mutation.SetIconOriginURL(v)
+	return _c
+}
+
+// SetNillableIconOriginURL sets the "icon_origin_url" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableIconOriginURL(v *string) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetIconOriginURL(*v)
+	}
+	return _c
+}
+
 // SetInstallProtected sets the "install_protected" field.
 func (_c *ClientSourceAppCreate) SetInstallProtected(v bool) *ClientSourceAppCreate {
 	_c.mutation.SetInstallProtected(v)
@@ -427,6 +441,10 @@ func (_c *ClientSourceAppCreate) defaults() {
 		v := clientsourceapp.DefaultIconURL
 		_c.mutation.SetIconURL(v)
 	}
+	if _, ok := _c.mutation.IconOriginURL(); !ok {
+		v := clientsourceapp.DefaultIconOriginURL
+		_c.mutation.SetIconOriginURL(v)
+	}
 	if _, ok := _c.mutation.InstallProtected(); !ok {
 		v := clientsourceapp.DefaultInstallProtected
 		_c.mutation.SetInstallProtected(v)
@@ -525,6 +543,9 @@ func (_c *ClientSourceAppCreate) check() error {
 	}
 	if _, ok := _c.mutation.IconURL(); !ok {
 		return &ValidationError{Name: "icon_url", err: errors.New(`ent: missing required field "ClientSourceApp.icon_url"`)}
+	}
+	if _, ok := _c.mutation.IconOriginURL(); !ok {
+		return &ValidationError{Name: "icon_origin_url", err: errors.New(`ent: missing required field "ClientSourceApp.icon_origin_url"`)}
 	}
 	if _, ok := _c.mutation.InstallProtected(); !ok {
 		return &ValidationError{Name: "install_protected", err: errors.New(`ent: missing required field "ClientSourceApp.install_protected"`)}
@@ -642,6 +663,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 	if value, ok := _c.mutation.IconURL(); ok {
 		_spec.SetField(clientsourceapp.FieldIconURL, field.TypeString, value)
 		_node.IconURL = value
+	}
+	if value, ok := _c.mutation.IconOriginURL(); ok {
+		_spec.SetField(clientsourceapp.FieldIconOriginURL, field.TypeString, value)
+		_node.IconOriginURL = value
 	}
 	if value, ok := _c.mutation.InstallProtected(); ok {
 		_spec.SetField(clientsourceapp.FieldInstallProtected, field.TypeBool, value)

@@ -722,6 +722,7 @@ var (
 		{Name: "chat_available", Type: field.TypeBool, Default: false},
 		{Name: "chat_enabled", Type: field.TypeBool, Default: true},
 		{Name: "ads_preference", Type: field.TypeEnum, Enums: []string{"unset", "enabled", "disabled"}, Default: "unset"},
+		{Name: "last_etag", Type: field.TypeString, Default: ""},
 		{Name: "last_sync", Type: field.TypeTime, Nullable: true},
 		{Name: "last_error", Type: field.TypeString, Nullable: true},
 		{Name: "last_error_code", Type: field.TypeEnum, Nullable: true, Enums: []string{"auth", "format", "http", "network"}},
@@ -744,7 +745,7 @@ var (
 			{
 				Name:    "clientsource_user_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[25]},
+				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[26]},
 			},
 		},
 	}
@@ -767,6 +768,7 @@ var (
 		{Name: "category", Type: field.TypeString, Default: ""},
 		{Name: "category_i18n_json", Type: field.TypeString, Size: 2147483647, Default: "{}"},
 		{Name: "icon_url", Type: field.TypeString, Default: ""},
+		{Name: "icon_origin_url", Type: field.TypeString, Default: ""},
 		{Name: "install_protected", Type: field.TypeBool, Default: false},
 		{Name: "comments_enabled", Type: field.TypeBool, Default: true},
 		{Name: "outdated_marks", Type: field.TypeInt, Default: 0},
@@ -785,7 +787,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "client_source_apps_client_sources_apps",
-				Columns:    []*schema.Column{ClientSourceAppsColumns[25]},
+				Columns:    []*schema.Column{ClientSourceAppsColumns[26]},
 				RefColumns: []*schema.Column{ClientSourcesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -794,12 +796,12 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_package_id",
 				Unique:  true,
-				Columns: []*schema.Column{ClientSourceAppsColumns[25], ClientSourceAppsColumns[2]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[26], ClientSourceAppsColumns[2]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_slug",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[25], ClientSourceAppsColumns[5]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[26], ClientSourceAppsColumns[5]},
 			},
 			{
 				Name:    "clientsourceapp_package_id",
@@ -809,7 +811,7 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_category_id",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[25], ClientSourceAppsColumns[13]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[26], ClientSourceAppsColumns[13]},
 			},
 			{
 				Name:    "clientsourceapp_category",
@@ -819,7 +821,7 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[25], ClientSourceAppsColumns[24]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[26], ClientSourceAppsColumns[25]},
 			},
 		},
 	}

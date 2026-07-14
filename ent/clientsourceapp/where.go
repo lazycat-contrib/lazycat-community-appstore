@@ -140,6 +140,11 @@ func IconURL(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldIconURL, v))
 }
 
+// IconOriginURL applies equality check predicate on the "icon_origin_url" field. It's identical to IconOriginURLEQ.
+func IconOriginURL(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldIconOriginURL, v))
+}
+
 // InstallProtected applies equality check predicate on the "install_protected" field. It's identical to InstallProtectedEQ.
 func InstallProtected(v bool) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldInstallProtected, v))
@@ -1223,6 +1228,71 @@ func IconURLEqualFold(v string) predicate.ClientSourceApp {
 // IconURLContainsFold applies the ContainsFold predicate on the "icon_url" field.
 func IconURLContainsFold(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldIconURL, v))
+}
+
+// IconOriginURLEQ applies the EQ predicate on the "icon_origin_url" field.
+func IconOriginURLEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldIconOriginURL, v))
+}
+
+// IconOriginURLNEQ applies the NEQ predicate on the "icon_origin_url" field.
+func IconOriginURLNEQ(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldIconOriginURL, v))
+}
+
+// IconOriginURLIn applies the In predicate on the "icon_origin_url" field.
+func IconOriginURLIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldIconOriginURL, vs...))
+}
+
+// IconOriginURLNotIn applies the NotIn predicate on the "icon_origin_url" field.
+func IconOriginURLNotIn(vs ...string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldIconOriginURL, vs...))
+}
+
+// IconOriginURLGT applies the GT predicate on the "icon_origin_url" field.
+func IconOriginURLGT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldIconOriginURL, v))
+}
+
+// IconOriginURLGTE applies the GTE predicate on the "icon_origin_url" field.
+func IconOriginURLGTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldIconOriginURL, v))
+}
+
+// IconOriginURLLT applies the LT predicate on the "icon_origin_url" field.
+func IconOriginURLLT(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldIconOriginURL, v))
+}
+
+// IconOriginURLLTE applies the LTE predicate on the "icon_origin_url" field.
+func IconOriginURLLTE(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldIconOriginURL, v))
+}
+
+// IconOriginURLContains applies the Contains predicate on the "icon_origin_url" field.
+func IconOriginURLContains(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContains(FieldIconOriginURL, v))
+}
+
+// IconOriginURLHasPrefix applies the HasPrefix predicate on the "icon_origin_url" field.
+func IconOriginURLHasPrefix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasPrefix(FieldIconOriginURL, v))
+}
+
+// IconOriginURLHasSuffix applies the HasSuffix predicate on the "icon_origin_url" field.
+func IconOriginURLHasSuffix(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldHasSuffix(FieldIconOriginURL, v))
+}
+
+// IconOriginURLEqualFold applies the EqualFold predicate on the "icon_origin_url" field.
+func IconOriginURLEqualFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEqualFold(FieldIconOriginURL, v))
+}
+
+// IconOriginURLContainsFold applies the ContainsFold predicate on the "icon_origin_url" field.
+func IconOriginURLContainsFold(v string) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldContainsFold(FieldIconOriginURL, v))
 }
 
 // InstallProtectedEQ applies the EQ predicate on the "install_protected" field.

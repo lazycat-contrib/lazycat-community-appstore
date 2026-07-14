@@ -33,6 +33,7 @@ func (ClientSource) Fields() []ent.Field {
 		field.Bool("chat_available").Default(false),
 		field.Bool("chat_enabled").Default(true),
 		field.Enum("ads_preference").Values("unset", "enabled", "disabled").Default("unset"),
+		field.String("last_etag").Default(""),
 		field.Time("last_sync").Optional().Nillable(),
 		field.String("last_error").Optional().Nillable(),
 		field.Enum("last_error_code").Values("auth", "format", "http", "network").Optional().Nillable(),

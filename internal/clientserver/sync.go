@@ -128,11 +128,11 @@ func (s *Server) syncAllSources(ctx context.Context, userID string) (SyncAllResu
 			if err := groupCtx.Err(); err != nil {
 				return err
 			}
-			apps, mirrors, categories, announcements, ads, clientPolicy, groups, invalidCodes, chatAvailable, err := s.fetchSourceApps(groupCtx, source)
+			fetch, err := s.fetchSourceApps(groupCtx, source)
 			if err != nil && groupCtx.Err() != nil {
 				return groupCtx.Err()
 			}
-			results[index] = fetchedSource{source: source, apps: apps, mirrors: mirrors, categories: categories, announcements: announcements, ads: ads, clientPolicy: clientPolicy, groups: groups, invalidCodes: invalidCodes, chatAvailable: chatAvailable, err: err}
+			results[index] = fetchedSource{source: source, sourceFeedFetch: fetch, err: err}
 			return nil
 		})
 	}
@@ -150,7 +150,15 @@ func (s *Server) syncAllSources(ctx context.Context, userID string) (SyncAllResu
 			result.Failed++
 			continue
 		}
-		if _, err := s.saveSourceApps(ctx, item.source, item.apps, item.mirrors, item.categories, item.announcements, item.ads, item.clientPolicy, item.groups, item.invalidCodes, item.chatAvailable); err != nil {
+		if item.notModified {
+			if _, err := s.recordSourceNotModified(ctx, item.source, item.etag); err != nil {
+				result.Failed++
+			} else {
+				result.Success++
+			}
+			continue
+		}
+		if _, err := s.saveSourceApps(ctx, item.source, item.apps, item.mirrors, item.categories, item.announcements, item.ads, item.clientPolicy, item.groups, item.invalidCodes, item.chatAvailable, item.etag); err != nil {
 			result.Failed++
 		} else {
 			result.Success++
@@ -160,7 +168,12 @@ func (s *Server) syncAllSources(ctx context.Context, userID string) (SyncAllResu
 }
 
 type fetchedSource struct {
-	source        *ent.ClientSource
+	source *ent.ClientSource
+	sourceFeedFetch
+	err error
+}
+
+type sourceFeedFetch struct {
 	apps          []feedApp
 	mirrors       []mirror.Entry
 	categories    []SourceCategoryDTO
@@ -170,7 +183,8 @@ type fetchedSource struct {
 	groups        []SourceGroupDTO
 	invalidCodes  []string
 	chatAvailable bool
-	err           error
+	etag          string
+	notModified   bool
 }
 
 const sourceAppInsertBatchSize = 50
@@ -185,11 +199,14 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 		}
 		return SourceDTO{}, err
 	}
-	apps, mirrors, categories, announcements, ads, clientPolicy, groups, invalidCodes, chatAvailable, err := s.fetchSourceApps(ctx, source)
+	fetch, err := s.fetchSourceApps(ctx, source)
 	if err != nil {
 		return SourceDTO{}, s.recordSourceSyncFailure(ctx, source.ID, err)
 	}
-	return s.saveSourceApps(ctx, source, apps, mirrors, categories, announcements, ads, clientPolicy, groups, invalidCodes, chatAvailable)
+	if fetch.notModified {
+		return s.recordSourceNotModified(ctx, source, fetch.etag)
+	}
+	return s.saveSourceApps(ctx, source, fetch.apps, fetch.mirrors, fetch.categories, fetch.announcements, fetch.ads, fetch.clientPolicy, fetch.groups, fetch.invalidCodes, fetch.chatAvailable, fetch.etag)
 }
 
 func (s *Server) recordSourceSyncFailure(ctx context.Context, sourceID int, err error) sourceSyncError {
@@ -209,7 +226,22 @@ func normalizeSourceSyncError(err error) sourceSyncError {
 	return syncErr
 }
 
-func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, apps []feedApp, mirrors []mirror.Entry, categories []SourceCategoryDTO, announcements []SourceAnnouncementDTO, ads []SourceAdDTO, clientPolicy SourceClientPolicyDTO, groups []SourceGroupDTO, invalidCodes []string, chatAvailable bool) (SourceDTO, error) {
+func (s *Server) recordSourceNotModified(ctx context.Context, source *ent.ClientSource, etag string) (SourceDTO, error) {
+	update := s.db.ClientSource.UpdateOneID(source.ID).
+		SetLastSync(time.Now()).
+		ClearLastError().
+		ClearLastErrorCode()
+	if strings.TrimSpace(etag) != "" {
+		update.SetLastEtag(strings.TrimSpace(etag))
+	}
+	updated, err := update.Save(ctx)
+	if err != nil {
+		return SourceDTO{}, err
+	}
+	return sourceDTO(updated), nil
+}
+
+func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, apps []feedApp, mirrors []mirror.Entry, categories []SourceCategoryDTO, announcements []SourceAnnouncementDTO, ads []SourceAdDTO, clientPolicy SourceClientPolicyDTO, groups []SourceGroupDTO, invalidCodes []string, chatAvailable bool, etag string) (SourceDTO, error) {
 	installableCount := 0
 	rows := make([]sourceAppCacheRow, 0, len(apps))
 	categories = normalizeSourceCategories(categories)
@@ -302,6 +334,7 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 		ClearLastErrorCode().
 		SetLastAppCount(len(apps)).
 		SetLastInstallableCount(installableCount).
+		SetLastEtag(strings.TrimSpace(etag)).
 		SetGroupCodesJSON(encodeStringSlice(groupCodes)).
 		SetGroupNamesJSON(encodeSourceGroups(groups)).
 		SetLastInvalidGroupCodesJSON(encodeStringSlice(invalidCodes)).
@@ -435,7 +468,7 @@ func sourceAppCreateBuilder(tx *ent.Tx, sourceID int, row sourceAppCacheRow) *en
 		SetVersionsJSON(row.VersionsJSON)
 }
 
-func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) ([]feedApp, []mirror.Entry, []SourceCategoryDTO, []SourceAnnouncementDTO, []SourceAdDTO, SourceClientPolicyDTO, []SourceGroupDTO, []string, bool, error) {
+func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) (sourceFeedFetch, error) {
 	s.ensureHTTPClients()
 	timeout := s.cfg.SyncTimeout
 	if timeout == 0 {
@@ -445,7 +478,7 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	defer cancel()
 	feedURL, err := url.Parse(source.URL)
 	if err != nil {
-		return nil, nil, nil, nil, nil, SourceClientPolicyDTO{}, nil, nil, false, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Invalid source URL"}
+		return sourceFeedFetch{}, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Invalid source URL"}
 	}
 	if source.Password != "" {
 		q := feedURL.Query()
@@ -454,39 +487,57 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL.String(), nil)
 	if err != nil {
-		return nil, nil, nil, nil, nil, SourceClientPolicyDTO{}, nil, nil, false, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Invalid source URL"}
+		return sourceFeedFetch{}, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Invalid source URL"}
 	}
+	req.Header.Set("Accept-Encoding", "br, gzip")
 	if source.Password != "" {
 		req.Header.Set("X-Source-Password", source.Password)
 	}
 	if codes := decodeStringSlice(source.GroupCodesJSON); len(codes) > 0 {
 		req.Header.Set("X-Group-Codes", strings.Join(codes, ","))
 	}
+	if strings.TrimSpace(source.LastEtag) != "" {
+		if count, countErr := s.db.ClientSourceApp.Query().Where(clientsourceapp.SourceIDEQ(source.ID)).Count(ctx); countErr == nil && count == source.LastAppCount {
+			req.Header.Set("If-None-Match", source.LastEtag)
+		}
+	}
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return nil, nil, nil, nil, nil, SourceClientPolicyDTO{}, nil, nil, false, sourceSyncError{code: "network", status: http.StatusBadGateway, message: "Could not reach source"}
+		return sourceFeedFetch{}, sourceSyncError{code: "network", status: http.StatusBadGateway, message: "Could not reach source"}
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, nil, nil, nil, nil, SourceClientPolicyDTO{}, nil, nil, false, sourceSyncError{code: "auth", status: http.StatusUnauthorized, message: "Source password is invalid"}
+		return sourceFeedFetch{}, sourceSyncError{code: "auth", status: http.StatusUnauthorized, message: "Source password is invalid"}
+	}
+	etag := strings.TrimSpace(resp.Header.Get("ETag"))
+	if resp.StatusCode == http.StatusNotModified {
+		if etag == "" {
+			etag = source.LastEtag
+		}
+		return sourceFeedFetch{etag: etag, notModified: true}, nil
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, nil, nil, nil, nil, SourceClientPolicyDTO{}, nil, nil, false, sourceSyncError{code: "http", status: http.StatusBadGateway, message: fmt.Sprintf("Source returned HTTP %d", resp.StatusCode)}
+		return sourceFeedFetch{}, sourceSyncError{code: "http", status: http.StatusBadGateway, message: fmt.Sprintf("Source returned HTTP %d", resp.StatusCode)}
 	}
+	body, err := sourceResponseBody(resp)
+	if err != nil {
+		return sourceFeedFetch{}, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed uses an unsupported content encoding"}
+	}
+	defer func() { _ = body.Close() }()
 	var root feedIndex
-	if err := decodeLimitedJSON(resp.Body, maxSourceFeedBytes, &root); err != nil {
-		return nil, nil, nil, nil, nil, SourceClientPolicyDTO{}, nil, nil, false, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed is not valid JSON"}
+	if err := decodeLimitedJSON(body, maxSourceFeedBytes, &root); err != nil {
+		return sourceFeedFetch{}, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed is not valid JSON"}
 	}
 	if len(root.Apps) == 0 || strings.TrimSpace(string(root.Apps)) == "null" {
-		return nil, nil, nil, nil, normalizeSourceAds(root.Ads), normalizeSourceClientPolicy(root.Site.ClientPolicy), nil, nil, root.Site.Chat.Enabled, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed apps must be an array"}
+		return sourceFeedFetch{}, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed apps must be an array"}
 	}
 	mirrors, err := normalizeFeedMirrors(root.GitHubMirrors)
 	if err != nil {
-		return nil, nil, nil, nil, normalizeSourceAds(root.Ads), normalizeSourceClientPolicy(root.Site.ClientPolicy), nil, nil, root.Site.Chat.Enabled, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: err.Error()}
+		return sourceFeedFetch{}, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: err.Error()}
 	}
 	var apps []feedApp
 	if err := json.Unmarshal(root.Apps, &apps); err != nil {
-		return nil, nil, nil, nil, normalizeSourceAds(root.Ads), normalizeSourceClientPolicy(root.Site.ClientPolicy), nil, nil, root.Site.Chat.Enabled, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed apps must be an array"}
+		return sourceFeedFetch{}, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed apps must be an array"}
 	}
 	categories := normalizeSourceCategories(root.Categories)
 	announcements := normalizeSourceAnnouncements(root.Announcements)
@@ -511,7 +562,18 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 		}
 		out = append(out, app)
 	}
-	return out, mirrors, categories, announcements, ads, normalizeSourceClientPolicy(root.Site.ClientPolicy), root.Groups, normalizeGroupCodes(root.InvalidGroupCodes), root.Site.Chat.Enabled, nil
+	return sourceFeedFetch{
+		apps:          out,
+		mirrors:       mirrors,
+		categories:    categories,
+		announcements: announcements,
+		ads:           ads,
+		clientPolicy:  normalizeSourceClientPolicy(root.Site.ClientPolicy),
+		groups:        root.Groups,
+		invalidCodes:  normalizeGroupCodes(root.InvalidGroupCodes),
+		chatAvailable: root.Site.Chat.Enabled,
+		etag:          etag,
+	}, nil
 }
 
 func normalizeFeedMirrors(input []mirror.Entry) ([]mirror.Entry, error) {

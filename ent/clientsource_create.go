@@ -249,6 +249,20 @@ func (_c *ClientSourceCreate) SetNillableAdsPreference(v *clientsource.AdsPrefer
 	return _c
 }
 
+// SetLastEtag sets the "last_etag" field.
+func (_c *ClientSourceCreate) SetLastEtag(v string) *ClientSourceCreate {
+	_c.mutation.SetLastEtag(v)
+	return _c
+}
+
+// SetNillableLastEtag sets the "last_etag" field if the given value is not nil.
+func (_c *ClientSourceCreate) SetNillableLastEtag(v *string) *ClientSourceCreate {
+	if v != nil {
+		_c.SetLastEtag(*v)
+	}
+	return _c
+}
+
 // SetLastSync sets the "last_sync" field.
 func (_c *ClientSourceCreate) SetLastSync(v time.Time) *ClientSourceCreate {
 	_c.mutation.SetLastSync(v)
@@ -457,6 +471,10 @@ func (_c *ClientSourceCreate) defaults() {
 		v := clientsource.DefaultAdsPreference
 		_c.mutation.SetAdsPreference(v)
 	}
+	if _, ok := _c.mutation.LastEtag(); !ok {
+		v := clientsource.DefaultLastEtag
+		_c.mutation.SetLastEtag(v)
+	}
 	if _, ok := _c.mutation.LastAppCount(); !ok {
 		v := clientsource.DefaultLastAppCount
 		_c.mutation.SetLastAppCount(v)
@@ -550,6 +568,9 @@ func (_c *ClientSourceCreate) check() error {
 		if err := clientsource.AdsPreferenceValidator(v); err != nil {
 			return &ValidationError{Name: "ads_preference", err: fmt.Errorf(`ent: validator failed for field "ClientSource.ads_preference": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.LastEtag(); !ok {
+		return &ValidationError{Name: "last_etag", err: errors.New(`ent: missing required field "ClientSource.last_etag"`)}
 	}
 	if v, ok := _c.mutation.LastErrorCode(); ok {
 		if err := clientsource.LastErrorCodeValidator(v); err != nil {
@@ -665,6 +686,10 @@ func (_c *ClientSourceCreate) createSpec() (*ClientSource, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.AdsPreference(); ok {
 		_spec.SetField(clientsource.FieldAdsPreference, field.TypeEnum, value)
 		_node.AdsPreference = value
+	}
+	if value, ok := _c.mutation.LastEtag(); ok {
+		_spec.SetField(clientsource.FieldLastEtag, field.TypeString, value)
+		_node.LastEtag = value
 	}
 	if value, ok := _c.mutation.LastSync(); ok {
 		_spec.SetField(clientsource.FieldLastSync, field.TypeTime, value)

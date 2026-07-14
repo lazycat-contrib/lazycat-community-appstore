@@ -140,6 +140,11 @@ func ChatEnabled(v bool) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldChatEnabled, v))
 }
 
+// LastEtag applies equality check predicate on the "last_etag" field. It's identical to LastEtagEQ.
+func LastEtag(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldLastEtag, v))
+}
+
 // LastSync applies equality check predicate on the "last_sync" field. It's identical to LastSyncEQ.
 func LastSync(v time.Time) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldLastSync, v))
@@ -1183,6 +1188,71 @@ func AdsPreferenceIn(vs ...AdsPreference) predicate.ClientSource {
 // AdsPreferenceNotIn applies the NotIn predicate on the "ads_preference" field.
 func AdsPreferenceNotIn(vs ...AdsPreference) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldNotIn(FieldAdsPreference, vs...))
+}
+
+// LastEtagEQ applies the EQ predicate on the "last_etag" field.
+func LastEtagEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldLastEtag, v))
+}
+
+// LastEtagNEQ applies the NEQ predicate on the "last_etag" field.
+func LastEtagNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldLastEtag, v))
+}
+
+// LastEtagIn applies the In predicate on the "last_etag" field.
+func LastEtagIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldLastEtag, vs...))
+}
+
+// LastEtagNotIn applies the NotIn predicate on the "last_etag" field.
+func LastEtagNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldLastEtag, vs...))
+}
+
+// LastEtagGT applies the GT predicate on the "last_etag" field.
+func LastEtagGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldLastEtag, v))
+}
+
+// LastEtagGTE applies the GTE predicate on the "last_etag" field.
+func LastEtagGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldLastEtag, v))
+}
+
+// LastEtagLT applies the LT predicate on the "last_etag" field.
+func LastEtagLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldLastEtag, v))
+}
+
+// LastEtagLTE applies the LTE predicate on the "last_etag" field.
+func LastEtagLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldLastEtag, v))
+}
+
+// LastEtagContains applies the Contains predicate on the "last_etag" field.
+func LastEtagContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldLastEtag, v))
+}
+
+// LastEtagHasPrefix applies the HasPrefix predicate on the "last_etag" field.
+func LastEtagHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldLastEtag, v))
+}
+
+// LastEtagHasSuffix applies the HasSuffix predicate on the "last_etag" field.
+func LastEtagHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldLastEtag, v))
+}
+
+// LastEtagEqualFold applies the EqualFold predicate on the "last_etag" field.
+func LastEtagEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldLastEtag, v))
+}
+
+// LastEtagContainsFold applies the ContainsFold predicate on the "last_etag" field.
+func LastEtagContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldLastEtag, v))
 }
 
 // LastSyncEQ applies the EQ predicate on the "last_sync" field.

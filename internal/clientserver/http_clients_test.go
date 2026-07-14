@@ -1,6 +1,8 @@
 package clientserver
 
 import (
+	"bytes"
+	"compress/gzip"
 	"errors"
 	"io"
 	"net/http"
@@ -8,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/andybalholm/brotli"
 )
 
 func TestHTTPClientsUseBoundedAndStreamingTimeouts(t *testing.T) {
@@ -119,6 +123,51 @@ func TestSourceFeedRejectsActualSixtyFourMiBOverflow(t *testing.T) {
 	err := decodeLimitedJSON(io.LimitReader(zeroHTTPReader{}, maxSourceFeedBytes+1), maxSourceFeedBytes, &decoded)
 	if tooLarge, ok := errors.AsType[*responseTooLargeError](err); !ok || tooLarge.Limit != maxSourceFeedBytes {
 		t.Fatalf("decodeLimitedJSON() error = %v, want %d-byte responseTooLargeError", err, maxSourceFeedBytes)
+	}
+}
+
+func TestSourceResponseBodyDecodesSupportedEncodings(t *testing.T) {
+	const payload = `{"apps":[]}`
+	var gzipBuffer bytes.Buffer
+	gzipWriter := gzip.NewWriter(&gzipBuffer)
+	_, _ = gzipWriter.Write([]byte(payload))
+	_ = gzipWriter.Close()
+	var brotliBuffer bytes.Buffer
+	brotliWriter := brotli.NewWriter(&brotliBuffer)
+	_, _ = brotliWriter.Write([]byte(payload))
+	_ = brotliWriter.Close()
+
+	for _, test := range []struct {
+		name     string
+		encoding string
+		body     []byte
+	}{
+		{name: "identity", body: []byte(payload)},
+		{name: "gzip", encoding: "gzip", body: gzipBuffer.Bytes()},
+		{name: "brotli", encoding: "br", body: brotliBuffer.Bytes()},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			resp := &http.Response{Header: http.Header{}, Body: io.NopCloser(bytes.NewReader(test.body))}
+			if test.encoding != "" {
+				resp.Header.Set("Content-Encoding", test.encoding)
+			}
+			reader, err := sourceResponseBody(resp)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = reader.Close() }()
+			raw, err := io.ReadAll(reader)
+			if err != nil || string(raw) != payload {
+				t.Fatalf("decoded = %q error=%v", raw, err)
+			}
+		})
+	}
+
+	for _, encoding := range []string{"zstd", "br, gzip"} {
+		resp := &http.Response{Header: http.Header{"Content-Encoding": {encoding}}, Body: io.NopCloser(strings.NewReader(payload))}
+		if _, err := sourceResponseBody(resp); err == nil {
+			t.Fatalf("encoding %q error = nil", encoding)
+		}
 	}
 }
 

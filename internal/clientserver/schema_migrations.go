@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	currentClientSchemaVersion = 1
+	currentClientSchemaVersion = 2
 	systemClientUserID         = "_system"
 	settingClientSchemaVersion = "schema_version"
 )
@@ -28,6 +28,11 @@ func migrateSchema(ctx context.Context, db *ent.Client) error {
 			return err
 		}
 		if err := setSystemClientSetting(ctx, db, settingClientSchemaVersion, "1"); err != nil {
+			return err
+		}
+	}
+	if version < 2 {
+		if err := setSystemClientSetting(ctx, db, settingClientSchemaVersion, "2"); err != nil {
 			return err
 		}
 	}
