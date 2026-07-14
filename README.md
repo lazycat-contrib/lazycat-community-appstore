@@ -29,7 +29,7 @@ If only one admin environment variable is set, the other keeps its development f
 To build the server with the web console embedded, build the client first and copy it into `clientembed/dist` before compiling Go:
 
 ```bash
-(cd client && npm ci && VITE_API_BASE_URL=. npm run build)
+(cd client && npm ci && npm run build)
 rm -rf clientembed/dist
 mkdir -p clientembed/dist
 cp -R client/dist/. clientembed/dist/
@@ -37,6 +37,9 @@ CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o dist/store-server ./cmd/sto
 ```
 
 The server package does this automatically from `lazycat/server/build.sh`.
+Server and client packages keep the Vite bundle runtime-neutral and inject their
+API URL and version through `app-config.js`, so both packages share the same
+embedded asset hashes.
 
 ## Client
 

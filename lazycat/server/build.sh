@@ -17,7 +17,8 @@ fi
 
 cd "$ROOT_DIR/client"
 npm ci
-VITE_API_BASE_URL="." npm run build
+# The server injects its API origin through /app-config.js at runtime.
+npm run build
 cp -R dist/. "$EMBED_DIST_DIR/"
 
 cd "$ROOT_DIR"

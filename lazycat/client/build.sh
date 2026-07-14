@@ -15,7 +15,8 @@ curl -fsSL "https://developer.lazycat.cloud/lazycat-injects/lzc-file-chooser-inj
 
 cd "$ROOT_DIR/client"
 npm ci
-VITE_API_BASE_URL="${CLIENT_API_BASE_URL:-}" npm run build
+# Client-specific defaults are written to app-config.js below.
+npm run build
 cp -R dist/. "$EMBED_DIST_DIR/"
 
 CLIENT_APP_VERSION="$PACKAGE_VERSION" EMBED_DIST_DIR="$EMBED_DIST_DIR" node <<'NODE'
