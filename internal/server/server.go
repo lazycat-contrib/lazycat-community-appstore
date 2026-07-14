@@ -36,6 +36,7 @@ type Server struct {
 	db                      *ent.Client
 	sqlDB                   *sql.DB
 	metricsSQL              queryContextExecutor
+	nowMu                   sync.RWMutex
 	now                     func() time.Time
 	storage                 storage.Backend
 	mailer                  Mailer
@@ -68,6 +69,25 @@ type Server struct {
 	closeOnce               sync.Once
 	closeDone               chan struct{}
 	closeErr                error
+}
+
+func (s *Server) currentTime() time.Time {
+	s.nowMu.RLock()
+	now := s.now
+	s.nowMu.RUnlock()
+	if now == nil {
+		return time.Now()
+	}
+	return now()
+}
+
+func (s *Server) setNow(now func() time.Time) {
+	if now == nil {
+		now = time.Now
+	}
+	s.nowMu.Lock()
+	s.now = now
+	s.nowMu.Unlock()
 }
 
 func New(cfg config.Config) (*Server, error) {

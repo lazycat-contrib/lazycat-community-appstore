@@ -104,7 +104,7 @@ func (s *lpkInspectionScheduler) recoverInterruptedJobs(ctx context.Context) {
 }
 
 func (s *lpkInspectionScheduler) runDue(ctx context.Context) {
-	now := s.server.now()
+	now := s.server.currentTime()
 	jobs, err := s.server.db.LPKInspectionJob.Query().
 		Where(lpkinspectionjob.StateEQ(lpkinspectionjob.StatePENDING)).
 		Order(entgo.Asc(lpkinspectionjob.FieldNextAttemptAt), entgo.Asc(lpkinspectionjob.FieldCreatedAt)).
@@ -129,7 +129,7 @@ func (s *Server) enqueueAutomaticLPKInspection(ctx context.Context, appID, versi
 	if wait <= 0 {
 		return nil
 	}
-	now := s.now()
+	now := s.currentTime()
 	_, err := s.db.LPKInspectionJob.Create().
 		SetAppID(appID).
 		SetVersionID(versionID).
@@ -164,7 +164,7 @@ func (s *Server) enqueueManualLPKInspection(ctx context.Context, appID, userID i
 	if err != nil {
 		return nil, errors.New("app has no external LPK version to inspect")
 	}
-	now := s.now()
+	now := s.currentTime()
 	job, err := s.db.LPKInspectionJob.Create().
 		SetAppID(appID).
 		SetVersionID(version.ID).
@@ -330,10 +330,7 @@ func (s *Server) runLPKInspectionJob(ctx context.Context, jobID int, now time.Ti
 	}
 	remaining := manualLPKInspectionWait
 	if job.DeadlineAt != nil {
-		remaining = time.Until(*job.DeadlineAt)
-		if s.now != nil {
-			remaining = job.DeadlineAt.Sub(now)
-		}
+		remaining = job.DeadlineAt.Sub(now)
 	}
 	if remaining <= 0 {
 		return s.finishLPKInspectionJob(ctx, job, lpkinspectionjob.StateTIMED_OUT, "LPK metadata was not available before the inspection deadline")
@@ -365,7 +362,7 @@ func (s *Server) runLPKInspectionJob(ctx context.Context, jobID int, now time.Ti
 }
 
 func (s *Server) finishLPKInspectionJob(ctx context.Context, job *entgo.LPKInspectionJob, state lpkinspectionjob.State, message string) error {
-	now := s.now()
+	now := s.currentTime()
 	update := job.Update().
 		SetState(state).
 		SetCompletedAt(now).

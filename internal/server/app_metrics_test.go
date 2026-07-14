@@ -70,7 +70,7 @@ func newAppMetricsFixture(t *testing.T) appMetricsFixture {
 	fixedNow := time.Date(2026, time.July, 8, 12, 0, 0, 0, location)
 	starts := downloadPeriodStartsAt(fixedNow, location)
 	testApp := newTestApp(t)
-	testApp.server.now = func() time.Time { return fixedNow }
+	testApp.server.setNow(func() time.Time { return fixedNow })
 	if err := testApp.server.setSetting(t.Context(), settingSiteTimeZone, "Asia/Shanghai"); err != nil {
 		t.Fatal(err)
 	}

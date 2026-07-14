@@ -18,8 +18,8 @@ type queryContextExecutor interface {
 }
 
 func (s *Server) nowUTC() time.Time {
-	if s != nil && s.now != nil {
-		return s.now().UTC()
+	if s != nil {
+		return s.currentTime().UTC()
 	}
 	return time.Now().UTC()
 }
