@@ -1,4 +1,5 @@
 import type { Category } from '../../shared/types';
+import { buildCategoryHierarchy } from '../../shared/categoryHierarchy.ts';
 
 export type BrowserCategory = Category & { value?: string };
 
@@ -16,8 +17,8 @@ export function categoryBrowserState(
   activeCategory: string,
   categoryName: (category: BrowserCategory) => string,
 ) {
-  const hierarchy = buildBrowserCategoryHierarchy(categories, categoryName);
-  const roots = hierarchy.roots;
+  const hierarchy = buildCategoryHierarchy(categories, (category) => categoryName(category as BrowserCategory));
+  const roots = hierarchy.roots as BrowserCategory[];
   const activeRecord = activeCategory === 'all'
     ? undefined
     : categories.find((category) => categoryValue(category) === activeCategory);
@@ -46,29 +47,4 @@ export function categoryBrowserState(
   }
 
   return { roots, selectedParent, parentValue, railItems };
-}
-
-function buildBrowserCategoryHierarchy(
-  categories: BrowserCategory[],
-  categoryName: (category: BrowserCategory) => string,
-) {
-  const byID = new Map(categories.map((category) => [category.id, category]));
-  const roots: BrowserCategory[] = [];
-  const childrenByParent = new Map<number, BrowserCategory[]>();
-  const sorted = (items: BrowserCategory[]) => [...items].sort((left, right) => {
-    const order = (left.sortOrder || 0) - (right.sortOrder || 0);
-    return order || categoryName(left).localeCompare(categoryName(right), undefined, { numeric: true, sensitivity: 'base' });
-  });
-
-  for (const category of categories) {
-    if (category.parentId && byID.has(category.parentId)) {
-      childrenByParent.set(category.parentId, [...(childrenByParent.get(category.parentId) || []), category]);
-    } else {
-      roots.push(category);
-    }
-  }
-  for (const [parentID, children] of childrenByParent.entries()) {
-    childrenByParent.set(parentID, sorted(children));
-  }
-  return { roots: sorted(roots), childrenByParent, byID };
 }

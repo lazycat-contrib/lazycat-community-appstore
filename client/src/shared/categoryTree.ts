@@ -1,5 +1,6 @@
 import type { Category } from './types';
 import { localizedName } from './utils';
+import { buildCategoryHierarchy as buildHierarchy } from './categoryHierarchy';
 
 export type CategoryTreeItem = {
   category: Category;
@@ -8,46 +9,8 @@ export type CategoryTreeItem = {
   path: string;
 };
 
-export type CategoryHierarchy = {
-  roots: Category[];
-  childrenByParent: Map<number, Category[]>;
-  byID: Map<number, Category>;
-};
-
-function categoryParentID(category: Category) {
-  return category.parentId ?? null;
-}
-
-function sortCategories(items: Category[]) {
-  return [...items].sort((left, right) => {
-    const sortDelta = (left.sortOrder || 0) - (right.sortOrder || 0);
-    if (sortDelta !== 0) return sortDelta;
-    return localizedName(left).localeCompare(localizedName(right), undefined, { numeric: true, sensitivity: 'base' });
-  });
-}
-
-export function buildCategoryHierarchy(categories: Category[]): CategoryHierarchy {
-  const byID = new Map(categories.map((category) => [category.id, category]));
-  const roots: Category[] = [];
-  const childrenByParent = new Map<number, Category[]>();
-
-  for (const category of categories) {
-    const parentID = categoryParentID(category);
-    if (parentID && byID.has(parentID)) {
-      childrenByParent.set(parentID, [...(childrenByParent.get(parentID) || []), category]);
-    } else {
-      roots.push(category);
-    }
-  }
-  for (const [parentID, children] of childrenByParent.entries()) {
-    childrenByParent.set(parentID, sortCategories(children));
-  }
-
-  return {
-    roots: sortCategories(roots),
-    childrenByParent,
-    byID,
-  };
+export function buildCategoryHierarchy(categories: Category[]) {
+  return buildHierarchy(categories, localizedName);
 }
 
 export function flattenCategoryTree(categories: Category[]): CategoryTreeItem[] {
@@ -73,7 +36,10 @@ export function flattenCategoryTree(categories: Category[]): CategoryTreeItem[] 
   }
 
   visit(roots, 0, '');
-  for (const category of sortCategories(categories)) {
+  for (const category of [...categories].sort((left, right) => {
+    const sortDelta = (left.sortOrder || 0) - (right.sortOrder || 0);
+    return sortDelta || localizedName(left).localeCompare(localizedName(right), undefined, { numeric: true, sensitivity: 'base' });
+  })) {
     if (!visited.has(category.id)) {
       const name = localizedName(category);
       output.push({ category, depth: 0, label: name, path: name });
