@@ -4,11 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { ToggleButton as XToggleButton, ToggleButtonGroup as XToggleButtonGroup } from '@astryxdesign/core/ToggleButton';
-import { buildCategoryHierarchy } from '../../shared/categoryTree';
-import type { Category } from '../../shared/types';
 import { localizedName } from '../../shared/utils';
-
-export type BrowserCategory = Category & { value?: string };
+import { categoryBrowserState, categoryValue, type BrowserCategory } from './categoryBrowserState';
 
 export function CategoryBrowser({
   categories,
@@ -21,12 +18,10 @@ export function CategoryBrowser({
 }) {
   const { t } = useTranslation();
   const childRailRef = useRef<HTMLDivElement | null>(null);
-  const hierarchy = useMemo(() => buildCategoryHierarchy(categories), [categories]);
-  const activeRecord = activeCategory === 'all' ? undefined : categories.find((category) => categoryValue(category) === activeCategory);
-  const selectedParentID = activeRecord?.parentId || activeRecord?.id || null;
-  const selectedParent = selectedParentID ? hierarchy.byID.get(selectedParentID) : undefined;
-  const childCategories = selectedParent ? hierarchy.childrenByParent.get(selectedParent.id) || [] : [];
-  const parentValue = selectedParent ? categoryValue(selectedParent) : 'all';
+  const { roots, selectedParent, parentValue, railItems } = useMemo(
+    () => categoryBrowserState(categories, activeCategory, localizedName),
+    [activeCategory, categories],
+  );
 
   function scrollChildren(direction: -1 | 1) {
     childRailRef.current?.scrollBy({ left: direction * 260, behavior: 'smooth' });
@@ -46,31 +41,36 @@ export function CategoryBrowser({
           size="sm"
         >
           <XToggleButton value="all" label={t('search.allCategories')} />
-          {hierarchy.roots.map((category) => (
+          {roots.map((category) => (
             <XToggleButton key={categoryValue(category)} value={categoryValue(category)} label={localizedName(category)} />
           ))}
         </XToggleButtonGroup>
       </div>
 
-      {selectedParent && childCategories.length > 0 && (
-        <div className="category-subrail" aria-label={t('search.subcategoryFilter', { category: localizedName(selectedParent) })}>
+      {railItems.length > 0 && (
+        <div
+          className="category-subrail"
+          aria-label={selectedParent ? t('search.subcategoryFilter', { category: localizedName(selectedParent) }) : t('search.categoryFilter')}
+        >
           <XIconButton type="button" variant="ghost" label={t('common.previous')} icon={<ChevronLeft size={17} />} onClick={() => scrollChildren(-1)} />
           <div className="category-subrail-scroll" ref={childRailRef}>
-            <XButton
-              type="button"
-              variant={activeCategory === categoryValue(selectedParent) ? 'primary' : 'secondary'}
-              size="sm"
-              label={t('search.allInCategory', { category: localizedName(selectedParent) })}
-              onClick={() => onCategory(categoryValue(selectedParent))}
-            />
-            {childCategories.map((category) => (
+            {selectedParent && (
               <XButton
                 type="button"
-                key={categoryValue(category)}
-                variant={activeCategory === categoryValue(category) ? 'primary' : 'secondary'}
+                variant={activeCategory === categoryValue(selectedParent) ? 'primary' : 'secondary'}
                 size="sm"
-                label={localizedName(category)}
-                onClick={() => onCategory(categoryValue(category))}
+                label={t('search.allInCategory', { category: localizedName(selectedParent) })}
+                onClick={() => onCategory(categoryValue(selectedParent))}
+              />
+            )}
+            {railItems.map((item) => (
+              <XButton
+                type="button"
+                key={categoryValue(item.category)}
+                variant={activeCategory === categoryValue(item.category) ? 'primary' : 'secondary'}
+                size="sm"
+                label={item.label}
+                onClick={() => onCategory(categoryValue(item.category))}
               />
             ))}
           </div>
@@ -79,8 +79,4 @@ export function CategoryBrowser({
       )}
     </div>
   );
-}
-
-function categoryValue(category: Category) {
-  return (category as BrowserCategory).value || String(category.id);
 }

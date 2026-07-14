@@ -144,6 +144,15 @@ test('search keeps current conditions visible and offers one empty-state recover
   assert.match(search, /onCategory\('all'\)/);
 });
 
+test('category browser renders child navigation in the default all state', async () => {
+  const browser = await source('./CategoryBrowser.tsx');
+
+  assert.match(browser, /categoryBrowserState\(categories, activeCategory, localizedName\)/);
+  assert.match(browser, /railItems\.length > 0/);
+  assert.match(browser, /railItems\.map\(\(item\) =>/);
+  assert.doesNotMatch(browser, /selectedParent && childCategories\.length > 0/);
+});
+
 test('public app detail leads with product evidence and keeps trust facts below it', async () => {
   const drawer = await source('./AppDrawer.tsx');
   const screenshotIndex = drawer.indexOf('storefront-screenshot-section');
