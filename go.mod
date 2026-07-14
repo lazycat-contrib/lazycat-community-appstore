@@ -5,11 +5,13 @@ go 1.26.4
 require (
 	entgo.io/ent v0.14.6
 	gitee.com/linakesi/lzc-sdk v0.1.0
+	github.com/andybalholm/brotli v1.2.2
 	github.com/aws/aws-sdk-go-v2 v1.42.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.24
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.0
 	github.com/cloudflare/backoff v0.0.0-20240920015135-e46b80a3a7d0
 	github.com/coreos/go-oidc/v3 v3.17.0
+	github.com/dgraph-io/badger/v4 v4.9.4
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/lib-x/entsqlite v0.2.3
 	github.com/lib-x/lzc-toolkit-go v0.3.1
@@ -33,7 +35,6 @@ require (
 	gitee.com/linakesi/lzc-baseos-protos v0.0.0-20240409034726-d8d3d3375144 // indirect
 	gitee.com/linakesi/remotesocks v0.0.0-20250225034155-8709b247f245 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
-	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.13 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.29 // indirect
@@ -48,7 +49,6 @@ require (
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/cgroups/v3 v3.0.5 // indirect
-	github.com/dgraph-io/badger/v4 v4.9.4 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
