@@ -11,6 +11,7 @@ func (s *Server) handleSiteProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SITE_PROFILE_FAILED", "Could not load site profile", nil)
 		return
 	}
+	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, value)
 }
 

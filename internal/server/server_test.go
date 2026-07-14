@@ -353,6 +353,31 @@ func TestServerSQLiteDSNAddsEntSQLitePragmas(t *testing.T) {
 	}
 }
 
+func TestPublicSiteProfilePublishesAdsWithoutCaching(t *testing.T) {
+	app := newTestApp(t)
+	app.server.db.Ad.Create().
+		SetTitle("Anonymous campaign").
+		SetBody("Visible before login").
+		SaveX(t.Context())
+
+	rec := app.do(http.MethodGet, "/api/v1/site/profile", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("site profile status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var response struct {
+		Site siteProfile `json:"site"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode site profile: %v", err)
+	}
+	if len(response.Site.Ads) != 1 || response.Site.Ads[0].Title != "Anonymous campaign" {
+		t.Fatalf("anonymous site profile ads = %#v", response.Site.Ads)
+	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+}
+
 func TestPublicSiteProfileUsesSettings(t *testing.T) {
 	app := newTestApp(t)
 
