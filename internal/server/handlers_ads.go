@@ -235,8 +235,7 @@ func validateAdDraft(draft adDraft) error {
 	return nil
 }
 
-func (s *Server) activeSiteAds(ctx context.Context) []siteAd {
-	now := time.Now().UTC()
+func (s *Server) activeSiteAdsAt(ctx context.Context, now time.Time) []siteAd {
 	records, err := s.db.Ad.Query().
 		Where(
 			ad.EnabledEQ(true),

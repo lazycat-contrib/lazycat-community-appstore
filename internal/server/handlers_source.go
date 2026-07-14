@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -10,6 +11,8 @@ import (
 	"time"
 
 	entgo "lazycat.community/appstore/ent"
+	"lazycat.community/appstore/ent/ad"
+	"lazycat.community/appstore/ent/announcement"
 	"lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/appscreenshot"
 	"lazycat.community/appstore/ent/apptag"
@@ -55,39 +58,50 @@ func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, versi
 		writeError(w, http.StatusBadRequest, "TOO_MANY_GROUP_CODES", "At most 64 group codes may be requested", nil)
 		return
 	}
-	groupAccess, err := s.resolveGroupCodeAccess(r.Context(), groupCodes)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "SOURCE_BUILD_FAILED", "Could not validate group codes", nil)
-		return
-	}
-	scope := sourceFeedAccessScope{GroupIDs: groupAccess.validGroupIDs, Groups: groupAccess.validGroups}.canonical()
-	var snapshot sourceFeedSnapshot
-	if s.sourceFeedCache != nil && len(groupAccess.invalidGroupCodes) == 0 {
-		snapshot, err = s.sourceFeedCache.GetOrBuild(r.Context(), version, scope)
-	} else {
-		var raw []byte
-		raw, err = s.buildSourceFeed(r.Context(), version, scope, groupAccess.invalidGroupCodes)
-		if err == nil {
-			snapshot, err = newSourceFeedSnapshot(raw)
+	for {
+		groupAccess, err := s.resolveGroupCodeAccess(r.Context(), groupCodes)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "SOURCE_BUILD_FAILED", "Could not validate group codes", nil)
+			return
 		}
-	}
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "SOURCE_BUILD_FAILED", "Could not build source index", nil)
+		scope := sourceFeedAccessScope{GroupIDs: groupAccess.validGroupIDs, Groups: groupAccess.validGroups}.canonical()
+		var snapshot sourceFeedSnapshot
+		if s.sourceFeedCache != nil {
+			if len(groupAccess.invalidGroupCodes) == 0 {
+				snapshot, err = s.sourceFeedCache.GetOrBuild(r.Context(), version, scope)
+			} else {
+				snapshot, err = s.sourceFeedCache.BuildUncached(r.Context(), version, scope, groupAccess.invalidGroupCodes)
+			}
+		} else {
+			var built sourceFeedBuild
+			built, err = s.buildSourceFeed(r.Context(), version, scope, groupAccess.invalidGroupCodes)
+			if err == nil {
+				snapshot, err = newSourceFeedSnapshotUntil(built.Identity, built.ValidUntil)
+			}
+		}
+		if errors.Is(err, errSourceFeedGenerationChanged) || (err == nil && snapshot.expired(time.Now().UTC())) {
+			continue
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "SOURCE_BUILD_FAILED", "Could not build source index", nil)
+			return
+		}
+		serveSourceFeedSnapshot(w, r, snapshot)
 		return
 	}
-	serveSourceFeedSnapshot(w, r, snapshot)
 }
 
-func (s *Server) buildSourceFeed(ctx context.Context, version int, scope sourceFeedAccessScope, invalidGroupCodes []string) ([]byte, error) {
+func (s *Server) buildSourceFeed(ctx context.Context, version int, scope sourceFeedAccessScope, invalidGroupCodes []string) (sourceFeedBuild, error) {
+	asOf := time.Now().UTC()
 	apps, err := s.db.App.Query().
 		Where(app.StatusEQ(app.StatusAPPROVED)).
 		Order(entgo.Desc(app.FieldUpdatedAt)).
 		All(ctx)
 	if err != nil {
-		return nil, err
+		return sourceFeedBuild{}, err
 	}
 
-	profile := s.siteProfile(ctx)
+	profile := s.siteProfileAt(ctx, asOf)
 	input := feed.Input{
 		BaseURL:       profile.PublicURL,
 		GitHubMirrors: s.effectiveGitHubMirrors(ctx),
@@ -111,7 +125,7 @@ func (s *Server) buildSourceFeed(ctx context.Context, version int, scope sourceF
 	siteCommentsEnabled := s.commentsEnabled(ctx)
 	preload, err := s.sourceIndexPreload(ctx, apps, scope.GroupIDs)
 	if err != nil {
-		return nil, err
+		return sourceFeedBuild{}, err
 	}
 	if version >= 2 {
 		input.Site.ClientPolicy = feed.ClientPolicyMeta{
@@ -171,9 +185,51 @@ func (s *Server) buildSourceFeed(ctx context.Context, version int, scope sourceF
 	}
 	raw, err := json.Marshal(output)
 	if err != nil {
-		return nil, err
+		return sourceFeedBuild{}, err
 	}
-	return append(raw, '\n'), nil
+	validUntil, err := s.nextSourceFeedBoundary(ctx, asOf)
+	if err != nil {
+		return sourceFeedBuild{}, err
+	}
+	return sourceFeedBuild{Identity: append(raw, '\n'), ValidUntil: validUntil}, nil
+}
+
+func (s *Server) nextSourceFeedBoundary(ctx context.Context, after time.Time) (time.Time, error) {
+	if err := s.migrateLegacyAnnouncement(ctx); err != nil {
+		return time.Time{}, err
+	}
+	announcements, err := s.db.Announcement.Query().
+		Where(announcement.EnabledEQ(true)).
+		Select(announcement.FieldStartsAt, announcement.FieldEndsAt).
+		All(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	ads, err := s.db.Ad.Query().
+		Where(ad.EnabledEQ(true)).
+		Select(ad.FieldStartsAt, ad.FieldEndsAt).
+		All(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	var next time.Time
+	consider := func(value *time.Time) {
+		if value == nil || !value.After(after) {
+			return
+		}
+		if next.IsZero() || value.Before(next) {
+			next = value.UTC()
+		}
+	}
+	for _, item := range announcements {
+		consider(item.StartsAt)
+		consider(item.EndsAt)
+	}
+	for _, item := range ads {
+		consider(item.StartsAt)
+		consider(item.EndsAt)
+	}
+	return next, nil
 }
 
 func (s *Server) feedImageURL(ctx context.Context, raw string) string {

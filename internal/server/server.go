@@ -56,6 +56,7 @@ type Server struct {
 	firstLoadGroup          singleflight.Group
 	sourceFeedCache         *sourceFeedCache
 	sourcePasswordMu        sync.Mutex
+	legacyAnnouncementMu    sync.Mutex
 	ctx                     context.Context
 	cancel                  context.CancelFunc
 	backgroundMu            sync.Mutex
@@ -118,8 +119,8 @@ func New(cfg config.Config) (*Server, error) {
 		_ = client.Close()
 		return nil, err
 	}
-	feedCache, cacheErr := newSourceFeedCache(appCtx, cfg.SourceCachePath, func(ctx context.Context, version int, scope sourceFeedAccessScope) ([]byte, error) {
-		return s.buildSourceFeed(ctx, version, scope, nil)
+	feedCache, cacheErr := newSourceFeedCache(appCtx, cfg.SourceCachePath, func(ctx context.Context, version int, scope sourceFeedAccessScope, invalidGroupCodes []string) (sourceFeedBuild, error) {
+		return s.buildSourceFeed(ctx, version, scope, invalidGroupCodes)
 	})
 	if cacheErr != nil {
 		slog.Warn("source feed cache disabled", "error", cacheErr)

@@ -58,7 +58,7 @@ func isSourceFeedMutationRequest(r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	if path == "/api/v1/setup" || path == "/api/v1/me/profile" || path == "/api/v1/admin/migration/import" {
+	if path == "/api/v1/setup" || path == "/api/v1/admin/migration/import" {
 		return true
 	}
 	if path == "/api/v1/apps" {

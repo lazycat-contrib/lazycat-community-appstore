@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -102,18 +103,24 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 	if input.ChatEnabled != nil {
 		chatEnabled = *input.ChatEnabled
 	}
+	groupCodesChanged := !sameSourceGroupCodes(decodeStringSlice(source.GroupCodesJSON), input.GroupCodes)
+	requestIdentityChanged := source.URL != input.URL || source.Password != input.Password || groupCodesChanged
 	update := s.db.ClientSource.UpdateOne(source).
 		SetName(input.Name).
 		SetURL(input.URL).
 		SetPassword(input.Password).
 		SetGroupCodesJSON(encodeStringSlice(input.GroupCodes)).
-		SetGroupNamesJSON("").
-		SetLastInvalidGroupCodesJSON("").
 		SetDefaultDownloadMirrorID(input.DefaultDownloadMirrorID).
 		SetDefaultRawMirrorID(input.DefaultRawMirrorID).
 		SetChatEnabled(chatEnabled)
 	if input.AdsPreference != nil {
 		update.SetAdsPreference(clientsource.AdsPreference(*input.AdsPreference))
+	}
+	if requestIdentityChanged {
+		update.SetLastEtag("")
+	}
+	if source.URL != input.URL || groupCodesChanged {
+		update.SetGroupNamesJSON("").SetLastInvalidGroupCodesJSON("")
 	}
 	record, err := update.Save(r.Context())
 	if err != nil {
@@ -125,6 +132,14 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"source": sourceDTO(record)})
+}
+
+func sameSourceGroupCodes(left, right []string) bool {
+	left = slices.Clone(normalizeGroupCodes(left))
+	right = slices.Clone(normalizeGroupCodes(right))
+	slices.Sort(left)
+	slices.Sort(right)
+	return slices.Equal(left, right)
 }
 
 func (s *Server) validateSourceURL(w http.ResponseWriter, r *http.Request, raw string) bool {

@@ -264,6 +264,10 @@ func (s *Server) registrationMode(ctx context.Context) string {
 }
 
 func (s *Server) siteProfile(ctx context.Context) siteProfile {
+	return s.siteProfileAt(ctx, time.Now().UTC())
+}
+
+func (s *Server) siteProfileAt(ctx context.Context, now time.Time) siteProfile {
 	publicURL := s.sitePublicURL(ctx)
 	title := strings.TrimSpace(s.setting(ctx, settingSiteTitle, ""))
 	if title == "" {
@@ -273,7 +277,7 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 	if !validAnnouncementLevel(level) {
 		level = "info"
 	}
-	announcements := s.activeSiteAnnouncements(ctx)
+	announcements := s.activeSiteAnnouncementsAt(ctx, now)
 	announcement := siteAnnouncement{Enabled: false, Level: level}
 	if len(announcements) > 0 {
 		announcement = announcements[0]
@@ -289,7 +293,7 @@ func (s *Server) siteProfile(ctx context.Context) siteProfile {
 		DefaultPageSize: s.effectiveDefaultPageSize(ctx, pagination.DefaultPageSize, 100),
 		Announcement:    announcement,
 		Announcements:   announcements,
-		Ads:             s.activeSiteAds(ctx),
+		Ads:             s.activeSiteAdsAt(ctx, now),
 		Registration:    siteRegistration{Mode: s.registrationMode(ctx)},
 		ClientPolicy:    s.clientPolicy(ctx),
 		Chat:            siteChat{Enabled: s.chatEnabled(ctx), RetentionDays: s.chatRetentionDays(ctx)},

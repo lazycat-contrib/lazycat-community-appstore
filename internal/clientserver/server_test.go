@@ -428,6 +428,27 @@ func TestSyncSourceUsesETagAndSkipsReplacementOnNotModified(t *testing.T) {
 	}
 }
 
+func TestSyncSourceRejectsUnsolicitedNotModified(t *testing.T) {
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("If-None-Match"); got != "" {
+			t.Fatalf("unexpected conditional validator %q", got)
+		}
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("Broken 304").SetURL(feed.URL).SaveX(t.Context())
+	rec := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "304 without a conditional request") {
+		t.Fatalf("unsolicited 304 status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	stored := app.server.db.ClientSource.GetX(t.Context(), source.ID)
+	if stored.LastEtag != "" || stored.LastSync != nil {
+		t.Fatalf("unsolicited 304 updated source state: ETag=%q LastSync=%v", stored.LastEtag, stored.LastSync)
+	}
+}
+
 func TestSyncSourceCachesDataURLIconAsClientAsset(t *testing.T) {
 	app := testServer(t)
 	iconDataURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(clientTestPNG1x1)
@@ -482,7 +503,7 @@ func TestSyncSourceReusesUnchangedMaterializedIcon(t *testing.T) {
 	var feedRequests atomic.Int32
 	var iconRequests atomic.Int32
 	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/icon.png" {
+		if r.URL.Path == "/api/v1/assets/1" {
 			iconRequests.Add(1)
 			w.Header().Set("Content-Type", "image/png")
 			_, _ = w.Write(clientTestPNG1x1)
@@ -493,7 +514,7 @@ func TestSyncSourceReusesUnchangedMaterializedIcon(t *testing.T) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"schema": "lazycat.appstore.source.v2",
 			"apps": []map[string]any{{
-				"id": 1, "packageId": "cloud.lazycat.icon-reuse", "name": "Icon Reuse", "slug": "icon-reuse", "iconUrl": feedURL(r) + "/icon.png",
+				"id": 1, "packageId": "cloud.lazycat.icon-reuse", "name": "Icon Reuse", "slug": "icon-reuse", "iconUrl": feedURL(r) + "/api/v1/assets/1",
 			}},
 		})
 	}))
@@ -511,12 +532,46 @@ func TestSyncSourceReusesUnchangedMaterializedIcon(t *testing.T) {
 		t.Fatalf("icon requests = %d, want 1", iconRequests.Load())
 	}
 	record := app.server.db.ClientSourceApp.Query().Where(clientsourceapp.SourceIDEQ(source.ID)).OnlyX(t.Context())
-	if record.IconOriginURL != feed.URL+"/icon.png" || !strings.HasPrefix(record.IconURL, clientAssetURLPrefix+"/") {
+	if record.IconOriginURL != feed.URL+"/api/v1/assets/1" || !strings.HasPrefix(record.IconURL, clientAssetURLPrefix+"/") {
 		t.Fatalf("icon origin/url = %q / %q", record.IconOriginURL, record.IconURL)
 	}
 	asset := app.request(http.MethodGet, record.IconURL, "", "alice")
 	if asset.Code != http.StatusOK {
 		t.Fatalf("reused asset response = %d %s", asset.Code, asset.Body.String())
+	}
+}
+
+func TestSyncSourceRefreshesMutableIconOnChangedFeed(t *testing.T) {
+	var feedRequests atomic.Int32
+	var iconRequests atomic.Int32
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/icon.png" {
+			iconRequests.Add(1)
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write(clientTestPNG1x1)
+			return
+		}
+		request := feedRequests.Add(1)
+		w.Header().Set("ETag", fmt.Sprintf(`W/"mutable-%d"`, request))
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"apps": []map[string]any{{
+				"id": 1, "packageId": "cloud.lazycat.mutable-icon", "name": "Mutable Icon", "slug": "mutable-icon", "iconUrl": feedURL(r) + "/icon.png",
+			}},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("Mutable Icons").SetURL(feed.URL).SaveX(t.Context())
+	for range 2 {
+		rec := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+		if rec.Code != http.StatusOK {
+			t.Fatalf("sync = %d %s", rec.Code, rec.Body.String())
+		}
+	}
+	if iconRequests.Load() != 2 {
+		t.Fatalf("mutable icon requests = %d, want 2", iconRequests.Load())
 	}
 }
 

@@ -332,7 +332,7 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 		ClearLastErrorCode().
 		SetLastAppCount(len(apps)).
 		SetLastInstallableCount(installableCount).
-		SetLastEtag(strings.TrimSpace(etag)).
+		SetLastEtag("").
 		SetGroupCodesJSON(encodeStringSlice(groupCodes)).
 		SetGroupNamesJSON(encodeSourceGroups(groups)).
 		SetLastInvalidGroupCodesJSON(encodeStringSlice(invalidCodes)).
@@ -357,6 +357,10 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 		return SourceDTO{}, err
 	}
 	if err := s.deleteClientAssetLinksForOwnerIDs(ctx, clientAssetOwnerSourceApp, oldAppIDs); err != nil {
+		return SourceDTO{}, err
+	}
+	updated, err = s.db.ClientSource.UpdateOneID(updated.ID).SetLastEtag(strings.TrimSpace(etag)).Save(ctx)
+	if err != nil {
 		return SourceDTO{}, err
 	}
 	return sourceDTO(updated), nil
@@ -497,9 +501,11 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	if codes := decodeStringSlice(source.GroupCodesJSON); len(codes) > 0 {
 		req.Header.Set("X-Group-Codes", strings.Join(codes, ","))
 	}
+	conditionalRequest := false
 	if strings.TrimSpace(source.LastEtag) != "" {
 		if count, countErr := s.db.ClientSourceApp.Query().Where(clientsourceapp.SourceIDEQ(source.ID)).Count(ctx); countErr == nil && count == source.LastAppCount {
 			req.Header.Set("If-None-Match", source.LastEtag)
+			conditionalRequest = true
 		}
 	}
 	resp, err := s.httpClient.Do(req)
@@ -512,6 +518,9 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	}
 	etag := strings.TrimSpace(resp.Header.Get("ETag"))
 	if resp.StatusCode == http.StatusNotModified {
+		if !conditionalRequest {
+			return sourceFeedFetch{}, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source returned 304 without a conditional request"}
+		}
 		if etag == "" {
 			etag = source.LastEtag
 		}

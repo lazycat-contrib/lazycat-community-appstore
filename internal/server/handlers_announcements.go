@@ -263,7 +263,7 @@ func parseAnnouncementTime(value string) (*time.Time, error) {
 	return &parsed, nil
 }
 
-func (s *Server) activeSiteAnnouncements(ctx context.Context) []siteAnnouncement {
+func (s *Server) activeSiteAnnouncementsAt(ctx context.Context, now time.Time) []siteAnnouncement {
 	if err := s.migrateLegacyAnnouncement(ctx); err != nil {
 		legacy := s.legacySiteAnnouncement(ctx)
 		if legacy.Enabled && (legacy.Title != "" || legacy.Body != "") {
@@ -275,7 +275,6 @@ func (s *Server) activeSiteAnnouncements(ctx context.Context) []siteAnnouncement
 	if err != nil || total == 0 {
 		return nil
 	}
-	now := time.Now().UTC()
 	records, err := s.db.Announcement.Query().
 		Where(
 			announcement.EnabledEQ(true),
@@ -299,6 +298,9 @@ func (s *Server) activeSiteAnnouncements(ctx context.Context) []siteAnnouncement
 }
 
 func (s *Server) migrateLegacyAnnouncement(ctx context.Context) error {
+	s.legacyAnnouncementMu.Lock()
+	defer s.legacyAnnouncementMu.Unlock()
+
 	hasLegacyRows, err := s.db.SiteSetting.Query().Where(sitesetting.KeyIn(legacyAnnouncementSettingKeys...)).Exist(ctx)
 	if err != nil || !hasLegacyRows {
 		return err

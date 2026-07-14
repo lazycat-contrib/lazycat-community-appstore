@@ -76,7 +76,7 @@ func (s *Server) materializeSourceIcons(ctx context.Context, source *ent.ClientS
 			apps[index].IconURL = ""
 			continue
 		}
-		if previous := oldByPackage[apps[index].PackageID]; previous != nil && previous.IconOriginURL == origin {
+		if previous := oldByPackage[apps[index].PackageID]; previous != nil && previous.IconOriginURL == origin && reusableSourceIconOrigin(origin) {
 			if assetID, ok := assetdata.AssetIDFromURL(clientAssetURLPrefix, previous.IconURL); ok {
 				if _, exists := availableAssets[assetID]; exists {
 					apps[index].IconURL = previous.IconURL
@@ -128,6 +128,14 @@ func (s *Server) materializeSourceIcons(ctx context.Context, source *ent.ClientS
 		apps[index].IconURL = results[jobIndex].url
 	}
 	return nil
+}
+
+func reusableSourceIconOrigin(origin string) bool {
+	if strings.HasPrefix(origin, "data:sha256:") {
+		return true
+	}
+	_, ok := assetdata.AssetIDFromURL("/api/v1/assets", origin)
+	return ok
 }
 
 func sourceIconOrigin(sourceURL, iconURL string) (string, bool) {

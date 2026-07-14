@@ -34,9 +34,9 @@ The design follows a record-system/derived-view split:
 - The client database stores the last successfully materialized source view and its HTTP validator.
 - Client icon assets are content-addressed local derivatives associated with their original feed URL.
 
-Source updates use read-after-write cache semantics within a running server process. After a feed-affecting mutation succeeds, the current cache generation is invalidated synchronously before the handler reports success. Public v1/v2 warming then starts asynchronously. A request for the new generation either uses the completed warm result or joins the single in-flight rebuild.
+Source updates use read-after-write cache semantics within a running server process. After a feed-affecting mutation succeeds, the current cache generation is invalidated synchronously before the handler reports success. A single maintenance coordinator coalesces cleanup and public v1/v2 warming so mutation bursts cannot create one cleanup and two warm tasks per write. A request for the new generation either uses the completed warm result or joins the single in-flight rebuild.
 
-Badger snapshots are not trusted across process boots. Each server start creates a new boot namespace, so an interrupted database mutation/cache-invalidation sequence cannot expose an old snapshot after restart. Old namespaces are removed asynchronously. This deliberately gives up warm-cache reuse across restarts in exchange for making the relational database unquestionably authoritative.
+Badger snapshots are not trusted across process boots. Each server start clears prior source-feed namespaces before creating a new boot namespace, so an interrupted database mutation/cache-invalidation sequence cannot expose an old snapshot after restart or accumulate one full cache budget per restart. This deliberately gives up warm-cache reuse across restarts in exchange for making the relational database unquestionably authoritative.
 
 This design assumes one active server process, which matches the current deployment model. Badger directories must not be shared by multiple processes. A future horizontally scaled deployment will require a database-backed revision, CDC, or another cross-instance invalidation channel before enabling per-instance feed caches.
 
@@ -53,6 +53,8 @@ The cache component exposes a small internal interface:
 - `GetOrBuild(ctx, protocolVersion, accessScope)` returns one immutable snapshot and collapses concurrent misses with `singleflight`;
 - `InvalidateAndWarm(ctx)` advances the in-memory generation immediately and schedules public v1/v2 rebuilds;
 - `Close()` stops maintenance and closes Badger.
+
+Persistent admission is bounded to 256 snapshots and 256 MiB per generation, and at most four distinct feed builds run concurrently. Once the persistent budget is full, additional scopes are still served but are not written to Badger. These limits bound arbitrary valid group-code combinations and invalid-code cache-bypass requests without changing the feed protocol.
 
 The component owns Badger details; source handlers only authenticate, resolve access scope, request a snapshot, and negotiate the HTTP representation.
 
@@ -71,13 +73,13 @@ source-feed/<boot>/<generation>/<v1|v2>/<scope-hash>/gzip
 
 The metadata contains the weak ETag, uncompressed size, representation sizes, and build time. The ETag is derived from SHA-256 of the uncompressed JSON and is shared by the semantically equivalent encodings as a weak validator.
 
-Badger snapshot entries receive a 24-hour TTL, and obsolete boot/generation prefixes are removed in background maintenance. Cache cleanup must never block an HTTP response or a business-data mutation.
+Badger snapshot entries receive a maximum 24-hour TTL. When an enabled announcement or ad has a future `startsAt` or `endsAt` boundary, the snapshot expires at the earliest boundary instead, so scheduled content cannot be hidden or retained by a day-long cache entry. Obsolete generation prefixes are removed by the coalesced background maintenance worker. Cache cleanup must never block an HTTP response or a business-data mutation.
 
 ### Access-scope isolation
 
 Source-password validation happens before cache lookup. The password is neither persisted nor logged.
 
-Group codes are normalized and resolved before lookup. The access-scope key is based on sorted valid group IDs, not raw secret codes, and valid group metadata is sorted by group ID before encoding so a scope has one deterministic body. Group-code rotation, group metadata changes, and visibility changes invalidate the feed generation.
+Group codes are normalized and resolved before lookup. The access-scope key hashes sorted valid group IDs plus the resolved group metadata that affects the response; raw secret codes are never stored. Valid group metadata is sorted by group ID before encoding so a scope has one deterministic body. If the generation changes while a scoped feed is building, the handler re-resolves the group codes instead of retrying with stale group names or rotated codes. Group-code rotation, group metadata changes, and visibility changes invalidate the feed generation.
 
 Responses that contain invalid group codes bypass persistent snapshot caching because the invalid-code list is request-specific and attacker-controlled. Requests accept at most 64 normalized group codes; larger requests receive a structured `400` response before database lookup. Public requests and normal valid-group combinations remain cacheable.
 
@@ -139,6 +141,8 @@ For each source sync, the client:
 5. on `304`, updates sync success metadata only and skips JSON parsing, icon work, row replacement, and asset cleanup;
 6. on `200`, parses and validates the feed, materializes icons, replaces the cached view transactionally, and stores the new ETag only after the transaction succeeds.
 
+Editing a source clears the validator whenever the request identity changes: source URL, password, or group-code set. Local-only preferences keep the validator and existing derived feed metadata. A `304` is accepted only when the client actually sent `If-None-Match` for that request.
+
 If decoding, validation, icon database work, or the final transaction fails, the previous local view and previous ETag remain intact. If the current cached-row count differs from `last_app_count`, the client omits `If-None-Match` and forces a full recovery response.
 
 The existing full transactional replacement remains for changed feeds. At roughly 101 applications it is simpler and sufficiently fast once unchanged feeds and icon waits are removed; a row-level diff is outside this change.
@@ -149,7 +153,7 @@ Add an `icon_origin_url` field to `ClientSourceApp`. Before deleting the previou
 
 Icon processing follows these rules:
 
-- unchanged origin URL plus an existing local asset reuses that asset without an HTTP request;
+- unchanged content-addressed origin URL plus an existing local asset reuses that asset without an HTTP request;
 - repeated origin URLs within one feed are materialized once and shared;
 - data URLs are hashed and deduplicated locally;
 - cross-origin HTTP icons remain remote URLs and are not proxied;
@@ -157,6 +161,8 @@ Icon processing follows these rules:
 - each request has a five-second timeout and the complete icon phase has a twenty-second deadline;
 - a failed or timed-out icon falls back to its remote feed URL and does not fail the source synchronization;
 - asset links for reused/new rows are created before old links are removed, so shared content-addressed assets are not deleted during replacement.
+
+Stable but mutable HTTP icon URLs are fetched again after a changed feed response. Reuse without revalidation is limited to data-URL hashes and this server's immutable `/api/v1/assets/{id}` URLs; unchanged feeds still skip all icon work through `304`.
 
 The overall icon deadline, rather than `application count × per-icon timeout`, bounds the tail latency. Therefore 101 unreachable icons cannot hold one source synchronization for more than approximately twenty seconds of icon processing.
 

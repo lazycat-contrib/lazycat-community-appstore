@@ -666,6 +666,7 @@ type updateProfileRequest struct {
 }
 
 func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request, u *ent.User) {
+	previousDisplayName := userDisplayName(u)
 	var input updateProfileRequest
 	if err := decodeJSON(r, &input); err != nil {
 		badRequest(w, err)
@@ -713,6 +714,9 @@ func (s *Server) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request, u
 		}
 		writeError(w, http.StatusInternalServerError, "PROFILE_UPDATE_FAILED", "Could not update profile", nil)
 		return
+	}
+	if userDisplayName(updated) != previousDisplayName {
+		s.invalidateSourceFeed()
 	}
 	writeJSON(w, http.StatusOK, userResponse{User: toPublicUser(updated)})
 }

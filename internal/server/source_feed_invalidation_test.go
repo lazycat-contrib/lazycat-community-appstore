@@ -45,3 +45,25 @@ func TestSourceFeedKeepsCacheAfterRejectedMutation(t *testing.T) {
 		t.Fatalf("rejected mutation invalidated cache: %q != %q", first.Header().Get("ETag"), second.Header().Get("ETag"))
 	}
 }
+
+func TestSourceFeedInvalidatesOnlyForDisplayNameProfileChanges(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+	before := app.server.sourceFeedCache.generation.Load()
+
+	unchanged := app.do(http.MethodPatch, "/api/v1/me/profile", map[string]string{})
+	if unchanged.Code != http.StatusOK {
+		t.Fatalf("empty profile update = %d body=%s", unchanged.Code, unchanged.Body.String())
+	}
+	if got := app.server.sourceFeedCache.generation.Load(); got != before {
+		t.Fatalf("empty profile update invalidated feed: generation %d -> %d", before, got)
+	}
+
+	changed := app.do(http.MethodPatch, "/api/v1/me/profile", map[string]string{"nickname": "Feed Publisher"})
+	if changed.Code != http.StatusOK {
+		t.Fatalf("display name update = %d body=%s", changed.Code, changed.Body.String())
+	}
+	if got := app.server.sourceFeedCache.generation.Load(); got != before+1 {
+		t.Fatalf("display name update generation = %d, want %d", got, before+1)
+	}
+}
