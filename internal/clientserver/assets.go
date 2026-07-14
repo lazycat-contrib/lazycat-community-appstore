@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"lazycat.community/appstore/ent"
@@ -24,8 +25,106 @@ const (
 	clientAssetOwnerSourceApp = "source_app"
 	clientAssetRoleIcon       = "icon"
 	clientAssetMaxImageSize   = 2 << 20
-	clientAssetFetchTimeout   = 10 * time.Second
+	clientAssetFetchTimeout   = 5 * time.Second
+	clientIconPhaseTimeout    = 20 * time.Second
+	clientIconWorkerCount     = 8
 )
+
+type sourceIconJob struct {
+	origin string
+	raw    string
+}
+
+type sourceIconResult struct {
+	url string
+	err error
+}
+
+func (s *Server) materializeSourceIcons(ctx context.Context, source *ent.ClientSource, apps []feedApp, oldApps []*ent.ClientSourceApp) error {
+	oldByPackage := make(map[string]*ent.ClientSourceApp, len(oldApps))
+	for _, record := range oldApps {
+		oldByPackage[record.PackageID] = record
+	}
+	jobs := make([]sourceIconJob, 0, min(len(apps), clientIconWorkerCount))
+	jobByOrigin := make(map[string]int, len(apps))
+	jobForApp := make([]int, len(apps))
+	for index := range jobForApp {
+		jobForApp[index] = -1
+	}
+	for index := range apps {
+		raw := strings.TrimSpace(apps[index].IconURL)
+		origin, materialize := sourceIconOrigin(source.URL, raw)
+		apps[index].IconOriginURL = origin
+		if raw == "" {
+			apps[index].IconURL = ""
+			continue
+		}
+		if previous := oldByPackage[apps[index].PackageID]; previous != nil && previous.IconOriginURL == origin {
+			if _, ok := assetdata.AssetIDFromURL(clientAssetURLPrefix, previous.IconURL); ok {
+				apps[index].IconURL = previous.IconURL
+				continue
+			}
+		}
+		if !materialize {
+			apps[index].IconURL = raw
+			continue
+		}
+		jobIndex, exists := jobByOrigin[origin]
+		if !exists {
+			jobIndex = len(jobs)
+			jobByOrigin[origin] = jobIndex
+			jobs = append(jobs, sourceIconJob{origin: origin, raw: raw})
+		}
+		jobForApp[index] = jobIndex
+	}
+	if len(jobs) == 0 {
+		return nil
+	}
+
+	phaseCtx, cancel := context.WithTimeout(ctx, clientIconPhaseTimeout)
+	defer cancel()
+	results := make([]sourceIconResult, len(jobs))
+	queue := make(chan int, len(jobs))
+	for index := range jobs {
+		queue <- index
+	}
+	close(queue)
+	var workers sync.WaitGroup
+	for range min(clientIconWorkerCount, len(jobs)) {
+		workers.Go(func() {
+			for index := range queue {
+				url, _, err := s.materializeSourceIcon(phaseCtx, source.URL, source.Password, jobs[index].raw)
+				results[index] = sourceIconResult{url: url, err: err}
+			}
+		})
+	}
+	workers.Wait()
+	for index, jobIndex := range jobForApp {
+		if jobIndex < 0 {
+			continue
+		}
+		if results[jobIndex].err != nil {
+			return results[jobIndex].err
+		}
+		apps[index].IconURL = results[jobIndex].url
+	}
+	return nil
+}
+
+func sourceIconOrigin(sourceURL, iconURL string) (string, bool) {
+	iconURL = strings.TrimSpace(iconURL)
+	if iconURL == "" {
+		return "", false
+	}
+	if strings.HasPrefix(iconURL, "data:") {
+		sum := sha256.Sum256([]byte(iconURL))
+		return "data:sha256:" + hex.EncodeToString(sum[:]), true
+	}
+	if resolved, ok := sameOriginIconURL(sourceURL, iconURL); ok {
+		return resolved.String(), true
+	}
+	return iconURL, false
+}
 
 func (s *Server) handleClientAsset(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))

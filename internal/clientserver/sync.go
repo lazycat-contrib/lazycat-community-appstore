@@ -47,6 +47,7 @@ type feedApp struct {
 	Category         string                   `json:"category"`
 	CategoryI18n     map[string]string        `json:"categoryI18n"`
 	IconURL          string                   `json:"iconUrl"`
+	IconOriginURL    string                   `json:"-"`
 	InstallProtected bool                     `json:"installProtected"`
 	CommentsEnabled  *bool                    `json:"commentsEnabled"`
 	OutdatedMarks    int                      `json:"outdatedMarks"`
@@ -242,6 +243,19 @@ func (s *Server) recordSourceNotModified(ctx context.Context, source *ent.Client
 }
 
 func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, apps []feedApp, mirrors []mirror.Entry, categories []SourceCategoryDTO, announcements []SourceAnnouncementDTO, ads []SourceAdDTO, clientPolicy SourceClientPolicyDTO, groups []SourceGroupDTO, invalidCodes []string, chatAvailable bool, etag string) (SourceDTO, error) {
+	oldAppRecords, err := s.db.ClientSourceApp.Query().
+		Where(clientsourceapp.SourceIDEQ(source.ID)).
+		All(ctx)
+	if err != nil {
+		return SourceDTO{}, err
+	}
+	oldAppIDs := make([]int, 0, len(oldAppRecords))
+	for _, record := range oldAppRecords {
+		oldAppIDs = append(oldAppIDs, record.ID)
+	}
+	if err := s.materializeSourceIcons(ctx, source, apps, oldAppRecords); err != nil {
+		return SourceDTO{}, err
+	}
 	installableCount := 0
 	rows := make([]sourceAppCacheRow, 0, len(apps))
 	categories = normalizeSourceCategories(categories)
@@ -258,11 +272,6 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 				apps[i].CategoryID = nil
 			}
 		}
-		iconURL, _, err := s.materializeSourceIcon(ctx, source.URL, source.Password, apps[i].IconURL)
-		if err != nil {
-			return SourceDTO{}, err
-		}
-		apps[i].IconURL = iconURL
 		row, err := buildSourceAppCacheRow(apps[i])
 		if err != nil {
 			return SourceDTO{}, err
@@ -289,17 +298,6 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 			defaultRawMirrorID = ""
 		}
 	}
-	oldAppRecords, err := s.db.ClientSourceApp.Query().
-		Where(clientsourceapp.SourceIDEQ(source.ID)).
-		All(ctx)
-	if err != nil {
-		return SourceDTO{}, err
-	}
-	oldAppIDs := make([]int, 0, len(oldAppRecords))
-	for _, record := range oldAppRecords {
-		oldAppIDs = append(oldAppIDs, record.ID)
-	}
-
 	tx, err := s.db.Tx(ctx)
 	if err != nil {
 		return SourceDTO{}, err
@@ -381,6 +379,7 @@ type sourceAppCacheRow struct {
 	Category            string
 	CategoryI18nJSON    string
 	IconURL             string
+	IconOriginURL       string
 	InstallProtected    bool
 	CommentsEnabled     bool
 	OutdatedMarks       int
@@ -432,6 +431,7 @@ func buildSourceAppCacheRow(app feedApp) (sourceAppCacheRow, error) {
 		Category:            app.Category,
 		CategoryI18nJSON:    catalogmeta.EncodeLocalizedText(app.CategoryI18n),
 		IconURL:             app.IconURL,
+		IconOriginURL:       app.IconOriginURL,
 		InstallProtected:    app.InstallProtected,
 		CommentsEnabled:     commentsEnabled,
 		OutdatedMarks:       app.OutdatedMarks,
@@ -460,6 +460,7 @@ func sourceAppCreateBuilder(tx *ent.Tx, sourceID int, row sourceAppCacheRow) *en
 		SetCategory(row.Category).
 		SetCategoryI18nJSON(row.CategoryI18nJSON).
 		SetIconURL(row.IconURL).
+		SetIconOriginURL(row.IconOriginURL).
 		SetInstallProtected(row.InstallProtected).
 		SetCommentsEnabled(row.CommentsEnabled).
 		SetOutdatedMarks(row.OutdatedMarks).

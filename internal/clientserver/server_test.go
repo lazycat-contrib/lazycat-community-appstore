@@ -478,6 +478,138 @@ func TestSyncSourceCachesDataURLIconAsClientAsset(t *testing.T) {
 	}
 }
 
+func TestSyncSourceReusesUnchangedMaterializedIcon(t *testing.T) {
+	var feedRequests atomic.Int32
+	var iconRequests atomic.Int32
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/icon.png" {
+			iconRequests.Add(1)
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write(clientTestPNG1x1)
+			return
+		}
+		request := feedRequests.Add(1)
+		w.Header().Set("ETag", fmt.Sprintf(`W/"feed-%d"`, request))
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"apps": []map[string]any{{
+				"id": 1, "packageId": "cloud.lazycat.icon-reuse", "name": "Icon Reuse", "slug": "icon-reuse", "iconUrl": feedURL(r) + "/icon.png",
+			}},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("Icons").SetURL(feed.URL).SaveX(t.Context())
+	for range 2 {
+		rec := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+		if rec.Code != http.StatusOK {
+			t.Fatalf("sync = %d %s", rec.Code, rec.Body.String())
+		}
+	}
+	if iconRequests.Load() != 1 {
+		t.Fatalf("icon requests = %d, want 1", iconRequests.Load())
+	}
+	record := app.server.db.ClientSourceApp.Query().Where(clientsourceapp.SourceIDEQ(source.ID)).OnlyX(t.Context())
+	if record.IconOriginURL != feed.URL+"/icon.png" || !strings.HasPrefix(record.IconURL, clientAssetURLPrefix+"/") {
+		t.Fatalf("icon origin/url = %q / %q", record.IconOriginURL, record.IconURL)
+	}
+	asset := app.request(http.MethodGet, record.IconURL, "", "alice")
+	if asset.Code != http.StatusOK {
+		t.Fatalf("reused asset response = %d %s", asset.Code, asset.Body.String())
+	}
+}
+
+func TestSyncSourceFetchesDuplicateIconOnce(t *testing.T) {
+	var iconRequests atomic.Int32
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/shared.png" {
+			iconRequests.Add(1)
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write(clientTestPNG1x1)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"apps": []map[string]any{
+				{"id": 1, "packageId": "cloud.lazycat.icon-one", "name": "One", "slug": "one", "iconUrl": feedURL(r) + "/shared.png"},
+				{"id": 2, "packageId": "cloud.lazycat.icon-two", "name": "Two", "slug": "two", "iconUrl": feedURL(r) + "/shared.png"},
+			},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("Icons").SetURL(feed.URL).SaveX(t.Context())
+	rec := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("sync = %d %s", rec.Code, rec.Body.String())
+	}
+	if iconRequests.Load() != 1 {
+		t.Fatalf("icon requests = %d, want 1", iconRequests.Load())
+	}
+}
+
+func TestSyncSourceBoundsConcurrentIconFetches(t *testing.T) {
+	var active atomic.Int32
+	var maximum atomic.Int32
+	reachedWorkerLimit := make(chan struct{})
+	release := make(chan struct{})
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/icons/") {
+			current := active.Add(1)
+			for {
+				previous := maximum.Load()
+				if current <= previous || maximum.CompareAndSwap(previous, current) {
+					break
+				}
+			}
+			if current == clientIconWorkerCount {
+				close(reachedWorkerLimit)
+			}
+			<-release
+			active.Add(-1)
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write(clientTestPNG1x1)
+			return
+		}
+		apps := make([]map[string]any, clientIconWorkerCount*2)
+		for index := range apps {
+			apps[index] = map[string]any{
+				"id": index + 1, "packageId": fmt.Sprintf("cloud.lazycat.icon-%d", index), "name": fmt.Sprintf("Icon %d", index), "slug": fmt.Sprintf("icon-%d", index), "iconUrl": fmt.Sprintf("%s/icons/%d.png", feedURL(r), index),
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"schema": "lazycat.appstore.source.v2", "apps": apps})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("Icons").SetURL(feed.URL).SaveX(t.Context())
+	syncDone := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		syncDone <- app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	}()
+	select {
+	case <-reachedWorkerLimit:
+	case <-time.After(2 * time.Second):
+		close(release)
+		t.Fatalf("icon workers did not reach %d concurrent requests; maximum=%d", clientIconWorkerCount, maximum.Load())
+	}
+	if maximum.Load() > clientIconWorkerCount {
+		close(release)
+		t.Fatalf("maximum icon concurrency = %d", maximum.Load())
+	}
+	close(release)
+	rec := <-syncDone
+	if rec.Code != http.StatusOK {
+		t.Fatalf("sync = %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func feedURL(r *http.Request) string {
+	return "http://" + r.Host
+}
+
 func TestOutdatedMarkProxyForwardsClientIdentityAndBody(t *testing.T) {
 	var gotPath, gotProxy, gotDevice, gotPassword, gotBody string
 	sourceServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
