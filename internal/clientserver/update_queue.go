@@ -101,24 +101,6 @@ func (c *installCoordinator) releaseTask(userID, taskID string, kind installOper
 	}
 }
 
-func (c *installCoordinator) setTask(userID string, operation *installOperation, taskID string) (cancelled bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.operations[userID] != operation {
-		return true
-	}
-	operation.taskID = taskID
-	return operation.cancelled
-}
-
-func (c *installCoordinator) clearTask(userID string, operation *installOperation, taskID string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.operations[userID] == operation && operation.taskID == taskID {
-		operation.taskID = ""
-	}
-}
-
 func (c *installCoordinator) isCancelled(userID string, operation *installOperation) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -553,11 +535,4 @@ func installTaskCancelled(status string) bool {
 func installTaskTerminal(status string) bool {
 	status = strings.ToUpper(strings.TrimSpace(status))
 	return installTaskSucceeded(status) || installTaskCancelled(status) || strings.HasSuffix(status, "_ERR") || status == "FAILED" || status == "ERROR"
-}
-
-func taskFailureDetail(task InstallTaskDTO) string {
-	if detail := strings.TrimSpace(task.Detail); detail != "" {
-		return detail
-	}
-	return "LazyCat installation failed"
 }
