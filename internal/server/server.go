@@ -258,7 +258,7 @@ func (s *Server) endBackground() {
 }
 
 func (s *Server) Handler() http.Handler {
-	return securityHeaders(s.cors(s.mux))
+	return securityHeaders(s.cors(s.withSourceFeedInvalidation(s.mux)))
 }
 
 func (s *Server) RestartRequested() <-chan struct{} {

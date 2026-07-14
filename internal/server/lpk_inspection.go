@@ -380,6 +380,12 @@ func (s *Server) finishLPKInspectionJob(ctx context.Context, job *entgo.LPKInspe
 }
 
 func (s *Server) applyLPKInspectionMetadata(ctx context.Context, job *entgo.LPKInspectionJob, inspected lpkInspection) error {
+	feedChanged := false
+	defer func() {
+		if feedChanged {
+			s.invalidateSourceFeed()
+		}
+	}()
 	record, err := s.db.App.Get(ctx, job.AppID)
 	if err != nil {
 		return err
@@ -453,6 +459,7 @@ func (s *Server) applyLPKInspectionMetadata(ctx context.Context, job *entgo.LPKI
 			}
 			return err
 		}
+		feedChanged = true
 		if iconAssetID > 0 {
 			if err := s.replaceAssetLinks(ctx, assetOwnerApp, record.ID, assetRoleIcon, iconAssetID); err != nil {
 				return err
@@ -481,6 +488,9 @@ func (s *Server) applyLPKInspectionMetadata(ctx context.Context, job *entgo.LPKI
 	}
 	if versionChanged {
 		_, err = versionUpdate.Save(ctx)
+		if err == nil {
+			feedChanged = true
+		}
 	}
 	return err
 }

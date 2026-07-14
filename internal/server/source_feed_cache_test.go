@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestSourceFeedCacheCachesAndInvalidates(t *testing.T) {
@@ -118,5 +120,52 @@ func TestSourceFeedCacheDoesNotReusePreviousBoot(t *testing.T) {
 	}
 	if builds.Load() != 1 || string(snapshot.Identity) != `{"boot":2}` {
 		t.Fatalf("reused previous boot: builds=%d body=%s", builds.Load(), snapshot.Identity)
+	}
+}
+
+func TestSourceFeedCacheCloseWaitsForCanceledWaiterBuild(t *testing.T) {
+	entered := make(chan struct{})
+	cacheCanceled := make(chan struct{})
+	release := make(chan struct{})
+	exited := make(chan struct{})
+	cache, err := newSourceFeedCache(t.Context(), "", func(ctx context.Context, _ int, _ sourceFeedAccessScope) ([]byte, error) {
+		close(entered)
+		<-ctx.Done()
+		close(cacheCanceled)
+		<-release
+		close(exited)
+		return nil, ctx.Err()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	callerCtx, cancel := context.WithCancel(t.Context())
+	requestDone := make(chan error, 1)
+	go func() {
+		_, err := cache.GetOrBuild(callerCtx, 2, sourceFeedAccessScope{})
+		requestDone <- err
+	}()
+	<-entered
+	cancel()
+	if err := <-requestDone; !errors.Is(err, context.Canceled) {
+		t.Fatalf("request error = %v, want canceled", err)
+	}
+	closeDone := make(chan error, 1)
+	go func() { closeDone <- cache.Close() }()
+	<-cacheCanceled
+	select {
+	case err := <-closeDone:
+		t.Fatalf("Close returned before the shared build was released: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	if err := <-closeDone; err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-exited:
+	default:
+		t.Fatal("Close returned before the shared build exited")
 	}
 }

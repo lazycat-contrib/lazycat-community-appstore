@@ -128,24 +128,39 @@ func (cache *sourceFeedCache) GetOrBuild(ctx context.Context, version int, scope
 	for {
 		generation := cache.generation.Load()
 		key := cache.snapshotPrefix(generation, version, scope.cacheKey())
-		result := cache.loads.DoChan(key, func() (any, error) {
-			buildCtx, cancel := context.WithTimeout(cache.ctx, sourceFeedBuildTimeout)
-			defer cancel()
-			return cache.loadOrBuild(buildCtx, key, version, scope)
-		})
+		result := make(chan sourceFeedLoadResult, 1)
+		if !cache.start(func() {
+			value, err, _ := cache.loads.Do(key, func() (any, error) {
+				buildCtx, cancel := context.WithTimeout(cache.ctx, sourceFeedBuildTimeout)
+				defer cancel()
+				return cache.loadOrBuild(buildCtx, key, version, scope)
+			})
+			if err != nil {
+				result <- sourceFeedLoadResult{err: err}
+				return
+			}
+			result <- sourceFeedLoadResult{snapshot: value.(sourceFeedSnapshot)}
+		}) {
+			return sourceFeedSnapshot{}, context.Canceled
+		}
 		select {
 		case <-ctx.Done():
 			return sourceFeedSnapshot{}, ctx.Err()
 		case item := <-result:
-			if item.Err != nil {
-				return sourceFeedSnapshot{}, item.Err
+			if item.err != nil {
+				return sourceFeedSnapshot{}, item.err
 			}
 			if generation != cache.generation.Load() {
 				continue
 			}
-			return item.Val.(sourceFeedSnapshot), nil
+			return item.snapshot, nil
 		}
 	}
+}
+
+type sourceFeedLoadResult struct {
+	snapshot sourceFeedSnapshot
+	err      error
 }
 
 func (cache *sourceFeedCache) loadOrBuild(ctx context.Context, prefix string, version int, scope sourceFeedAccessScope) (sourceFeedSnapshot, error) {

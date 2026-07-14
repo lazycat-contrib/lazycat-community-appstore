@@ -502,6 +502,7 @@ func (s *Server) mcpCreateAppFromURL(ctx context.Context, req *mcp.CallToolReque
 		summary := toMCPVersionSummary(created)
 		versionOut = &summary
 	}
+	s.invalidateSourceFeed()
 	return nil, mcpCreateAppOutput{
 		App:     toMCPAppSummary(s.appSummaryDTO(httpReq, record, u)),
 		Version: versionOut,
@@ -568,6 +569,7 @@ func (s *Server) mcpPublishVersionFromURL(ctx context.Context, req *mcp.CallTool
 	if err != nil {
 		return nil, mcpPublishVersionOutput{}, err
 	}
+	s.invalidateSourceFeed()
 	return nil, mcpPublishVersionOutput{
 		App:     toMCPAppSummary(s.appSummaryDTO(httpReq, record, u)),
 		Version: toMCPVersionSummary(created),
