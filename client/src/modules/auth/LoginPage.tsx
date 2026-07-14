@@ -226,7 +226,12 @@ function AuthGateway({
     await runAction(setToast, t('auth.registerFailed'), async () => {
       const data = await api<{ user: User }>(`/api/v1/auth/${mode}`, {
         method: 'POST',
-        body: JSON.stringify(submittedForm),
+        body: JSON.stringify({
+          username: submittedForm.username,
+          email: submittedForm.email,
+          password: submittedForm.password,
+          inviteCode: submittedForm.inviteCode,
+        }),
       });
       setUser(data.user);
       if (data.user.emailVerified === false) {
