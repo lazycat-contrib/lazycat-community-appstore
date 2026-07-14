@@ -42,8 +42,25 @@ type sourceIconResult struct {
 
 func (s *Server) materializeSourceIcons(ctx context.Context, source *ent.ClientSource, apps []feedApp, oldApps []*ent.ClientSourceApp) error {
 	oldByPackage := make(map[string]*ent.ClientSourceApp, len(oldApps))
+	oldAssetIDs := make([]int, 0, len(oldApps))
 	for _, record := range oldApps {
 		oldByPackage[record.PackageID] = record
+		if assetID, ok := assetdata.AssetIDFromURL(clientAssetURLPrefix, record.IconURL); ok {
+			oldAssetIDs = append(oldAssetIDs, assetID)
+		}
+	}
+	availableAssets := make(map[int]struct{}, len(oldAssetIDs))
+	if oldAssetIDs = uniqueClientPositiveInts(oldAssetIDs); len(oldAssetIDs) > 0 {
+		records, err := s.db.ClientAsset.Query().
+			Where(clientasset.IDIn(oldAssetIDs...)).
+			Select(clientasset.FieldID).
+			All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, record := range records {
+			availableAssets[record.ID] = struct{}{}
+		}
 	}
 	jobs := make([]sourceIconJob, 0, min(len(apps), clientIconWorkerCount))
 	jobByOrigin := make(map[string]int, len(apps))
@@ -60,9 +77,11 @@ func (s *Server) materializeSourceIcons(ctx context.Context, source *ent.ClientS
 			continue
 		}
 		if previous := oldByPackage[apps[index].PackageID]; previous != nil && previous.IconOriginURL == origin {
-			if _, ok := assetdata.AssetIDFromURL(clientAssetURLPrefix, previous.IconURL); ok {
-				apps[index].IconURL = previous.IconURL
-				continue
+			if assetID, ok := assetdata.AssetIDFromURL(clientAssetURLPrefix, previous.IconURL); ok {
+				if _, exists := availableAssets[assetID]; exists {
+					apps[index].IconURL = previous.IconURL
+					continue
+				}
 			}
 		}
 		if !materialize {
@@ -179,7 +198,7 @@ func (s *Server) materializeSourceIcon(ctx context.Context, sourceURL, sourcePas
 	s.ensureHTTPClients()
 	payload, err := fetchSourceIcon(iconCtx, noRedirectClient(s.httpClient), icon.String(), sourcePassword, clientAssetMaxImageSize)
 	if err != nil {
-		return iconURL, 0, nil
+		return icon.String(), 0, nil
 	}
 	record, err := s.saveClientAsset(ctx, payload)
 	if err != nil {
