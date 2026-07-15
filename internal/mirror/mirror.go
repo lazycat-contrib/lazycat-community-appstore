@@ -137,18 +137,22 @@ func RewriteGitHub(rawURL string, entry Entry) string {
 }
 
 func IsGitHubURL(rawURL string) bool {
-	return strings.Contains(rawURL, "github.com/") || strings.Contains(rawURL, "githubusercontent.com/")
+	return KindForURL(rawURL) != ""
 }
 
 func KindForURL(rawURL string) string {
-	rawURL = strings.TrimSpace(rawURL)
-	if strings.Contains(rawURL, "raw.githubusercontent.com/") {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return ""
+	}
+	switch strings.ToLower(parsed.Hostname()) {
+	case "raw.githubusercontent.com":
 		return KindRaw
-	}
-	if strings.Contains(rawURL, "github.com/") {
+	case "github.com":
 		return KindDownload
+	default:
+		return ""
 	}
-	return ""
 }
 
 func rewriteWithEmbeddedTarget(rawURL, base, target string) string {

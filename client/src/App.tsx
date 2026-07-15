@@ -45,6 +45,7 @@ import type {
   Collection,
   Group,
   InstallActivity,
+  InstallMirrorConfig,
   InstalledApplication,
   InstallHistoryEntry,
   InstallOptions,
@@ -73,6 +74,7 @@ import type {
 } from './shared/types';
 import {
   arrayOrEmpty,
+  applicableMirrorsForVersion,
   belongsToSource,
   compareVersions,
   cx,
@@ -243,7 +245,7 @@ export function App() {
   const [installedError, setInstalledError] = useState('');
   const [installActivity, setInstallActivity] = useState<InstallActivity | null>(null);
   const [installPasswordRequest, setInstallPasswordRequest] = useState<InstallPasswordRequest | null>(null);
-  const [runtimeCapabilities, setRuntimeCapabilities] = useState<RuntimeCapabilities>({ lazycatInstall: false });
+  const [runtimeCapabilities, setRuntimeCapabilities] = useState<RuntimeCapabilities>({ lazycatInstall: false, githubMirrors: [] });
   const [updateQueueResult, setUpdateQueueResult] = useState<UpdateQueueResult | null>(null);
   const [isUpdateQueueRunning, setIsUpdateQueueRunning] = useState(false);
   const [autoUpdatePolicySaving, setAutoUpdatePolicySaving] = useState<Set<string>>(() => new Set());
@@ -268,6 +270,11 @@ export function App() {
 	const installInFlightRef = useRef(false);
 	const updateQueuePollRef = useRef(0);
 	const lastInstallRequestRef = useRef<{ app: StoreApp | SourceApp; options: InstallOptions } | null>(null);
+  const serverInstallMirrorConfig = useMemo<InstallMirrorConfig>(() => ({
+    githubMirrors: arrayOrEmpty(runtimeCapabilities.githubMirrors),
+    defaultDownloadMirrorId: '',
+    defaultRawMirrorId: '',
+  }), [runtimeCapabilities.githubMirrors]);
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const serverChatVisible = HAS_API && Boolean(user && siteProfile.chat?.enabled);
   const clientChatVisible = !HAS_API && sources.some((source) => source.chatAvailable && source.chatEnabled !== false);
@@ -619,7 +626,11 @@ export function App() {
       if (categoryData.status === 'fulfilled') setCategories(categoryData.value.categories);
       if (tagData.status === 'fulfilled') setCatalogTags(tagData.value.tags);
       if (collectionData.status === 'fulfilled') setCollections(collectionData.value.collections);
-      setRuntimeCapabilities(capabilityData.status === 'fulfilled' ? capabilityData.value : { lazycatInstall: false });
+      const capabilities = capabilityData.status === 'fulfilled' ? capabilityData.value : { lazycatInstall: false, githubMirrors: [] };
+      setRuntimeCapabilities({
+        lazycatInstall: capabilities.lazycatInstall === true,
+        githubMirrors: capabilities.lazycatInstall === true ? arrayOrEmpty(capabilities.githubMirrors) : [],
+      });
       if (me.status === 'fulfilled') {
         void Promise.allSettled([
           loadStorageOptions(),
@@ -930,7 +941,8 @@ export function App() {
 	  return;
     }
     const needsPassword = app.installProtected && !options.installPassword;
-    if ((isSourceApp && !options.confirmed) || needsPassword) {
+    const serverMirrorOptions = isSourceApp ? [] : applicableMirrorsForVersion(serverInstallMirrorConfig, version);
+    if (needsPassword || (!options.confirmed && (isSourceApp || serverMirrorOptions.length > 0))) {
       setInstallPasswordRequest({ app, version: version.version });
 	  return;
     }
@@ -971,7 +983,10 @@ export function App() {
 		  `/api/v1/apps/${app.id}/versions/${(version as Version).id}/install`,
 		  {
 			method: 'POST',
-			body: JSON.stringify({ installPassword: options.installPassword || '' }),
+			body: JSON.stringify({
+			  installPassword: options.installPassword || '',
+			  mirrorId: options.mirrorId || '',
+			}),
 		  },
 		);
 		result = {
@@ -1626,7 +1641,11 @@ export function App() {
         <Suspense fallback={null}>
           <InstallOptionsDialog
             app={installPasswordRequest.app}
-            source={'sourceName' in installPasswordRequest.app ? sourceForApp(installPasswordRequest.app, sources) : undefined}
+            mirrorConfig={
+              'sourceName' in installPasswordRequest.app
+                ? sourceForApp(installPasswordRequest.app, sources)
+                : serverInstallMirrorConfig
+            }
             version={
               'sourceName' in installPasswordRequest.app
                 ? selectedSourceVersion(installPasswordRequest.app, installPasswordRequest.version)

@@ -14,6 +14,7 @@ import (
 	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/internal/lazycatpkg"
+	"lazycat.community/appstore/internal/mirror"
 )
 
 type captureLazyCatInstaller struct {
@@ -66,6 +67,36 @@ func TestLazyCatRuntimeCapabilities(t *testing.T) {
 				t.Fatalf("body = %s, want %s", rec.Body.String(), wantJSON)
 			}
 		})
+	}
+}
+
+func TestLazyCatRuntimeCapabilitiesExposeSafeMirrorOptions(t *testing.T) {
+	store := newTestApp(t)
+	store.server.cfg.TrustLazyCatClientInstall = true
+	store.server.cfg.GitHubDownloadMirrors = "Fast=>https://mirror.example/https://github.com"
+	store.server.cfg.GitHubRawMirrors = "Raw=>https://raw-mirror.example/https://raw.githubusercontent.com"
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/runtime/capabilities", nil)
+	req.Header.Set("x-hc-user-id", "alice")
+	req.Header.Set("x-hc-device-id", "pc-1")
+	rec := httptest.NewRecorder()
+	store.handler.ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	for _, expected := range []string{`"githubMirrors"`, `"kind":"download"`, `"kind":"raw"`, `"name":"Fast"`, `"name":"Raw"`} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("capability body missing %s: %s", expected, body)
+		}
+	}
+	if strings.Contains(body, "mirror.example") || strings.Contains(body, `"url"`) {
+		t.Fatalf("capability response leaked mirror URL: %s", body)
+	}
+
+	store.server.cfg.TrustLazyCatClientInstall = false
+	rec = httptest.NewRecorder()
+	store.handler.ServeHTTP(rec, req)
+	if !strings.Contains(rec.Body.String(), `"githubMirrors":[]`) {
+		t.Fatalf("untrusted capabilities exposed mirrors: %s", rec.Body.String())
 	}
 }
 
@@ -143,6 +174,88 @@ func TestLazyCatInstallFailureIsSafeAndDoesNotIncrementDownloads(t *testing.T) {
 	}
 }
 
+func TestLazyCatInstallUsesSelectedMirror(t *testing.T) {
+	store := newTestApp(t)
+	store.server.cfg.TrustLazyCatClientInstall = true
+	baseURL := "https://mirror.example/https://github.com"
+	store.server.cfg.GitHubDownloadMirrors = "Fast=>" + baseURL
+	installer := &captureLazyCatInstaller{result: lazycatpkg.InstallResult{Mode: "lazycat-go-sdk"}}
+	store.server.lazycatInstaller = installer
+	record, version := createLazyCatInstallFixture(t, store, "")
+	version = version.Update().SetDownloadURL("https://github.com/acme/app/releases/download/v1/app.lpk").SaveX(t.Context())
+
+	rec := lazyCatInstallRequestWithMirror(store, record.ID, version.ID, "", mirror.ID(mirror.KindDownload, baseURL), "alice", "pc-1")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("mirrored install status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	want := "https://mirror.example/https://github.com/acme/app/releases/download/v1/app.lpk"
+	if installer.request.DownloadURL == version.DownloadURL || installer.request.DownloadURL != want {
+		t.Fatalf("mirrored URL = %q, want %q", installer.request.DownloadURL, want)
+	}
+}
+
+func TestLazyCatInstallRejectsInvalidMirror(t *testing.T) {
+	tests := []struct {
+		name       string
+		versionURL string
+		mirrorKind string
+		mirrorID   string
+		wantCode   string
+	}{
+		{name: "unknown mirror", versionURL: "https://github.com/acme/app/releases/download/v1/app.lpk", mirrorKind: mirror.KindDownload, mirrorID: "ghm_missing", wantCode: "MIRROR_NOT_FOUND"},
+		{name: "wrong mirror kind", versionURL: "https://github.com/acme/app/releases/download/v1/app.lpk", mirrorKind: mirror.KindRaw, wantCode: "MIRROR_NOT_FOUND"},
+		{name: "non github version", versionURL: "https://downloads.example/app.lpk", mirrorKind: mirror.KindDownload, wantCode: "MIRROR_NOT_APPLICABLE"},
+		{name: "github text on another host", versionURL: "https://downloads.example/github.com/acme/app.lpk", mirrorKind: mirror.KindDownload, wantCode: "MIRROR_NOT_APPLICABLE"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := newTestApp(t)
+			store.server.cfg.TrustLazyCatClientInstall = true
+			baseURL := "https://mirror.example/https://github.com"
+			if tt.mirrorKind == mirror.KindRaw {
+				baseURL = "https://raw-mirror.example/https://raw.githubusercontent.com"
+				store.server.cfg.GitHubRawMirrors = "Selected=>" + baseURL
+			} else {
+				store.server.cfg.GitHubDownloadMirrors = "Selected=>" + baseURL
+			}
+			installer := &captureLazyCatInstaller{}
+			store.server.lazycatInstaller = installer
+			record, version := createLazyCatInstallFixture(t, store, "")
+			version = version.Update().SetDownloadURL(tt.versionURL).SaveX(t.Context())
+			mirrorID := tt.mirrorID
+			if mirrorID == "" {
+				mirrorID = mirror.ID(tt.mirrorKind, baseURL)
+			}
+
+			rec := lazyCatInstallRequestWithMirror(store, record.ID, version.ID, "", mirrorID, "alice", "pc-1")
+			if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), tt.wantCode) {
+				t.Fatalf("invalid mirror status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			if installer.request.DownloadURL != "" {
+				t.Fatal("installer was called with an invalid mirror")
+			}
+		})
+	}
+}
+
+func TestLazyCatInstallRejectsClientMirrorURL(t *testing.T) {
+	store := newTestApp(t)
+	store.server.cfg.TrustLazyCatClientInstall = true
+	record, version := createLazyCatInstallFixture(t, store, "")
+	body := `{"installPassword":"","mirrorUrl":"https://attacker.example/"}`
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/apps/%d/versions/%d/install", record.ID, version.ID), strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-hc-user-id", "alice")
+	req.Header.Set("x-hc-device-id", "pc-1")
+	rec := httptest.NewRecorder()
+	store.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "INVALID_JSON") {
+		t.Fatalf("client mirror URL status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestLazyCatInstallRejectsConcurrentRequest(t *testing.T) {
 	store := newTestApp(t)
 	store.server.cfg.TrustLazyCatClientInstall = true
@@ -192,7 +305,11 @@ func createLazyCatInstallFixture(t *testing.T, store *testApp, password string) 
 }
 
 func lazyCatInstallRequest(store *testApp, appID, versionID int, password, userID, deviceID string) *httptest.ResponseRecorder {
-	body := fmt.Sprintf(`{"installPassword":%q}`, password)
+	return lazyCatInstallRequestWithMirror(store, appID, versionID, password, "", userID, deviceID)
+}
+
+func lazyCatInstallRequestWithMirror(store *testApp, appID, versionID int, password, mirrorID, userID, deviceID string) *httptest.ResponseRecorder {
+	body := fmt.Sprintf(`{"installPassword":%q,"mirrorId":%q}`, password, mirrorID)
 	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/apps/%d/versions/%d/install", appID, versionID), strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-hc-user-id", userID)

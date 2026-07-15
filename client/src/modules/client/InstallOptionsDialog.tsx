@@ -9,13 +9,13 @@ import { Text as XText } from '@astryxdesign/core/Text';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { ModalLayer } from '../../shared/components/ModalLayer';
-import type { InstallActivity, SourceApp, SourceSubscription, SourceVersion, StoreApp, Version } from '../../shared/types';
+import type { InstallActivity, InstallMirrorConfig, SourceApp, SourceVersion, StoreApp, Version } from '../../shared/types';
 import { applicableMirrorsForVersion, defaultMirrorIDForVersion, githubMirrorKindForURL, localizedAppName } from '../../shared/utils';
 import { InstallActivityPanel } from './InstallActivityPanel';
 
 export function InstallOptionsDialog({
   app,
-  source,
+  mirrorConfig,
   version,
   activity,
   onCancel,
@@ -24,7 +24,7 @@ export function InstallOptionsDialog({
   onRetry,
 }: {
   app: StoreApp | SourceApp;
-  source?: SourceSubscription;
+  mirrorConfig?: InstallMirrorConfig;
   version?: Version | SourceVersion;
   activity?: InstallActivity;
   onCancel: () => void;
@@ -34,19 +34,20 @@ export function InstallOptionsDialog({
 }) {
   const { t } = useTranslation();
   const [password, setPassword] = useState('');
-  const [mirrorId, setMirrorId] = useState(() => defaultMirrorIDForVersion(source, version) || '');
+  const defaultMirrorId = defaultMirrorIDForVersion(mirrorConfig, version) || '';
+  const [mirrorId, setMirrorId] = useState(defaultMirrorId);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const dialogTitleId = `install-password-title-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
   const dialogBodyId = `install-password-body-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
   const requiresPassword = app.installProtected;
-  const mirrorOptions = applicableMirrorsForVersion(source, version);
+  const mirrorOptions = applicableMirrorsForVersion(mirrorConfig, version);
   const mirrorKind = githubMirrorKindForURL(version && 'upstreamDownloadUrl' in version ? version.upstreamDownloadUrl || version.downloadUrl : version?.downloadUrl);
   const appName = localizedAppName(app);
 
   useEffect(() => {
-    setMirrorId(defaultMirrorIDForVersion(source, version) || '');
-  }, [source?.id, version?.version]);
+    setMirrorId(defaultMirrorId);
+  }, [defaultMirrorId, mirrorConfig?.githubMirrors, version?.version]);
 
   if (activity) {
     const isRunning = activity.status === 'running';

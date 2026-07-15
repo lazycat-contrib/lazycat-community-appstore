@@ -19,6 +19,7 @@ export type Pagination = {
 
 export type RuntimeCapabilities = {
   lazycatInstall: boolean;
+  githubMirrors: GitHubMirrorOption[];
 };
 
 export type PaginatedResponse<TItem, TKey extends string = 'items'> = {
@@ -307,6 +308,14 @@ export type GitHubMirror = {
   kind: 'download' | 'raw';
   name: string;
   url: string;
+};
+
+export type GitHubMirrorOption = Pick<GitHubMirror, 'id' | 'kind' | 'name'>;
+
+export type InstallMirrorConfig = {
+  githubMirrors: GitHubMirrorOption[];
+  defaultDownloadMirrorId: string;
+  defaultRawMirrorId: string;
 };
 
 export type SourceSubscription = {

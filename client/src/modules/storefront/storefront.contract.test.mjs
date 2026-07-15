@@ -138,12 +138,16 @@ test('app card action switches between LazyCat install and browser download', as
 test('server app loads LazyCat capability and keeps install payload server-derived', async () => {
   const app = await source('../../App.tsx');
 
-  assert.match(app, /useState<RuntimeCapabilities>\(\{ lazycatInstall: false \}\)/);
+  assert.match(app, /useState<RuntimeCapabilities>\(\{ lazycatInstall: false, githubMirrors: \[\] \}\)/);
   assert.match(app, /api<RuntimeCapabilities>\('\/api\/v1\/runtime\/capabilities'\)/);
+  assert.match(app, /const serverInstallMirrorConfig = useMemo<InstallMirrorConfig>/);
+  assert.match(app, /applicableMirrorsForVersion\(serverInstallMirrorConfig, version\)/);
+  assert.match(app, /serverMirrorOptions\.length > 0/);
   assert.match(app, /`\/api\/v1\/apps\/\$\{app\.id\}\/versions\/\$\{\(version as Version\)\.id\}\/install`/);
-  assert.match(app, /body: JSON\.stringify\(\{ installPassword: options\.installPassword \|\| '' \}\)/);
+  assert.match(app, /body: JSON\.stringify\(\{[\s\S]*installPassword: options\.installPassword \|\| '',[\s\S]*mirrorId: options\.mirrorId \|\| '',[\s\S]*\}\)/);
   assert.match(app, /window\.open\(withInstallPassword\(downloadUrl, options\.installPassword\)/);
   assert.doesNotMatch(app, /body: JSON\.stringify\(\{[^}]*downloadUrl/s);
+  assert.doesNotMatch(app, /body: JSON\.stringify\(\{[^}]*mirrorUrl/s);
 });
 
 test('search keeps current conditions visible and offers one empty-state recovery', async () => {

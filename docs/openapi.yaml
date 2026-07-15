@@ -169,7 +169,7 @@ paths:
     get:
       tags: [System]
       summary: Return request-scoped runtime capabilities
-      description: LazyCat installation is true only when the server trusts platform headers and the request includes both LazyCat user and device context. Responses are never cacheable.
+      description: LazyCat installation is true only when the server trusts platform headers and the request includes both LazyCat user and device context. Applicable mirror summaries omit mirror URLs and are empty when installation is unavailable. Responses are never cacheable.
       security: []
       responses:
         "200":
@@ -679,7 +679,7 @@ paths:
     post:
       tags: [Versions]
       summary: Install a storefront version on the device hosting the server
-      description: Requires trusted LazyCat platform user and device headers. The server derives the LPK URL, checksum, package ID, and title from approved database records; callers cannot override them.
+      description: Requires trusted LazyCat platform user and device headers. The server derives the LPK URL, checksum, package ID, and title from approved database records; callers may select a currently configured mirror by ID but cannot override its URL.
       security: []
       parameters:
         - $ref: "#/components/parameters/ID"
@@ -714,6 +714,12 @@ paths:
           $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
+        "422":
+          description: Mirror selection was rejected with MIRROR_NOT_APPLICABLE or MIRROR_NOT_FOUND.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "502":
           $ref: "#/components/responses/Error"
 
@@ -1819,10 +1825,28 @@ components:
     RuntimeCapabilities:
       type: object
       additionalProperties: false
-      required: [lazycatInstall]
+      required: [lazycatInstall, githubMirrors]
       properties:
         lazycatInstall:
           type: boolean
+        githubMirrors:
+          type: array
+          description: Safe summaries of the currently configured mirrors; empty when LazyCat installation is unavailable.
+          items:
+            $ref: "#/components/schemas/RuntimeMirrorOption"
+
+    RuntimeMirrorOption:
+      type: object
+      additionalProperties: false
+      required: [id, kind, name]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [download, raw]
+        name:
+          type: string
 
     LazyCatInstallRequest:
       type: object
@@ -1832,6 +1856,9 @@ components:
           type: string
           maxLength: 256
           description: Required only when the selected app is protected by an installation password.
+        mirrorId:
+          type: string
+          description: Optional ID from RuntimeCapabilities.githubMirrors. Empty or omitted uses the direct approved version URL.
 
     LazyCatInstallResult:
       type: object

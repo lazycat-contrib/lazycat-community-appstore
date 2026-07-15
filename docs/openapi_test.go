@@ -2,6 +2,7 @@ package docs
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"go.yaml.in/yaml/v3"
@@ -35,6 +36,18 @@ func TestOpenAPIDocumentsLazyCatServerInstallation(t *testing.T) {
 	} {
 		if _, ok := document.Paths[path]; !ok {
 			t.Fatalf("OpenAPI path %q is missing", path)
+		}
+	}
+	text := string(data)
+	for _, required := range []string{
+		"RuntimeMirrorOption:",
+		"githubMirrors:",
+		"mirrorId:",
+		"MIRROR_NOT_APPLICABLE",
+		"MIRROR_NOT_FOUND",
+	} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("OpenAPI LazyCat install contract is missing %q", required)
 		}
 	}
 }

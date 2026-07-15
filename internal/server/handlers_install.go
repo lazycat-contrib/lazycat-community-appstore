@@ -12,6 +12,7 @@ import (
 	"lazycat.community/appstore/internal/auth"
 	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/lazycatpkg"
+	"lazycat.community/appstore/internal/mirror"
 )
 
 type lazycatInstaller interface {
@@ -26,6 +27,13 @@ func (lazycatSDKInstaller) InstallLPK(ctx context.Context, identity lazycatpkg.I
 
 type installVersionInput struct {
 	InstallPassword string `json:"installPassword"`
+	MirrorID        string `json:"mirrorId"`
+}
+
+type runtimeMirrorOption struct {
+	ID   string `json:"id"`
+	Kind string `json:"kind"`
+	Name string `json:"name"`
 }
 
 const maxLazyCatIdentityHeaderBytes = 256
@@ -33,7 +41,22 @@ const maxLazyCatIdentityHeaderBytes = 256
 func (s *Server) handleRuntimeCapabilities(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	_, available := s.lazycatInstallIdentity(r)
-	writeJSON(w, http.StatusOK, map[string]bool{"lazycatInstall": available})
+	mirrors := make([]runtimeMirrorOption, 0)
+	if available {
+		entries := s.effectiveGitHubMirrors(r.Context())
+		mirrors = make([]runtimeMirrorOption, 0, len(entries))
+		for _, entry := range entries {
+			mirrors = append(mirrors, runtimeMirrorOption{
+				ID:   entry.ID,
+				Kind: entry.Kind,
+				Name: entry.Name,
+			})
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"lazycatInstall": available,
+		"githubMirrors":  mirrors,
+	})
 }
 
 func (s *Server) handleInstallVersion(w http.ResponseWriter, r *http.Request) {
@@ -87,13 +110,26 @@ func (s *Server) handleInstallVersion(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "INSTALL_PASSWORD_REQUIRED", "A valid install password is required", nil)
 		return
 	}
+	downloadURL := s.absoluteURL(r.Context(), versionRecord.DownloadURL)
+	if mirrorID := strings.TrimSpace(input.MirrorID); mirrorID != "" {
+		if !mirror.IsGitHubURL(downloadURL) {
+			writeError(w, http.StatusUnprocessableEntity, "MIRROR_NOT_APPLICABLE", "The selected mirror does not apply to this download", nil)
+			return
+		}
+		entry, found := mirror.FindApplicable(s.effectiveGitHubMirrors(r.Context()), mirrorID, downloadURL)
+		if !found {
+			writeError(w, http.StatusUnprocessableEntity, "MIRROR_NOT_FOUND", "The selected mirror is unavailable", nil)
+			return
+		}
+		downloadURL = mirror.RewriteGitHub(downloadURL, entry)
+	}
 	if !s.beginLazyCatInstall() {
 		writeError(w, http.StatusConflict, "INSTALL_IN_PROGRESS", "Another application installation is already running", nil)
 		return
 	}
 	defer s.endLazyCatInstall()
 	result, err := s.lazycatInstaller.InstallLPK(r.Context(), identity, lazycatpkg.InstallRequest{
-		DownloadURL: s.absoluteURL(r.Context(), versionRecord.DownloadURL),
+		DownloadURL: downloadURL,
 		SHA256:      strings.TrimSpace(versionRecord.Sha256),
 		PackageID:   strings.TrimSpace(record.PackageID),
 		Name:        catalogmeta.DecodeLocalizedText(record.NameI18nJSON).Fallback(record.Name),

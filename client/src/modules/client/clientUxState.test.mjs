@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   autoUpdatePolicyPresentation,
@@ -14,6 +15,36 @@ import {
   normalizeAutomationSettings,
   sameEditableClientSettings,
 } from './clientUxState.ts';
+
+async function source(relativePath) {
+  return readFile(new URL(relativePath, import.meta.url), 'utf8');
+}
+
+test('install mirror helpers consume the shared mirror config contract', async () => {
+  const [types, utils] = await Promise.all([
+    source('../../shared/types.ts'),
+    source('../../shared/utils.ts'),
+  ]);
+
+  assert.match(types, /export type GitHubMirrorOption = Pick<GitHubMirror, 'id' \| 'kind' \| 'name'>/);
+  assert.match(types, /export type InstallMirrorConfig = \{[\s\S]*githubMirrors: GitHubMirrorOption\[\][\s\S]*defaultDownloadMirrorId: string[\s\S]*defaultRawMirrorId: string[\s\S]*\}/);
+  assert.match(utils, /applicableMirrorsForVersion\(mirrorConfig: InstallMirrorConfig \| undefined/);
+  assert.match(utils, /arrayOrEmpty\(mirrorConfig\.githubMirrors\)\.filter\(\(entry\) => entry\.kind === kind\)/);
+  assert.match(utils, /defaultMirrorIDForVersion\(mirrorConfig: InstallMirrorConfig \| undefined/);
+  assert.match(utils, /kind === 'raw' \? mirrorConfig\.defaultRawMirrorId \|\| '' : mirrorConfig\.defaultDownloadMirrorId \|\| ''/);
+  assert.match(utils, /const parsed = new URL\(value\)/);
+  assert.match(utils, /parsed\.hostname\.toLowerCase\(\)/);
+  assert.doesNotMatch(utils, /value\.includes\('github\.com\/'\)/);
+});
+
+test('install options dialog consumes a shared mirror config', async () => {
+  const dialog = await source('./InstallOptionsDialog.tsx');
+
+  assert.match(dialog, /mirrorConfig\?: InstallMirrorConfig/);
+  assert.match(dialog, /applicableMirrorsForVersion\(mirrorConfig, version\)/);
+  assert.match(dialog, /defaultMirrorIDForVersion\(mirrorConfig, version\)/);
+  assert.doesNotMatch(dialog, /source\?: SourceSubscription/);
+});
 
 test('installed app automatic update policy defaults to enabled', () => {
   assert.deepEqual(autoUpdatePolicyPresentation(undefined), { enabled: true, state: 'automatic' });

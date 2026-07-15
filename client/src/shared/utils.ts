@@ -4,6 +4,7 @@ import { ApiRequestError } from './api';
 import { SOURCE_STALE_MS } from './constants';
 import type {
   GitHubMirror,
+  InstallMirrorConfig,
   InstalledApplication,
   SiteProfile,
   SourceActionKey,
@@ -248,22 +249,29 @@ export function sourceForApp(app: SourceApp, sources: SourceSubscription[]) {
 
 export function githubMirrorKindForURL(rawURL?: string): GitHubMirror['kind'] | '' {
   const value = (rawURL || '').trim();
-  if (value.includes('raw.githubusercontent.com/')) return 'raw';
-  if (value.includes('github.com/')) return 'download';
-  return '';
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === 'raw.githubusercontent.com') return 'raw';
+    if (hostname === 'github.com') return 'download';
+    return '';
+  } catch {
+    return '';
+  }
 }
 
-export function applicableMirrorsForVersion(source: SourceSubscription | undefined, version?: Pick<SourceVersion, 'downloadUrl' | 'upstreamDownloadUrl'>) {
-  if (!source || !version) return [];
+export function applicableMirrorsForVersion(mirrorConfig: InstallMirrorConfig | undefined, version?: Pick<SourceVersion, 'downloadUrl' | 'upstreamDownloadUrl'>) {
+  if (!mirrorConfig || !version) return [];
   const kind = githubMirrorKindForURL(version.upstreamDownloadUrl || version.downloadUrl);
   if (!kind) return [];
-  return arrayOrEmpty(source.githubMirrors).filter((entry) => entry.kind === kind);
+  return arrayOrEmpty(mirrorConfig.githubMirrors).filter((entry) => entry.kind === kind);
 }
 
-export function defaultMirrorIDForVersion(source: SourceSubscription | undefined, version?: Pick<SourceVersion, 'downloadUrl' | 'upstreamDownloadUrl'>) {
+export function defaultMirrorIDForVersion(mirrorConfig: InstallMirrorConfig | undefined, version?: Pick<SourceVersion, 'downloadUrl' | 'upstreamDownloadUrl'>) {
   const kind = githubMirrorKindForURL(version?.upstreamDownloadUrl || version?.downloadUrl);
-  if (!source || !kind) return '';
-  return kind === 'raw' ? source.defaultRawMirrorId || '' : source.defaultDownloadMirrorId || '';
+  if (!mirrorConfig || !kind) return '';
+  return kind === 'raw' ? mirrorConfig.defaultRawMirrorId || '' : mirrorConfig.defaultDownloadMirrorId || '';
 }
 
 export function sourceMirrorOptions(source: SourceSubscription | null | undefined, kind: GitHubMirror['kind'], directLabel: string) {
