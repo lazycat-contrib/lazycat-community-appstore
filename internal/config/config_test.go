@@ -141,6 +141,16 @@ func TestLoadParsesTrustLazyCatClientChat(t *testing.T) {
 	}
 }
 
+func TestLoadParsesTrustLazyCatClientInstall(t *testing.T) {
+	t.Setenv("TRUST_LAZYCAT_CLIENT_INSTALL", "true")
+
+	cfg := Load()
+
+	if !cfg.TrustLazyCatClientInstall {
+		t.Fatal("TrustLazyCatClientInstall = false, want true")
+	}
+}
+
 func TestLoadParsesSourceV1Enabled(t *testing.T) {
 	t.Setenv("SOURCE_V1_ENABLED", "false")
 

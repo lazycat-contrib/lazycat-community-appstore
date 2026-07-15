@@ -129,6 +129,8 @@ const zh = {
         EMAIL_NOT_VERIFIED: '请先完成邮箱验证',
         UNAUTHORIZED: '请先登录',
         FORBIDDEN: '没有权限执行此操作',
+        LAZYCAT_INSTALL_UNAVAILABLE: '当前请求不是可信的懒猫客户端环境',
+        LAZYCAT_INSTALL_FAILED: '无法在当前懒猫设备上完成安装',
         VALIDATION_ERROR: '提交内容不符合要求，请检查后重试',
       },
       reviewKinds: {

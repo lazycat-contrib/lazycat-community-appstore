@@ -129,6 +129,8 @@ const en = {
         EMAIL_NOT_VERIFIED: 'Complete email verification first',
         UNAUTHORIZED: 'Log in first',
         FORBIDDEN: 'You do not have permission for this action',
+        LAZYCAT_INSTALL_UNAVAILABLE: 'This request is not from a trusted LazyCat client context',
+        LAZYCAT_INSTALL_FAILED: 'Could not install the app on this LazyCat device',
         VALIDATION_ERROR: 'Check the submitted content and try again',
       },
       reviewKinds: {

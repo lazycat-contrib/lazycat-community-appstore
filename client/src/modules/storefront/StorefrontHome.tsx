@@ -19,6 +19,7 @@ export function StorefrontHome({
   categories,
   collections,
   siteProfile,
+  lazycatInstall,
   onOpen,
   onInstall,
   onNavigate,
@@ -33,6 +34,7 @@ export function StorefrontHome({
   categories: Category[];
   collections: Collection[];
   siteProfile: SiteProfile;
+  lazycatInstall: boolean;
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp) => void;
   onNavigate: (tab: 'search' | 'profile') => void;
@@ -142,6 +144,7 @@ export function StorefrontHome({
           apps={latest}
           onOpen={onOpen}
           onInstall={onInstall}
+          lazycatInstall={lazycatInstall}
           empty={{
             title: t('home.emptyTitle'),
             body: isAuthenticated ? t('home.emptyBody') : t('home.emptyLoginBody'),
@@ -152,7 +155,7 @@ export function StorefrontHome({
       {collections.map((collection) => (
         <section className="panel" key={collection.id}>
           <SectionTitle icon={Layers3} title={collection.name} />
-          <AppGrid apps={collection.apps || []} onOpen={onOpen} onInstall={onInstall} />
+          <AppGrid apps={collection.apps || []} onOpen={onOpen} onInstall={onInstall} lazycatInstall={lazycatInstall} />
         </section>
       ))}
     </section>

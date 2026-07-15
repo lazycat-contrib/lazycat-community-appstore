@@ -17,6 +17,10 @@ export type Pagination = {
   totalPages: number;
 };
 
+export type RuntimeCapabilities = {
+  lazycatInstall: boolean;
+};
+
 export type PaginatedResponse<TItem, TKey extends string = 'items'> = {
   pagination: Pagination;
 } & {

@@ -40,6 +40,8 @@ type Server struct {
 	now                     func() time.Time
 	storage                 storage.Backend
 	mailer                  Mailer
+	lazycatInstaller        lazycatInstaller
+	lazycatInstallSlots     chan struct{}
 	mux                     *http.ServeMux
 	web                     http.Handler
 	chatHub                 *chatHub
@@ -111,21 +113,23 @@ func New(cfg config.Config) (*Server, error) {
 	}
 	appCtx, appCancel := context.WithCancel(context.Background())
 	s := &Server{
-		cfg:                cfg,
-		db:                 client,
-		sqlDB:              sqlDB,
-		metricsSQL:         sqlDB,
-		now:                time.Now,
-		storage:            backend,
-		mailer:             newSMTPMailer(cfg),
-		mux:                http.NewServeMux(),
-		chatHub:            newChatHub(),
-		adminLoginFailures: map[string]adminLoginFailure{},
-		restartRequested:   make(chan struct{}),
-		ctx:                appCtx,
-		cancel:             appCancel,
-		stopDone:           make(chan struct{}),
-		closeDone:          make(chan struct{}),
+		cfg:                 cfg,
+		db:                  client,
+		sqlDB:               sqlDB,
+		metricsSQL:          sqlDB,
+		now:                 time.Now,
+		storage:             backend,
+		mailer:              newSMTPMailer(cfg),
+		lazycatInstaller:    lazycatSDKInstaller{},
+		lazycatInstallSlots: make(chan struct{}, 1),
+		mux:                 http.NewServeMux(),
+		chatHub:             newChatHub(),
+		adminLoginFailures:  map[string]adminLoginFailure{},
+		restartRequested:    make(chan struct{}),
+		ctx:                 appCtx,
+		cancel:              appCancel,
+		stopDone:            make(chan struct{}),
+		closeDone:           make(chan struct{}),
 	}
 	s.web = embeddedWebHandler(cfg)
 	s.inspectLPKForJob = s.inspectLPKURLWithTimeout
@@ -381,6 +385,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/setup/status", s.handleSetupStatus)
 	s.mux.HandleFunc("POST /api/v1/setup", s.handleSetup)
 	s.mux.HandleFunc("GET /api/v1/site/profile", s.handleSiteProfile)
+	s.mux.HandleFunc("GET /api/v1/runtime/capabilities", s.handleRuntimeCapabilities)
 	s.mux.HandleFunc("GET /api/v1/auth/me", s.withAuth(s.handleMe))
 	s.mux.HandleFunc("PATCH /api/v1/me/profile", s.withAuth(s.handleUpdateMyProfile))
 	s.mux.HandleFunc("POST /api/v1/me/avatar", s.withAuth(s.handleUploadMyAvatar))
@@ -416,6 +421,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/version-retention", s.withAuth(s.handleUpdateVersionRetention))
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/versions/{versionId}", s.withAuth(s.handleDeleteVersion))
 	s.mux.HandleFunc("GET /api/v1/apps/{id}/versions/{versionId}/download", s.handleDownloadVersion)
+	s.mux.HandleFunc("POST /api/v1/apps/{id}/versions/{versionId}/install", s.handleInstallVersion)
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/screenshots", s.withAuth(s.handleUploadScreenshot))
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/screenshots/reorder", s.withAuth(s.handleReorderScreenshots))
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/screenshots/{screenshotId}", s.withAuth(s.handleUpdateScreenshot))

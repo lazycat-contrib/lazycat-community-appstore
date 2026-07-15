@@ -54,6 +54,7 @@ type Config struct {
 	SMTPFromName               string
 	TrustLazyCatClientComments bool
 	TrustLazyCatClientChat     bool
+	TrustLazyCatClientInstall  bool
 	SitePublicURL              string
 	AdminUsername              string
 	AdminPassword              string
@@ -109,6 +110,7 @@ func Load() Config {
 		SMTPFromName:               os.Getenv("SMTP_FROM_NAME"),
 		TrustLazyCatClientComments: envBool("TRUST_LAZYCAT_CLIENT_COMMENTS", false),
 		TrustLazyCatClientChat:     envBool("TRUST_LAZYCAT_CLIENT_CHAT", envBool("TRUST_LAZYCAT_CLIENT_COMMENTS", false)),
+		TrustLazyCatClientInstall:  envBool("TRUST_LAZYCAT_CLIENT_INSTALL", false),
 		SitePublicURL:              strings.TrimRight(env("SITE_PUBLIC_URL", env("BASE_URL", "http://localhost:8080")), "/"),
 		AdminUsername:              env("ADMIN_USERNAME", "admin"),
 		AdminPassword:              env("ADMIN_PASSWORD", "changeme"),

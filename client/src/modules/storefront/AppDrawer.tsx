@@ -12,6 +12,7 @@ import {
   Link,
 	MessageSquare,
 	MessageSquareOff,
+	PackagePlus,
 	RefreshCw,
   Save,
   Settings,
@@ -105,6 +106,7 @@ export function AppDrawer({
   tagOptions,
   storageOptions,
   chatEnabled,
+  lazycatInstall,
   onClose,
   onInstall,
   onContactPublisher,
@@ -121,6 +123,7 @@ export function AppDrawer({
   tagOptions: string[];
   storageOptions: StorageOption[];
   chatEnabled: boolean;
+  lazycatInstall: boolean;
   onClose: () => void;
   onInstall: (app: StoreApp, options?: InstallOptions) => void | Promise<void>;
   onContactPublisher?: (app: StoreApp) => void | Promise<void>;
@@ -180,6 +183,8 @@ export function AppDrawer({
   const homepageURL = safeExternalURL(app.homepage);
   const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
   const installable = hasInstallableVersion(app);
+  const primaryActionLabel = lazycatInstall ? t('common.install') : t('common.download');
+  const PrimaryActionIcon = lazycatInstall ? PackagePlus : Download;
   const hasChecksum = Boolean(latestVersion?.sha256);
   const hasFileSize = Boolean(latestVersion && latestVersion.fileSize > 0);
   const trustState: 'ready' | 'caution' | 'blocked' = !installable ? 'blocked' : hasChecksum && hasFileSize ? 'ready' : 'caution';
@@ -1225,11 +1230,11 @@ export function AppDrawer({
               <XButton
                 type="button"
                 variant="primary"
-                label={installable ? t('common.download') : t('common.unavailable')}
-                icon={<Download size={18} />}
+                label={installable ? primaryActionLabel : t('common.unavailable')}
+                icon={<PrimaryActionIcon size={18} />}
                 isDisabled={!installable}
                 onClick={() => onInstall(app)}
-                aria-label={installable ? `${t('common.download')} ${appName}` : t('app.installUnavailable', { name: appName })}
+                aria-label={installable ? `${primaryActionLabel} ${appName}` : t('app.installUnavailable', { name: appName })}
               />
               {canOpenManagement && (
                 <XButton type="button" variant="secondary" label={t('drawer.manageApp')} icon={<Settings size={18} />} onClick={() => onModeChange('manage')} />
@@ -1472,8 +1477,8 @@ export function AppDrawer({
                         type="button"
                         variant="secondary"
                         size="sm"
-                        label={isLatest ? t('common.download') : t('drawer.downloadHistoricalVersion')}
-                        icon={<Download size={17} />}
+                        label={isLatest ? primaryActionLabel : lazycatInstall ? t('common.install') : t('drawer.downloadHistoricalVersion')}
+                        icon={lazycatInstall ? <PackagePlus size={17} /> : <Download size={17} />}
                         isDisabled={!version.downloadUrl}
                         onClick={(event) => {
                           event.stopPropagation();

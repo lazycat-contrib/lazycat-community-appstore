@@ -8,6 +8,8 @@ import (
 	gohelper "gitee.com/linakesi/lzc-sdk/lang/go"
 	"gitee.com/linakesi/lzc-sdk/lang/go/sys"
 	"google.golang.org/grpc/metadata"
+
+	"lazycat.community/appstore/internal/lazycatpkg"
 )
 
 type lazyCatPackageManager struct{}
@@ -52,43 +54,20 @@ func (lazyCatPackageManager) QueryInstalled(ctx context.Context, userID string) 
 }
 
 func (lazyCatPackageManager) InstallLPK(ctx context.Context, userID string, req InstallRequestDTO) (InstallResultDTO, error) {
-	return installLPK(ctx, userID, synchronousInstallLPKRequest(req))
-}
-
-func installLPK(ctx context.Context, userID string, in *sys.InstallLPKRequest) (InstallResultDTO, error) {
-	ctx, cancel := context.WithTimeout(lazycatContext(ctx, userID), 60*time.Second)
-	defer cancel()
-	gw, err := gohelper.NewAPIGateway(ctx)
+	identityUserID := userID
+	if identityUserID == clientIdentityLocal {
+		identityUserID = ""
+	}
+	result, err := lazycatpkg.InstallLPK(ctx, lazycatpkg.Identity{UserID: identityUserID}, lazycatpkg.InstallRequest{
+		DownloadURL: req.DownloadURL,
+		SHA256:      req.SHA256,
+		PackageID:   req.PackageID,
+		Name:        req.Name,
+	})
 	if err != nil {
 		return InstallResultDTO{}, err
 	}
-	defer func() { _ = gw.Close() }()
-	resp, err := gw.PkgManager.InstallLPK(ctx, in)
-	if err != nil {
-		return InstallResultDTO{}, err
-	}
-	result := InstallResultDTO{Mode: "lazycat-go-sdk"}
-	if task := resp.GetTaskInfo(); task != nil {
-		result.TaskID = task.GetTaskId()
-		result.Status = task.GetStatus().String()
-		result.Detail = task.GetDetail()
-	}
-	return result, nil
-}
-
-func synchronousInstallLPKRequest(req InstallRequestDTO) *sys.InstallLPKRequest {
-	wait := true
-	in := &sys.InstallLPKRequest{LpkUrl: req.DownloadURL, WaitUnitDone: &wait}
-	if req.SHA256 != "" {
-		in.Sha256 = &req.SHA256
-	}
-	if req.PackageID != "" {
-		in.PkgId = &req.PackageID
-	}
-	if req.Name != "" {
-		in.TmpTitle = &req.Name
-	}
-	return in
+	return InstallResultDTO(result), nil
 }
 
 func (lazyCatPackageManager) GetInstallTask(ctx context.Context, userID, taskID string) (InstallTaskDTO, error) {

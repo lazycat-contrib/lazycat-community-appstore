@@ -18,6 +18,7 @@ application:
     - CLIENT_ORIGINS=https://${LAZYCAT_APP_DOMAIN}
     - TRUST_LAZYCAT_CLIENT_COMMENTS=true
     - TRUST_LAZYCAT_CLIENT_CHAT={{ .U.trust_lazycat_client_chat }}
+    - TRUST_LAZYCAT_CLIENT_INSTALL=true
     - DB_DRIVER={{ .U.db_driver }}
     - DB_DSN={{ .U.db_dsn }}
     - STORAGE_BACKEND=local

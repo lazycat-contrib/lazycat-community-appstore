@@ -25,6 +25,7 @@ export function StorefrontSearch({
   onSortMode,
   onOpen,
   onInstall,
+  lazycatInstall,
   defaultPageSize,
 }: {
   apps: StoreApp[];
@@ -37,6 +38,7 @@ export function StorefrontSearch({
   onSortMode: (mode: SortMode) => void;
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
+  lazycatInstall: boolean;
   defaultPageSize: number;
 }) {
   const { t } = useTranslation();
@@ -180,6 +182,7 @@ export function StorefrontSearch({
           apps={pagedApps}
           onOpen={onOpen}
           onInstall={onInstall}
+          lazycatInstall={lazycatInstall}
           empty={{
             title: t('search.noResultsTitle'),
             body: t('search.noResultsBody'),

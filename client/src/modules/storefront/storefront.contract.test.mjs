@@ -121,16 +121,29 @@ test('app card layout keeps storefront specificity over global catalog rules', a
   assert.doesNotMatch(styles, /:where\(\.storefront-page, \.storefront-search-page\) \.app-(?:grid|card|open|meta)\b/);
 });
 
-test('app card download keeps an app-specific accessible name while loading', async () => {
+test('app card action switches between LazyCat install and browser download', async () => {
   const grid = await source('./AppGrid.tsx');
   const button = /<XButton\b(?:(?!<XButton\b)[\s\S])*?className="app-card-primary-action"(?:(?!<XButton\b)[\s\S])*?<\/XButton>/
     .exec(grid)?.[0];
 
-  assert.ok(button, 'download action must expose separate visible and accessible labels');
-  assert.match(button, /label=\{installable \? `\$\{t\('common\.download'\)\} \$\{appName\}` : t\('app\.installUnavailable', \{ name: appName \}\)\}/);
+  assert.ok(button, 'storefront action must expose separate visible and accessible labels');
+  assert.match(grid, /lazycatInstall: boolean/);
+  assert.match(grid, /const actionLabel = lazycatInstall \? t\('common\.install'\) : t\('common\.download'\)/);
+  assert.match(button, /label=\{installable \? `\$\{actionLabel\} \$\{appName\}` : t\('app\.installUnavailable', \{ name: appName \}\)\}/);
   assert.match(button, /isLoading=\{isInstalling\}/);
-  assert.match(button, />\s*\{installable \? t\('common\.download'\) : t\('common\.unavailable'\)\}\s*<\/XButton>/);
+  assert.match(button, />\s*\{installable \? actionLabel : t\('common\.unavailable'\)\}\s*<\/XButton>/);
   assert.doesNotMatch(button, /\baria-label=/);
+});
+
+test('server app loads LazyCat capability and keeps install payload server-derived', async () => {
+  const app = await source('../../App.tsx');
+
+  assert.match(app, /useState<RuntimeCapabilities>\(\{ lazycatInstall: false \}\)/);
+  assert.match(app, /api<RuntimeCapabilities>\('\/api\/v1\/runtime\/capabilities'\)/);
+  assert.match(app, /`\/api\/v1\/apps\/\$\{app\.id\}\/versions\/\$\{\(version as Version\)\.id\}\/install`/);
+  assert.match(app, /body: JSON\.stringify\(\{ installPassword: options\.installPassword \|\| '' \}\)/);
+  assert.match(app, /window\.open\(withInstallPassword\(downloadUrl, options\.installPassword\)/);
+  assert.doesNotMatch(app, /body: JSON\.stringify\(\{[^}]*downloadUrl/s);
 });
 
 test('search keeps current conditions visible and offers one empty-state recovery', async () => {
@@ -164,6 +177,8 @@ test('public app detail leads with product evidence and keeps trust facts below 
   assert.ok(screenshotIndex < trustIndex, 'screenshots must appear before trust facts');
   assert.match(drawer, /storefront-version-section/);
   assert.match(drawer, /storefront-comment-section/);
+  assert.match(drawer, /const primaryActionLabel = lazycatInstall \? t\('common\.install'\) : t\('common\.download'\)/);
+  assert.match(drawer, /isLatest \? primaryActionLabel : lazycatInstall \? t\('common\.install'\) : t\('drawer\.downloadHistoricalVersion'\)/);
 });
 
 test('version management distinguishes policy, download, delete, and cleanup warning states', async () => {

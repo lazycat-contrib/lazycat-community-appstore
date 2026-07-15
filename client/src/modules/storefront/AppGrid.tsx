@@ -14,15 +14,19 @@ export function AppGrid({
   apps,
   onOpen,
   onInstall,
+  lazycatInstall,
   empty,
 }: {
   apps: StoreApp[];
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp) => void | Promise<void>;
+  lazycatInstall: boolean;
   empty?: { title?: string; body?: string; action?: { label: string; icon?: LucideIcon; onClick: () => void } };
 }) {
   const { t } = useTranslation();
   const [pendingAppID, setPendingAppID] = useState<number | null>(null);
+  const actionLabel = lazycatInstall ? t('common.install') : t('common.download');
+  const ActionIcon = lazycatInstall ? PackagePlus : Download;
 
   async function installApp(event: MouseEvent<HTMLButtonElement>, app: StoreApp) {
     event.stopPropagation();
@@ -65,13 +69,13 @@ export function AppGrid({
               className="app-card-primary-action"
               type="button"
               variant="primary"
-              label={installable ? `${t('common.download')} ${appName}` : t('app.installUnavailable', { name: appName })}
-              icon={<Download size={17} />}
+              label={installable ? `${actionLabel} ${appName}` : t('app.installUnavailable', { name: appName })}
+              icon={<ActionIcon size={17} />}
               isDisabled={!installable || pendingAppID !== null}
               isLoading={isInstalling}
               onClick={(event) => void installApp(event, app)}
             >
-              {installable ? t('common.download') : t('common.unavailable')}
+              {installable ? actionLabel : t('common.unavailable')}
             </XButton>
           </XClickableCard>
         );

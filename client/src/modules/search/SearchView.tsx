@@ -13,6 +13,7 @@ export function SearchView({
   tagOptions,
   sortMode,
   mode,
+  lazycatInstall,
   sourceStats,
   installedApps,
   onCategory,
@@ -33,6 +34,7 @@ export function SearchView({
   tagOptions: string[];
   sortMode: SortMode;
   mode: 'server' | 'client';
+  lazycatInstall: boolean;
   sourceStats: ClientSourceStats;
   installedApps: InstalledApplication[];
   onCategory: (category: string) => void;
@@ -73,6 +75,7 @@ export function SearchView({
       onSortMode={onSortMode}
       onOpen={onOpen}
       onInstall={onInstall}
+      lazycatInstall={lazycatInstall}
       defaultPageSize={defaultPageSize}
     />
   );

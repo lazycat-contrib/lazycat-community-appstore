@@ -53,6 +53,7 @@ import type {
   Pagination as PaginationMeta,
   ResolvedTheme,
   Review,
+  RuntimeCapabilities,
   SetupStatus,
   SiteProfile,
   SiteAd,
@@ -242,6 +243,7 @@ export function App() {
   const [installedError, setInstalledError] = useState('');
   const [installActivity, setInstallActivity] = useState<InstallActivity | null>(null);
   const [installPasswordRequest, setInstallPasswordRequest] = useState<InstallPasswordRequest | null>(null);
+  const [runtimeCapabilities, setRuntimeCapabilities] = useState<RuntimeCapabilities>({ lazycatInstall: false });
   const [updateQueueResult, setUpdateQueueResult] = useState<UpdateQueueResult | null>(null);
   const [isUpdateQueueRunning, setIsUpdateQueueRunning] = useState(false);
   const [autoUpdatePolicySaving, setAutoUpdatePolicySaving] = useState<Set<string>>(() => new Set());
@@ -594,13 +596,14 @@ export function App() {
         setStorageOptions([]);
         return;
       }
-      const [siteData, me, appData, categoryData, tagData, collectionData] = await Promise.allSettled([
+      const [siteData, me, appData, categoryData, tagData, collectionData, capabilityData] = await Promise.allSettled([
         api<{ site: SiteProfile }>('/api/v1/site/profile'),
         api<{ user: User }>('/api/v1/auth/me'),
         api<PaginatedResponse<StoreApp, 'apps'>>('/api/v1/apps?page=1&pageSize=24&sort=recent'),
         api<{ categories: Category[] }>('/api/v1/categories'),
         api<{ tags: TagRecord[] }>('/api/v1/tags'),
         api<{ collections: Collection[] }>('/api/v1/collections'),
+        api<RuntimeCapabilities>('/api/v1/runtime/capabilities'),
       ]);
       if (siteData.status === 'fulfilled') setSiteProfile(siteData.value.site);
       if (me.status === 'fulfilled') {
@@ -616,6 +619,7 @@ export function App() {
       if (categoryData.status === 'fulfilled') setCategories(categoryData.value.categories);
       if (tagData.status === 'fulfilled') setCatalogTags(tagData.value.tags);
       if (collectionData.status === 'fulfilled') setCollections(collectionData.value.collections);
+      setRuntimeCapabilities(capabilityData.status === 'fulfilled' ? capabilityData.value : { lazycatInstall: false });
       if (me.status === 'fulfilled') {
         void Promise.allSettled([
           loadStorageOptions(),
@@ -962,6 +966,19 @@ export function App() {
 		  messageKey: 'installResult.sdkInstalled',
 		  messageParams: value.taskId ? { taskId: value.taskId } : undefined,
 		};
+	  } else if (runtimeCapabilities.lazycatInstall) {
+		const value = await api<{ mode?: string; taskId?: string; status?: string; detail?: string }>(
+		  `/api/v1/apps/${app.id}/versions/${(version as Version).id}/install`,
+		  {
+			method: 'POST',
+			body: JSON.stringify({ installPassword: options.installPassword || '' }),
+		  },
+		);
+		result = {
+		  mode: value.mode || 'lazycat-go-sdk',
+		  messageKey: 'installResult.sdkInstalled',
+		  messageParams: value.taskId ? { taskId: value.taskId } : undefined,
+		};
 	  } else {
 		const downloadUrl = `${API_BASE}/api/v1/apps/${app.id}/versions/${(version as Version).id}/download`;
 		window.open(withInstallPassword(downloadUrl, options.installPassword), '_blank', 'noopener,noreferrer');
@@ -978,7 +995,7 @@ export function App() {
 		messageKey: result.messageKey,
 		messageParams: result.messageParams,
 	  });
-	  if (result.mode === 'lazycat-go-sdk') {
+	  if (result.mode === 'lazycat-go-sdk' && isSourceApp) {
 		void loadInstalledApps({ quiet: true });
 		void loadInstallHistory();
 	  }
@@ -1416,6 +1433,7 @@ export function App() {
                 tagOptions={tagOptions}
                 storageOptions={storageOptions}
                 chatEnabled={serverChatVisible}
+                lazycatInstall={runtimeCapabilities.lazycatInstall}
                 onClose={() => {
                   setSelectedApp(null);
                   setSelectedAppMode('detail');
@@ -1455,6 +1473,7 @@ export function App() {
                 categories={categories}
                 collections={collections}
                 siteProfile={siteProfile}
+                lazycatInstall={runtimeCapabilities.lazycatInstall}
                 onOpen={openApp}
                 onInstall={installApp}
                 onNavigate={navigateTo}
@@ -1479,6 +1498,7 @@ export function App() {
                 tagOptions={tagOptions}
                 sortMode={sortMode}
                 mode={HAS_API ? 'server' : 'client'}
+                lazycatInstall={runtimeCapabilities.lazycatInstall}
                 sourceStats={sourceStats}
                 installedApps={HAS_API ? [] : installedApps}
                 onCategory={setActiveCategory}
