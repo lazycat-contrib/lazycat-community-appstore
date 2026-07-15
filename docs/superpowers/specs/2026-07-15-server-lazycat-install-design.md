@@ -138,4 +138,4 @@ Frontend regression tests cover:
 - unavailable versions remain disabled;
 - existing single-install guard and activity result behavior remain intact.
 
-Repository verification includes frontend type checking/build, focused Go tests, `go test ./...`, `go vet ./...`, formatting, module-tidiness checks, and the existing CI-equivalent checks. Client and server package versions remain unchanged.
+Repository verification includes frontend type checking/build, focused Go tests, `go test ./...`, `go vet ./...`, formatting, module-tidiness checks, and the existing CI-equivalent checks. The server package advances from `0.1.32` to `0.1.33`; the client package remains `0.1.28`.
