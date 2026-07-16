@@ -1,5 +1,5 @@
 import { RotateCcw, Search, Tag, UserRound } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { PowerSearch, type PowerSearchConfig, type PowerSearchField, type PowerSearchFilter } from '@astryxdesign/core/PowerSearch';
@@ -14,37 +14,39 @@ import { CategoryBrowser } from './CategoryBrowser';
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
 
+export type StorefrontSearchViewState = {
+  filters: PowerSearchFilter[];
+  activeCategory: string;
+  sortMode: SortMode;
+  page: number;
+  pageSize: number;
+};
+
 export function StorefrontSearch({
   apps,
   categories,
   submitters,
-  activeCategory,
   tagOptions,
-  sortMode,
-  onCategory,
-  onSortMode,
   onOpen,
   onInstall,
   lazycatInstall,
   defaultPageSize,
+  viewState,
+  onViewStateChange,
 }: {
   apps: StoreApp[];
   categories: Category[];
   submitters: string[];
-  activeCategory: string;
   tagOptions: string[];
-  sortMode: SortMode;
-  onCategory: (category: string) => void;
-  onSortMode: (mode: SortMode) => void;
   onOpen: (app: StoreApp) => void;
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   lazycatInstall: boolean;
   defaultPageSize: number;
+  viewState: StorefrontSearchViewState;
+  onViewStateChange: Dispatch<SetStateAction<StorefrontSearchViewState>>;
 }) {
   const { t } = useTranslation();
-  const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(defaultPageSize || 24);
+  const { filters, activeCategory, sortMode, page, pageSize } = viewState;
   const filterKey = filterSignature(filters);
   const searchConfig = useMemo<PowerSearchConfig>(() => {
     const fields: PowerSearchField[] = [
@@ -108,7 +110,7 @@ export function StorefrontSearch({
     });
   }, [categoryFilteredApps, filterKey, filters, sortMode]);
   const totalPages = Math.max(1, Math.ceil(filteredApps.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
+  const currentPage = Math.max(1, Math.min(page, totalPages));
   const pagedApps = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredApps.slice(start, start + pageSize);
@@ -117,20 +119,25 @@ export function StorefrontSearch({
   const activeCategoryLabel = selectedCategory ? localizedName(selectedCategory) : t('search.allCategories');
   const hasActiveFilters = activeCategory !== 'all' || filters.length > 0;
 
+  function updateViewState(patch: Partial<StorefrontSearchViewState>) {
+    onViewStateChange((current) => ({ ...current, ...patch }));
+  }
+
   function clearSearch() {
-    setFilters([]);
-    onCategory('all');
-    setPage(1);
+    updateViewState({ activeCategory: 'all', filters: [], page: 1 });
   }
 
   useEffect(() => {
-    setPage(1);
-  }, [activeCategory, filterKey, sortMode]);
+    if (page === currentPage) return;
+    onViewStateChange((current) => (current.page === currentPage ? current : { ...current, page: currentPage }));
+  }, [currentPage, onViewStateChange, page]);
 
   useEffect(() => {
-    setPageSize(defaultPageSize || 24);
-    setPage(1);
-  }, [defaultPageSize]);
+    const nextPageSize = defaultPageSize || 24;
+    onViewStateChange((current) => (
+      current.pageSize === nextPageSize ? current : { ...current, page: 1, pageSize: nextPageSize }
+    ));
+  }, [defaultPageSize, onViewStateChange]);
 
   return (
     <section className="page-grid storefront-search-page">
@@ -141,14 +148,18 @@ export function StorefrontSearch({
       <section className="panel storefront-search-panel">
         <SectionTitle icon={Search} title={t('search.localStore')} />
         {categories.length > 0 && (
-          <CategoryBrowser categories={categories} activeCategory={activeCategory} onCategory={onCategory} />
+          <CategoryBrowser
+            categories={categories}
+            activeCategory={activeCategory}
+            onCategory={(value) => updateViewState({ activeCategory: value, page: 1 })}
+          />
         )}
         <div className="catalog-search-toolbar">
           <PowerSearch
             className="catalog-filter-search"
             config={searchConfig}
             filters={filters}
-            onChange={(nextFilters) => setFilters([...nextFilters])}
+            onChange={(nextFilters) => updateViewState({ filters: [...nextFilters], page: 1 })}
             label={t('search.catalogSearchLabel')}
             placeholder={t('search.catalogSearchPlaceholder')}
             startIcon={<Search size={16} />}
@@ -170,7 +181,7 @@ export function StorefrontSearch({
               { value: 'downloads_year', label: t('search.downloadsYear') },
               { value: 'name', label: t('search.name') },
             ]}
-            onChange={(value) => onSortMode(value as SortMode)}
+            onChange={(value) => updateViewState({ sortMode: value as SortMode, page: 1 })}
             width="100%"
           />
         </div>
@@ -199,11 +210,11 @@ export function StorefrontSearch({
           <XPagination
             className="list-pagination"
             page={currentPage}
-            onChange={setPage}
+            onChange={(value) => updateViewState({ page: value })}
             totalItems={filteredApps.length}
             pageSize={pageSize}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
-            onPageSizeChange={setPageSize}
+            onPageSizeChange={(value) => updateViewState({ page: 1, pageSize: value })}
             variant="pages"
             size="sm"
             label={t('pagination.label')}

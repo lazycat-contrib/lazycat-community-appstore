@@ -1,0 +1,43 @@
+version: 1
+
+project:
+  root: lazycat/client
+  build_config: lzc-build.yml
+  package_file: package.yml
+  output: dist/lazycat-community-appstore-client.lpk
+  target_arch: amd64
+
+update:
+  strategy: publish
+  allow_downgrade: false
+  version_source:
+    type: git
+
+build:
+  toolchains:
+    - kind: go
+      version: 1.26.4
+    - kind: node
+      version: "24"
+  run_buildscript: true
+
+images: []
+
+stores:
+  official:
+    enabled: true
+    skip_if_version_exists: true
+    create_if_missing: true
+    changelog_locales: [zh, en]
+    retry:
+      enabled: false
+    application:
+      language: zh
+      name: 喵喵私有商店
+      source: https://github.com/lazycat-contrib/lazycat-community-appstore
+      source_author: lazycat-contrib
+  private:
+    enabled: true
+    skip_if_version_exists: true
+    name: 喵喵私有商店
+    summary: 由 GitHub Actions 自动构建并发布。

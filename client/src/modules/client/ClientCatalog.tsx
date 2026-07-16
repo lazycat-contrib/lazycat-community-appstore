@@ -1,5 +1,5 @@
 import { Cloud, Download, PackageCheck, Search, Server } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
@@ -36,6 +36,14 @@ import { sortClientCatalogApps, type ClientCatalogSortMode } from './clientUxSta
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
 
+export type ClientCatalogViewState = {
+  filters: PowerSearchFilter[];
+  selectedCategoryFilter: string;
+  sortMode: ClientCatalogSortMode;
+  page: number;
+  pageSize: number;
+};
+
 export function ClientCatalog({
   sourceApps,
   sources,
@@ -46,6 +54,8 @@ export function ClientCatalog({
   onGoSources,
   defaultPageSize,
   activeInstallKey,
+  viewState,
+  onViewStateChange,
 }: {
   sourceApps: SourceApp[];
   sources: SourceSubscription[];
@@ -56,13 +66,11 @@ export function ClientCatalog({
   onGoSources: () => void;
   defaultPageSize: number;
   activeInstallKey?: string;
+  viewState: ClientCatalogViewState;
+  onViewStateChange: Dispatch<SetStateAction<ClientCatalogViewState>>;
 }) {
   const { t } = useTranslation();
-  const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
-  const [sortMode, setSortMode] = useState<ClientCatalogSortMode>('default');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(defaultPageSize || 24);
+  const { filters, selectedCategoryFilter, sortMode, page, pageSize } = viewState;
   const filterKey = filterSignature(filters);
   const sourceOptions = sourceAppSourceOptions(sourceApps);
   const sourceStatusItems = [
@@ -124,20 +132,27 @@ export function ClientCatalog({
     return sortClientCatalogApps(filtered, sortMode, localizedAppName);
   }, [categoryContext, hasStructuredCategories, searchedSourceApps, selectedCategoryFilter, sortMode]);
   const totalPages = Math.max(1, Math.ceil(filteredSourceApps.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
+  const currentPage = Math.max(1, Math.min(page, totalPages));
   const pagedSourceApps = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredSourceApps.slice(start, start + pageSize);
   }, [filteredSourceApps, currentPage, pageSize]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [filterKey, selectedCategoryFilter, sortMode, sourceApps.length, installedApps.length]);
+  function updateViewState(patch: Partial<ClientCatalogViewState>) {
+    onViewStateChange((current) => ({ ...current, ...patch }));
+  }
 
   useEffect(() => {
-    setPageSize(defaultPageSize || 24);
-    setPage(1);
-  }, [defaultPageSize]);
+    if (page === currentPage) return;
+    onViewStateChange((current) => (current.page === currentPage ? current : { ...current, page: currentPage }));
+  }, [currentPage, onViewStateChange, page]);
+
+  useEffect(() => {
+    const nextPageSize = defaultPageSize || 24;
+    onViewStateChange((current) => (
+      current.pageSize === nextPageSize ? current : { ...current, page: 1, pageSize: nextPageSize }
+    ));
+  }, [defaultPageSize, onViewStateChange]);
 
   const sourceEmptyTitle = sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle');
   const sourceEmptyBody =
@@ -183,7 +198,7 @@ export function ClientCatalog({
             className="catalog-filter-search"
             config={searchConfig}
             filters={filters}
-            onChange={(nextFilters) => setFilters([...nextFilters])}
+            onChange={(nextFilters) => updateViewState({ filters: [...nextFilters], page: 1 })}
             label={t('search.catalogSearchLabel')}
             placeholder={t('search.clientCatalogSearchPlaceholder')}
             startIcon={<Search size={16} />}
@@ -202,7 +217,7 @@ export function ClientCatalog({
               { value: 'name', label: t('search.name') },
               { value: 'source', label: t('search.sourceName') },
             ]}
-            onChange={(value) => setSortMode(value as ClientCatalogSortMode)}
+            onChange={(value) => updateViewState({ sortMode: value as ClientCatalogSortMode, page: 1 })}
             width="100%"
           />
         </div>
@@ -215,12 +230,16 @@ export function ClientCatalog({
                 { value: 'all', label: t('search.allCategories') },
                 ...categoryOptions.map((option) => ({ value: option.key, label: `${option.label} (${option.count})` })),
               ]}
-              onChange={setSelectedCategoryFilter}
+              onChange={(value) => updateViewState({ selectedCategoryFilter: value, page: 1 })}
             />
           </div>
         )}
         {hasStructuredCategories && (
-          <CategoryBrowser categories={categoryContext.categories} activeCategory={selectedCategoryFilter} onCategory={setSelectedCategoryFilter} />
+          <CategoryBrowser
+            categories={categoryContext.categories}
+            activeCategory={selectedCategoryFilter}
+            onCategory={(value) => updateViewState({ selectedCategoryFilter: value, page: 1 })}
+          />
         )}
         <SourceAppGrid
           apps={pagedSourceApps}
@@ -236,11 +255,11 @@ export function ClientCatalog({
           <XPagination
             className="list-pagination"
             page={currentPage}
-            onChange={setPage}
+            onChange={(value) => updateViewState({ page: value })}
             totalItems={filteredSourceApps.length}
             pageSize={pageSize}
             pageSizeOptions={PAGE_SIZE_OPTIONS}
-            onPageSizeChange={setPageSize}
+            onPageSizeChange={(value) => updateViewState({ page: 1, pageSize: value })}
             variant="pages"
             size="sm"
             label={t('pagination.label')}

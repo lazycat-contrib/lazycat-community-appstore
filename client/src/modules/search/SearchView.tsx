@@ -1,7 +1,8 @@
-import type { Category, ClientSourceStats, InstalledApplication, InstallOptions, SortMode, SourceApp, SourceSubscription, StoreApp } from '../../shared/types';
+import type { Dispatch, SetStateAction } from 'react';
+import type { Category, ClientSourceStats, InstalledApplication, InstallOptions, SourceApp, SourceSubscription, StoreApp } from '../../shared/types';
 import type { AppDetailMode } from '../storefront/AppDrawer';
-import { ClientCatalog } from '../client/ClientCatalog';
-import { StorefrontSearch } from '../storefront/StorefrontSearch';
+import { ClientCatalog, type ClientCatalogViewState } from '../client/ClientCatalog';
+import { StorefrontSearch, type StorefrontSearchViewState } from '../storefront/StorefrontSearch';
 
 export function SearchView({
   apps,
@@ -9,42 +10,42 @@ export function SearchView({
   sources,
   categories,
   submitters,
-  activeCategory,
   tagOptions,
-  sortMode,
   mode,
   lazycatInstall,
   sourceStats,
   installedApps,
-  onCategory,
-  onSortMode,
   onOpen,
   onOpenSource,
   onInstall,
   onGoSources,
   defaultPageSize,
   activeInstallKey,
+  clientCatalogState,
+  onClientCatalogStateChange,
+  storefrontSearchState,
+  onStorefrontSearchStateChange,
 }: {
   apps: StoreApp[];
   sourceApps: SourceApp[];
   sources: SourceSubscription[];
   categories: Category[];
   submitters: string[];
-  activeCategory: string;
   tagOptions: string[];
-  sortMode: SortMode;
   mode: 'server' | 'client';
   lazycatInstall: boolean;
   sourceStats: ClientSourceStats;
   installedApps: InstalledApplication[];
-  onCategory: (category: string) => void;
-  onSortMode: (mode: SortMode) => void;
   onOpen: (app: StoreApp, mode?: AppDetailMode) => void;
   onOpenSource: (app: SourceApp) => void;
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
   defaultPageSize: number;
   activeInstallKey?: string;
+  clientCatalogState: ClientCatalogViewState;
+  onClientCatalogStateChange: Dispatch<SetStateAction<ClientCatalogViewState>>;
+  storefrontSearchState: StorefrontSearchViewState;
+  onStorefrontSearchStateChange: Dispatch<SetStateAction<StorefrontSearchViewState>>;
 }) {
 
   if (mode === 'client') {
@@ -59,6 +60,8 @@ export function SearchView({
         onGoSources={onGoSources}
         defaultPageSize={defaultPageSize}
         activeInstallKey={activeInstallKey}
+        viewState={clientCatalogState}
+        onViewStateChange={onClientCatalogStateChange}
       />
     );
   }
@@ -68,15 +71,13 @@ export function SearchView({
       apps={apps}
       categories={categories}
       submitters={submitters}
-      activeCategory={activeCategory}
       tagOptions={tagOptions}
-      sortMode={sortMode}
-      onCategory={onCategory}
-      onSortMode={onSortMode}
       onOpen={onOpen}
       onInstall={onInstall}
       lazycatInstall={lazycatInstall}
       defaultPageSize={defaultPageSize}
+      viewState={storefrontSearchState}
+      onViewStateChange={onStorefrontSearchStateChange}
     />
   );
 }

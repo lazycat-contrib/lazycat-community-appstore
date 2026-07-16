@@ -36,6 +36,8 @@ client/dist/
 client/tsconfig.tsbuildinfo
 lazycat/client/content/
 lazycat/server/content/
+lazycat/client/dist/
+lazycat/server/dist/
 web/dist/*
 !web/dist/README.md
 

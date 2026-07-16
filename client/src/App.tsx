@@ -58,7 +58,6 @@ import type {
   SetupStatus,
   SiteProfile,
   SiteAd,
-  SortMode,
   SourceApp,
   SourceInput,
   SourceSubscription,
@@ -96,7 +95,9 @@ import { UserAvatar } from './components/AppIcon';
 import { EmptyState, SectionTitle } from './shared/components/Feedback';
 import { ModalLayer } from './shared/components/ModalLayer';
 import { useChatEntryActions } from './modules/chat/useChatEntryActions';
+import type { ClientCatalogViewState } from './modules/client/ClientCatalog';
 import type { AppDetailMode } from './modules/storefront/AppDrawer';
+import type { StorefrontSearchViewState } from './modules/storefront/StorefrontSearch';
 import { StorefrontHome } from './modules/storefront/StorefrontHome';
 import { buildNavItems, type TabKey } from './modules/shell/navigation';
 
@@ -229,11 +230,23 @@ export function App() {
   const [reviewPagination, setReviewPagination] = useState<PaginationMeta>(DEFAULT_REVIEW_PAGINATION);
   const [user, setUser] = useState<User | null>(null);
   const [storageOptions, setStorageOptions] = useState<StorageOption[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [sortMode, setSortMode] = useState<SortMode>('recent');
+  const [storefrontSearchState, setStorefrontSearchState] = useState<StorefrontSearchViewState>({
+    filters: [],
+    activeCategory: 'all',
+    sortMode: 'recent',
+    page: 1,
+    pageSize: DEFAULT_CLIENT_PAGE_SIZE,
+  });
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
   const [selectedAppMode, setSelectedAppMode] = useState<AppDetailMode>('detail');
   const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
+  const [clientCatalogState, setClientCatalogState] = useState<ClientCatalogViewState>({
+    filters: [],
+    selectedCategoryFilter: 'all',
+    sortMode: 'default',
+    page: 1,
+    pageSize: DEFAULT_CLIENT_PAGE_SIZE,
+  });
   const [sources, setSources] = useState<SourceSubscription[]>([]);
   const [clientAuth, setClientAuth] = useState<ClientAuthStatus>(DEFAULT_CLIENT_AUTH);
   const [clientAuthLoaded, setClientAuthLoaded] = useState(false);
@@ -1493,9 +1506,9 @@ export function App() {
                 onInstall={installApp}
                 onNavigate={navigateTo}
                 onSubmitApp={openSubmitApp}
-                activeCategory={activeCategory}
+                activeCategory={storefrontSearchState.activeCategory}
                 onCategory={(category) => {
-                  setActiveCategory(category);
+                  setStorefrontSearchState((current) => ({ ...current, activeCategory: category, page: 1 }));
                   navigateTo('search');
                 }}
                 isAuthenticated={Boolean(user)}
@@ -1509,21 +1522,21 @@ export function App() {
                 sources={sources}
                 categories={categories}
                 submitters={submitters}
-                activeCategory={activeCategory}
                 tagOptions={tagOptions}
-                sortMode={sortMode}
                 mode={HAS_API ? 'server' : 'client'}
                 lazycatInstall={runtimeCapabilities.lazycatInstall}
                 sourceStats={sourceStats}
                 installedApps={HAS_API ? [] : installedApps}
-                onCategory={setActiveCategory}
-                onSortMode={setSortMode}
                 onOpen={openApp}
                 onOpenSource={setSelectedSourceApp}
                 onInstall={installApp}
                 onGoSources={() => navigateTo('sources')}
                 defaultPageSize={HAS_API ? siteProfile.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE : clientSettings.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE}
 				activeInstallKey={installActivity?.status === 'running' ? installActivity.appKey : undefined}
+                clientCatalogState={clientCatalogState}
+                onClientCatalogStateChange={setClientCatalogState}
+                storefrontSearchState={storefrontSearchState}
+                onStorefrontSearchStateChange={setStorefrontSearchState}
               />
             )}
             {tab === 'chat' && (

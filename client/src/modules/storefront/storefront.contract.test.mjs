@@ -157,8 +157,26 @@ test('search keeps current conditions visible and offers one empty-state recover
   assert.match(search, /className="catalog-result-summary" role="status" aria-live="polite"/);
   assert.match(search, /function clearSearch\(\)/);
   assert.match(search, /action: hasActiveFilters/);
-  assert.match(search, /setFilters\(\[\]\)/);
-  assert.match(search, /onCategory\('all'\)/);
+  assert.match(search, /updateViewState\(\{ activeCategory: 'all', filters: \[\], page: 1 \}\)/);
+});
+
+test('server storefront browsing state survives opening and closing app details', async () => {
+  const [app, searchView, search] = await Promise.all([
+    source('../../App.tsx'),
+    source('../search/SearchView.tsx'),
+    source('./StorefrontSearch.tsx'),
+  ]);
+
+  assert.match(app, /useState<StorefrontSearchViewState>/);
+  assert.match(app, /storefrontSearchState=\{storefrontSearchState\}/);
+  assert.match(app, /onStorefrontSearchStateChange=\{setStorefrontSearchState\}/);
+  assert.match(searchView, /storefrontSearchState: StorefrontSearchViewState/);
+  assert.match(searchView, /onStorefrontSearchStateChange: Dispatch<SetStateAction<StorefrontSearchViewState>>/);
+  assert.match(search, /viewState: StorefrontSearchViewState/);
+  assert.match(search, /onViewStateChange: Dispatch<SetStateAction<StorefrontSearchViewState>>/);
+  assert.doesNotMatch(search, /const \[filters, setFilters\] = useState/);
+  assert.doesNotMatch(search, /const \[page, setPage\] = useState\(1\)/);
+  assert.doesNotMatch(search, /const \[pageSize, setPageSize\] = useState/);
 });
 
 test('category browser renders child navigation in the default all state', async () => {

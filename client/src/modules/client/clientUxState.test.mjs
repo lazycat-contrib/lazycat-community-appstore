@@ -72,6 +72,24 @@ test('client catalog exposes the recently updated sort option', async () => {
   assert.match(catalog, /sortClientCatalogApps\(filtered, sortMode, localizedAppName\)/);
 });
 
+test('client catalog browsing state survives opening and closing app details', async () => {
+  const [app, searchView, catalog] = await Promise.all([
+    source('../../App.tsx'),
+    source('../search/SearchView.tsx'),
+    source('./ClientCatalog.tsx'),
+  ]);
+
+  assert.match(app, /useState<ClientCatalogViewState>/);
+  assert.match(app, /clientCatalogState=\{clientCatalogState\}/);
+  assert.match(app, /onClientCatalogStateChange=\{setClientCatalogState\}/);
+  assert.match(searchView, /clientCatalogState: ClientCatalogViewState/);
+  assert.match(searchView, /onClientCatalogStateChange: Dispatch<SetStateAction<ClientCatalogViewState>>/);
+  assert.match(catalog, /viewState: ClientCatalogViewState/);
+  assert.match(catalog, /onViewStateChange: Dispatch<SetStateAction<ClientCatalogViewState>>/);
+  assert.doesNotMatch(catalog, /const \[page, setPage\] = useState\(1\)/);
+  assert.doesNotMatch(catalog, /const \[pageSize, setPageSize\] = useState/);
+});
+
 test('installed app automatic update policy defaults to enabled', () => {
   assert.deepEqual(autoUpdatePolicyPresentation(undefined), { enabled: true, state: 'automatic' });
   assert.deepEqual(autoUpdatePolicyPresentation(false), { enabled: false, state: 'manualOnly' });

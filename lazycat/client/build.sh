@@ -6,6 +6,8 @@ ROOT_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)
 CONTENT_DIR="$SCRIPT_DIR/content"
 EMBED_DIST_DIR="$ROOT_DIR/clientembed/dist"
 PACKAGE_VERSION=$(awk '/^version:/ { print $2; exit }' "$SCRIPT_DIR/package.yml")
+TARGET_OS=${LAZYCAT_TARGET_OS:-linux}
+TARGET_ARCH=${LAZYCAT_TARGET_ARCH:-amd64}
 
 rm -rf "$CONTENT_DIR" "$EMBED_DIST_DIR"
 mkdir -p "$CONTENT_DIR/lazycat-injects" "$EMBED_DIST_DIR" "$ROOT_DIR/dist"
@@ -37,4 +39,4 @@ fs.writeFileSync(
 NODE
 
 cd "$ROOT_DIR"
-CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X lazycat.community/appstore/internal/buildinfo.Version=$PACKAGE_VERSION" -o "$CONTENT_DIR/store-client" ./cmd/store-client
+CGO_ENABLED=0 GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" go build -trimpath -ldflags="-s -w -X lazycat.community/appstore/internal/buildinfo.Version=$PACKAGE_VERSION" -o "$CONTENT_DIR/store-client" ./cmd/store-client

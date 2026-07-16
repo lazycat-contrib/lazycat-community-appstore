@@ -1,0 +1,36 @@
+version: 1
+
+project:
+  root: lazycat/server
+  build_config: lzc-build.yml
+  package_file: package.yml
+  output: dist/lazycat-community-appstore-server.lpk
+  target_arch: amd64
+
+update:
+  strategy: publish
+  allow_downgrade: false
+  version_source:
+    type: git
+
+build:
+  toolchains:
+    - kind: go
+      version: 1.26.4
+    - kind: node
+      version: "24"
+  run_buildscript: true
+
+images: []
+
+stores:
+  official:
+    enabled: false
+    skip_if_version_exists: false
+    retry:
+      enabled: false
+  private:
+    enabled: true
+    skip_if_version_exists: true
+    name: 喵喵私有商店服务端
+    summary: 由 GitHub Actions 自动构建并发布。
