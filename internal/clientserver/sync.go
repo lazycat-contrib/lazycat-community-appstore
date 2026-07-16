@@ -38,6 +38,7 @@ type feedApp struct {
 	Slug             string                   `json:"slug"`
 	Summary          string                   `json:"summary"`
 	SummaryI18n      map[string]string        `json:"summaryI18n"`
+	UpdatedAt        string                   `json:"updatedAt"`
 	DescriptionI18n  map[string]string        `json:"descriptionI18n"`
 	Author           string                   `json:"author"`
 	Homepage         string                   `json:"homepage"`
@@ -390,6 +391,15 @@ type sourceAppCacheRow struct {
 	ScreenshotsJSON     string
 	LatestVersionJSON   string
 	VersionsJSON        string
+	UpdatedAt           time.Time
+}
+
+func sourceAppUpdatedAt(raw string) time.Time {
+	value, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(raw))
+	if err != nil {
+		return time.Unix(0, 0).UTC()
+	}
+	return value.UTC()
 }
 
 func buildSourceAppCacheRow(app feedApp) (sourceAppCacheRow, error) {
@@ -442,6 +452,7 @@ func buildSourceAppCacheRow(app feedApp) (sourceAppCacheRow, error) {
 		ScreenshotsJSON:     screenshotsJSON,
 		LatestVersionJSON:   versionJSON,
 		VersionsJSON:        versionsJSON,
+		UpdatedAt:           sourceAppUpdatedAt(app.UpdatedAt),
 	}, nil
 }
 
@@ -470,7 +481,8 @@ func sourceAppCreateBuilder(tx *ent.Tx, sourceID int, row sourceAppCacheRow) *en
 		SetOutdatedMarks(row.OutdatedMarks).
 		SetScreenshotsJSON(row.ScreenshotsJSON).
 		SetLatestVersionJSON(row.LatestVersionJSON).
-		SetVersionsJSON(row.VersionsJSON)
+		SetVersionsJSON(row.VersionsJSON).
+		SetUpdatedAt(row.UpdatedAt)
 }
 
 func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) (sourceFeedFetch, error) {

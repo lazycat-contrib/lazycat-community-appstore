@@ -143,6 +143,7 @@ type SourceAppDTO struct {
 	Screenshots      []catalogmeta.Screenshot `json:"screenshots,omitempty"`
 	LatestVersion    *VersionDTO              `json:"latestVersion,omitempty"`
 	Versions         []VersionDTO             `json:"versions,omitempty"`
+	UpdatedAt        time.Time                `json:"updatedAt"`
 }
 
 type SyncAllResult struct {

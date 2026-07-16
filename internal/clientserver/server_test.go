@@ -289,6 +289,27 @@ func TestAutoSyncDueUsesLastRunAndInterval(t *testing.T) {
 	}
 }
 
+func TestSourceAppUpdatedAt(t *testing.T) {
+	epoch := time.Unix(0, 0).UTC()
+	tests := []struct {
+		name string
+		raw  string
+		want time.Time
+	}{
+		{name: "valid", raw: "2026-07-15T05:04:03.123Z", want: time.Date(2026, 7, 15, 5, 4, 3, 123000000, time.UTC)},
+		{name: "missing", want: epoch},
+		{name: "invalid", raw: "yesterday", want: epoch},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sourceAppUpdatedAt(tt.raw); !got.Equal(tt.want) {
+				t.Fatalf("sourceAppUpdatedAt(%q) = %s, want %s", tt.raw, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	var feed *httptest.Server
 	feed = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -311,6 +332,7 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 				"name":            "Notes",
 				"slug":            "notes",
 				"summary":         "Write notes",
+				"updatedAt":       "2026-07-15T05:04:03Z",
 				"author":          "LazyCat Community",
 				"homepage":        "https://example.com/notes",
 				"license":         "MIT",
@@ -363,6 +385,13 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	body := apps.Body.String()
 	if !strings.Contains(body, `"packageId":"cloud.lazycat.app.notes"`) || !strings.Contains(body, `"author":"LazyCat Community"`) || !strings.Contains(body, `"homepage":"https://example.com/notes"`) || !strings.Contains(body, `"license":"MIT"`) || !strings.Contains(body, `"minOSVersion":"1.3.0"`) || !strings.Contains(body, `"categoryId":2`) || !strings.Contains(body, `"iconUrl":"`+feed.URL+`/icons/notes.png"`) || !strings.Contains(body, `"commentsEnabled":false`) || strings.Contains(body, "https://ghproxy.example/https://github.com/org/notes") || !strings.Contains(body, `"version":"1.0.0"`) || !strings.Contains(body, `"changelog":"Fix sync and polish UI"`) {
 		t.Fatalf("cached app should keep original download URL: %s", body)
+	}
+	if !strings.Contains(body, `"updatedAt":"2026-07-15T05:04:03Z"`) {
+		t.Fatalf("cached app did not expose source update time: %s", body)
+	}
+	record := app.server.db.ClientSourceApp.Query().OnlyX(t.Context())
+	if got := record.UpdatedAt.UTC().Format(time.RFC3339); got != "2026-07-15T05:04:03Z" {
+		t.Fatalf("cached update time = %q", got)
 	}
 	sources := app.request("GET", "/api/client/v1/sources", ``, "alice")
 	mirrorID := mirror.ID(mirror.KindDownload, "https://ghproxy.example/https://github.com")

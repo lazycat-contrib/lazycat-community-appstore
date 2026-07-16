@@ -157,5 +157,6 @@ func sourceAppDTO(app *ent.ClientSourceApp) (SourceAppDTO, error) {
 		Screenshots:      screenshots,
 		LatestVersion:    version,
 		Versions:         versions,
+		UpdatedAt:        app.UpdatedAt,
 	}, nil
 }
