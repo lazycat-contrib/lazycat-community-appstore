@@ -32,9 +32,9 @@ import {
   sourceAppCategoryOptions,
   sourceAppSourceOptions,
 } from './sourceAppFilters';
+import { sortClientCatalogApps, type ClientCatalogSortMode } from './clientUxState';
 
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
-type ClientCatalogSortMode = 'default' | 'name' | 'source';
 
 export function ClientCatalog({
   sourceApps,
@@ -121,15 +121,8 @@ export function ClientCatalog({
       if (!matchesSourceAppCategory(app, selectedCategoryFilter, hasStructuredCategories ? categoryContext : undefined)) return false;
       return true;
     });
-    return [...filtered].sort((a, b) => {
-      if (sortMode === 'name') return localizedAppName(a).localeCompare(localizedAppName(b));
-      if (sortMode === 'source') {
-        const sourceDelta = a.sourceName.localeCompare(b.sourceName);
-        return sourceDelta !== 0 ? sourceDelta : localizedAppName(a).localeCompare(localizedAppName(b));
-      }
-      return sourceApps.indexOf(a) - sourceApps.indexOf(b);
-    });
-  }, [categoryContext, hasStructuredCategories, searchedSourceApps, selectedCategoryFilter, sortMode, sourceApps]);
+    return sortClientCatalogApps(filtered, sortMode, localizedAppName);
+  }, [categoryContext, hasStructuredCategories, searchedSourceApps, selectedCategoryFilter, sortMode]);
   const totalPages = Math.max(1, Math.ceil(filteredSourceApps.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedSourceApps = useMemo(() => {
@@ -205,6 +198,7 @@ export function ClientCatalog({
             value={sortMode}
             options={[
               { value: 'default', label: t('search.defaultOrder') },
+              { value: 'recent', label: t('search.recent') },
               { value: 'name', label: t('search.name') },
               { value: 'source', label: t('search.sourceName') },
             ]}

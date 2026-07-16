@@ -5,6 +5,37 @@ export function autoUpdatePolicyPresentation(value?: boolean) {
   return { enabled, state: enabled ? 'automatic' : 'manualOnly' } as const;
 }
 
+export type ClientCatalogSortMode = 'default' | 'recent' | 'name' | 'source';
+
+type SortableSourceApp = {
+  sourceName: string;
+  updatedAt?: string;
+};
+
+function sourceAppUpdatedAtMillis(value?: string) {
+  const timestamp = Date.parse(value || '');
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+export function sortClientCatalogApps<T extends SortableSourceApp>(
+  apps: T[],
+  mode: ClientCatalogSortMode,
+  displayName: (app: T) => string,
+) {
+  if (mode === 'default') return [...apps];
+  return [...apps].sort((a, b) => {
+    if (mode === 'recent') {
+      const timeDelta = sourceAppUpdatedAtMillis(b.updatedAt) - sourceAppUpdatedAtMillis(a.updatedAt);
+      if (timeDelta !== 0) return timeDelta;
+    }
+    if (mode === 'source') {
+      const sourceDelta = a.sourceName.localeCompare(b.sourceName);
+      if (sourceDelta !== 0) return sourceDelta;
+    }
+    return displayName(a).localeCompare(displayName(b));
+  });
+}
+
 export type InstalledRuntimeStatusKey = 'running' | 'stopped' | 'paused' | 'processing' | 'error' | 'unknown';
 
 export function installedRuntimeStatusPresentation(value?: string): { key: InstalledRuntimeStatusKey; raw: string } {

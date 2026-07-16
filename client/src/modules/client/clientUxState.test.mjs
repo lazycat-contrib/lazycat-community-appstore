@@ -14,6 +14,7 @@ import {
   normalizeEditableClientSettings,
   normalizeAutomationSettings,
   sameEditableClientSettings,
+  sortClientCatalogApps,
 } from './clientUxState.ts';
 
 async function source(relativePath) {
@@ -44,6 +45,31 @@ test('install options dialog consumes a shared mirror config', async () => {
   assert.match(dialog, /applicableMirrorsForVersion\(mirrorConfig, version\)/);
   assert.match(dialog, /defaultMirrorIDForVersion\(mirrorConfig, version\)/);
   assert.doesNotMatch(dialog, /source\?: SourceSubscription/);
+});
+
+test('client catalog recent sorting uses source update time and stable name fallback', () => {
+  const apps = [
+    { id: 1, name: 'Missing', sourceName: 'B' },
+    { id: 2, name: 'Beta', sourceName: 'A', updatedAt: '2026-07-15T00:00:00Z' },
+    { id: 3, name: 'Alpha', sourceName: 'B', updatedAt: '2026-07-15T00:00:00Z' },
+    { id: 4, name: 'Newest', sourceName: 'B', updatedAt: '2026-07-16T00:00:00Z' },
+    { id: 5, name: 'Invalid', sourceName: 'A', updatedAt: 'not-a-date' },
+  ];
+
+  assert.deepEqual(
+    sortClientCatalogApps(apps, 'recent', (app) => app.name).map((app) => app.id),
+    [4, 3, 2, 5, 1],
+  );
+  assert.deepEqual(sortClientCatalogApps(apps, 'default', (app) => app.name).map((app) => app.id), [1, 2, 3, 4, 5]);
+  assert.deepEqual(sortClientCatalogApps(apps, 'name', (app) => app.name).map((app) => app.id), [3, 2, 5, 1, 4]);
+  assert.deepEqual(sortClientCatalogApps(apps, 'source', (app) => app.name).map((app) => app.id), [2, 5, 3, 1, 4]);
+});
+
+test('client catalog exposes the recently updated sort option', async () => {
+  const catalog = await source('./ClientCatalog.tsx');
+
+  assert.match(catalog, /\{ value: 'recent', label: t\('search\.recent'\) \}/);
+  assert.match(catalog, /sortClientCatalogApps\(filtered, sortMode, localizedAppName\)/);
 });
 
 test('installed app automatic update policy defaults to enabled', () => {
