@@ -20,7 +20,7 @@ func TestEligibleUpdatesSkipsProtectedCurrentAndUnknownApps(t *testing.T) {
 		updateTestSourceApp{PackageID: "protected", Version: "2.0.0", InstallProtected: true},
 		updateTestSourceApp{PackageID: "current", Version: "2.0.0"},
 	)
-	candidates := eligibleUpdates([]InstalledApplicationDTO{
+	candidates, passwordRequired := eligibleUpdates([]InstalledApplicationDTO{
 		{AppID: "eligible", Version: "1.0.0"},
 		{AppID: "protected", Version: "1.0.0"},
 		{AppID: "current", Version: "2.0.0"},
@@ -28,6 +28,45 @@ func TestEligibleUpdatesSkipsProtectedCurrentAndUnknownApps(t *testing.T) {
 	}, apps, nil)
 	if len(candidates) != 1 || candidates[0].PackageID != "eligible" {
 		t.Fatalf("candidates = %#v", candidates)
+	}
+	if passwordRequired != 1 {
+		t.Fatalf("password required = %d, want 1", passwordRequired)
+	}
+}
+
+func TestUpdateQueueReportsPasswordRequiredWhenOnlyProtectedUpdatesExist(t *testing.T) {
+	app := testServer(t)
+	sourceAppsForUpdateTestOnClient(t, app.server.db, updateTestSourceApp{PackageID: "protected", Version: "2.0.0", InstallProtected: true})
+	pm := &updateQueuePackageManager{installed: []InstalledApplicationDTO{{AppID: "protected", Version: "1.0.0"}}}
+	app.server.pkg = pm
+
+	result := app.server.RunUpdateQueue(t.Context(), "alice")
+	if result.Status != "requires_password" || result.PasswordRequired != 1 {
+		t.Fatalf("result = %#v", result)
+	}
+	if pm.installCalls != 0 {
+		t.Fatalf("install calls = %d, want 0", pm.installCalls)
+	}
+}
+
+func TestUpdateQueueReportsPartialWhenProtectedUpdatesRemain(t *testing.T) {
+	app := testServer(t)
+	sourceAppsForUpdateTestOnClient(t, app.server.db,
+		updateTestSourceApp{PackageID: "eligible", Version: "2.0.0"},
+		updateTestSourceApp{PackageID: "protected", Version: "2.0.0", InstallProtected: true},
+	)
+	pm := &updateQueuePackageManager{
+		installed: []InstalledApplicationDTO{{AppID: "eligible", Version: "1.0.0"}, {AppID: "protected", Version: "1.0.0"}},
+		install:   []InstallResultDTO{{Status: "INSTALL_OK"}},
+	}
+	app.server.pkg = pm
+
+	result := app.server.RunUpdateQueue(t.Context(), "alice")
+	if result.Status != "partial" || result.PasswordRequired != 1 || len(result.Items) != 1 || result.Items[0].Status != "success" {
+		t.Fatalf("result = %#v", result)
+	}
+	if pm.installCalls != 1 {
+		t.Fatalf("install calls = %d, want 1", pm.installCalls)
 	}
 }
 
@@ -178,6 +217,48 @@ func TestAutoUpdateSchedulerUsesCachedApplications(t *testing.T) {
 	}
 	if pm.installCalls != 1 {
 		t.Fatalf("install calls = %d", pm.installCalls)
+	}
+}
+
+func TestAutoUpdateSchedulerRecordsPasswordRequiredHint(t *testing.T) {
+	app := testServer(t)
+	sourceAppsForUpdateTestOnClient(t, app.server.db, updateTestSourceApp{PackageID: "protected", Version: "2.0.0", InstallProtected: true})
+	app.server.db.ClientSyncSetting.Create().
+		SetUserID("alice").
+		SetAutoUpdateEnabled(true).
+		SetAutoUpdateIntervalMinutes(5).
+		SaveX(t.Context())
+	app.server.pkg = &updateQueuePackageManager{installed: []InstalledApplicationDTO{{AppID: "protected", Version: "1.0.0"}}}
+	scheduler := &sourceSyncScheduler{server: app.server, running: make(map[string]struct{})}
+
+	if err := scheduler.runDueAutoUpdates(t.Context(), ""); err != nil {
+		t.Fatal(err)
+	}
+	setting := app.server.db.ClientSyncSetting.Query().Where(clientsyncsetting.UserIDEQ("alice")).OnlyX(t.Context())
+	if setting.LastAutoUpdateStatus == nil || setting.LastAutoUpdateStatus.String() != "partial" {
+		t.Fatalf("auto update status = %#v", setting.LastAutoUpdateStatus)
+	}
+	if setting.LastAutoUpdateError == nil || !strings.Contains(*setting.LastAutoUpdateError, "install password") {
+		t.Fatalf("auto update error = %#v", setting.LastAutoUpdateError)
+	}
+}
+
+func TestAutoUpdateResultStatusKeepsFailureAndPasswordHints(t *testing.T) {
+	status, message := autoUpdateResultStatus(UpdateQueueResultDTO{
+		Status:           "partial",
+		PasswordRequired: 1,
+		Items:            []UpdateQueueItemDTO{{Status: "failed"}},
+	})
+	if status != clientsyncsetting.LastAutoUpdateStatusPartial {
+		t.Fatalf("status = %q", status)
+	}
+	if !strings.Contains(message, "could not be updated") || !strings.Contains(message, "install password") {
+		t.Fatalf("message = %q", message)
+	}
+
+	_, passwordOnly := autoUpdateResultStatus(UpdateQueueResultDTO{Status: "partial", PasswordRequired: 1})
+	if strings.Contains(passwordOnly, "could not be updated") || !strings.Contains(passwordOnly, "install password") {
+		t.Fatalf("password-only message = %q", passwordOnly)
 	}
 }
 

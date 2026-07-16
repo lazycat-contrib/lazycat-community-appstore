@@ -642,9 +642,10 @@ export type UpdateQueueRequest = {
 };
 
 export type UpdateQueueResult = {
-  status: 'running' | 'success' | 'partial' | 'failed' | 'cancelled' | 'no_updates' | 'already_running' | string;
+  status: 'running' | 'success' | 'partial' | 'failed' | 'cancelled' | 'requires_password' | 'no_updates' | 'already_running' | string;
   items?: UpdateQueueItem[];
   error?: string;
+  passwordRequired?: number;
 };
 
 export type ChatParticipant = {

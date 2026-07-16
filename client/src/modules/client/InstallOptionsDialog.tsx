@@ -42,6 +42,7 @@ export function InstallOptionsDialog({
   const dialogBodyId = `install-password-body-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
   const requiresPassword = app.installProtected;
   const mirrorOptions = applicableMirrorsForVersion(mirrorConfig, version);
+  const titleKey = requiresPassword && mirrorOptions.length === 0 ? 'installPassword.title' : 'installOptions.title';
   const mirrorKind = githubMirrorKindForURL(version && 'upstreamDownloadUrl' in version ? version.upstreamDownloadUrl || version.downloadUrl : version?.downloadUrl);
   const appName = localizedAppName(app);
 
@@ -108,7 +109,7 @@ export function InstallOptionsDialog({
           </span>
           <div>
             <XHeading id={dialogTitleId} level={2}>
-              {t(mirrorOptions.length > 0 ? 'installOptions.title' : 'installPassword.title')}
+              {t(titleKey)}
             </XHeading>
             <XText id={dialogBodyId} type="supporting" as="p" display="block" wordBreak="break-word">
               {requiresPassword

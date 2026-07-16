@@ -118,7 +118,7 @@ func (c *installCoordinator) cancelQueue(userID string) (taskID string, err erro
 	return operation.taskID, nil
 }
 
-func eligibleUpdates(installed []InstalledApplicationDTO, apps []*ent.ClientSourceApp, disabled map[string]struct{}) []updateCandidate {
+func eligibleUpdates(installed []InstalledApplicationDTO, apps []*ent.ClientSourceApp, disabled map[string]struct{}) ([]updateCandidate, int) {
 	installedByPackage := make(map[string]InstalledApplicationDTO, len(installed))
 	for _, item := range installed {
 		packageID := strings.ToLower(strings.TrimSpace(item.AppID))
@@ -129,8 +129,9 @@ func eligibleUpdates(installed []InstalledApplicationDTO, apps []*ent.ClientSour
 	}
 
 	candidates := make([]updateCandidate, 0)
+	passwordRequired := 0
 	for _, app := range apps {
-		if app == nil || app.InstallProtected {
+		if app == nil {
 			continue
 		}
 		packageID := strings.TrimSpace(app.PackageID)
@@ -148,6 +149,10 @@ func eligibleUpdates(installed []InstalledApplicationDTO, apps []*ent.ClientSour
 		if compareUpdateVersions(installed.Version, latest.Version) >= 0 {
 			continue
 		}
+		if app.InstallProtected {
+			passwordRequired++
+			continue
+		}
 		candidates = append(candidates, updateCandidate{
 			App:              app,
 			PackageID:        packageID,
@@ -155,7 +160,7 @@ func eligibleUpdates(installed []InstalledApplicationDTO, apps []*ent.ClientSour
 			Version:          latest,
 		})
 	}
-	return candidates
+	return candidates, passwordRequired
 }
 
 func cachedLatestVersion(app *ent.ClientSourceApp) (VersionDTO, bool) {
@@ -303,6 +308,7 @@ func (s *Server) RunUpdateQueueWithOptions(ctx context.Context, userID string, o
 		return UpdateQueueResultDTO{Status: "failed", Error: err.Error()}
 	}
 	var candidates []updateCandidate
+	passwordRequired := 0
 	if options.Candidates != nil {
 		candidates, err = s.resolveRequestedUpdateCandidates(ctx, userID, installed, options.Candidates)
 		if err != nil {
@@ -324,13 +330,16 @@ func (s *Server) RunUpdateQueueWithOptions(ctx context.Context, userID string, o
 				return UpdateQueueResultDTO{Status: "failed", Error: err.Error()}
 			}
 		}
-		candidates = eligibleUpdates(installed, apps, disabled)
+		candidates, passwordRequired = eligibleUpdates(installed, apps, disabled)
 	}
 	if len(candidates) == 0 {
+		if passwordRequired > 0 {
+			return UpdateQueueResultDTO{Status: "requires_password", PasswordRequired: passwordRequired}
+		}
 		return UpdateQueueResultDTO{Status: "no_updates"}
 	}
 
-	result := UpdateQueueResultDTO{Status: "running", Items: make([]UpdateQueueItemDTO, len(candidates))}
+	result := UpdateQueueResultDTO{Status: "running", Items: make([]UpdateQueueItemDTO, len(candidates)), PasswordRequired: passwordRequired}
 	for index, candidate := range candidates {
 		result.Items[index] = updateQueueItem(candidate, "queued", "")
 	}
@@ -353,6 +362,9 @@ func (s *Server) RunUpdateQueueWithOptions(ctx context.Context, userID string, o
 		s.installCoordinator.publish(userID, operation, result)
 	}
 	result.Status = updateQueueResultStatus(result.Items)
+	if result.Status == "success" && result.PasswordRequired > 0 {
+		result.Status = "partial"
+	}
 	s.installCoordinator.publish(userID, operation, result)
 	return result
 }

@@ -96,6 +96,7 @@ import { EmptyState, SectionTitle } from './shared/components/Feedback';
 import { ModalLayer } from './shared/components/ModalLayer';
 import { useChatEntryActions } from './modules/chat/useChatEntryActions';
 import type { ClientCatalogViewState } from './modules/client/ClientCatalog';
+import { requiresInstallOptions } from './modules/client/clientUxState';
 import type { AppDetailMode } from './modules/storefront/AppDrawer';
 import type { StorefrontSearchViewState } from './modules/storefront/StorefrontSearch';
 import { StorefrontHome } from './modules/storefront/StorefrontHome';
@@ -953,9 +954,14 @@ export function App() {
       setToast({ tone: 'error', message: t('toast.noInstallableVersion') });
 	  return;
     }
-    const needsPassword = app.installProtected && !options.installPassword;
-    const serverMirrorOptions = isSourceApp ? [] : applicableMirrorsForVersion(serverInstallMirrorConfig, version);
-    if (needsPassword || (!options.confirmed && (isSourceApp || serverMirrorOptions.length > 0))) {
+    const installMirrorConfig = isSourceApp ? sourceForApp(app, sources) : serverInstallMirrorConfig;
+    const mirrorOptions = applicableMirrorsForVersion(installMirrorConfig, version);
+    if (requiresInstallOptions({
+      installProtected: app.installProtected,
+      installPassword: options.installPassword,
+      mirrorOptionCount: mirrorOptions.length,
+      confirmed: options.confirmed,
+    })) {
       setInstallPasswordRequest({ app, version: version.version });
 	  return;
     }

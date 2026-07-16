@@ -223,11 +223,21 @@ export function InstalledAppsView({
           <span>{installedError}</span>
         </p>
       )}
+	  {updateConfirmation.skipped.length > 0 && (
+		<p className="inline-alert" role="status">
+		  <AlertCircle size={15} />
+		  <span>{t('updateQueue.protectedPending', { count: updateConfirmation.skipped.length })}</span>
+		</p>
+	  )}
 	  {updateQueueResult && (
 		<aside className={cx('update-queue-summary', `is-${updateQueueResult.status}`)} aria-live="polite">
 		  <div>
 			<strong>{t(`updateQueue.result.${updateQueueResult.status}`)}</strong>
-			<span>{updateQueueResult.error || (updateQueueResult.status === 'running' && updateItems.length === 0 ? t('updateQueue.checkingSources') : t('updateQueue.summary', { count: updateItems.length }))}</span>
+			<span>{updateQueueResult.error || (updateQueueResult.status === 'running' && updateItems.length === 0
+			  ? t('updateQueue.checkingSources')
+			  : updateQueueResult.passwordRequired
+				? t('updateQueue.passwordRequired', { count: updateQueueResult.passwordRequired })
+				: t('updateQueue.summary', { count: updateItems.length }))}</span>
 		  </div>
 		  {updateItems.length > 0 && (
 			<small>{Object.entries(updateSummary).map(([status, count]) => t('updateQueue.itemCount', { status: t(`updateQueue.itemStates.${status}`), count })).join(' · ')}</small>

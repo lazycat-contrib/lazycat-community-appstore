@@ -320,22 +320,40 @@ func (s *sourceSyncScheduler) recordAutoSyncResult(ctx context.Context, userID s
 
 func autoUpdateResultStatus(queueResult UpdateQueueResultDTO) (clientsyncsetting.LastAutoUpdateStatus, string) {
 	message := strings.TrimSpace(queueResult.Error)
+	failedItems := 0
+	for _, item := range queueResult.Items {
+		if item.Status == "failed" {
+			failedItems++
+		}
+	}
+	var status clientsyncsetting.LastAutoUpdateStatus
 	switch queueResult.Status {
 	case "failed":
 		if message == "" {
 			message = "automatic update queue failed"
 		}
-		return clientsyncsetting.LastAutoUpdateStatusFailed, message
+		status = clientsyncsetting.LastAutoUpdateStatusFailed
 	case "partial":
-		if message == "" {
+		if message == "" && (failedItems > 0 || queueResult.PasswordRequired == 0) {
 			message = "some applications could not be updated"
 		}
-		return clientsyncsetting.LastAutoUpdateStatusPartial, message
+		status = clientsyncsetting.LastAutoUpdateStatusPartial
+	case "requires_password":
+		status = clientsyncsetting.LastAutoUpdateStatusPartial
 	case "already_running", "no_updates", "cancelled":
-		return clientsyncsetting.LastAutoUpdateStatusSkipped, message
+		status = clientsyncsetting.LastAutoUpdateStatusSkipped
 	default:
-		return clientsyncsetting.LastAutoUpdateStatusSuccess, message
+		status = clientsyncsetting.LastAutoUpdateStatusSuccess
 	}
+	if queueResult.PasswordRequired > 0 {
+		passwordMessage := fmt.Sprintf("%d application updates require an install password and must be installed manually", queueResult.PasswordRequired)
+		if message == "" {
+			message = passwordMessage
+		} else {
+			message += "; " + passwordMessage
+		}
+	}
+	return status, message
 }
 
 func (s *sourceSyncScheduler) recordAutoUpdateResult(ctx context.Context, userID string, status clientsyncsetting.LastAutoUpdateStatus, message string) error {

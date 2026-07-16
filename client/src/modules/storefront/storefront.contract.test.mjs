@@ -141,8 +141,10 @@ test('server app loads LazyCat capability and keeps install payload server-deriv
   assert.match(app, /useState<RuntimeCapabilities>\(\{ lazycatInstall: false, githubMirrors: \[\] \}\)/);
   assert.match(app, /api<RuntimeCapabilities>\('\/api\/v1\/runtime\/capabilities'\)/);
   assert.match(app, /const serverInstallMirrorConfig = useMemo<InstallMirrorConfig>/);
-  assert.match(app, /applicableMirrorsForVersion\(serverInstallMirrorConfig, version\)/);
-  assert.match(app, /serverMirrorOptions\.length > 0/);
+  assert.match(app, /const installMirrorConfig = isSourceApp \? sourceForApp\(app, sources\) : serverInstallMirrorConfig/);
+  assert.match(app, /applicableMirrorsForVersion\(installMirrorConfig, version\)/);
+  assert.match(app, /requiresInstallOptions\(\{/);
+  assert.doesNotMatch(app, /isSourceApp \|\| serverMirrorOptions\.length > 0/);
   assert.match(app, /`\/api\/v1\/apps\/\$\{app\.id\}\/versions\/\$\{\(version as Version\)\.id\}\/install`/);
   assert.match(app, /body: JSON\.stringify\(\{[\s\S]*installPassword: options\.installPassword \|\| '',[\s\S]*mirrorId: options\.mirrorId \|\| '',[\s\S]*\}\)/);
   assert.match(app, /window\.open\(withInstallPassword\(downloadUrl, options\.installPassword\)/);

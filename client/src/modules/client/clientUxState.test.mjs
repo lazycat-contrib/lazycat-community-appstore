@@ -13,6 +13,7 @@ import {
 	inspectionPresentation,
   normalizeEditableClientSettings,
   normalizeAutomationSettings,
+  requiresInstallOptions,
   sameEditableClientSettings,
   sortClientCatalogApps,
 } from './clientUxState.ts';
@@ -243,6 +244,14 @@ test('bulk update candidate snapshot matches the visible confirmation rows', () 
     { item: { appid: 'first', version: '1.0.0' }, source: { id: 11, sourceId: 2, packageId: 'first', latestVersion: { version: '2.0.0' } } },
     { item: { appid: 'protected', version: '1.0.0' }, source: { id: 12, sourceId: 2, packageId: 'protected', installProtected: true, latestVersion: { version: '2.0.0' } } },
   ]), [{ appId: 11, sourceId: 2, packageId: 'first', installedVersion: '1.0.0', targetVersion: '2.0.0' }]);
+});
+
+test('install options open only when the dialog has a password or mirror control', () => {
+  assert.equal(requiresInstallOptions({ installProtected: false, mirrorOptionCount: 0 }), false);
+  assert.equal(requiresInstallOptions({ installProtected: true, mirrorOptionCount: 0 }), true);
+  assert.equal(requiresInstallOptions({ installProtected: false, mirrorOptionCount: 1 }), true);
+  assert.equal(requiresInstallOptions({ installProtected: false, mirrorOptionCount: 1, confirmed: true }), false);
+  assert.equal(requiresInstallOptions({ installProtected: true, installPassword: 'secret', mirrorOptionCount: 0 }), false);
 });
 
 test('automatic updates require source sync and a fresh-enough sync interval', () => {

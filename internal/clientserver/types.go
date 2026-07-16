@@ -229,9 +229,10 @@ type UpdateQueueRequestDTO struct {
 }
 
 type UpdateQueueResultDTO struct {
-	Status string               `json:"status"`
-	Items  []UpdateQueueItemDTO `json:"items,omitempty"`
-	Error  string               `json:"error,omitempty"`
+	Status           string               `json:"status"`
+	Items            []UpdateQueueItemDTO `json:"items,omitempty"`
+	Error            string               `json:"error,omitempty"`
+	PasswordRequired int                  `json:"passwordRequired,omitempty"`
 }
 
 type PackageManager interface {

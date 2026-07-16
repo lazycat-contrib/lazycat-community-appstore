@@ -5,6 +5,21 @@ export function autoUpdatePolicyPresentation(value?: boolean) {
   return { enabled, state: enabled ? 'automatic' : 'manualOnly' } as const;
 }
 
+export function requiresInstallOptions({
+  installProtected,
+  installPassword,
+  mirrorOptionCount,
+  confirmed = false,
+}: {
+  installProtected?: boolean;
+  installPassword?: string;
+  mirrorOptionCount: number;
+  confirmed?: boolean;
+}) {
+  if (installProtected && !installPassword?.trim()) return true;
+  return !confirmed && mirrorOptionCount > 0;
+}
+
 export type ClientCatalogSortMode = 'default' | 'recent' | 'name' | 'source';
 
 type SortableSourceApp = {
