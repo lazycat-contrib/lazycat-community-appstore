@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientsetting"
@@ -12,7 +13,7 @@ import (
 )
 
 const (
-	currentClientSchemaVersion = 2
+	currentClientSchemaVersion = 3
 	systemClientUserID         = "_system"
 	settingClientSchemaVersion = "schema_version"
 )
@@ -33,6 +34,14 @@ func migrateSchema(ctx context.Context, db *ent.Client) error {
 	}
 	if version < 2 {
 		if err := setSystemClientSetting(ctx, db, settingClientSchemaVersion, "2"); err != nil {
+			return err
+		}
+	}
+	if version < 3 {
+		if err := server.invalidateLegacySourceUpdateTimes(ctx); err != nil {
+			return err
+		}
+		if err := setSystemClientSetting(ctx, db, settingClientSchemaVersion, "3"); err != nil {
 			return err
 		}
 	}
@@ -65,6 +74,14 @@ func setSystemClientSetting(ctx context.Context, db *ent.Client, key, value stri
 		return err
 	}
 	_, err = db.ClientSetting.Create().SetUserID(systemClientUserID).SetKey(key).SetValue(value).Save(ctx)
+	return err
+}
+
+func (s *Server) invalidateLegacySourceUpdateTimes(ctx context.Context) error {
+	if _, err := s.db.ClientSourceApp.Update().SetUpdatedAt(time.Unix(0, 0).UTC()).Save(ctx); err != nil {
+		return err
+	}
+	_, err := s.db.ClientSource.Update().SetLastEtag("").Save(ctx)
 	return err
 }
 

@@ -15,6 +15,7 @@
 - Do not add download count fields or download-period sorting.
 - Do not change the public source feed schema because `updatedAt` already exists.
 - Cache missing or invalid timestamps as the Unix epoch so they sort last.
+- Migrate legacy cache rows whose `updated_at` contains synchronization time, and clear source ETags so the next sync fetches a full snapshot.
 - Use localized app name as the deterministic tie-breaker.
 - Do not change the server package version `0.1.34` or client package version `0.1.28`.
 - Do not build an LPK artifact.
@@ -136,7 +137,51 @@ git diff --cached --check
 git commit -m "feat: preserve source app update times"
 ```
 
-### Task 2: Add deterministic recent sorting to the client catalog
+### Task 2: Invalidate legacy cached synchronization times
+
+**Files:**
+- Modify: `internal/clientserver/schema_migrations.go`
+- Test: `internal/clientserver/schema_migrations_test.go`
+
+**Interfaces:**
+- Advances `currentClientSchemaVersion` from 2 to 3.
+- Resets legacy `client_source_apps.updated_at` values to `time.Unix(0, 0).UTC()`.
+- Clears `client_sources.last_etag` so the next synchronization cannot return 304 before real timestamps are cached.
+
+- [ ] **Step 1: Write the failing schema migration test**
+
+Create a schema v2 client database containing a source with an ETag and an application whose `updated_at` contains a synchronization-time value. Run `migrateSchema` and assert that the timestamp becomes the Unix epoch, the ETag becomes empty, and the stored schema version becomes 3.
+
+- [ ] **Step 2: Confirm the old migration behavior fails**
+
+```bash
+go test ./internal/clientserver -run '^TestMigrateSchemaV3InvalidatesLegacySourceUpdateTimes$' -count=1
+```
+
+Expected: FAIL because schema version 2 currently returns without invalidating the legacy cache.
+
+- [ ] **Step 3: Implement migration v3**
+
+Advance `currentClientSchemaVersion` to 3. For databases below v3, bulk-update cached application timestamps to the Unix epoch, clear source ETags, then persist schema version 3. Keep the operations idempotent so an interrupted migration can safely retry.
+
+- [ ] **Step 4: Run the focused migration test**
+
+```bash
+gofmt -w internal/clientserver/schema_migrations.go internal/clientserver/schema_migrations_test.go
+go test ./internal/clientserver -run '^TestMigrateSchemaV3InvalidatesLegacySourceUpdateTimes$' -count=1
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit the cache compatibility migration**
+
+```bash
+git add internal/clientserver/schema_migrations.go internal/clientserver/schema_migrations_test.go docs/superpowers/specs/2026-07-16-client-recent-update-sort-design.md docs/superpowers/plans/2026-07-16-client-recent-update-sort.md
+git diff --cached --check
+git commit -m "fix: invalidate legacy source update times"
+```
+
+### Task 3: Add deterministic recent sorting to the client catalog
 
 **Files:**
 - Modify: `client/src/shared/types.ts`
@@ -237,7 +282,7 @@ npm run build --prefix client
 
 Expected: PASS.
 
-### Task 3: Refresh embedded assets, verify, commit, and push
+### Task 4: Refresh embedded assets, verify, commit, and push
 
 **Files:**
 - Modify: `clientembed/dist/**`

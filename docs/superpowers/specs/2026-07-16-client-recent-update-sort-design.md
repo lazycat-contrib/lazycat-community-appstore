@@ -25,19 +25,22 @@ The client's local `/apps` response will expose the cached timestamp as an addit
 
 ## Data flow
 
-1. The source synchronizer reads each app's existing `updatedAt` value.
-2. The client cache stores that value in the existing `client_source_apps.updated_at` column.
-3. The local app DTO returns the cached value as `updatedAt`.
-4. The React `SourceApp` type accepts the optional timestamp.
-5. The client catalog selector adds "Recently updated" and sorts timestamps from newest to oldest.
+1. Schema migration v3 invalidates legacy cached update times and source ETags.
+2. The source synchronizer reads each app's existing `updatedAt` value.
+3. The client cache stores that value in the existing `client_source_apps.updated_at` column.
+4. The local app DTO returns the cached value as `updatedAt`.
+5. The React `SourceApp` type accepts the optional timestamp.
+6. The client catalog selector adds "Recently updated" and sorts timestamps from newest to oldest.
 
-The existing cache column is appropriate because source apps are replaced as one synchronized snapshot. It does not currently represent a durable local edit timestamp.
+The existing cache column is appropriate because source apps are replaced as one synchronized snapshot. Before this change, Ent populated it with the synchronization time, so existing client databases contain values with the wrong meaning. Migration v3 resets those legacy values to the Unix epoch and clears every source ETag. This makes the fallback ordering safe immediately and forces the next synchronization to fetch a complete snapshot instead of accepting a `304 Not Modified` response.
 
 ## Compatibility and fallback
 
 - A valid RFC 3339 source timestamp is preserved.
 - A source that omits or supplies an invalid timestamp is cached with the Unix epoch and sorts after timestamped apps.
 - Equal or missing timestamps use the localized app name as a deterministic tie-breaker.
+- Existing cached synchronization timestamps are never presented as application update times.
+- Clearing legacy ETags ensures the first post-upgrade synchronization repopulates real timestamps.
 - Existing source feeds and older server versions continue to synchronize.
 - The default catalog order does not change until the user selects "Recently updated".
 
@@ -54,6 +57,7 @@ Backend tests cover:
 - source synchronization persists an RFC 3339 application update time;
 - the local app response exposes the same timestamp;
 - missing or invalid timestamps are cached with the Unix epoch.
+- schema migration v3 resets legacy cached times, clears ETags, and records the new schema version.
 
 Frontend tests cover:
 
