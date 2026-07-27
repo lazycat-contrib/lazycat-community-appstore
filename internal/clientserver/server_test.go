@@ -348,6 +348,8 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 					"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/a/notes.lpk",
 					"sha256":              strings.Repeat("a", 64),
 					"size":                123,
+					"publishedAt":         "2026-07-15T04:03:02Z",
+					"createdAt":           "2026-07-15T03:02:01Z",
 				},
 				"versions": []map[string]any{
 					{
@@ -357,6 +359,8 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 						"upstreamDownloadUrl": "https://github.com/org/notes/releases/download/a/notes.lpk",
 						"sha256":              strings.Repeat("a", 64),
 						"size":                123,
+						"publishedAt":         "2026-07-15T04:03:02Z",
+						"createdAt":           "2026-07-15T03:02:01Z",
 					},
 					{
 						"version":             "1.0.0",
@@ -388,6 +392,12 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	}
 	if !strings.Contains(body, `"updatedAt":"2026-07-15T05:04:03Z"`) {
 		t.Fatalf("cached app did not expose source update time: %s", body)
+	}
+	if !strings.Contains(body, `"publishedAt":"2026-07-15T04:03:02Z"`) {
+		t.Fatalf("cached app did not expose software update time: %s", body)
+	}
+	if !strings.Contains(body, `"createdAt":"2026-07-15T03:02:01Z"`) {
+		t.Fatalf("cached app did not expose software update fallback time: %s", body)
 	}
 	record := app.server.db.ClientSourceApp.Query().OnlyX(t.Context())
 	if got := record.UpdatedAt.UTC().Format(time.RFC3339); got != "2026-07-15T05:04:03Z" {

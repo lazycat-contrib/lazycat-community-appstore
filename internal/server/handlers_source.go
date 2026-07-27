@@ -502,7 +502,7 @@ func (s *Server) loadSourceIndexScreenshots(ctx context.Context, appIDs []int, o
 func (s *Server) loadSourceIndexVersions(ctx context.Context, appIDs []int, privateAppIDs map[int]struct{}, out map[int][]feed.VersionInput) error {
 	records, err := s.db.AppVersion.Query().
 		Where(appversion.AppIDIn(appIDs...), appversion.StatusEQ(appversion.StatusAPPROVED)).
-		Order(entgo.Asc(appversion.FieldAppID), entgo.Desc(appversion.FieldPublishedAt), entgo.Desc(appversion.FieldCreatedAt)).
+		Order(entgo.Asc(appversion.FieldAppID), orderVersionsBySoftwareUpdate(), entgo.Desc(appversion.FieldCreatedAt), entgo.Desc(appversion.FieldID)).
 		All(ctx)
 	if err != nil {
 		return err
@@ -521,7 +521,8 @@ func (s *Server) loadSourceIndexVersions(ctx context.Context, appIDs []int, priv
 			UpstreamDownloadURL: upstreamDownloadURL,
 			SHA256:              record.Sha256,
 			Size:                record.FileSize,
-			PublishedAt:         valueTime(record.PublishedAt),
+			PublishedAt:         record.PublishedAt,
+			CreatedAt:           record.CreatedAt,
 		})
 	}
 	return nil
@@ -544,11 +545,4 @@ func mapKeys(values map[int]struct{}) []int {
 		keys = append(keys, key)
 	}
 	return keys
-}
-
-func valueTime(value *time.Time) time.Time {
-	if value == nil {
-		return time.Time{}
-	}
-	return *value
 }

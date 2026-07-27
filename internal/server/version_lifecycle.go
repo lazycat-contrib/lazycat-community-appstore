@@ -113,7 +113,7 @@ func pruneApprovedVersions(ctx context.Context, tx *entgo.Tx, appID, maxVersions
 	records, err := tx.AppVersion.Query().
 		Where(appversion.AppIDEQ(appID), appversion.StatusEQ(appversion.StatusAPPROVED)).
 		Order(
-			entgo.Desc(appversion.FieldPublishedAt),
+			orderVersionsBySoftwareUpdate(),
 			entgo.Desc(appversion.FieldCreatedAt),
 			entgo.Desc(appversion.FieldID),
 		).

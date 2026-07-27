@@ -923,6 +923,138 @@ func TestListAppsSupportsDownloadPeriodSorts(t *testing.T) {
 	assertFirst("downloads_year", "download-sort-month")
 }
 
+func TestListAppsRecentSortUsesLatestPublishedVersion(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	oldPublishedAt := time.Date(2026, 7, 10, 8, 0, 0, 0, time.UTC)
+	newPublishedAt := oldPublishedAt.Add(24 * time.Hour)
+
+	metadataNewer := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.recent-metadata").
+		SetName("Recent Metadata").
+		SetSlug("recent-metadata").
+		SetStatus(apppkg.StatusAPPROVED).
+		SetUpdatedAt(newPublishedAt.Add(24 * time.Hour)).
+		SaveX(ctx)
+	softwareNewer := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.recent-software").
+		SetName("Recent Software").
+		SetSlug("recent-software").
+		SetStatus(apppkg.StatusAPPROVED).
+		SetUpdatedAt(oldPublishedAt.Add(-24 * time.Hour)).
+		SaveX(ctx)
+
+	for _, item := range []struct {
+		record      *entclient.App
+		version     string
+		publishedAt time.Time
+	}{
+		{record: metadataNewer, version: "1.0.0", publishedAt: oldPublishedAt},
+		{record: softwareNewer, version: "2.0.0", publishedAt: newPublishedAt},
+	} {
+		app.server.db.AppVersion.Create().
+			SetAppID(item.record.ID).
+			SetUploaderID(admin.ID).
+			SetVersion(item.version).
+			SetStatus(appversion.StatusAPPROVED).
+			SetSourceType(appversion.SourceTypeGITHUB).
+			SetDownloadURL("https://example.com/" + item.version + ".lpk").
+			SetPublishedAt(item.publishedAt).
+			SaveX(ctx)
+	}
+
+	rec := app.do(http.MethodGet, "/api/v1/apps?page=1&pageSize=1&sort=recent", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("recent list status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Apps []appSummary `json:"apps"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode recent apps: %v", err)
+	}
+	if len(body.Apps) != 1 || body.Apps[0].Slug != softwareNewer.Slug {
+		t.Fatalf("recent first app = %#v, want slug %q", body.Apps, softwareNewer.Slug)
+	}
+	if body.Apps[0].LatestVersion == nil || body.Apps[0].LatestVersion.PublishedAt == nil || !body.Apps[0].LatestVersion.PublishedAt.Equal(newPublishedAt) {
+		t.Fatalf("recent software update time = %#v, want %s", body.Apps[0].LatestVersion, newPublishedAt)
+	}
+}
+
+func TestListAppsRecentSortFallsBackToLatestVersionCreatedAt(t *testing.T) {
+	app := newTestApp(t)
+	ctx := t.Context()
+	admin := app.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	oldCreatedAt := time.Date(2026, 7, 10, 8, 0, 0, 0, time.UTC)
+	newCreatedAt := oldCreatedAt.Add(24 * time.Hour)
+
+	metadataNewer := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.recent-created-metadata").
+		SetName("Recent Created Metadata").
+		SetSlug("recent-created-metadata").
+		SetStatus(apppkg.StatusAPPROVED).
+		SetUpdatedAt(newCreatedAt.Add(24 * time.Hour)).
+		SaveX(ctx)
+	softwareNewer := app.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID("cloud.lazycat.test.recent-created-software").
+		SetName("Recent Created Software").
+		SetSlug("recent-created-software").
+		SetStatus(apppkg.StatusAPPROVED).
+		SetUpdatedAt(oldCreatedAt.Add(-24 * time.Hour)).
+		SaveX(ctx)
+
+	app.server.db.AppVersion.Create().
+		SetAppID(metadataNewer.ID).
+		SetUploaderID(admin.ID).
+		SetVersion("1.0.0").
+		SetStatus(appversion.StatusAPPROVED).
+		SetSourceType(appversion.SourceTypeGITHUB).
+		SetDownloadURL("https://example.com/metadata-1.0.0.lpk").
+		SetCreatedAt(oldCreatedAt).
+		SaveX(ctx)
+	app.server.db.AppVersion.Create().
+		SetAppID(softwareNewer.ID).
+		SetUploaderID(admin.ID).
+		SetVersion("1.0.0").
+		SetStatus(appversion.StatusAPPROVED).
+		SetSourceType(appversion.SourceTypeGITHUB).
+		SetDownloadURL("https://example.com/software-1.0.0.lpk").
+		SetPublishedAt(oldCreatedAt).
+		SetCreatedAt(oldCreatedAt).
+		SaveX(ctx)
+	app.server.db.AppVersion.Create().
+		SetAppID(softwareNewer.ID).
+		SetUploaderID(admin.ID).
+		SetVersion("2.0.0").
+		SetStatus(appversion.StatusAPPROVED).
+		SetSourceType(appversion.SourceTypeGITHUB).
+		SetDownloadURL("https://example.com/software-2.0.0.lpk").
+		SetCreatedAt(newCreatedAt).
+		SaveX(ctx)
+
+	rec := app.do(http.MethodGet, "/api/v1/apps?page=1&pageSize=1&sort=recent", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("recent list status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Apps []appSummary `json:"apps"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode recent apps: %v", err)
+	}
+	if len(body.Apps) != 1 || body.Apps[0].Slug != softwareNewer.Slug {
+		t.Fatalf("recent first app = %#v, want slug %q", body.Apps, softwareNewer.Slug)
+	}
+	if body.Apps[0].LatestVersion == nil || body.Apps[0].LatestVersion.PublishedAt != nil || !body.Apps[0].LatestVersion.CreatedAt.Equal(newCreatedAt) {
+		t.Fatalf("recent software update time = %#v, want createdAt %s", body.Apps[0].LatestVersion, newCreatedAt)
+	}
+}
+
 func TestAppRatingUsesUserVotes(t *testing.T) {
 	app := newTestApp(t)
 	ctx := t.Context()

@@ -1,4 +1,4 @@
-import { ChevronRight, Download, PackagePlus, Sparkles, Star, Tag } from 'lucide-react';
+import { CalendarClock, ChevronRight, Download, PackagePlus, Sparkles, Star, Tag } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { type MouseEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,9 +6,10 @@ import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { AppIcon } from '../../components/AppIcon';
+import { softwareUpdatedAt } from '../../shared/catalogUpdate';
 import { EmptyState } from '../../shared/components/Feedback';
 import type { StoreApp } from '../../shared/types';
-import { hasInstallableVersion, localizedAppDescription, localizedAppName, localizedAppSummary, localizedCategory } from '../../shared/utils';
+import { formatDate, hasInstallableVersion, localizedAppDescription, localizedAppName, localizedAppSummary, localizedCategory } from '../../shared/utils';
 
 export function AppGrid({
   apps,
@@ -62,6 +63,7 @@ export function AppGrid({
             <div className="app-meta">
               <XBadge variant="neutral" icon={<Tag size={13} />} label={localizedCategory(app, t('common.uncategorized'))} />
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
+              <span><CalendarClock size={14} /> {t('app.softwareUpdatedAt', { time: formatDate(softwareUpdatedAt(app)) })}</span>
               <span><Download size={14} /> {t('app.downloads', { count: app.downloadCount })}</span>
               <span><Sparkles size={14} /> {t('app.rating', { score: app.rating?.score || 0, count: app.rating?.voteCount || 0 })}</span>
             </div>

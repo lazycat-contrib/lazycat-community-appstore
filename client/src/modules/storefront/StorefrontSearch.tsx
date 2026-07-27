@@ -5,6 +5,7 @@ import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { PowerSearch, type PowerSearchConfig, type PowerSearchField, type PowerSearchFilter } from '@astryxdesign/core/PowerSearch';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { SectionTitle } from '../../shared/components/Feedback';
+import { softwareUpdatedAtMillis } from '../../shared/catalogUpdate';
 import { categoryDescendantIds } from '../../shared/categoryTree';
 import type { Category, InstallOptions, SortMode, SourceApp, StoreApp } from '../../shared/types';
 import { localizedAppDescription, localizedAppName, localizedAppSummary, localizedName } from '../../shared/utils';
@@ -106,7 +107,8 @@ export function StorefrontSearch({
       if (sortMode === 'downloads_month') return (b.downloadStats?.month || 0) - (a.downloadStats?.month || 0);
       if (sortMode === 'downloads_year') return (b.downloadStats?.year || 0) - (a.downloadStats?.year || 0);
       if (sortMode === 'name') return localizedAppName(a).localeCompare(localizedAppName(b));
-      return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+      const updateDelta = softwareUpdatedAtMillis(b) - softwareUpdatedAtMillis(a);
+      return updateDelta !== 0 ? updateDelta : localizedAppName(a).localeCompare(localizedAppName(b));
     });
   }, [categoryFilteredApps, filterKey, filters, sortMode]);
   const totalPages = Math.max(1, Math.ceil(filteredApps.length / pageSize));

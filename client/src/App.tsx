@@ -218,6 +218,7 @@ export function App() {
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [storeAppTotal, setStoreAppTotal] = useState(0);
   const [storeAppsComplete, setStoreAppsComplete] = useState(false);
+  const storeAppsRequestRef = useRef(0);
   const [managedApps, setManagedApps] = useState<StoreApp[]>([]);
   const [collaborationData, setCollaborationData] = useState<CollaborationData>({ owned: [], collaborating: [], outgoingRequests: [] });
   const [sourceApps, setSourceApps] = useState<SourceApp[]>([]);
@@ -257,6 +258,7 @@ export function App() {
   const [installHistoryPagination, setInstallHistoryPagination] = useState<PaginationMeta>(DEFAULT_HISTORY_PAGINATION);
   const [installedState, setInstalledState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [installedError, setInstalledError] = useState('');
+  const installedRequestRef = useRef(0);
   const [installActivity, setInstallActivity] = useState<InstallActivity | null>(null);
   const [installPasswordRequest, setInstallPasswordRequest] = useState<InstallPasswordRequest | null>(null);
   const [runtimeCapabilities, setRuntimeCapabilities] = useState<RuntimeCapabilities>({ lazycatInstall: false, githubMirrors: [] });
@@ -553,10 +555,10 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!HAS_API || setupRequired || isLoginRoute || storeAppsComplete) return;
-    if (tab !== 'search' && tab !== 'profile') return;
+    if (!HAS_API || loading || setupRequired || isLoginRoute || storeAppsComplete) return;
+    if (tab !== 'home' && tab !== 'search' && tab !== 'profile') return;
     void runAction(setToast, t('toast.refreshFailed'), ensureFullStoreApps);
-  }, [isLoginRoute, setupRequired, storeAppsComplete, tab, t]);
+  }, [isLoginRoute, loading, setupRequired, storeAppsComplete, tab, t]);
 
   useEffect(() => {
     if (HAS_API || sourceAppsLoaded || sourceAppsLoading) return;
@@ -598,6 +600,7 @@ export function App() {
       await refreshClientData(options);
       return;
     }
+    storeAppsRequestRef.current += 1;
     if (!options.silent) setLoading(true);
     try {
       const setup = await api<SetupStatus>('/api/v1/setup/status');
@@ -703,7 +706,10 @@ export function App() {
 
   async function ensureFullStoreApps() {
     if (!HAS_API || storeAppsComplete) return;
-    const data = await fetchAllPaginated<StoreApp, 'apps'>(api, '/api/v1/apps', 'apps');
+    const requestID = storeAppsRequestRef.current + 1;
+    storeAppsRequestRef.current = requestID;
+    const data = await fetchAllPaginated<StoreApp, 'apps'>(api, '/api/v1/apps', 'apps', 100, (app) => app.id);
+    if (storeAppsRequestRef.current !== requestID) return;
     setApps(arrayOrEmpty(data));
     setStoreAppTotal(data.length);
     setStoreAppsComplete(true);
@@ -850,6 +856,7 @@ export function App() {
         return;
       }
       await Promise.all([loadClientSources(), loadClientSettings()]);
+      void loadInstalledApps({ quiet: true });
       void loadInstallHistory();
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('toast.clientDataLoadFailed')) });
@@ -896,14 +903,18 @@ export function App() {
   }
 
   async function loadInstalledApps(options: { quiet?: boolean } = {}) {
+    const requestID = installedRequestRef.current + 1;
+    installedRequestRef.current = requestID;
     setInstalledState('loading');
     setInstalledError('');
     try {
       const result = await clientApi<{ apps: InstalledApplication[] }>('/installed');
+      if (installedRequestRef.current !== requestID) return;
       setInstalledApps(result.apps || []);
       setInstalledState('loaded');
       if (!options.quiet) setToast({ tone: 'success', message: t('profile.installedRefreshed') });
     } catch (error) {
+      if (installedRequestRef.current !== requestID) return;
       const message = errorMessage(error, t('profile.clientInstallApiUnavailable'));
       setInstalledState('error');
       setInstalledError(message);

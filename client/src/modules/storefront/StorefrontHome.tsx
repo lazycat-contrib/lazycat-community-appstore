@@ -1,17 +1,21 @@
 import { Copy, ExternalLink, History, Layers3, Link, LogIn, PackagePlus, Search, Tag } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
 import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
+import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { API_BASE } from '../../config';
 import { AdSpot, visibleSiteAds } from '../../components/AdSpot';
+import { softwareUpdatedAtMillis } from '../../shared/catalogUpdate';
 import { SectionTitle } from '../../shared/components/Feedback';
 import type { Category, Collection, SiteAd, SiteProfile, StoreApp } from '../../shared/types';
+import { localizedAppName } from '../../shared/utils';
 import { AppGrid } from './AppGrid';
 import { CategoryBrowser } from './CategoryBrowser';
 
 type SourceCopyStatus = 'idle' | 'copied' | 'failed' | 'unsupported';
+const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
 
 export function StorefrontHome({
   apps,
@@ -46,7 +50,16 @@ export function StorefrontHome({
 }) {
   const { t } = useTranslation();
   const [sourceCopyStatus, setSourceCopyStatus] = useState<SourceCopyStatus>('idle');
-  const latest = [...apps].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).slice(0, 6);
+  const [latestPage, setLatestPage] = useState(1);
+  const [latestPageSize, setLatestPageSize] = useState(siteProfile.defaultPageSize || 24);
+  const latest = useMemo(() => [...apps].sort((a, b) => {
+    const updateDelta = softwareUpdatedAtMillis(b) - softwareUpdatedAtMillis(a);
+    return updateDelta !== 0 ? updateDelta : localizedAppName(a).localeCompare(localizedAppName(b));
+  }), [apps]);
+  const latestTotalPages = Math.max(1, Math.ceil(latest.length / latestPageSize));
+  const currentLatestPage = Math.max(1, Math.min(latestPage, latestTotalPages));
+  const latestStart = (currentLatestPage - 1) * latestPageSize;
+  const pagedLatest = latest.slice(latestStart, latestStart + latestPageSize);
   const approvedCount = appCount ?? apps.filter((app) => app.status === 'APPROVED').length;
   const sourceFeedURL = siteProfile.sourceUrl || `${API_BASE || window.location.origin}/source/v2/index.json`;
   const BackstageIcon = isAuthenticated ? PackagePlus : LogIn;
@@ -59,6 +72,11 @@ export function StorefrontHome({
       : sourceCopyStatus === 'failed'
         ? t('home.copySourceFailed')
         : '';
+
+  useEffect(() => {
+    if (latestPage === currentLatestPage) return;
+    setLatestPage(currentLatestPage);
+  }, [currentLatestPage, latestPage]);
 
   async function copySourceFeed() {
     if (!navigator.clipboard?.writeText) {
@@ -141,7 +159,7 @@ export function StorefrontHome({
       <section className="panel">
         <SectionTitle icon={History} title={t('home.latest')} />
         <AppGrid
-          apps={latest}
+          apps={pagedLatest}
           onOpen={onOpen}
           onInstall={onInstall}
           lazycatInstall={lazycatInstall}
@@ -151,6 +169,23 @@ export function StorefrontHome({
             action: { label: backstageLabel, icon: BackstageIcon, onClick: onSubmitApp },
           }}
         />
+        {latest.length > latestPageSize && (
+          <XPagination
+            className="list-pagination"
+            page={currentLatestPage}
+            onChange={setLatestPage}
+            totalItems={latest.length}
+            pageSize={latestPageSize}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            onPageSizeChange={(value) => {
+              setLatestPage(1);
+              setLatestPageSize(value);
+            }}
+            variant="pages"
+            size="sm"
+            label={t('pagination.label')}
+          />
+        )}
       </section>
       {collections.map((collection) => (
         <section className="panel" key={collection.id}>

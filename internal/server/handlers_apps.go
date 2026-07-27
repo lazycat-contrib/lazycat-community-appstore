@@ -274,7 +274,7 @@ func (s *Server) handleGetPackageLatestVersion(w http.ResponseWriter, r *http.Re
 	}
 	latest, err := s.db.AppVersion.Query().
 		Where(appversion.AppIDEQ(record.ID), appversion.StatusEQ(appversion.StatusAPPROVED)).
-		Order(entgo.Desc(appversion.FieldPublishedAt), entgo.Desc(appversion.FieldCreatedAt)).
+		Order(orderVersionsBySoftwareUpdate(), entgo.Desc(appversion.FieldCreatedAt), entgo.Desc(appversion.FieldID)).
 		First(r.Context())
 	if err != nil {
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
@@ -1226,7 +1226,7 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 	dto.Tags = s.tagNames(r, record.ID)
 	if latest, err := s.db.AppVersion.Query().
 		Where(appversion.AppIDEQ(record.ID), appversion.StatusEQ(appversion.StatusAPPROVED)).
-		Order(entgo.Desc(appversion.FieldPublishedAt), entgo.Desc(appversion.FieldCreatedAt)).
+		Order(orderVersionsBySoftwareUpdate(), entgo.Desc(appversion.FieldCreatedAt), entgo.Desc(appversion.FieldID)).
 		First(r.Context()); err == nil {
 		v := toVersionDTO(latest)
 		dto.LatestVersion = &v

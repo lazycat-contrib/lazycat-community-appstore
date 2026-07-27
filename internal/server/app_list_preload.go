@@ -231,7 +231,7 @@ func (s *Server) loadAppSummaryVisibleGroups(ctx context.Context, appIDs []int, 
 func (s *Server) loadAppSummaryLatestVersions(ctx context.Context, appIDs []int, out map[int]*entgo.AppVersion) error {
 	records, err := s.db.AppVersion.Query().
 		Where(appversion.AppIDIn(appIDs...), appversion.StatusEQ(appversion.StatusAPPROVED)).
-		Order(entgo.Asc(appversion.FieldAppID), entgo.Desc(appversion.FieldPublishedAt), entgo.Desc(appversion.FieldCreatedAt)).
+		Order(entgo.Asc(appversion.FieldAppID), orderVersionsBySoftwareUpdate(), entgo.Desc(appversion.FieldCreatedAt), entgo.Desc(appversion.FieldID)).
 		All(ctx)
 	if err != nil {
 		return err

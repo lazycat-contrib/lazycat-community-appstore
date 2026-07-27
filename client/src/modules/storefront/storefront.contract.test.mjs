@@ -64,6 +64,9 @@ test('homepage has one primary action and a dedicated source subscription task',
   assert.match(home, /className="panel storefront-subscribe-panel"/);
   assert.match(home, /role="status" aria-live="polite"/);
   assert.doesNotMatch(home, /source-feed-card/);
+  assert.match(home, /totalItems=\{latest\.length\}/);
+  assert.match(home, /apps=\{pagedLatest\}/);
+  assert.doesNotMatch(home, /slice\(0, 6\)/);
 
   const metricCardRules = leafCssRules(styles).filter(({ selector }) => selector.includes('.metric-card'));
   assert.ok(metricCardRules.length > 0, 'missing metric card styles');
@@ -87,6 +90,7 @@ test('app cards scan quickly and keep download independent from detail navigatio
   assert.match(grid, /isDisabled=\{!installable \|\| pendingAppID !== null\}/);
   assert.match(grid, /isLoading=\{isInstalling\}/);
   assert.match(grid, /className="app-card-primary-action"/);
+  assert.match(grid, /softwareUpdatedAt\(app\)/);
 });
 
 test('app card layout keeps storefront specificity over global catalog rules', async () => {

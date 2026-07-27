@@ -66,7 +66,11 @@ export function InstalledAppsView({
     }
     return { updates, managed, local };
   }, [installedApps, sourceApps]);
-  const installedEmptyTitle = installedState === 'loaded' ? t('profile.installedEmptyLoaded') : t('profile.installedEmpty');
+  const installedEmptyTitle = installedState === 'loaded'
+    ? t('profile.installedEmptyLoaded')
+    : installedState === 'error'
+      ? t('profile.clientInstalledError')
+      : t('profile.installedEmpty');
   const installedEmptyBody = installedState === 'idle' ? t('profile.installedIdleBody') : undefined;
   const updateConfirmation = useMemo(() => buildUpdateConfirmation(installedGroups.updates), [installedGroups.updates]);
   const updateCandidates = useMemo(() => buildUpdateCandidateSnapshot(installedGroups.updates), [installedGroups.updates]);
@@ -183,7 +187,7 @@ export function InstalledAppsView({
           <XButton
             type="button"
             variant="primary"
-            label={installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}
+            label={installedState === 'loading' ? t('profile.readingInstalled') : t('common.refresh')}
             icon={<RefreshCw size={18} className={installedState === 'loading' ? 'spin' : undefined} />}
             isDisabled={installedState === 'loading'}
             onClick={() => void onLoadInstalled()}

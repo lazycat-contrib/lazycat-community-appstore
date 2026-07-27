@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { softwareUpdatedAt } from '../../shared/catalogUpdate.ts';
 import {
   autoUpdatePolicyPresentation,
   buildUpdateCandidateSnapshot,
@@ -48,19 +49,21 @@ test('install options dialog consumes a shared mirror config', async () => {
   assert.doesNotMatch(dialog, /source\?: SourceSubscription/);
 });
 
-test('client catalog recent sorting uses source update time and stable name fallback', () => {
+test('client catalog recent sorting uses published software time and stable fallbacks', () => {
   const apps = [
     { id: 1, name: 'Missing', sourceName: 'B' },
-    { id: 2, name: 'Beta', sourceName: 'A', updatedAt: '2026-07-15T00:00:00Z' },
+    { id: 2, name: 'Beta', sourceName: 'A', updatedAt: '2026-07-15T00:00:00Z', latestVersion: { publishedAt: '2026-07-17T00:00:00Z' } },
     { id: 3, name: 'Alpha', sourceName: 'B', updatedAt: '2026-07-15T00:00:00Z' },
-    { id: 4, name: 'Newest', sourceName: 'B', updatedAt: '2026-07-16T00:00:00Z' },
+    { id: 4, name: 'Newest', sourceName: 'B', updatedAt: '2026-07-16T00:00:00Z', latestVersion: { publishedAt: '2026-07-14T00:00:00Z' } },
     { id: 5, name: 'Invalid', sourceName: 'A', updatedAt: 'not-a-date' },
   ];
 
   assert.deepEqual(
     sortClientCatalogApps(apps, 'recent', (app) => app.name).map((app) => app.id),
-    [4, 3, 2, 5, 1],
+    [2, 3, 4, 5, 1],
   );
+  assert.equal(softwareUpdatedAt(apps[1]), '2026-07-17T00:00:00Z');
+  assert.equal(softwareUpdatedAt(apps[2]), '2026-07-15T00:00:00Z');
   assert.deepEqual(sortClientCatalogApps(apps, 'default', (app) => app.name).map((app) => app.id), [1, 2, 3, 4, 5]);
   assert.deepEqual(sortClientCatalogApps(apps, 'name', (app) => app.name).map((app) => app.id), [3, 2, 5, 1, 4]);
   assert.deepEqual(sortClientCatalogApps(apps, 'source', (app) => app.name).map((app) => app.id), [2, 5, 3, 1, 4]);
@@ -71,6 +74,18 @@ test('client catalog exposes the recently updated sort option', async () => {
 
   assert.match(catalog, /\{ value: 'recent', label: t\('search\.recent'\) \}/);
   assert.match(catalog, /sortClientCatalogApps\(filtered, sortMode, localizedAppName\)/);
+});
+
+test('client automatically loads installed applications after authentication', async () => {
+  const app = await source('../../App.tsx');
+
+  assert.match(app, /await Promise\.all\(\[loadClientSources\(\), loadClientSettings\(\)\]\);/);
+  assert.match(app, /void loadInstalledApps\(\{ quiet: true \}\);/);
+  assert.doesNotMatch(app, /Promise\.all\(\[loadClientSources\(\), loadClientSettings\(\), loadInstalledApps/);
+  assert.match(app, /installedRequestRef\.current !== requestID/);
+  assert.match(app, /storeAppsRequestRef\.current !== requestID/);
+  assert.match(app, /if \(!HAS_API \|\| loading \|\| setupRequired \|\| isLoginRoute \|\| storeAppsComplete\) return;/);
+  assert.match(app, /tab !== 'home' && tab !== 'search' && tab !== 'profile'/);
 });
 
 test('client catalog browsing state survives opening and closing app details', async () => {

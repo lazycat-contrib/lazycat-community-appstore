@@ -10,6 +10,7 @@ import (
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/appdownload"
+	"lazycat.community/appstore/ent/appversion"
 	"lazycat.community/appstore/ent/appvote"
 )
 
@@ -51,16 +52,64 @@ func downloadPeriodFromSort(value string) (downloadPeriod, bool) {
 func (s *Server) applyAppListSort(ctx context.Context, q *entgo.AppQuery, sort string) {
 	if period, ok := downloadPeriodFromSort(sort); ok {
 		start := downloadPeriodStart(s.nowUTC(), s.siteLocation(ctx), period).UTC()
-		q.Order(orderAppsByDownloadPeriod(start), entgo.Desc(app.FieldUpdatedAt))
+		q.Order(orderAppsByDownloadPeriod(start), entgo.Desc(app.FieldUpdatedAt), entgo.Desc(app.FieldID))
 		return
 	}
 	switch sort {
 	case "downloads":
-		q.Order(entgo.Desc(app.FieldDownloadCount), entgo.Desc(app.FieldUpdatedAt))
+		q.Order(entgo.Desc(app.FieldDownloadCount), entgo.Desc(app.FieldUpdatedAt), entgo.Desc(app.FieldID))
 	case "name":
-		q.Order(entgo.Asc(app.FieldName), entgo.Desc(app.FieldUpdatedAt))
+		q.Order(entgo.Asc(app.FieldName), entgo.Desc(app.FieldUpdatedAt), entgo.Desc(app.FieldID))
 	default:
-		q.Order(entgo.Desc(app.FieldUpdatedAt))
+		q.Order(orderAppsByRecentUpdate(), entgo.Asc(app.FieldName), entgo.Desc(app.FieldID))
+	}
+}
+
+func orderAppsByRecentUpdate() app.OrderOption {
+	return func(selector *entsql.Selector) {
+		versions := entsql.Table(appversion.Table)
+		latestSoftwareUpdatedAt := entsql.SelectExpr(versionSoftwareUpdatedAtExpr(versions.C)).
+			From(versions).
+			Where(entsql.And(
+				entsql.ColumnsEQ(versions.C(appversion.FieldAppID), selector.C(app.FieldID)),
+				entsql.EQ(versions.C(appversion.FieldStatus), appversion.StatusAPPROVED),
+			)).
+			OrderExpr(versionSoftwareUpdatedAtOrderExpr(versions.C)).
+			OrderBy(entsql.Desc(versions.C(appversion.FieldCreatedAt)), entsql.Desc(versions.C(appversion.FieldID))).
+			Limit(1)
+		selector.OrderExpr(entsql.ExprFunc(func(b *entsql.Builder) {
+			b.WriteString("COALESCE")
+			b.Wrap(func(b *entsql.Builder) {
+				b.Wrap(func(b *entsql.Builder) {
+					b.Join(latestSoftwareUpdatedAt)
+				})
+				b.Comma().Ident(selector.C(app.FieldUpdatedAt))
+			})
+			b.WriteString(" DESC")
+		}))
+	}
+}
+
+func versionSoftwareUpdatedAtExpr(column func(string) string) entsql.Querier {
+	return entsql.ExprFunc(func(b *entsql.Builder) {
+		b.WriteString("COALESCE")
+		b.Wrap(func(b *entsql.Builder) {
+			b.Ident(column(appversion.FieldPublishedAt)).
+				Comma().
+				Ident(column(appversion.FieldCreatedAt))
+		})
+	})
+}
+
+func versionSoftwareUpdatedAtOrderExpr(column func(string) string) entsql.Querier {
+	return entsql.ExprFunc(func(b *entsql.Builder) {
+		b.Join(versionSoftwareUpdatedAtExpr(column)).WriteString(" DESC")
+	})
+}
+
+func orderVersionsBySoftwareUpdate() appversion.OrderOption {
+	return func(selector *entsql.Selector) {
+		selector.OrderExpr(versionSoftwareUpdatedAtOrderExpr(selector.C))
 	}
 }
 

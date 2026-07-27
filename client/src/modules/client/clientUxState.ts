@@ -1,3 +1,4 @@
+import { softwareUpdatedAtMillis } from '../../shared/catalogUpdate.ts';
 import type { ClientInstallTask, InstallActivity } from '../../shared/types';
 
 export function autoUpdatePolicyPresentation(value?: boolean) {
@@ -25,12 +26,11 @@ export type ClientCatalogSortMode = 'default' | 'recent' | 'name' | 'source';
 type SortableSourceApp = {
   sourceName: string;
   updatedAt?: string;
+  latestVersion?: {
+    publishedAt?: string;
+    createdAt?: string;
+  };
 };
-
-function sourceAppUpdatedAtMillis(value?: string) {
-  const timestamp = Date.parse(value || '');
-  return Number.isFinite(timestamp) ? timestamp : 0;
-}
 
 export function sortClientCatalogApps<T extends SortableSourceApp>(
   apps: T[],
@@ -40,7 +40,7 @@ export function sortClientCatalogApps<T extends SortableSourceApp>(
   if (mode === 'default') return [...apps];
   return [...apps].sort((a, b) => {
     if (mode === 'recent') {
-      const timeDelta = sourceAppUpdatedAtMillis(b.updatedAt) - sourceAppUpdatedAtMillis(a.updatedAt);
+      const timeDelta = softwareUpdatedAtMillis(b) - softwareUpdatedAtMillis(a);
       if (timeDelta !== 0) return timeDelta;
     }
     if (mode === 'source') {

@@ -112,15 +112,16 @@ type AppInput struct {
 }
 
 type VersionInput struct {
-	Version             string    `json:"version"`
-	Status              string    `json:"status"`
-	Changelog           string    `json:"changelog,omitempty"`
-	SourceType          string    `json:"sourceType,omitempty"`
-	DownloadURL         string    `json:"downloadUrl"`
-	UpstreamDownloadURL string    `json:"upstreamDownloadUrl,omitempty"`
-	SHA256              string    `json:"sha256"`
-	Size                int64     `json:"size"`
-	PublishedAt         time.Time `json:"publishedAt"`
+	Version             string     `json:"version"`
+	Status              string     `json:"status"`
+	Changelog           string     `json:"changelog,omitempty"`
+	SourceType          string     `json:"sourceType,omitempty"`
+	DownloadURL         string     `json:"downloadUrl"`
+	UpstreamDownloadURL string     `json:"upstreamDownloadUrl,omitempty"`
+	SHA256              string     `json:"sha256"`
+	Size                int64      `json:"size"`
+	PublishedAt         *time.Time `json:"publishedAt,omitempty"`
+	CreatedAt           time.Time  `json:"createdAt"`
 }
 
 type App struct {
@@ -152,14 +153,15 @@ type App struct {
 }
 
 type Version struct {
-	Version             string    `json:"version"`
-	Changelog           string    `json:"changelog,omitempty"`
-	SourceType          string    `json:"sourceType,omitempty"`
-	DownloadURL         string    `json:"downloadUrl"`
-	UpstreamDownloadURL string    `json:"upstreamDownloadUrl,omitempty"`
-	SHA256              string    `json:"sha256"`
-	Size                int64     `json:"size"`
-	PublishedAt         time.Time `json:"publishedAt"`
+	Version             string     `json:"version"`
+	Changelog           string     `json:"changelog,omitempty"`
+	SourceType          string     `json:"sourceType,omitempty"`
+	DownloadURL         string     `json:"downloadUrl"`
+	UpstreamDownloadURL string     `json:"upstreamDownloadUrl,omitempty"`
+	SHA256              string     `json:"sha256"`
+	Size                int64      `json:"size"`
+	PublishedAt         *time.Time `json:"publishedAt,omitempty"`
+	CreatedAt           time.Time  `json:"createdAt"`
 }
 
 func BuildApp(inApp AppInput) (App, bool) {
@@ -223,6 +225,7 @@ func ApprovedVersions(inputs []VersionInput, installProtected bool) []Version {
 			SHA256:              input.SHA256,
 			Size:                input.Size,
 			PublishedAt:         input.PublishedAt,
+			CreatedAt:           input.CreatedAt,
 		})
 	}
 	return versions

@@ -260,7 +260,7 @@ export function SourceAppDetailPage({
               className="source-detail-secondary-action"
               type="button"
               variant="secondary"
-              label={installedState === 'loading' ? t('profile.readingInstalled') : t('profile.readInstalled')}
+              label={installedState === 'loading' ? t('profile.readingInstalled') : t('common.refresh')}
               icon={<RefreshCw size={17} />}
               isDisabled={installedState === 'loading'}
               onClick={() => void onLoadInstalled()}

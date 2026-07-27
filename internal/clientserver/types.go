@@ -115,6 +115,8 @@ type VersionDTO struct {
 	SourceType          string `json:"sourceType,omitempty"`
 	SHA256              string `json:"sha256"`
 	Size                int64  `json:"size"`
+	PublishedAt         string `json:"publishedAt,omitempty"`
+	CreatedAt           string `json:"createdAt,omitempty"`
 }
 
 type SourceAppDTO struct {

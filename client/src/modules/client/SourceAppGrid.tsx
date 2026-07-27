@@ -1,14 +1,16 @@
-import { Archive, ChevronRight, Cloud, Download, Plus, RefreshCw, Tag } from 'lucide-react';
+import { Archive, CalendarClock, ChevronRight, Cloud, Download, Plus, RefreshCw, Tag } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { AppIcon } from '../../components/AppIcon';
+import { softwareUpdatedAt } from '../../shared/catalogUpdate';
 import { EmptyState } from '../../shared/components/Feedback';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { InstalledApplication, SourceApp } from '../../shared/types';
 import {
   findInstalledApplication,
+  formatDate,
   hasInstallableVersion,
   localizedAppDescription,
   localizedAppName,
@@ -94,6 +96,7 @@ export function SourceAppGrid({
               <span><Cloud size={14} /> {app.sourceName}</span>
               <span><Tag size={14} /> {localizedCategory(app, t('common.uncategorized'))}</span>
               <span><Archive size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
+              <span><CalendarClock size={14} /> {t('app.softwareUpdatedAt', { time: formatDate(softwareUpdatedAt(app)) })}</span>
             </div>
             {installedMatch && (
               <StatusBadge

@@ -399,6 +399,8 @@ export type SourceVersion = {
   sourceType?: string;
   sha256: string;
   size: number;
+  publishedAt?: string;
+  createdAt?: string;
 };
 
 export type SourceApp = {
