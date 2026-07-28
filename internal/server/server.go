@@ -18,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/go-github/v89/github"
+
 	"lazycat.community/appstore/clientembed"
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/internal/buildinfo"
@@ -32,45 +34,47 @@ import (
 )
 
 type Server struct {
-	cfg                     config.Config
-	db                      *ent.Client
-	sqlDB                   *sql.DB
-	metricsSQL              queryContextExecutor
-	nowMu                   sync.RWMutex
-	now                     func() time.Time
-	storage                 storage.Backend
-	mailer                  Mailer
-	lazycatInstaller        lazycatInstaller
-	lazycatInstallSlots     chan struct{}
-	mux                     *http.ServeMux
-	web                     http.Handler
-	chatHub                 *chatHub
-	lpkInspectionScheduler  *lpkInspectionScheduler
-	inspectLPKForJob        func(context.Context, string, int64, bool, time.Duration) (lpkInspection, error)
-	allowPrivateLPKURLHosts bool
-	adminLoginFailuresMu    sync.Mutex
-	adminLoginFailures      map[string]adminLoginFailure
-	authNow                 func() time.Time
-	restartRequestedOnce    sync.Once
-	restartRequested        chan struct{}
-	backupWG                sync.WaitGroup
-	backupRunMu             sync.Mutex
-	backupRunning           bool
-	firstLoadGroup          singleflight.Group
-	sourceFeedCache         *sourceFeedCache
-	sourcePasswordMu        sync.Mutex
-	legacyAnnouncementMu    sync.Mutex
-	ctx                     context.Context
-	cancel                  context.CancelFunc
-	backgroundMu            sync.Mutex
-	backgroundWG            sync.WaitGroup
-	stopping                bool
-	stopOnce                sync.Once
-	stopDone                chan struct{}
-	stopErr                 error
-	closeOnce               sync.Once
-	closeDone               chan struct{}
-	closeErr                error
+	cfg                      config.Config
+	db                       *ent.Client
+	sqlDB                    *sql.DB
+	metricsSQL               queryContextExecutor
+	nowMu                    sync.RWMutex
+	now                      func() time.Time
+	storage                  storage.Backend
+	mailer                   Mailer
+	lazycatInstaller         lazycatInstaller
+	lazycatInstallSlots      chan struct{}
+	mux                      *http.ServeMux
+	web                      http.Handler
+	chatHub                  *chatHub
+	lpkInspectionScheduler   *lpkInspectionScheduler
+	inspectLPKForJob         func(context.Context, string, int64, bool, time.Duration) (lpkInspection, error)
+	githubReleases           githubLatestReleaseClient
+	githubLPKUpdateScheduler *githubLPKUpdateScheduler
+	allowPrivateLPKURLHosts  bool
+	adminLoginFailuresMu     sync.Mutex
+	adminLoginFailures       map[string]adminLoginFailure
+	authNow                  func() time.Time
+	restartRequestedOnce     sync.Once
+	restartRequested         chan struct{}
+	backupWG                 sync.WaitGroup
+	backupRunMu              sync.Mutex
+	backupRunning            bool
+	firstLoadGroup           singleflight.Group
+	sourceFeedCache          *sourceFeedCache
+	sourcePasswordMu         sync.Mutex
+	legacyAnnouncementMu     sync.Mutex
+	ctx                      context.Context
+	cancel                   context.CancelFunc
+	backgroundMu             sync.Mutex
+	backgroundWG             sync.WaitGroup
+	stopping                 bool
+	stopOnce                 sync.Once
+	stopDone                 chan struct{}
+	stopErr                  error
+	closeOnce                sync.Once
+	closeDone                chan struct{}
+	closeErr                 error
 }
 
 func (s *Server) currentTime() time.Time {
@@ -111,6 +115,11 @@ func New(cfg config.Config) (*Server, error) {
 		_ = client.Close()
 		return nil, err
 	}
+	githubClient, err := github.NewClient(github.WithTimeout(20 * time.Second))
+	if err != nil {
+		_ = client.Close()
+		return nil, fmt.Errorf("create GitHub client: %w", err)
+	}
 	appCtx, appCancel := context.WithCancel(context.Background())
 	s := &Server{
 		cfg:                 cfg,
@@ -124,6 +133,7 @@ func New(cfg config.Config) (*Server, error) {
 		lazycatInstallSlots: make(chan struct{}, 1),
 		mux:                 http.NewServeMux(),
 		chatHub:             newChatHub(),
+		githubReleases:      githubClient.Repositories,
 		adminLoginFailures:  map[string]adminLoginFailure{},
 		restartRequested:    make(chan struct{}),
 		ctx:                 appCtx,
@@ -162,6 +172,17 @@ func New(cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 	s.lpkInspectionScheduler = inspectionScheduler
+	githubUpdateScheduler, err := newGitHubLPKUpdateScheduler(s)
+	if err != nil {
+		appCancel()
+		inspectionScheduler.Stop()
+		if s.sourceFeedCache != nil {
+			_ = s.sourceFeedCache.Close()
+		}
+		_ = client.Close()
+		return nil, err
+	}
+	s.githubLPKUpdateScheduler = githubUpdateScheduler
 	s.startBackupScheduler()
 	return s, nil
 }
@@ -239,6 +260,9 @@ func (s *Server) startStop() {
 		}
 		if s.lpkInspectionScheduler != nil {
 			s.lpkInspectionScheduler.Stop()
+		}
+		if s.githubLPKUpdateScheduler != nil {
+			s.githubLPKUpdateScheduler.Stop()
 		}
 		go func() {
 			s.backupWG.Wait()
@@ -417,6 +441,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}", s.withAuth(s.handleDeleteApp))
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/unlist", s.withAuth(s.handleUnlistApp))
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/lpk-inspections", s.withAuth(s.handleCreateLPKInspection))
+	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/github-lpk-update-policy", s.withAuth(s.handleUpdateGitHubLPKUpdatePolicy))
 	s.mux.HandleFunc("POST /api/v1/apps/{id}/versions", s.withAuth(s.handleCreateVersion))
 	s.mux.HandleFunc("PATCH /api/v1/apps/{id}/version-retention", s.withAuth(s.handleUpdateVersionRetention))
 	s.mux.HandleFunc("DELETE /api/v1/apps/{id}/versions/{versionId}", s.withAuth(s.handleDeleteVersion))

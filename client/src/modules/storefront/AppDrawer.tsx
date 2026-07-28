@@ -61,6 +61,7 @@ import type {
   User,
   Version,
   VersionCleanupWarning,
+  GitHubLPKUpdatePolicy,
   VersionRetentionPolicy,
 } from '../../shared/types';
 import { flattenCategoryTree } from '../../shared/categoryTree';
@@ -81,11 +82,11 @@ import {
   shortSHA,
 } from '../../shared/utils';
 import type { SubmissionProgress } from '../profile/AppSubmissionForm';
-import { VersionDeleteDialog, VersionRetentionDialog } from './VersionManagementDialogs';
+import { GitHubLPKUpdatePolicyDialog, VersionDeleteDialog, VersionRetentionDialog } from './VersionManagementDialogs';
 import { nextLatestVersion } from './versionManagementState';
 
 export type AppDetailMode = 'detail' | 'manage';
-type ManagementDialog = 'app-info' | 'publish-version' | 'screenshots' | 'visibility' | 'collaborators' | 'version-retention';
+type ManagementDialog = 'app-info' | 'publish-version' | 'screenshots' | 'visibility' | 'collaborators' | 'version-retention' | 'github-lpk-update';
 type VersionManagementResult = {
   tone: 'success' | 'warning' | 'error';
   message: string;
@@ -151,6 +152,7 @@ export function AppDrawer({
   const [managementDialog, setManagementDialog] = useState<ManagementDialog | null>(null);
   const [versionDeleteTarget, setVersionDeleteTarget] = useState<Version | null>(null);
   const [isSavingVersionRetention, setIsSavingVersionRetention] = useState(false);
+  const [isSavingGitHubLPKUpdatePolicy, setIsSavingGitHubLPKUpdatePolicy] = useState(false);
   const [deletingVersionID, setDeletingVersionID] = useState<number | null>(null);
   const [versionManagementResult, setVersionManagementResult] = useState<VersionManagementResult | null>(
     () => versionManagementResults.get(app.id) || null,
@@ -277,6 +279,7 @@ export function AppDrawer({
   useEffect(() => {
     setVersionDeleteTarget(null);
     setIsSavingVersionRetention(false);
+    setIsSavingGitHubLPKUpdatePolicy(false);
     setDeletingVersionID(null);
     setVersionManagementResult(versionManagementResults.get(app.id) || null);
   }, [app.id]);
@@ -529,6 +532,24 @@ export function AppDrawer({
       setManagementDialog(null);
     } finally {
       setIsSavingVersionRetention(false);
+    }
+  }
+
+  async function saveGitHubLPKUpdatePolicy(input: { enabled: boolean; intervalMinutes: number }) {
+    if (isSavingGitHubLPKUpdatePolicy) return;
+    setIsSavingGitHubLPKUpdatePolicy(true);
+    try {
+      await runAction(setToast, t('drawer.githubLPKUpdateSaveFailed'), async () => {
+        await api<{ policy: GitHubLPKUpdatePolicy }>(`/api/v1/apps/${app.id}/github-lpk-update-policy`, {
+          method: 'PATCH',
+          body: JSON.stringify(input),
+        });
+        setToast({ tone: 'success', message: t('drawer.githubLPKUpdateSaved') });
+        await onRefresh();
+        setManagementDialog(null);
+      });
+    } finally {
+      setIsSavingGitHubLPKUpdatePolicy(false);
     }
   }
 
@@ -857,6 +878,17 @@ export function AppDrawer({
           isSaving={isSavingVersionRetention}
           onCancel={() => setManagementDialog(null)}
           onSave={saveVersionRetention}
+        />
+      ) : null;
+    }
+
+    if (managementDialog === 'github-lpk-update') {
+      return app.githubLPKUpdatePolicy ? (
+        <GitHubLPKUpdatePolicyDialog
+          policy={app.githubLPKUpdatePolicy}
+          isSaving={isSavingGitHubLPKUpdatePolicy}
+          onCancel={() => setManagementDialog(null)}
+          onSave={saveGitHubLPKUpdatePolicy}
         />
       ) : null;
     }
@@ -1361,6 +1393,14 @@ export function AppDrawer({
                   title={t('drawer.publishVersion')}
                   body={t('drawer.publishVersionActionBody')}
                   action={<XButton type="button" variant="secondary" size="sm" label={t('drawer.publishVersion')} icon={<Upload size={17} />} onClick={() => setManagementDialog('publish-version')} />}
+                />
+              )}
+              {canMaintain && app.githubLPKUpdatePolicy && (
+                <ManagementActionCard
+                  icon={<RefreshCw size={19} />}
+                  title={t('drawer.githubLPKUpdateTitle')}
+                  body={t('drawer.githubLPKUpdateActionBody')}
+                  action={<XButton type="button" variant="secondary" size="sm" label={t('drawer.githubLPKUpdateManage')} icon={<RefreshCw size={17} />} onClick={() => setManagementDialog('github-lpk-update')} />}
                 />
               )}
               {canMaintain && (

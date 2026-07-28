@@ -164,6 +164,20 @@ func (_c *AppVersionCreate) SetNillablePublishedAt(v *time.Time) *AppVersionCrea
 	return _c
 }
 
+// SetUpstreamPublishedAt sets the "upstream_published_at" field.
+func (_c *AppVersionCreate) SetUpstreamPublishedAt(v time.Time) *AppVersionCreate {
+	_c.mutation.SetUpstreamPublishedAt(v)
+	return _c
+}
+
+// SetNillableUpstreamPublishedAt sets the "upstream_published_at" field if the given value is not nil.
+func (_c *AppVersionCreate) SetNillableUpstreamPublishedAt(v *time.Time) *AppVersionCreate {
+	if v != nil {
+		_c.SetUpstreamPublishedAt(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *AppVersionCreate) SetCreatedAt(v time.Time) *AppVersionCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -398,6 +412,10 @@ func (_c *AppVersionCreate) createSpec() (*AppVersion, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PublishedAt(); ok {
 		_spec.SetField(appversion.FieldPublishedAt, field.TypeTime, value)
 		_node.PublishedAt = &value
+	}
+	if value, ok := _c.mutation.UpstreamPublishedAt(); ok {
+		_spec.SetField(appversion.FieldUpstreamPublishedAt, field.TypeTime, value)
+		_node.UpstreamPublishedAt = &value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(appversion.FieldCreatedAt, field.TypeTime, value)

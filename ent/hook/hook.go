@@ -393,6 +393,18 @@ func (f FavoriteFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FavoriteMutation", m)
 }
 
+// The GitHubLPKUpdatePolicyFunc type is an adapter to allow the use of ordinary
+// function as GitHubLPKUpdatePolicy mutator.
+type GitHubLPKUpdatePolicyFunc func(context.Context, *ent.GitHubLPKUpdatePolicyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f GitHubLPKUpdatePolicyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.GitHubLPKUpdatePolicyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GitHubLPKUpdatePolicyMutation", m)
+}
+
 // The GroupMemberFunc type is an adapter to allow the use of ordinary
 // function as GroupMember mutator.
 type GroupMemberFunc func(context.Context, *ent.GroupMemberMutation) (ent.Value, error)

@@ -223,6 +223,26 @@ func (_u *AppVersionUpdate) ClearPublishedAt() *AppVersionUpdate {
 	return _u
 }
 
+// SetUpstreamPublishedAt sets the "upstream_published_at" field.
+func (_u *AppVersionUpdate) SetUpstreamPublishedAt(v time.Time) *AppVersionUpdate {
+	_u.mutation.SetUpstreamPublishedAt(v)
+	return _u
+}
+
+// SetNillableUpstreamPublishedAt sets the "upstream_published_at" field if the given value is not nil.
+func (_u *AppVersionUpdate) SetNillableUpstreamPublishedAt(v *time.Time) *AppVersionUpdate {
+	if v != nil {
+		_u.SetUpstreamPublishedAt(*v)
+	}
+	return _u
+}
+
+// ClearUpstreamPublishedAt clears the value of the "upstream_published_at" field.
+func (_u *AppVersionUpdate) ClearUpstreamPublishedAt() *AppVersionUpdate {
+	_u.mutation.ClearUpstreamPublishedAt()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *AppVersionUpdate) SetCreatedAt(v time.Time) *AppVersionUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -363,6 +383,12 @@ func (_u *AppVersionUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if _u.mutation.PublishedAtCleared() {
 		_spec.ClearField(appversion.FieldPublishedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.UpstreamPublishedAt(); ok {
+		_spec.SetField(appversion.FieldUpstreamPublishedAt, field.TypeTime, value)
+	}
+	if _u.mutation.UpstreamPublishedAtCleared() {
+		_spec.ClearField(appversion.FieldUpstreamPublishedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(appversion.FieldCreatedAt, field.TypeTime, value)
@@ -585,6 +611,26 @@ func (_u *AppVersionUpdateOne) ClearPublishedAt() *AppVersionUpdateOne {
 	return _u
 }
 
+// SetUpstreamPublishedAt sets the "upstream_published_at" field.
+func (_u *AppVersionUpdateOne) SetUpstreamPublishedAt(v time.Time) *AppVersionUpdateOne {
+	_u.mutation.SetUpstreamPublishedAt(v)
+	return _u
+}
+
+// SetNillableUpstreamPublishedAt sets the "upstream_published_at" field if the given value is not nil.
+func (_u *AppVersionUpdateOne) SetNillableUpstreamPublishedAt(v *time.Time) *AppVersionUpdateOne {
+	if v != nil {
+		_u.SetUpstreamPublishedAt(*v)
+	}
+	return _u
+}
+
+// ClearUpstreamPublishedAt clears the value of the "upstream_published_at" field.
+func (_u *AppVersionUpdateOne) ClearUpstreamPublishedAt() *AppVersionUpdateOne {
+	_u.mutation.ClearUpstreamPublishedAt()
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *AppVersionUpdateOne) SetCreatedAt(v time.Time) *AppVersionUpdateOne {
 	_u.mutation.SetCreatedAt(v)
@@ -755,6 +801,12 @@ func (_u *AppVersionUpdateOne) sqlSave(ctx context.Context) (_node *AppVersion, 
 	}
 	if _u.mutation.PublishedAtCleared() {
 		_spec.ClearField(appversion.FieldPublishedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.UpstreamPublishedAt(); ok {
+		_spec.SetField(appversion.FieldUpstreamPublishedAt, field.TypeTime, value)
+	}
+	if _u.mutation.UpstreamPublishedAtCleared() {
+		_spec.ClearField(appversion.FieldUpstreamPublishedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(appversion.FieldCreatedAt, field.TypeTime, value)

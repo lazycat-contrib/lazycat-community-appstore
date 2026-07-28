@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 )
 
 // App is the model entity for the App schema.
@@ -64,8 +65,31 @@ type App struct {
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the AppQuery when eager-loading is set.
+	Edges        AppEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// AppEdges holds the relations/edges for other nodes in the graph.
+type AppEdges struct {
+	// GithubLpkUpdatePolicy holds the value of the github_lpk_update_policy edge.
+	GithubLpkUpdatePolicy *GitHubLPKUpdatePolicy `json:"github_lpk_update_policy,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// GithubLpkUpdatePolicyOrErr returns the GithubLpkUpdatePolicy value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e AppEdges) GithubLpkUpdatePolicyOrErr() (*GitHubLPKUpdatePolicy, error) {
+	if e.GithubLpkUpdatePolicy != nil {
+		return e.GithubLpkUpdatePolicy, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: githublpkupdatepolicy.Label}
+	}
+	return nil, &NotLoadedError{edge: "github_lpk_update_policy"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -260,6 +284,11 @@ func (_m *App) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *App) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryGithubLpkUpdatePolicy queries the "github_lpk_update_policy" edge of the App entity.
+func (_m *App) QueryGithubLpkUpdatePolicy() *GitHubLPKUpdatePolicyQuery {
+	return NewAppClient(_m.config).QueryGithubLpkUpdatePolicy(_m)
 }
 
 // Update returns a builder for updating this App.

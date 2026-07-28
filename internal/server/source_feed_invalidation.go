@@ -65,7 +65,7 @@ func isSourceFeedMutationRequest(r *http.Request) bool {
 		return r.Method == http.MethodPost
 	}
 	if strings.HasPrefix(path, "/api/v1/apps/") {
-		for _, excluded := range []string{"/comments", "/chat", "/favorites", "/rating", "/collaborator"} {
+		for _, excluded := range []string{"/comments", "/chat", "/favorites", "/rating", "/collaborator", "/github-lpk-update-policy"} {
 			if strings.Contains(path, excluded) {
 				return false
 			}

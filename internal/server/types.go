@@ -197,17 +197,18 @@ type tagDTO struct {
 
 type appDetail struct {
 	appSummary
-	Versions              []version               `json:"versions"`
-	Screenshots           []screenshot            `json:"screenshots"`
-	Comments              []comment               `json:"comments"`
-	Favorites             int                     `json:"favorites"`
-	OutdatedMarks         int                     `json:"outdatedMarks"`
-	OutdatedMarked        bool                    `json:"outdatedMarked"`
-	CanManageApp          bool                    `json:"canManageApp"`
-	CanUploadVersion      bool                    `json:"canUploadVersion"`
-	CanClearOutdatedMarks bool                    `json:"canClearOutdatedMarks"`
-	VersionRetention      *versionRetentionPolicy `json:"versionRetention,omitzero"`
-	LPKInspection         *lpkInspectionStatusDTO `json:"lpkInspection,omitempty"`
+	Versions              []version                 `json:"versions"`
+	Screenshots           []screenshot              `json:"screenshots"`
+	Comments              []comment                 `json:"comments"`
+	Favorites             int                       `json:"favorites"`
+	OutdatedMarks         int                       `json:"outdatedMarks"`
+	OutdatedMarked        bool                      `json:"outdatedMarked"`
+	CanManageApp          bool                      `json:"canManageApp"`
+	CanUploadVersion      bool                      `json:"canUploadVersion"`
+	CanClearOutdatedMarks bool                      `json:"canClearOutdatedMarks"`
+	VersionRetention      *versionRetentionPolicy   `json:"versionRetention,omitzero"`
+	LPKInspection         *lpkInspectionStatusDTO   `json:"lpkInspection,omitempty"`
+	GitHubLPKUpdatePolicy *githubLPKUpdatePolicyDTO `json:"githubLPKUpdatePolicy,omitempty"`
 }
 
 type screenshot struct {
@@ -233,20 +234,21 @@ type collectionDTO struct {
 }
 
 type version struct {
-	ID          int        `json:"id"`
-	AppID       int        `json:"appId"`
-	UploaderID  int        `json:"uploaderId"`
-	Version     string     `json:"version"`
-	Changelog   string     `json:"changelog"`
-	Status      string     `json:"status"`
-	SourceType  string     `json:"sourceType"`
-	DownloadURL string     `json:"downloadUrl"`
-	StorageKey  string     `json:"storageKey,omitempty"`
-	StoragePath string     `json:"storagePath,omitempty"`
-	FileSize    int64      `json:"fileSize"`
-	SHA256      string     `json:"sha256"`
-	PublishedAt *time.Time `json:"publishedAt,omitempty"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	ID                  int        `json:"id"`
+	AppID               int        `json:"appId"`
+	UploaderID          int        `json:"uploaderId"`
+	Version             string     `json:"version"`
+	Changelog           string     `json:"changelog"`
+	Status              string     `json:"status"`
+	SourceType          string     `json:"sourceType"`
+	DownloadURL         string     `json:"downloadUrl"`
+	StorageKey          string     `json:"storageKey,omitempty"`
+	StoragePath         string     `json:"storagePath,omitempty"`
+	FileSize            int64      `json:"fileSize"`
+	SHA256              string     `json:"sha256"`
+	PublishedAt         *time.Time `json:"publishedAt,omitempty"`
+	UpstreamPublishedAt *time.Time `json:"upstreamPublishedAt,omitempty"`
+	CreatedAt           time.Time  `json:"createdAt"`
 }
 
 type comment struct {

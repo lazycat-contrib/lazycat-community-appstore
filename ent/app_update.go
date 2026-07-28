@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 	"lazycat.community/appstore/ent/predicate"
 )
 
@@ -402,9 +403,34 @@ func (_u *AppUpdate) SetUpdatedAt(v time.Time) *AppUpdate {
 	return _u
 }
 
+// SetGithubLpkUpdatePolicyID sets the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity by ID.
+func (_u *AppUpdate) SetGithubLpkUpdatePolicyID(id int) *AppUpdate {
+	_u.mutation.SetGithubLpkUpdatePolicyID(id)
+	return _u
+}
+
+// SetNillableGithubLpkUpdatePolicyID sets the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity by ID if the given value is not nil.
+func (_u *AppUpdate) SetNillableGithubLpkUpdatePolicyID(id *int) *AppUpdate {
+	if id != nil {
+		_u = _u.SetGithubLpkUpdatePolicyID(*id)
+	}
+	return _u
+}
+
+// SetGithubLpkUpdatePolicy sets the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity.
+func (_u *AppUpdate) SetGithubLpkUpdatePolicy(v *GitHubLPKUpdatePolicy) *AppUpdate {
+	return _u.SetGithubLpkUpdatePolicyID(v.ID)
+}
+
 // Mutation returns the AppMutation object of the builder.
 func (_u *AppUpdate) Mutation() *AppMutation {
 	return _u.mutation
+}
+
+// ClearGithubLpkUpdatePolicy clears the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity.
+func (_u *AppUpdate) ClearGithubLpkUpdatePolicy() *AppUpdate {
+	_u.mutation.ClearGithubLpkUpdatePolicy()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -572,6 +598,35 @@ func (_u *AppUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(app.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.GithubLpkUpdatePolicyCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   app.GithubLpkUpdatePolicyTable,
+			Columns: []string{app.GithubLpkUpdatePolicyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(githublpkupdatepolicy.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GithubLpkUpdatePolicyIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   app.GithubLpkUpdatePolicyTable,
+			Columns: []string{app.GithubLpkUpdatePolicyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(githublpkupdatepolicy.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -967,9 +1022,34 @@ func (_u *AppUpdateOne) SetUpdatedAt(v time.Time) *AppUpdateOne {
 	return _u
 }
 
+// SetGithubLpkUpdatePolicyID sets the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity by ID.
+func (_u *AppUpdateOne) SetGithubLpkUpdatePolicyID(id int) *AppUpdateOne {
+	_u.mutation.SetGithubLpkUpdatePolicyID(id)
+	return _u
+}
+
+// SetNillableGithubLpkUpdatePolicyID sets the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity by ID if the given value is not nil.
+func (_u *AppUpdateOne) SetNillableGithubLpkUpdatePolicyID(id *int) *AppUpdateOne {
+	if id != nil {
+		_u = _u.SetGithubLpkUpdatePolicyID(*id)
+	}
+	return _u
+}
+
+// SetGithubLpkUpdatePolicy sets the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity.
+func (_u *AppUpdateOne) SetGithubLpkUpdatePolicy(v *GitHubLPKUpdatePolicy) *AppUpdateOne {
+	return _u.SetGithubLpkUpdatePolicyID(v.ID)
+}
+
 // Mutation returns the AppMutation object of the builder.
 func (_u *AppUpdateOne) Mutation() *AppMutation {
 	return _u.mutation
+}
+
+// ClearGithubLpkUpdatePolicy clears the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity.
+func (_u *AppUpdateOne) ClearGithubLpkUpdatePolicy() *AppUpdateOne {
+	_u.mutation.ClearGithubLpkUpdatePolicy()
+	return _u
 }
 
 // Where appends a list predicates to the AppUpdate builder.
@@ -1167,6 +1247,35 @@ func (_u *AppUpdateOne) sqlSave(ctx context.Context) (_node *App, err error) {
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(app.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.GithubLpkUpdatePolicyCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   app.GithubLpkUpdatePolicyTable,
+			Columns: []string{app.GithubLpkUpdatePolicyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(githublpkupdatepolicy.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GithubLpkUpdatePolicyIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   app.GithubLpkUpdatePolicyTable,
+			Columns: []string{app.GithubLpkUpdatePolicyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(githublpkupdatepolicy.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &App{config: _u.config}
 	_spec.Assign = _node.assignValues

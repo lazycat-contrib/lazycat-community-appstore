@@ -228,6 +228,9 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 		detail.CanClearOutdatedMarks = detail.CanManageApp && s.manualOutdatedClearAllowed(r.Context())
 		detail.OutdatedMarked, _ = s.db.OutdatedMark.Query().Where(outdatedpkg.AppIDEQ(record.ID), outdatedpkg.UserIDEQ(u.ID)).Exist(r.Context())
 	}
+	if detail.CanManageApp {
+		detail.GitHubLPKUpdatePolicy = s.githubLPKUpdatePolicyForApp(r.Context(), record.ID, detail.LatestVersion)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"app": detail})
 }
 
@@ -1236,20 +1239,21 @@ func (s *Server) appSummaryDTO(r *http.Request, record *entgo.App, u *entgo.User
 
 func toVersionDTO(v *entgo.AppVersion) version {
 	return version{
-		ID:          v.ID,
-		AppID:       v.AppID,
-		UploaderID:  v.UploaderID,
-		Version:     v.Version,
-		Changelog:   v.Changelog,
-		Status:      string(v.Status),
-		SourceType:  string(v.SourceType),
-		DownloadURL: v.DownloadURL,
-		StorageKey:  v.StorageKey,
-		StoragePath: v.StoragePath,
-		FileSize:    v.FileSize,
-		SHA256:      v.Sha256,
-		PublishedAt: v.PublishedAt,
-		CreatedAt:   v.CreatedAt,
+		ID:                  v.ID,
+		AppID:               v.AppID,
+		UploaderID:          v.UploaderID,
+		Version:             v.Version,
+		Changelog:           v.Changelog,
+		Status:              string(v.Status),
+		SourceType:          string(v.SourceType),
+		DownloadURL:         v.DownloadURL,
+		StorageKey:          v.StorageKey,
+		StoragePath:         v.StoragePath,
+		FileSize:            v.FileSize,
+		SHA256:              v.Sha256,
+		PublishedAt:         v.PublishedAt,
+		UpstreamPublishedAt: v.UpstreamPublishedAt,
+		CreatedAt:           v.CreatedAt,
 	}
 }
 

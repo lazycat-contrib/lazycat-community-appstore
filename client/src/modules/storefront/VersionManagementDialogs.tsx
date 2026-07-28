@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useId, useState } from 'react';
-import { Archive, Save, Trash2, X } from 'lucide-react';
+import { Archive, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
+import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { Dialog as XDialog } from '@astryxdesign/core/Dialog';
 import { FormLayout as XFormLayout } from '@astryxdesign/core/FormLayout';
 import { NumberInput as XNumberInput } from '@astryxdesign/core/NumberInput';
@@ -8,7 +9,8 @@ import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Text as XText } from '@astryxdesign/core/Text';
 import { useTranslation } from 'react-i18next';
 import { SectionTitle } from '../../shared/components/Feedback';
-import type { Version, VersionRetentionPolicy } from '../../shared/types';
+import type { GitHubLPKUpdatePolicy, Version, VersionRetentionPolicy } from '../../shared/types';
+import { formatDate } from '../../shared/utils';
 import { retentionPruneCount } from './versionManagementState';
 
 const wrappingTextStyle = {
@@ -36,6 +38,122 @@ export type VersionDeleteDialogProps = {
   onCancel: () => void;
   onConfirm: () => Promise<void>;
 };
+
+export type GitHubLPKUpdatePolicyDialogProps = {
+  policy: GitHubLPKUpdatePolicy;
+  isSaving: boolean;
+  onCancel: () => void;
+  onSave: (input: { enabled: boolean; intervalMinutes: number }) => Promise<void>;
+};
+
+export function GitHubLPKUpdatePolicyDialog({
+  policy,
+  isSaving,
+  onCancel,
+  onSave,
+}: GitHubLPKUpdatePolicyDialogProps) {
+  const { t } = useTranslation();
+  const titleId = useId();
+  const summaryId = useId();
+  const [enabled, setEnabled] = useState(policy.enabled);
+  const [intervalHours, setIntervalHours] = useState(Math.max(1, Math.round(policy.intervalMinutes / 60)));
+
+  useEffect(() => {
+    setEnabled(policy.enabled);
+    setIntervalHours(Math.max(1, Math.round(policy.intervalMinutes / 60)));
+  }, [policy.enabled, policy.intervalMinutes]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isSaving) return;
+    await onSave({ enabled, intervalMinutes: intervalHours * 60 });
+  }
+
+  return (
+    <XDialog
+      isOpen
+      onOpenChange={(open) => {
+        if (!open && !isSaving) onCancel();
+      }}
+      purpose="form"
+      aria-labelledby={titleId}
+      aria-describedby={summaryId}
+      width="min(600px, calc(100vw - 36px))"
+      maxHeight="calc(100vh - 36px)"
+      padding={0}
+      className="modal-dialog-shell"
+    >
+      <form className="modal-panel form-panel" aria-busy={isSaving} onSubmit={(event) => void submit(event)}>
+        <div id={titleId} style={wrappingTextStyle}>
+          <SectionTitle icon={RefreshCw} title={t('drawer.githubLPKUpdateTitle')} />
+        </div>
+
+        <XFormLayout>
+          <XCheckboxInput
+            label={t('drawer.githubLPKUpdateEnabled')}
+            description={t('drawer.githubLPKUpdateEnabledHelp')}
+            value={enabled}
+            isDisabled={isSaving}
+            onChange={setEnabled}
+          />
+          <XNumberInput
+            label={t('drawer.githubLPKUpdateIntervalHours')}
+            description={t('drawer.githubLPKUpdateIntervalHelp')}
+            value={intervalHours}
+            min={1}
+            max={720}
+            step={1}
+            isIntegerOnly
+            isDisabled={!enabled || isSaving}
+            onChange={(value) => setIntervalHours(Math.min(720, Math.max(1, value)))}
+          />
+        </XFormLayout>
+
+        <div id={summaryId} style={wrappingTextStyle}>
+          <XText as="p" type="supporting" display="block" style={wrappingTextStyle}>
+            {t('drawer.githubLPKUpdateLastChecked')}: {policy.lastCheckedAt ? formatDate(policy.lastCheckedAt) : t('drawer.githubLPKUpdateNeverChecked')}
+          </XText>
+          <XText as="p" type="supporting" display="block" style={wrappingTextStyle}>
+            {t('drawer.githubLPKUpdateNextCheck')}: {policy.nextCheckAt ? formatDate(policy.nextCheckAt) : '-'}
+          </XText>
+          <XText as="p" type="supporting" display="block" style={wrappingTextStyle}>
+            {t('drawer.githubLPKUpdateLastSuccess')}: {policy.lastSuccessAt ? formatDate(policy.lastSuccessAt) : '-'}
+          </XText>
+          {policy.lastVersion && (
+            <XText as="p" type="supporting" display="block" style={wrappingTextStyle}>
+              {t('drawer.githubLPKUpdateLastVersion')}: {policy.lastVersion}
+            </XText>
+          )}
+          {policy.lastError && (
+            <XText as="p" display="block" style={wrappingTextStyle}>
+              {t('drawer.githubLPKUpdateLastError')}: {policy.lastError}
+            </XText>
+          )}
+        </div>
+
+        <div className="dialog-actions">
+          <XButton
+            data-autofocus="true"
+            type="button"
+            variant="secondary"
+            label={t('common.cancel')}
+            icon={<X size={17} />}
+            isDisabled={isSaving}
+            onClick={onCancel}
+          />
+          <XButton
+            type="submit"
+            variant="primary"
+            label={t('drawer.githubLPKUpdateSave')}
+            icon={<Save size={17} />}
+            isDisabled={isSaving}
+            isLoading={isSaving}
+          />
+        </div>
+      </form>
+    </XDialog>
+  );
+}
 
 export function VersionRetentionDialog({
   policy,

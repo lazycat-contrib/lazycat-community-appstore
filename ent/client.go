@@ -47,6 +47,7 @@ import (
 	"lazycat.community/appstore/ent/comment"
 	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
+	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/lpkinspectionjob"
 	"lazycat.community/appstore/ent/mcptoken"
@@ -129,6 +130,8 @@ type Client struct {
 	CommentNotification *CommentNotificationClient
 	// Favorite is the client for interacting with the Favorite builders.
 	Favorite *FavoriteClient
+	// GitHubLPKUpdatePolicy is the client for interacting with the GitHubLPKUpdatePolicy builders.
+	GitHubLPKUpdatePolicy *GitHubLPKUpdatePolicyClient
 	// GroupMember is the client for interacting with the GroupMember builders.
 	GroupMember *GroupMemberClient
 	// LPKInspectionJob is the client for interacting with the LPKInspectionJob builders.
@@ -194,6 +197,7 @@ func (c *Client) init() {
 	c.Comment = NewCommentClient(c.config)
 	c.CommentNotification = NewCommentNotificationClient(c.config)
 	c.Favorite = NewFavoriteClient(c.config)
+	c.GitHubLPKUpdatePolicy = NewGitHubLPKUpdatePolicyClient(c.config)
 	c.GroupMember = NewGroupMemberClient(c.config)
 	c.LPKInspectionJob = NewLPKInspectionJobClient(c.config)
 	c.MCPToken = NewMCPTokenClient(c.config)
@@ -329,6 +333,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Comment:               NewCommentClient(cfg),
 		CommentNotification:   NewCommentNotificationClient(cfg),
 		Favorite:              NewFavoriteClient(cfg),
+		GitHubLPKUpdatePolicy: NewGitHubLPKUpdatePolicyClient(cfg),
 		GroupMember:           NewGroupMemberClient(cfg),
 		LPKInspectionJob:      NewLPKInspectionJobClient(cfg),
 		MCPToken:              NewMCPTokenClient(cfg),
@@ -391,6 +396,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Comment:               NewCommentClient(cfg),
 		CommentNotification:   NewCommentNotificationClient(cfg),
 		Favorite:              NewFavoriteClient(cfg),
+		GitHubLPKUpdatePolicy: NewGitHubLPKUpdatePolicyClient(cfg),
 		GroupMember:           NewGroupMemberClient(cfg),
 		LPKInspectionJob:      NewLPKInspectionJobClient(cfg),
 		MCPToken:              NewMCPTokenClient(cfg),
@@ -438,9 +444,9 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ClientInstallHistory, c.ClientSetting, c.ClientSource, c.ClientSourceApp,
 		c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
 		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
-		c.CommentNotification, c.Favorite, c.GroupMember, c.LPKInspectionJob,
-		c.MCPToken, c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest,
-		c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
+		c.CommentNotification, c.Favorite, c.GitHubLPKUpdatePolicy, c.GroupMember,
+		c.LPKInspectionJob, c.MCPToken, c.OutdatedMark, c.RegistrationInvite,
+		c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Use(hooks...)
 	}
@@ -457,9 +463,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ClientInstallHistory, c.ClientSetting, c.ClientSource, c.ClientSourceApp,
 		c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
 		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
-		c.CommentNotification, c.Favorite, c.GroupMember, c.LPKInspectionJob,
-		c.MCPToken, c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest,
-		c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
+		c.CommentNotification, c.Favorite, c.GitHubLPKUpdatePolicy, c.GroupMember,
+		c.LPKInspectionJob, c.MCPToken, c.OutdatedMark, c.RegistrationInvite,
+		c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -532,6 +538,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CommentNotification.mutate(ctx, m)
 	case *FavoriteMutation:
 		return c.Favorite.mutate(ctx, m)
+	case *GitHubLPKUpdatePolicyMutation:
+		return c.GitHubLPKUpdatePolicy.mutate(ctx, m)
 	case *GroupMemberMutation:
 		return c.GroupMember.mutate(ctx, m)
 	case *LPKInspectionJobMutation:
@@ -1064,6 +1072,22 @@ func (c *AppClient) GetX(ctx context.Context, id int) *App {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryGithubLpkUpdatePolicy queries the github_lpk_update_policy edge of a App.
+func (c *AppClient) QueryGithubLpkUpdatePolicy(_m *App) *GitHubLPKUpdatePolicyQuery {
+	query := (&GitHubLPKUpdatePolicyClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(app.Table, app.FieldID, id),
+			sqlgraph.To(githublpkupdatepolicy.Table, githublpkupdatepolicy.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, app.GithubLpkUpdatePolicyTable, app.GithubLpkUpdatePolicyColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -4847,6 +4871,155 @@ func (c *FavoriteClient) mutate(ctx context.Context, m *FavoriteMutation) (Value
 	}
 }
 
+// GitHubLPKUpdatePolicyClient is a client for the GitHubLPKUpdatePolicy schema.
+type GitHubLPKUpdatePolicyClient struct {
+	config
+}
+
+// NewGitHubLPKUpdatePolicyClient returns a client for the GitHubLPKUpdatePolicy from the given config.
+func NewGitHubLPKUpdatePolicyClient(c config) *GitHubLPKUpdatePolicyClient {
+	return &GitHubLPKUpdatePolicyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `githublpkupdatepolicy.Hooks(f(g(h())))`.
+func (c *GitHubLPKUpdatePolicyClient) Use(hooks ...Hook) {
+	c.hooks.GitHubLPKUpdatePolicy = append(c.hooks.GitHubLPKUpdatePolicy, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `githublpkupdatepolicy.Intercept(f(g(h())))`.
+func (c *GitHubLPKUpdatePolicyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.GitHubLPKUpdatePolicy = append(c.inters.GitHubLPKUpdatePolicy, interceptors...)
+}
+
+// Create returns a builder for creating a GitHubLPKUpdatePolicy entity.
+func (c *GitHubLPKUpdatePolicyClient) Create() *GitHubLPKUpdatePolicyCreate {
+	mutation := newGitHubLPKUpdatePolicyMutation(c.config, OpCreate)
+	return &GitHubLPKUpdatePolicyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of GitHubLPKUpdatePolicy entities.
+func (c *GitHubLPKUpdatePolicyClient) CreateBulk(builders ...*GitHubLPKUpdatePolicyCreate) *GitHubLPKUpdatePolicyCreateBulk {
+	return &GitHubLPKUpdatePolicyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *GitHubLPKUpdatePolicyClient) MapCreateBulk(slice any, setFunc func(*GitHubLPKUpdatePolicyCreate, int)) *GitHubLPKUpdatePolicyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &GitHubLPKUpdatePolicyCreateBulk{err: fmt.Errorf("calling to GitHubLPKUpdatePolicyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*GitHubLPKUpdatePolicyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &GitHubLPKUpdatePolicyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for GitHubLPKUpdatePolicy.
+func (c *GitHubLPKUpdatePolicyClient) Update() *GitHubLPKUpdatePolicyUpdate {
+	mutation := newGitHubLPKUpdatePolicyMutation(c.config, OpUpdate)
+	return &GitHubLPKUpdatePolicyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *GitHubLPKUpdatePolicyClient) UpdateOne(_m *GitHubLPKUpdatePolicy) *GitHubLPKUpdatePolicyUpdateOne {
+	mutation := newGitHubLPKUpdatePolicyMutation(c.config, OpUpdateOne, withGitHubLPKUpdatePolicy(_m))
+	return &GitHubLPKUpdatePolicyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *GitHubLPKUpdatePolicyClient) UpdateOneID(id int) *GitHubLPKUpdatePolicyUpdateOne {
+	mutation := newGitHubLPKUpdatePolicyMutation(c.config, OpUpdateOne, withGitHubLPKUpdatePolicyID(id))
+	return &GitHubLPKUpdatePolicyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for GitHubLPKUpdatePolicy.
+func (c *GitHubLPKUpdatePolicyClient) Delete() *GitHubLPKUpdatePolicyDelete {
+	mutation := newGitHubLPKUpdatePolicyMutation(c.config, OpDelete)
+	return &GitHubLPKUpdatePolicyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *GitHubLPKUpdatePolicyClient) DeleteOne(_m *GitHubLPKUpdatePolicy) *GitHubLPKUpdatePolicyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *GitHubLPKUpdatePolicyClient) DeleteOneID(id int) *GitHubLPKUpdatePolicyDeleteOne {
+	builder := c.Delete().Where(githublpkupdatepolicy.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &GitHubLPKUpdatePolicyDeleteOne{builder}
+}
+
+// Query returns a query builder for GitHubLPKUpdatePolicy.
+func (c *GitHubLPKUpdatePolicyClient) Query() *GitHubLPKUpdatePolicyQuery {
+	return &GitHubLPKUpdatePolicyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeGitHubLPKUpdatePolicy},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a GitHubLPKUpdatePolicy entity by its id.
+func (c *GitHubLPKUpdatePolicyClient) Get(ctx context.Context, id int) (*GitHubLPKUpdatePolicy, error) {
+	return c.Query().Where(githublpkupdatepolicy.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *GitHubLPKUpdatePolicyClient) GetX(ctx context.Context, id int) *GitHubLPKUpdatePolicy {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryApp queries the app edge of a GitHubLPKUpdatePolicy.
+func (c *GitHubLPKUpdatePolicyClient) QueryApp(_m *GitHubLPKUpdatePolicy) *AppQuery {
+	query := (&AppClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(githublpkupdatepolicy.Table, githublpkupdatepolicy.FieldID, id),
+			sqlgraph.To(app.Table, app.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, githublpkupdatepolicy.AppTable, githublpkupdatepolicy.AppColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *GitHubLPKUpdatePolicyClient) Hooks() []Hook {
+	return c.hooks.GitHubLPKUpdatePolicy
+}
+
+// Interceptors returns the client interceptors.
+func (c *GitHubLPKUpdatePolicyClient) Interceptors() []Interceptor {
+	return c.inters.GitHubLPKUpdatePolicy
+}
+
+func (c *GitHubLPKUpdatePolicyClient) mutate(ctx context.Context, m *GitHubLPKUpdatePolicyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&GitHubLPKUpdatePolicyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&GitHubLPKUpdatePolicyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&GitHubLPKUpdatePolicyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&GitHubLPKUpdatePolicyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown GitHubLPKUpdatePolicy mutation op: %q", m.Op())
+	}
+}
+
 // GroupMemberClient is a client for the GroupMember schema.
 type GroupMemberClient struct {
 	config
@@ -6319,9 +6492,9 @@ type (
 		ClientAssetLink, ClientInstallHistory, ClientSetting, ClientSource,
 		ClientSourceApp, ClientSyncSetting, Collaborator, CollaboratorInvite,
 		CollaboratorRequest, Collection, CollectionApp, Comment, CommentNotification,
-		Favorite, GroupMember, LPKInspectionJob, MCPToken, OutdatedMark,
-		RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
-		UserGroup []ent.Hook
+		Favorite, GitHubLPKUpdatePolicy, GroupMember, LPKInspectionJob, MCPToken,
+		OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig,
+		Tag, User, UserGroup []ent.Hook
 	}
 	inters struct {
 		APIToken, Ad, Announcement, App, AppDownload, AppScreenshot, AppTag, AppVersion,
@@ -6330,8 +6503,8 @@ type (
 		ClientAssetLink, ClientInstallHistory, ClientSetting, ClientSource,
 		ClientSourceApp, ClientSyncSetting, Collaborator, CollaboratorInvite,
 		CollaboratorRequest, Collection, CollectionApp, Comment, CommentNotification,
-		Favorite, GroupMember, LPKInspectionJob, MCPToken, OutdatedMark,
-		RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig, Tag, User,
-		UserGroup []ent.Interceptor
+		Favorite, GitHubLPKUpdatePolicy, GroupMember, LPKInspectionJob, MCPToken,
+		OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig,
+		Tag, User, UserGroup []ent.Interceptor
 	}
 )

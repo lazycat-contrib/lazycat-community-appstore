@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"lazycat.community/appstore/ent/predicate"
 )
 
@@ -1397,6 +1398,29 @@ func UpdatedAtLT(v time.Time) predicate.App {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.App {
 	return predicate.App(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasGithubLpkUpdatePolicy applies the HasEdge predicate on the "github_lpk_update_policy" edge.
+func HasGithubLpkUpdatePolicy() predicate.App {
+	return predicate.App(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, GithubLpkUpdatePolicyTable, GithubLpkUpdatePolicyColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasGithubLpkUpdatePolicyWith applies the HasEdge predicate on the "github_lpk_update_policy" edge with a given conditions (other predicates).
+func HasGithubLpkUpdatePolicyWith(preds ...predicate.GitHubLPKUpdatePolicy) predicate.App {
+	return predicate.App(func(s *sql.Selector) {
+		step := newGithubLpkUpdatePolicyStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

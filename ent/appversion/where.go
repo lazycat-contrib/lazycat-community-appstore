@@ -104,6 +104,11 @@ func PublishedAt(v time.Time) predicate.AppVersion {
 	return predicate.AppVersion(sql.FieldEQ(FieldPublishedAt, v))
 }
 
+// UpstreamPublishedAt applies equality check predicate on the "upstream_published_at" field. It's identical to UpstreamPublishedAtEQ.
+func UpstreamPublishedAt(v time.Time) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldEQ(FieldUpstreamPublishedAt, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.AppVersion {
 	return predicate.AppVersion(sql.FieldEQ(FieldCreatedAt, v))
@@ -712,6 +717,56 @@ func PublishedAtIsNil() predicate.AppVersion {
 // PublishedAtNotNil applies the NotNil predicate on the "published_at" field.
 func PublishedAtNotNil() predicate.AppVersion {
 	return predicate.AppVersion(sql.FieldNotNull(FieldPublishedAt))
+}
+
+// UpstreamPublishedAtEQ applies the EQ predicate on the "upstream_published_at" field.
+func UpstreamPublishedAtEQ(v time.Time) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldEQ(FieldUpstreamPublishedAt, v))
+}
+
+// UpstreamPublishedAtNEQ applies the NEQ predicate on the "upstream_published_at" field.
+func UpstreamPublishedAtNEQ(v time.Time) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldNEQ(FieldUpstreamPublishedAt, v))
+}
+
+// UpstreamPublishedAtIn applies the In predicate on the "upstream_published_at" field.
+func UpstreamPublishedAtIn(vs ...time.Time) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldIn(FieldUpstreamPublishedAt, vs...))
+}
+
+// UpstreamPublishedAtNotIn applies the NotIn predicate on the "upstream_published_at" field.
+func UpstreamPublishedAtNotIn(vs ...time.Time) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldNotIn(FieldUpstreamPublishedAt, vs...))
+}
+
+// UpstreamPublishedAtGT applies the GT predicate on the "upstream_published_at" field.
+func UpstreamPublishedAtGT(v time.Time) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldGT(FieldUpstreamPublishedAt, v))
+}
+
+// UpstreamPublishedAtGTE applies the GTE predicate on the "upstream_published_at" field.
+func UpstreamPublishedAtGTE(v time.Time) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldGTE(FieldUpstreamPublishedAt, v))
+}
+
+// UpstreamPublishedAtLT applies the LT predicate on the "upstream_published_at" field.
+func UpstreamPublishedAtLT(v time.Time) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldLT(FieldUpstreamPublishedAt, v))
+}
+
+// UpstreamPublishedAtLTE applies the LTE predicate on the "upstream_published_at" field.
+func UpstreamPublishedAtLTE(v time.Time) predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldLTE(FieldUpstreamPublishedAt, v))
+}
+
+// UpstreamPublishedAtIsNil applies the IsNil predicate on the "upstream_published_at" field.
+func UpstreamPublishedAtIsNil() predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldIsNull(FieldUpstreamPublishedAt))
+}
+
+// UpstreamPublishedAtNotNil applies the NotNil predicate on the "upstream_published_at" field.
+func UpstreamPublishedAtNotNil() predicate.AppVersion {
+	return predicate.AppVersion(sql.FieldNotNull(FieldUpstreamPublishedAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

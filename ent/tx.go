@@ -76,6 +76,8 @@ type Tx struct {
 	CommentNotification *CommentNotificationClient
 	// Favorite is the client for interacting with the Favorite builders.
 	Favorite *FavoriteClient
+	// GitHubLPKUpdatePolicy is the client for interacting with the GitHubLPKUpdatePolicy builders.
+	GitHubLPKUpdatePolicy *GitHubLPKUpdatePolicyClient
 	// GroupMember is the client for interacting with the GroupMember builders.
 	GroupMember *GroupMemberClient
 	// LPKInspectionJob is the client for interacting with the LPKInspectionJob builders.
@@ -261,6 +263,7 @@ func (tx *Tx) init() {
 	tx.Comment = NewCommentClient(tx.config)
 	tx.CommentNotification = NewCommentNotificationClient(tx.config)
 	tx.Favorite = NewFavoriteClient(tx.config)
+	tx.GitHubLPKUpdatePolicy = NewGitHubLPKUpdatePolicyClient(tx.config)
 	tx.GroupMember = NewGroupMemberClient(tx.config)
 	tx.LPKInspectionJob = NewLPKInspectionJobClient(tx.config)
 	tx.MCPToken = NewMCPTokenClient(tx.config)

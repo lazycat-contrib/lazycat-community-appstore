@@ -26,6 +26,7 @@ func (AppVersion) Fields() []ent.Field {
 		field.Int64("file_size").Default(0),
 		field.String("sha256").Default(""),
 		field.Time("published_at").Optional().Nillable(),
+		field.Time("upstream_published_at").Optional().Nillable(),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}

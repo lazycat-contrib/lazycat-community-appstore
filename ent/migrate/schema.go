@@ -270,6 +270,7 @@ var (
 		{Name: "file_size", Type: field.TypeInt64, Default: 0},
 		{Name: "sha256", Type: field.TypeString, Default: ""},
 		{Name: "published_at", Type: field.TypeTime, Nullable: true},
+		{Name: "upstream_published_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -292,7 +293,7 @@ var (
 			{
 				Name:    "appversion_app_id_status_published_at_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{AppVersionsColumns[1], AppVersionsColumns[5], AppVersionsColumns[12], AppVersionsColumns[13]},
+				Columns: []*schema.Column{AppVersionsColumns[1], AppVersionsColumns[5], AppVersionsColumns[12], AppVersionsColumns[14]},
 			},
 			{
 				Name:    "appversion_uploader_id",
@@ -1136,6 +1137,41 @@ var (
 			},
 		},
 	}
+	// GithubLpkUpdatePoliciesColumns holds the columns for the "github_lpk_update_policies" table.
+	GithubLpkUpdatePoliciesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "enabled", Type: field.TypeBool, Default: false},
+		{Name: "interval_minutes", Type: field.TypeInt, Default: 1440},
+		{Name: "last_checked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_success_at", Type: field.TypeTime, Nullable: true},
+		{Name: "next_check_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_version", Type: field.TypeString, Default: ""},
+		{Name: "last_error", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "app_id", Type: field.TypeInt, Unique: true},
+	}
+	// GithubLpkUpdatePoliciesTable holds the schema information for the "github_lpk_update_policies" table.
+	GithubLpkUpdatePoliciesTable = &schema.Table{
+		Name:       "github_lpk_update_policies",
+		Columns:    GithubLpkUpdatePoliciesColumns,
+		PrimaryKey: []*schema.Column{GithubLpkUpdatePoliciesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "github_lpk_update_policies_apps_github_lpk_update_policy",
+				Columns:    []*schema.Column{GithubLpkUpdatePoliciesColumns[10]},
+				RefColumns: []*schema.Column{AppsColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "githublpkupdatepolicy_enabled_next_check_at",
+				Unique:  false,
+				Columns: []*schema.Column{GithubLpkUpdatePoliciesColumns[1], GithubLpkUpdatePoliciesColumns[5]},
+			},
+		},
+	}
 	// GroupMembersColumns holds the columns for the "group_members" table.
 	GroupMembersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1495,6 +1531,7 @@ var (
 		CommentsTable,
 		CommentNotificationsTable,
 		FavoritesTable,
+		GithubLpkUpdatePoliciesTable,
 		GroupMembersTable,
 		LpkInspectionJobsTable,
 		McpTokensTable,
@@ -1511,6 +1548,10 @@ var (
 
 func init() {
 	ClientSourceAppsTable.ForeignKeys[0].RefTable = ClientSourcesTable
+	GithubLpkUpdatePoliciesTable.ForeignKeys[0].RefTable = AppsTable
+	GithubLpkUpdatePoliciesTable.Annotation = &entsql.Annotation{
+		Table: "github_lpk_update_policies",
+	}
 	StorageConfigsTable.Annotation = &entsql.Annotation{
 		Table: "storage_configs",
 	}

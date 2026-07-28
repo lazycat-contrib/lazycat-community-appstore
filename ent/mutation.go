@@ -43,6 +43,7 @@ import (
 	"lazycat.community/appstore/ent/comment"
 	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
+	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/lpkinspectionjob"
 	"lazycat.community/appstore/ent/mcptoken"
@@ -98,6 +99,7 @@ const (
 	TypeComment               = "Comment"
 	TypeCommentNotification   = "CommentNotification"
 	TypeFavorite              = "Favorite"
+	TypeGitHubLPKUpdatePolicy = "GitHubLPKUpdatePolicy"
 	TypeGroupMember           = "GroupMember"
 	TypeLPKInspectionJob      = "LPKInspectionJob"
 	TypeMCPToken              = "MCPToken"
@@ -2654,41 +2656,43 @@ func (m *AnnouncementMutation) ResetEdge(name string) error {
 // AppMutation represents an operation that mutates the App nodes in the graph.
 type AppMutation struct {
 	config
-	op                          Op
-	typ                         string
-	id                          *int
-	owner_id                    *int
-	addowner_id                 *int
-	category_id                 *int
-	addcategory_id              *int
-	package_id                  *string
-	name                        *string
-	name_i18n_json              *string
-	slug                        *string
-	summary                     *string
-	summary_i18n_json           *string
-	description                 *string
-	description_i18n_json       *string
-	author                      *string
-	homepage                    *string
-	license                     *string
-	min_os_version              *string
-	icon_url                    *string
-	status                      *app.Status
-	allow_unreviewed_updates    *bool
-	comments_enabled            *bool
-	email_notifications_enabled *bool
-	install_password_hash       *string
-	download_count              *int
-	adddownload_count           *int
-	version_retention_count     *int
-	addversion_retention_count  *int
-	created_at                  *time.Time
-	updated_at                  *time.Time
-	clearedFields               map[string]struct{}
-	done                        bool
-	oldValue                    func(context.Context) (*App, error)
-	predicates                  []predicate.App
+	op                              Op
+	typ                             string
+	id                              *int
+	owner_id                        *int
+	addowner_id                     *int
+	category_id                     *int
+	addcategory_id                  *int
+	package_id                      *string
+	name                            *string
+	name_i18n_json                  *string
+	slug                            *string
+	summary                         *string
+	summary_i18n_json               *string
+	description                     *string
+	description_i18n_json           *string
+	author                          *string
+	homepage                        *string
+	license                         *string
+	min_os_version                  *string
+	icon_url                        *string
+	status                          *app.Status
+	allow_unreviewed_updates        *bool
+	comments_enabled                *bool
+	email_notifications_enabled     *bool
+	install_password_hash           *string
+	download_count                  *int
+	adddownload_count               *int
+	version_retention_count         *int
+	addversion_retention_count      *int
+	created_at                      *time.Time
+	updated_at                      *time.Time
+	clearedFields                   map[string]struct{}
+	github_lpk_update_policy        *int
+	clearedgithub_lpk_update_policy bool
+	done                            bool
+	oldValue                        func(context.Context) (*App, error)
+	predicates                      []predicate.App
 }
 
 var _ ent.Mutation = (*AppMutation)(nil)
@@ -3774,6 +3778,45 @@ func (m *AppMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// SetGithubLpkUpdatePolicyID sets the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity by id.
+func (m *AppMutation) SetGithubLpkUpdatePolicyID(id int) {
+	m.github_lpk_update_policy = &id
+}
+
+// ClearGithubLpkUpdatePolicy clears the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity.
+func (m *AppMutation) ClearGithubLpkUpdatePolicy() {
+	m.clearedgithub_lpk_update_policy = true
+}
+
+// GithubLpkUpdatePolicyCleared reports if the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity was cleared.
+func (m *AppMutation) GithubLpkUpdatePolicyCleared() bool {
+	return m.clearedgithub_lpk_update_policy
+}
+
+// GithubLpkUpdatePolicyID returns the "github_lpk_update_policy" edge ID in the mutation.
+func (m *AppMutation) GithubLpkUpdatePolicyID() (id int, exists bool) {
+	if m.github_lpk_update_policy != nil {
+		return *m.github_lpk_update_policy, true
+	}
+	return
+}
+
+// GithubLpkUpdatePolicyIDs returns the "github_lpk_update_policy" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// GithubLpkUpdatePolicyID instead. It exists only for internal usage by the builders.
+func (m *AppMutation) GithubLpkUpdatePolicyIDs() (ids []int) {
+	if id := m.github_lpk_update_policy; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetGithubLpkUpdatePolicy resets all changes to the "github_lpk_update_policy" edge.
+func (m *AppMutation) ResetGithubLpkUpdatePolicy() {
+	m.github_lpk_update_policy = nil
+	m.clearedgithub_lpk_update_policy = false
+}
+
 // Where appends a list predicates to the AppMutation builder.
 func (m *AppMutation) Where(ps ...predicate.App) {
 	m.predicates = append(m.predicates, ps...)
@@ -4370,19 +4413,28 @@ func (m *AppMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *AppMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.github_lpk_update_policy != nil {
+		edges = append(edges, app.EdgeGithubLpkUpdatePolicy)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *AppMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case app.EdgeGithubLpkUpdatePolicy:
+		if id := m.github_lpk_update_policy; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *AppMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -4394,25 +4446,42 @@ func (m *AppMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *AppMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedgithub_lpk_update_policy {
+		edges = append(edges, app.EdgeGithubLpkUpdatePolicy)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *AppMutation) EdgeCleared(name string) bool {
+	switch name {
+	case app.EdgeGithubLpkUpdatePolicy:
+		return m.clearedgithub_lpk_update_policy
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *AppMutation) ClearEdge(name string) error {
+	switch name {
+	case app.EdgeGithubLpkUpdatePolicy:
+		m.ClearGithubLpkUpdatePolicy()
+		return nil
+	}
 	return fmt.Errorf("unknown App unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *AppMutation) ResetEdge(name string) error {
+	switch name {
+	case app.EdgeGithubLpkUpdatePolicy:
+		m.ResetGithubLpkUpdatePolicy()
+		return nil
+	}
 	return fmt.Errorf("unknown App edge %s", name)
 }
 
@@ -6252,30 +6321,31 @@ func (m *AppTagMutation) ResetEdge(name string) error {
 // AppVersionMutation represents an operation that mutates the AppVersion nodes in the graph.
 type AppVersionMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	app_id         *int
-	addapp_id      *int
-	uploader_id    *int
-	adduploader_id *int
-	version        *string
-	changelog      *string
-	status         *appversion.Status
-	source_type    *appversion.SourceType
-	download_url   *string
-	storage_key    *string
-	storage_path   *string
-	file_size      *int64
-	addfile_size   *int64
-	sha256         *string
-	published_at   *time.Time
-	created_at     *time.Time
-	updated_at     *time.Time
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*AppVersion, error)
-	predicates     []predicate.AppVersion
+	op                    Op
+	typ                   string
+	id                    *int
+	app_id                *int
+	addapp_id             *int
+	uploader_id           *int
+	adduploader_id        *int
+	version               *string
+	changelog             *string
+	status                *appversion.Status
+	source_type           *appversion.SourceType
+	download_url          *string
+	storage_key           *string
+	storage_path          *string
+	file_size             *int64
+	addfile_size          *int64
+	sha256                *string
+	published_at          *time.Time
+	upstream_published_at *time.Time
+	created_at            *time.Time
+	updated_at            *time.Time
+	clearedFields         map[string]struct{}
+	done                  bool
+	oldValue              func(context.Context) (*AppVersion, error)
+	predicates            []predicate.AppVersion
 }
 
 var _ ent.Mutation = (*AppVersionMutation)(nil)
@@ -6881,6 +6951,55 @@ func (m *AppVersionMutation) ResetPublishedAt() {
 	delete(m.clearedFields, appversion.FieldPublishedAt)
 }
 
+// SetUpstreamPublishedAt sets the "upstream_published_at" field.
+func (m *AppVersionMutation) SetUpstreamPublishedAt(t time.Time) {
+	m.upstream_published_at = &t
+}
+
+// UpstreamPublishedAt returns the value of the "upstream_published_at" field in the mutation.
+func (m *AppVersionMutation) UpstreamPublishedAt() (r time.Time, exists bool) {
+	v := m.upstream_published_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamPublishedAt returns the old "upstream_published_at" field's value of the AppVersion entity.
+// If the AppVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppVersionMutation) OldUpstreamPublishedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamPublishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamPublishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamPublishedAt: %w", err)
+	}
+	return oldValue.UpstreamPublishedAt, nil
+}
+
+// ClearUpstreamPublishedAt clears the value of the "upstream_published_at" field.
+func (m *AppVersionMutation) ClearUpstreamPublishedAt() {
+	m.upstream_published_at = nil
+	m.clearedFields[appversion.FieldUpstreamPublishedAt] = struct{}{}
+}
+
+// UpstreamPublishedAtCleared returns if the "upstream_published_at" field was cleared in this mutation.
+func (m *AppVersionMutation) UpstreamPublishedAtCleared() bool {
+	_, ok := m.clearedFields[appversion.FieldUpstreamPublishedAt]
+	return ok
+}
+
+// ResetUpstreamPublishedAt resets all changes to the "upstream_published_at" field.
+func (m *AppVersionMutation) ResetUpstreamPublishedAt() {
+	m.upstream_published_at = nil
+	delete(m.clearedFields, appversion.FieldUpstreamPublishedAt)
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *AppVersionMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -6987,7 +7106,7 @@ func (m *AppVersionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AppVersionMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.app_id != nil {
 		fields = append(fields, appversion.FieldAppID)
 	}
@@ -7023,6 +7142,9 @@ func (m *AppVersionMutation) Fields() []string {
 	}
 	if m.published_at != nil {
 		fields = append(fields, appversion.FieldPublishedAt)
+	}
+	if m.upstream_published_at != nil {
+		fields = append(fields, appversion.FieldUpstreamPublishedAt)
 	}
 	if m.created_at != nil {
 		fields = append(fields, appversion.FieldCreatedAt)
@@ -7062,6 +7184,8 @@ func (m *AppVersionMutation) Field(name string) (ent.Value, bool) {
 		return m.Sha256()
 	case appversion.FieldPublishedAt:
 		return m.PublishedAt()
+	case appversion.FieldUpstreamPublishedAt:
+		return m.UpstreamPublishedAt()
 	case appversion.FieldCreatedAt:
 		return m.CreatedAt()
 	case appversion.FieldUpdatedAt:
@@ -7099,6 +7223,8 @@ func (m *AppVersionMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldSha256(ctx)
 	case appversion.FieldPublishedAt:
 		return m.OldPublishedAt(ctx)
+	case appversion.FieldUpstreamPublishedAt:
+		return m.OldUpstreamPublishedAt(ctx)
 	case appversion.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case appversion.FieldUpdatedAt:
@@ -7196,6 +7322,13 @@ func (m *AppVersionMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetPublishedAt(v)
 		return nil
+	case appversion.FieldUpstreamPublishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamPublishedAt(v)
+		return nil
 	case appversion.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -7282,6 +7415,9 @@ func (m *AppVersionMutation) ClearedFields() []string {
 	if m.FieldCleared(appversion.FieldPublishedAt) {
 		fields = append(fields, appversion.FieldPublishedAt)
 	}
+	if m.FieldCleared(appversion.FieldUpstreamPublishedAt) {
+		fields = append(fields, appversion.FieldUpstreamPublishedAt)
+	}
 	return fields
 }
 
@@ -7298,6 +7434,9 @@ func (m *AppVersionMutation) ClearField(name string) error {
 	switch name {
 	case appversion.FieldPublishedAt:
 		m.ClearPublishedAt()
+		return nil
+	case appversion.FieldUpstreamPublishedAt:
+		m.ClearUpstreamPublishedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown AppVersion nullable field %s", name)
@@ -7342,6 +7481,9 @@ func (m *AppVersionMutation) ResetField(name string) error {
 		return nil
 	case appversion.FieldPublishedAt:
 		m.ResetPublishedAt()
+		return nil
+	case appversion.FieldUpstreamPublishedAt:
+		m.ResetUpstreamPublishedAt()
 		return nil
 	case appversion.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -27465,6 +27607,968 @@ func (m *FavoriteMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *FavoriteMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Favorite edge %s", name)
+}
+
+// GitHubLPKUpdatePolicyMutation represents an operation that mutates the GitHubLPKUpdatePolicy nodes in the graph.
+type GitHubLPKUpdatePolicyMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *int
+	enabled             *bool
+	interval_minutes    *int
+	addinterval_minutes *int
+	last_checked_at     *time.Time
+	last_success_at     *time.Time
+	next_check_at       *time.Time
+	last_version        *string
+	last_error          *string
+	created_at          *time.Time
+	updated_at          *time.Time
+	clearedFields       map[string]struct{}
+	app                 *int
+	clearedapp          bool
+	done                bool
+	oldValue            func(context.Context) (*GitHubLPKUpdatePolicy, error)
+	predicates          []predicate.GitHubLPKUpdatePolicy
+}
+
+var _ ent.Mutation = (*GitHubLPKUpdatePolicyMutation)(nil)
+
+// githublpkupdatepolicyOption allows management of the mutation configuration using functional options.
+type githublpkupdatepolicyOption func(*GitHubLPKUpdatePolicyMutation)
+
+// newGitHubLPKUpdatePolicyMutation creates new mutation for the GitHubLPKUpdatePolicy entity.
+func newGitHubLPKUpdatePolicyMutation(c config, op Op, opts ...githublpkupdatepolicyOption) *GitHubLPKUpdatePolicyMutation {
+	m := &GitHubLPKUpdatePolicyMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeGitHubLPKUpdatePolicy,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withGitHubLPKUpdatePolicyID sets the ID field of the mutation.
+func withGitHubLPKUpdatePolicyID(id int) githublpkupdatepolicyOption {
+	return func(m *GitHubLPKUpdatePolicyMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *GitHubLPKUpdatePolicy
+		)
+		m.oldValue = func(ctx context.Context) (*GitHubLPKUpdatePolicy, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().GitHubLPKUpdatePolicy.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withGitHubLPKUpdatePolicy sets the old GitHubLPKUpdatePolicy of the mutation.
+func withGitHubLPKUpdatePolicy(node *GitHubLPKUpdatePolicy) githublpkupdatepolicyOption {
+	return func(m *GitHubLPKUpdatePolicyMutation) {
+		m.oldValue = func(context.Context) (*GitHubLPKUpdatePolicy, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m GitHubLPKUpdatePolicyMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m GitHubLPKUpdatePolicyMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *GitHubLPKUpdatePolicyMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().GitHubLPKUpdatePolicy.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAppID sets the "app_id" field.
+func (m *GitHubLPKUpdatePolicyMutation) SetAppID(i int) {
+	m.app = &i
+}
+
+// AppID returns the value of the "app_id" field in the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) AppID() (r int, exists bool) {
+	v := m.app
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppID returns the old "app_id" field's value of the GitHubLPKUpdatePolicy entity.
+// If the GitHubLPKUpdatePolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GitHubLPKUpdatePolicyMutation) OldAppID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppID: %w", err)
+	}
+	return oldValue.AppID, nil
+}
+
+// ResetAppID resets all changes to the "app_id" field.
+func (m *GitHubLPKUpdatePolicyMutation) ResetAppID() {
+	m.app = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *GitHubLPKUpdatePolicyMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the GitHubLPKUpdatePolicy entity.
+// If the GitHubLPKUpdatePolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GitHubLPKUpdatePolicyMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *GitHubLPKUpdatePolicyMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetIntervalMinutes sets the "interval_minutes" field.
+func (m *GitHubLPKUpdatePolicyMutation) SetIntervalMinutes(i int) {
+	m.interval_minutes = &i
+	m.addinterval_minutes = nil
+}
+
+// IntervalMinutes returns the value of the "interval_minutes" field in the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) IntervalMinutes() (r int, exists bool) {
+	v := m.interval_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIntervalMinutes returns the old "interval_minutes" field's value of the GitHubLPKUpdatePolicy entity.
+// If the GitHubLPKUpdatePolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GitHubLPKUpdatePolicyMutation) OldIntervalMinutes(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIntervalMinutes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIntervalMinutes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIntervalMinutes: %w", err)
+	}
+	return oldValue.IntervalMinutes, nil
+}
+
+// AddIntervalMinutes adds i to the "interval_minutes" field.
+func (m *GitHubLPKUpdatePolicyMutation) AddIntervalMinutes(i int) {
+	if m.addinterval_minutes != nil {
+		*m.addinterval_minutes += i
+	} else {
+		m.addinterval_minutes = &i
+	}
+}
+
+// AddedIntervalMinutes returns the value that was added to the "interval_minutes" field in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) AddedIntervalMinutes() (r int, exists bool) {
+	v := m.addinterval_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetIntervalMinutes resets all changes to the "interval_minutes" field.
+func (m *GitHubLPKUpdatePolicyMutation) ResetIntervalMinutes() {
+	m.interval_minutes = nil
+	m.addinterval_minutes = nil
+}
+
+// SetLastCheckedAt sets the "last_checked_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) SetLastCheckedAt(t time.Time) {
+	m.last_checked_at = &t
+}
+
+// LastCheckedAt returns the value of the "last_checked_at" field in the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) LastCheckedAt() (r time.Time, exists bool) {
+	v := m.last_checked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastCheckedAt returns the old "last_checked_at" field's value of the GitHubLPKUpdatePolicy entity.
+// If the GitHubLPKUpdatePolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GitHubLPKUpdatePolicyMutation) OldLastCheckedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastCheckedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastCheckedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastCheckedAt: %w", err)
+	}
+	return oldValue.LastCheckedAt, nil
+}
+
+// ClearLastCheckedAt clears the value of the "last_checked_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) ClearLastCheckedAt() {
+	m.last_checked_at = nil
+	m.clearedFields[githublpkupdatepolicy.FieldLastCheckedAt] = struct{}{}
+}
+
+// LastCheckedAtCleared returns if the "last_checked_at" field was cleared in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) LastCheckedAtCleared() bool {
+	_, ok := m.clearedFields[githublpkupdatepolicy.FieldLastCheckedAt]
+	return ok
+}
+
+// ResetLastCheckedAt resets all changes to the "last_checked_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) ResetLastCheckedAt() {
+	m.last_checked_at = nil
+	delete(m.clearedFields, githublpkupdatepolicy.FieldLastCheckedAt)
+}
+
+// SetLastSuccessAt sets the "last_success_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) SetLastSuccessAt(t time.Time) {
+	m.last_success_at = &t
+}
+
+// LastSuccessAt returns the value of the "last_success_at" field in the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) LastSuccessAt() (r time.Time, exists bool) {
+	v := m.last_success_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSuccessAt returns the old "last_success_at" field's value of the GitHubLPKUpdatePolicy entity.
+// If the GitHubLPKUpdatePolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GitHubLPKUpdatePolicyMutation) OldLastSuccessAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSuccessAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSuccessAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSuccessAt: %w", err)
+	}
+	return oldValue.LastSuccessAt, nil
+}
+
+// ClearLastSuccessAt clears the value of the "last_success_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) ClearLastSuccessAt() {
+	m.last_success_at = nil
+	m.clearedFields[githublpkupdatepolicy.FieldLastSuccessAt] = struct{}{}
+}
+
+// LastSuccessAtCleared returns if the "last_success_at" field was cleared in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) LastSuccessAtCleared() bool {
+	_, ok := m.clearedFields[githublpkupdatepolicy.FieldLastSuccessAt]
+	return ok
+}
+
+// ResetLastSuccessAt resets all changes to the "last_success_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) ResetLastSuccessAt() {
+	m.last_success_at = nil
+	delete(m.clearedFields, githublpkupdatepolicy.FieldLastSuccessAt)
+}
+
+// SetNextCheckAt sets the "next_check_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) SetNextCheckAt(t time.Time) {
+	m.next_check_at = &t
+}
+
+// NextCheckAt returns the value of the "next_check_at" field in the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) NextCheckAt() (r time.Time, exists bool) {
+	v := m.next_check_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNextCheckAt returns the old "next_check_at" field's value of the GitHubLPKUpdatePolicy entity.
+// If the GitHubLPKUpdatePolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GitHubLPKUpdatePolicyMutation) OldNextCheckAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNextCheckAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNextCheckAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNextCheckAt: %w", err)
+	}
+	return oldValue.NextCheckAt, nil
+}
+
+// ClearNextCheckAt clears the value of the "next_check_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) ClearNextCheckAt() {
+	m.next_check_at = nil
+	m.clearedFields[githublpkupdatepolicy.FieldNextCheckAt] = struct{}{}
+}
+
+// NextCheckAtCleared returns if the "next_check_at" field was cleared in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) NextCheckAtCleared() bool {
+	_, ok := m.clearedFields[githublpkupdatepolicy.FieldNextCheckAt]
+	return ok
+}
+
+// ResetNextCheckAt resets all changes to the "next_check_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) ResetNextCheckAt() {
+	m.next_check_at = nil
+	delete(m.clearedFields, githublpkupdatepolicy.FieldNextCheckAt)
+}
+
+// SetLastVersion sets the "last_version" field.
+func (m *GitHubLPKUpdatePolicyMutation) SetLastVersion(s string) {
+	m.last_version = &s
+}
+
+// LastVersion returns the value of the "last_version" field in the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) LastVersion() (r string, exists bool) {
+	v := m.last_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastVersion returns the old "last_version" field's value of the GitHubLPKUpdatePolicy entity.
+// If the GitHubLPKUpdatePolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GitHubLPKUpdatePolicyMutation) OldLastVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastVersion: %w", err)
+	}
+	return oldValue.LastVersion, nil
+}
+
+// ResetLastVersion resets all changes to the "last_version" field.
+func (m *GitHubLPKUpdatePolicyMutation) ResetLastVersion() {
+	m.last_version = nil
+}
+
+// SetLastError sets the "last_error" field.
+func (m *GitHubLPKUpdatePolicyMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the GitHubLPKUpdatePolicy entity.
+// If the GitHubLPKUpdatePolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GitHubLPKUpdatePolicyMutation) OldLastError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *GitHubLPKUpdatePolicyMutation) ResetLastError() {
+	m.last_error = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the GitHubLPKUpdatePolicy entity.
+// If the GitHubLPKUpdatePolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GitHubLPKUpdatePolicyMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *GitHubLPKUpdatePolicyMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the GitHubLPKUpdatePolicy entity.
+// If the GitHubLPKUpdatePolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GitHubLPKUpdatePolicyMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *GitHubLPKUpdatePolicyMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// ClearApp clears the "app" edge to the App entity.
+func (m *GitHubLPKUpdatePolicyMutation) ClearApp() {
+	m.clearedapp = true
+	m.clearedFields[githublpkupdatepolicy.FieldAppID] = struct{}{}
+}
+
+// AppCleared reports if the "app" edge to the App entity was cleared.
+func (m *GitHubLPKUpdatePolicyMutation) AppCleared() bool {
+	return m.clearedapp
+}
+
+// AppIDs returns the "app" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// AppID instead. It exists only for internal usage by the builders.
+func (m *GitHubLPKUpdatePolicyMutation) AppIDs() (ids []int) {
+	if id := m.app; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetApp resets all changes to the "app" edge.
+func (m *GitHubLPKUpdatePolicyMutation) ResetApp() {
+	m.app = nil
+	m.clearedapp = false
+}
+
+// Where appends a list predicates to the GitHubLPKUpdatePolicyMutation builder.
+func (m *GitHubLPKUpdatePolicyMutation) Where(ps ...predicate.GitHubLPKUpdatePolicy) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the GitHubLPKUpdatePolicyMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *GitHubLPKUpdatePolicyMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.GitHubLPKUpdatePolicy, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *GitHubLPKUpdatePolicyMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *GitHubLPKUpdatePolicyMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (GitHubLPKUpdatePolicy).
+func (m *GitHubLPKUpdatePolicyMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *GitHubLPKUpdatePolicyMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.app != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldAppID)
+	}
+	if m.enabled != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldEnabled)
+	}
+	if m.interval_minutes != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldIntervalMinutes)
+	}
+	if m.last_checked_at != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldLastCheckedAt)
+	}
+	if m.last_success_at != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldLastSuccessAt)
+	}
+	if m.next_check_at != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldNextCheckAt)
+	}
+	if m.last_version != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldLastVersion)
+	}
+	if m.last_error != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldLastError)
+	}
+	if m.created_at != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *GitHubLPKUpdatePolicyMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case githublpkupdatepolicy.FieldAppID:
+		return m.AppID()
+	case githublpkupdatepolicy.FieldEnabled:
+		return m.Enabled()
+	case githublpkupdatepolicy.FieldIntervalMinutes:
+		return m.IntervalMinutes()
+	case githublpkupdatepolicy.FieldLastCheckedAt:
+		return m.LastCheckedAt()
+	case githublpkupdatepolicy.FieldLastSuccessAt:
+		return m.LastSuccessAt()
+	case githublpkupdatepolicy.FieldNextCheckAt:
+		return m.NextCheckAt()
+	case githublpkupdatepolicy.FieldLastVersion:
+		return m.LastVersion()
+	case githublpkupdatepolicy.FieldLastError:
+		return m.LastError()
+	case githublpkupdatepolicy.FieldCreatedAt:
+		return m.CreatedAt()
+	case githublpkupdatepolicy.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *GitHubLPKUpdatePolicyMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case githublpkupdatepolicy.FieldAppID:
+		return m.OldAppID(ctx)
+	case githublpkupdatepolicy.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case githublpkupdatepolicy.FieldIntervalMinutes:
+		return m.OldIntervalMinutes(ctx)
+	case githublpkupdatepolicy.FieldLastCheckedAt:
+		return m.OldLastCheckedAt(ctx)
+	case githublpkupdatepolicy.FieldLastSuccessAt:
+		return m.OldLastSuccessAt(ctx)
+	case githublpkupdatepolicy.FieldNextCheckAt:
+		return m.OldNextCheckAt(ctx)
+	case githublpkupdatepolicy.FieldLastVersion:
+		return m.OldLastVersion(ctx)
+	case githublpkupdatepolicy.FieldLastError:
+		return m.OldLastError(ctx)
+	case githublpkupdatepolicy.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case githublpkupdatepolicy.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown GitHubLPKUpdatePolicy field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GitHubLPKUpdatePolicyMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case githublpkupdatepolicy.FieldAppID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppID(v)
+		return nil
+	case githublpkupdatepolicy.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case githublpkupdatepolicy.FieldIntervalMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIntervalMinutes(v)
+		return nil
+	case githublpkupdatepolicy.FieldLastCheckedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastCheckedAt(v)
+		return nil
+	case githublpkupdatepolicy.FieldLastSuccessAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSuccessAt(v)
+		return nil
+	case githublpkupdatepolicy.FieldNextCheckAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNextCheckAt(v)
+		return nil
+	case githublpkupdatepolicy.FieldLastVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastVersion(v)
+		return nil
+	case githublpkupdatepolicy.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	case githublpkupdatepolicy.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case githublpkupdatepolicy.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown GitHubLPKUpdatePolicy field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) AddedFields() []string {
+	var fields []string
+	if m.addinterval_minutes != nil {
+		fields = append(fields, githublpkupdatepolicy.FieldIntervalMinutes)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *GitHubLPKUpdatePolicyMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case githublpkupdatepolicy.FieldIntervalMinutes:
+		return m.AddedIntervalMinutes()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *GitHubLPKUpdatePolicyMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case githublpkupdatepolicy.FieldIntervalMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddIntervalMinutes(v)
+		return nil
+	}
+	return fmt.Errorf("unknown GitHubLPKUpdatePolicy numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *GitHubLPKUpdatePolicyMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(githublpkupdatepolicy.FieldLastCheckedAt) {
+		fields = append(fields, githublpkupdatepolicy.FieldLastCheckedAt)
+	}
+	if m.FieldCleared(githublpkupdatepolicy.FieldLastSuccessAt) {
+		fields = append(fields, githublpkupdatepolicy.FieldLastSuccessAt)
+	}
+	if m.FieldCleared(githublpkupdatepolicy.FieldNextCheckAt) {
+		fields = append(fields, githublpkupdatepolicy.FieldNextCheckAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *GitHubLPKUpdatePolicyMutation) ClearField(name string) error {
+	switch name {
+	case githublpkupdatepolicy.FieldLastCheckedAt:
+		m.ClearLastCheckedAt()
+		return nil
+	case githublpkupdatepolicy.FieldLastSuccessAt:
+		m.ClearLastSuccessAt()
+		return nil
+	case githublpkupdatepolicy.FieldNextCheckAt:
+		m.ClearNextCheckAt()
+		return nil
+	}
+	return fmt.Errorf("unknown GitHubLPKUpdatePolicy nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *GitHubLPKUpdatePolicyMutation) ResetField(name string) error {
+	switch name {
+	case githublpkupdatepolicy.FieldAppID:
+		m.ResetAppID()
+		return nil
+	case githublpkupdatepolicy.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case githublpkupdatepolicy.FieldIntervalMinutes:
+		m.ResetIntervalMinutes()
+		return nil
+	case githublpkupdatepolicy.FieldLastCheckedAt:
+		m.ResetLastCheckedAt()
+		return nil
+	case githublpkupdatepolicy.FieldLastSuccessAt:
+		m.ResetLastSuccessAt()
+		return nil
+	case githublpkupdatepolicy.FieldNextCheckAt:
+		m.ResetNextCheckAt()
+		return nil
+	case githublpkupdatepolicy.FieldLastVersion:
+		m.ResetLastVersion()
+		return nil
+	case githublpkupdatepolicy.FieldLastError:
+		m.ResetLastError()
+		return nil
+	case githublpkupdatepolicy.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case githublpkupdatepolicy.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown GitHubLPKUpdatePolicy field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.app != nil {
+		edges = append(edges, githublpkupdatepolicy.EdgeApp)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case githublpkupdatepolicy.EdgeApp:
+		if id := m.app; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedapp {
+		edges = append(edges, githublpkupdatepolicy.EdgeApp)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *GitHubLPKUpdatePolicyMutation) EdgeCleared(name string) bool {
+	switch name {
+	case githublpkupdatepolicy.EdgeApp:
+		return m.clearedapp
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *GitHubLPKUpdatePolicyMutation) ClearEdge(name string) error {
+	switch name {
+	case githublpkupdatepolicy.EdgeApp:
+		m.ClearApp()
+		return nil
+	}
+	return fmt.Errorf("unknown GitHubLPKUpdatePolicy unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *GitHubLPKUpdatePolicyMutation) ResetEdge(name string) error {
+	switch name {
+	case githublpkupdatepolicy.EdgeApp:
+		m.ResetApp()
+		return nil
+	}
+	return fmt.Errorf("unknown GitHubLPKUpdatePolicy edge %s", name)
 }
 
 // GroupMemberMutation represents an operation that mutates the GroupMember nodes in the graph.

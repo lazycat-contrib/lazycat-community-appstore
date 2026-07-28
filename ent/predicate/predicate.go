@@ -102,6 +102,9 @@ type CommentNotification func(*sql.Selector)
 // Favorite is the predicate function for favorite builders.
 type Favorite func(*sql.Selector)
 
+// GitHubLPKUpdatePolicy is the predicate function for githublpkupdatepolicy builders.
+type GitHubLPKUpdatePolicy func(*sql.Selector)
+
 // GroupMember is the predicate function for groupmember builders.
 type GroupMember func(*sql.Selector)
 

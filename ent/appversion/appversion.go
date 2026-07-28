@@ -38,6 +38,8 @@ const (
 	FieldSha256 = "sha256"
 	// FieldPublishedAt holds the string denoting the published_at field in the database.
 	FieldPublishedAt = "published_at"
+	// FieldUpstreamPublishedAt holds the string denoting the upstream_published_at field in the database.
+	FieldUpstreamPublishedAt = "upstream_published_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -61,6 +63,7 @@ var Columns = []string{
 	FieldFileSize,
 	FieldSha256,
 	FieldPublishedAt,
+	FieldUpstreamPublishedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -219,6 +222,11 @@ func BySha256(opts ...sql.OrderTermOption) OrderOption {
 // ByPublishedAt orders the results by the published_at field.
 func ByPublishedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPublishedAt, opts...).ToFunc()
+}
+
+// ByUpstreamPublishedAt orders the results by the upstream_published_at field.
+func ByUpstreamPublishedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpstreamPublishedAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

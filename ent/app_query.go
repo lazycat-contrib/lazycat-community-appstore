@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -12,16 +13,18 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 	"lazycat.community/appstore/ent/predicate"
 )
 
 // AppQuery is the builder for querying App entities.
 type AppQuery struct {
 	config
-	ctx        *QueryContext
-	order      []app.OrderOption
-	inters     []Interceptor
-	predicates []predicate.App
+	ctx                       *QueryContext
+	order                     []app.OrderOption
+	inters                    []Interceptor
+	predicates                []predicate.App
+	withGithubLpkUpdatePolicy *GitHubLPKUpdatePolicyQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -56,6 +59,28 @@ func (_q *AppQuery) Unique(unique bool) *AppQuery {
 func (_q *AppQuery) Order(o ...app.OrderOption) *AppQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryGithubLpkUpdatePolicy chains the current query on the "github_lpk_update_policy" edge.
+func (_q *AppQuery) QueryGithubLpkUpdatePolicy() *GitHubLPKUpdatePolicyQuery {
+	query := (&GitHubLPKUpdatePolicyClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(app.Table, app.FieldID, selector),
+			sqlgraph.To(githublpkupdatepolicy.Table, githublpkupdatepolicy.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, app.GithubLpkUpdatePolicyTable, app.GithubLpkUpdatePolicyColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first App entity from the query.
@@ -245,15 +270,27 @@ func (_q *AppQuery) Clone() *AppQuery {
 		return nil
 	}
 	return &AppQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]app.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.App{}, _q.predicates...),
+		config:                    _q.config,
+		ctx:                       _q.ctx.Clone(),
+		order:                     append([]app.OrderOption{}, _q.order...),
+		inters:                    append([]Interceptor{}, _q.inters...),
+		predicates:                append([]predicate.App{}, _q.predicates...),
+		withGithubLpkUpdatePolicy: _q.withGithubLpkUpdatePolicy.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithGithubLpkUpdatePolicy tells the query-builder to eager-load the nodes that are connected to
+// the "github_lpk_update_policy" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *AppQuery) WithGithubLpkUpdatePolicy(opts ...func(*GitHubLPKUpdatePolicyQuery)) *AppQuery {
+	query := (&GitHubLPKUpdatePolicyClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withGithubLpkUpdatePolicy = query
+	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -332,8 +369,11 @@ func (_q *AppQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *AppQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*App, error) {
 	var (
-		nodes = []*App{}
-		_spec = _q.querySpec()
+		nodes       = []*App{}
+		_spec       = _q.querySpec()
+		loadedTypes = [1]bool{
+			_q.withGithubLpkUpdatePolicy != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*App).scanValues(nil, columns)
@@ -341,6 +381,7 @@ func (_q *AppQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*App, err
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &App{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -352,7 +393,41 @@ func (_q *AppQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*App, err
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withGithubLpkUpdatePolicy; query != nil {
+		if err := _q.loadGithubLpkUpdatePolicy(ctx, query, nodes, nil,
+			func(n *App, e *GitHubLPKUpdatePolicy) { n.Edges.GithubLpkUpdatePolicy = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (_q *AppQuery) loadGithubLpkUpdatePolicy(ctx context.Context, query *GitHubLPKUpdatePolicyQuery, nodes []*App, init func(*App), assign func(*App, *GitHubLPKUpdatePolicy)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*App)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(githublpkupdatepolicy.FieldAppID)
+	}
+	query.Where(predicate.GitHubLPKUpdatePolicy(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(app.GithubLpkUpdatePolicyColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.AppID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "app_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (_q *AppQuery) sqlCount(ctx context.Context) (int, error) {

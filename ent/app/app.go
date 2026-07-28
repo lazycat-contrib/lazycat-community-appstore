@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -62,8 +63,17 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeGithubLpkUpdatePolicy holds the string denoting the github_lpk_update_policy edge name in mutations.
+	EdgeGithubLpkUpdatePolicy = "github_lpk_update_policy"
 	// Table holds the table name of the app in the database.
 	Table = "apps"
+	// GithubLpkUpdatePolicyTable is the table that holds the github_lpk_update_policy relation/edge.
+	GithubLpkUpdatePolicyTable = "github_lpk_update_policies"
+	// GithubLpkUpdatePolicyInverseTable is the table name for the GitHubLPKUpdatePolicy entity.
+	// It exists in this package in order to avoid circular dependency with the "githublpkupdatepolicy" package.
+	GithubLpkUpdatePolicyInverseTable = "github_lpk_update_policies"
+	// GithubLpkUpdatePolicyColumn is the table column denoting the github_lpk_update_policy relation/edge.
+	GithubLpkUpdatePolicyColumn = "app_id"
 )
 
 // Columns holds all SQL columns for app fields.
@@ -303,4 +313,18 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByGithubLpkUpdatePolicyField orders the results by github_lpk_update_policy field.
+func ByGithubLpkUpdatePolicyField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newGithubLpkUpdatePolicyStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newGithubLpkUpdatePolicyStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(GithubLpkUpdatePolicyInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2O, false, GithubLpkUpdatePolicyTable, GithubLpkUpdatePolicyColumn),
+	)
 }

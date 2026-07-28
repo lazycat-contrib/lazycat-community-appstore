@@ -549,6 +549,39 @@ paths:
         "422":
           $ref: "#/components/responses/Error"
 
+  /api/v1/apps/{id}/github-lpk-update-policy:
+    patch:
+      tags: [Versions]
+      summary: Configure automatic GitHub Release LPK checks
+      description: Only the app owner or an administrator may configure this policy. The latest approved version must use a standard GitHub Release LPK URL. The server uses the GitHub asset digest and never downloads the LPK for this workflow.
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGitHubLPKUpdatePolicyRequest"
+      responses:
+        "200":
+          description: Automatic update policy saved.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [policy]
+                properties:
+                  policy:
+                    $ref: "#/components/schemas/GitHubLPKUpdatePolicy"
+        "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+
   /api/v1/apps/{id}/versions:
     post:
       tags: [Versions]
@@ -2590,6 +2623,44 @@ components:
               $ref: "#/components/schemas/VersionRetentionPolicy"
             lpkInspection:
               $ref: "#/components/schemas/LPKInspectionStatus"
+            githubLPKUpdatePolicy:
+              $ref: "#/components/schemas/GitHubLPKUpdatePolicy"
+
+    GitHubLPKUpdatePolicy:
+      type: object
+      required: [enabled, intervalMinutes]
+      properties:
+        enabled:
+          type: boolean
+        intervalMinutes:
+          type: integer
+          minimum: 60
+          maximum: 43200
+        lastCheckedAt:
+          type: string
+          format: date-time
+        lastSuccessAt:
+          type: string
+          format: date-time
+        nextCheckAt:
+          type: string
+          format: date-time
+        lastVersion:
+          type: string
+        lastError:
+          type: string
+
+    UpdateGitHubLPKUpdatePolicyRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled, intervalMinutes]
+      properties:
+        enabled:
+          type: boolean
+        intervalMinutes:
+          type: integer
+          minimum: 60
+          maximum: 43200
 
     LPKInspectionStatus:
       type: object
@@ -2742,6 +2813,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        upstreamPublishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Original publication time reported by the upstream GitHub Release.
         createdAt:
           type: string
           format: date-time

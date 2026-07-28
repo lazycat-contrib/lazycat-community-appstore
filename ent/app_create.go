@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"lazycat.community/appstore/ent/app"
+	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 )
 
 // AppCreate is the builder for creating a App entity.
@@ -324,6 +325,25 @@ func (_c *AppCreate) SetNillableUpdatedAt(v *time.Time) *AppCreate {
 	return _c
 }
 
+// SetGithubLpkUpdatePolicyID sets the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity by ID.
+func (_c *AppCreate) SetGithubLpkUpdatePolicyID(id int) *AppCreate {
+	_c.mutation.SetGithubLpkUpdatePolicyID(id)
+	return _c
+}
+
+// SetNillableGithubLpkUpdatePolicyID sets the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity by ID if the given value is not nil.
+func (_c *AppCreate) SetNillableGithubLpkUpdatePolicyID(id *int) *AppCreate {
+	if id != nil {
+		_c = _c.SetGithubLpkUpdatePolicyID(*id)
+	}
+	return _c
+}
+
+// SetGithubLpkUpdatePolicy sets the "github_lpk_update_policy" edge to the GitHubLPKUpdatePolicy entity.
+func (_c *AppCreate) SetGithubLpkUpdatePolicy(v *GitHubLPKUpdatePolicy) *AppCreate {
+	return _c.SetGithubLpkUpdatePolicyID(v.ID)
+}
+
 // Mutation returns the AppMutation object of the builder.
 func (_c *AppCreate) Mutation() *AppMutation {
 	return _c.mutation
@@ -635,6 +655,22 @@ func (_c *AppCreate) createSpec() (*App, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(app.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := _c.mutation.GithubLpkUpdatePolicyIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   app.GithubLpkUpdatePolicyTable,
+			Columns: []string{app.GithubLpkUpdatePolicyColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(githublpkupdatepolicy.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

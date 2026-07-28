@@ -139,7 +139,9 @@ func (s *Server) decideReview(w http.ResponseWriter, r *http.Request, u *entgo.U
 		update := s.db.AppVersion.UpdateOneID(*record.VersionID)
 		if approve {
 			versionStatus = appversion.StatusAPPROVED
-			update.SetPublishedAt(now)
+			if currentVersion, getErr := s.db.AppVersion.Get(r.Context(), *record.VersionID); getErr == nil && currentVersion.PublishedAt == nil {
+				update.SetPublishedAt(now)
+			}
 		}
 		updatedVersion, err := update.SetStatus(versionStatus).Save(r.Context())
 		if err == nil && approve {
@@ -953,5 +955,9 @@ func announcementSettingDefault(key string) string {
 }
 
 func (s *Server) clearAppOutdatedMarks(r *http.Request, appID int) {
-	_, _ = s.db.OutdatedMark.Delete().Where(outdatedmark.AppIDEQ(appID)).Exec(r.Context())
+	s.clearAppOutdatedMarksContext(r.Context(), appID)
+}
+
+func (s *Server) clearAppOutdatedMarksContext(ctx context.Context, appID int) {
+	_, _ = s.db.OutdatedMark.Delete().Where(outdatedmark.AppIDEQ(appID)).Exec(ctx)
 }

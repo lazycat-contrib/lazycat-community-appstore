@@ -41,6 +41,8 @@ type AppVersion struct {
 	Sha256 string `json:"sha256,omitempty"`
 	// PublishedAt holds the value of the "published_at" field.
 	PublishedAt *time.Time `json:"published_at,omitempty"`
+	// UpstreamPublishedAt holds the value of the "upstream_published_at" field.
+	UpstreamPublishedAt *time.Time `json:"upstream_published_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -57,7 +59,7 @@ func (*AppVersion) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case appversion.FieldVersion, appversion.FieldChangelog, appversion.FieldStatus, appversion.FieldSourceType, appversion.FieldDownloadURL, appversion.FieldStorageKey, appversion.FieldStoragePath, appversion.FieldSha256:
 			values[i] = new(sql.NullString)
-		case appversion.FieldPublishedAt, appversion.FieldCreatedAt, appversion.FieldUpdatedAt:
+		case appversion.FieldPublishedAt, appversion.FieldUpstreamPublishedAt, appversion.FieldCreatedAt, appversion.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -153,6 +155,13 @@ func (_m *AppVersion) assignValues(columns []string, values []any) error {
 				_m.PublishedAt = new(time.Time)
 				*_m.PublishedAt = value.Time
 			}
+		case appversion.FieldUpstreamPublishedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field upstream_published_at", values[i])
+			} else if value.Valid {
+				_m.UpstreamPublishedAt = new(time.Time)
+				*_m.UpstreamPublishedAt = value.Time
+			}
 		case appversion.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -236,6 +245,11 @@ func (_m *AppVersion) String() string {
 	builder.WriteString(", ")
 	if v := _m.PublishedAt; v != nil {
 		builder.WriteString("published_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.UpstreamPublishedAt; v != nil {
+		builder.WriteString("upstream_published_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

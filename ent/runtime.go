@@ -37,6 +37,7 @@ import (
 	"lazycat.community/appstore/ent/comment"
 	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
+	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/lpkinspectionjob"
 	"lazycat.community/appstore/ent/mcptoken"
@@ -302,11 +303,11 @@ func init() {
 	// appversion.DefaultSha256 holds the default value on creation for the sha256 field.
 	appversion.DefaultSha256 = appversionDescSha256.Default.(string)
 	// appversionDescCreatedAt is the schema descriptor for created_at field.
-	appversionDescCreatedAt := appversionFields[12].Descriptor()
+	appversionDescCreatedAt := appversionFields[13].Descriptor()
 	// appversion.DefaultCreatedAt holds the default value on creation for the created_at field.
 	appversion.DefaultCreatedAt = appversionDescCreatedAt.Default.(func() time.Time)
 	// appversionDescUpdatedAt is the schema descriptor for updated_at field.
-	appversionDescUpdatedAt := appversionFields[13].Descriptor()
+	appversionDescUpdatedAt := appversionFields[14].Descriptor()
 	// appversion.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	appversion.DefaultUpdatedAt = appversionDescUpdatedAt.Default.(func() time.Time)
 	// appversion.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1013,6 +1014,40 @@ func init() {
 	favoriteDescCreatedAt := favoriteFields[3].Descriptor()
 	// favorite.DefaultCreatedAt holds the default value on creation for the created_at field.
 	favorite.DefaultCreatedAt = favoriteDescCreatedAt.Default.(func() time.Time)
+	githublpkupdatepolicyFields := schema.GitHubLPKUpdatePolicy{}.Fields()
+	_ = githublpkupdatepolicyFields
+	// githublpkupdatepolicyDescAppID is the schema descriptor for app_id field.
+	githublpkupdatepolicyDescAppID := githublpkupdatepolicyFields[0].Descriptor()
+	// githublpkupdatepolicy.AppIDValidator is a validator for the "app_id" field. It is called by the builders before save.
+	githublpkupdatepolicy.AppIDValidator = githublpkupdatepolicyDescAppID.Validators[0].(func(int) error)
+	// githublpkupdatepolicyDescEnabled is the schema descriptor for enabled field.
+	githublpkupdatepolicyDescEnabled := githublpkupdatepolicyFields[1].Descriptor()
+	// githublpkupdatepolicy.DefaultEnabled holds the default value on creation for the enabled field.
+	githublpkupdatepolicy.DefaultEnabled = githublpkupdatepolicyDescEnabled.Default.(bool)
+	// githublpkupdatepolicyDescIntervalMinutes is the schema descriptor for interval_minutes field.
+	githublpkupdatepolicyDescIntervalMinutes := githublpkupdatepolicyFields[2].Descriptor()
+	// githublpkupdatepolicy.DefaultIntervalMinutes holds the default value on creation for the interval_minutes field.
+	githublpkupdatepolicy.DefaultIntervalMinutes = githublpkupdatepolicyDescIntervalMinutes.Default.(int)
+	// githublpkupdatepolicy.IntervalMinutesValidator is a validator for the "interval_minutes" field. It is called by the builders before save.
+	githublpkupdatepolicy.IntervalMinutesValidator = githublpkupdatepolicyDescIntervalMinutes.Validators[0].(func(int) error)
+	// githublpkupdatepolicyDescLastVersion is the schema descriptor for last_version field.
+	githublpkupdatepolicyDescLastVersion := githublpkupdatepolicyFields[6].Descriptor()
+	// githublpkupdatepolicy.DefaultLastVersion holds the default value on creation for the last_version field.
+	githublpkupdatepolicy.DefaultLastVersion = githublpkupdatepolicyDescLastVersion.Default.(string)
+	// githublpkupdatepolicyDescLastError is the schema descriptor for last_error field.
+	githublpkupdatepolicyDescLastError := githublpkupdatepolicyFields[7].Descriptor()
+	// githublpkupdatepolicy.DefaultLastError holds the default value on creation for the last_error field.
+	githublpkupdatepolicy.DefaultLastError = githublpkupdatepolicyDescLastError.Default.(string)
+	// githublpkupdatepolicyDescCreatedAt is the schema descriptor for created_at field.
+	githublpkupdatepolicyDescCreatedAt := githublpkupdatepolicyFields[8].Descriptor()
+	// githublpkupdatepolicy.DefaultCreatedAt holds the default value on creation for the created_at field.
+	githublpkupdatepolicy.DefaultCreatedAt = githublpkupdatepolicyDescCreatedAt.Default.(func() time.Time)
+	// githublpkupdatepolicyDescUpdatedAt is the schema descriptor for updated_at field.
+	githublpkupdatepolicyDescUpdatedAt := githublpkupdatepolicyFields[9].Descriptor()
+	// githublpkupdatepolicy.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	githublpkupdatepolicy.DefaultUpdatedAt = githublpkupdatepolicyDescUpdatedAt.Default.(func() time.Time)
+	// githublpkupdatepolicy.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	githublpkupdatepolicy.UpdateDefaultUpdatedAt = githublpkupdatepolicyDescUpdatedAt.UpdateDefault.(func() time.Time)
 	groupmemberFields := schema.GroupMember{}.Fields()
 	_ = groupmemberFields
 	// groupmemberDescCreatedAt is the schema descriptor for created_at field.

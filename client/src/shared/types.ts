@@ -41,6 +41,7 @@ export type Version = {
   storageKey?: string;
   createdAt: string;
   publishedAt?: string;
+  upstreamPublishedAt?: string;
 };
 
 export type VersionRetentionPolicy = {
@@ -48,6 +49,16 @@ export type VersionRetentionPolicy = {
   siteMaxVersions: number;
   appMaxVersions?: number | null;
   effectiveMaxVersions: number;
+};
+
+export type GitHubLPKUpdatePolicy = {
+  enabled: boolean;
+  intervalMinutes: number;
+  lastCheckedAt?: string;
+  lastSuccessAt?: string;
+  nextCheckAt?: string;
+  lastVersion?: string;
+  lastError?: string;
 };
 
 export type LPKInspectionStatus = {
@@ -103,6 +114,7 @@ export type StoreApp = {
   latestVersion?: Version;
   versions?: Version[];
   versionRetention?: VersionRetentionPolicy;
+  githubLPKUpdatePolicy?: GitHubLPKUpdatePolicy;
   lpkInspection?: LPKInspectionStatus;
   screenshots?: Screenshot[];
   comments?: Comment[];

@@ -44,6 +44,7 @@ import (
 	"lazycat.community/appstore/ent/comment"
 	"lazycat.community/appstore/ent/commentnotification"
 	"lazycat.community/appstore/ent/favorite"
+	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 	"lazycat.community/appstore/ent/groupmember"
 	"lazycat.community/appstore/ent/lpkinspectionjob"
 	"lazycat.community/appstore/ent/mcptoken"
@@ -147,6 +148,7 @@ func checkColumn(t, c string) error {
 			comment.Table:               comment.ValidColumn,
 			commentnotification.Table:   commentnotification.ValidColumn,
 			favorite.Table:              favorite.ValidColumn,
+			githublpkupdatepolicy.Table: githublpkupdatepolicy.ValidColumn,
 			groupmember.Table:           groupmember.ValidColumn,
 			lpkinspectionjob.Table:      lpkinspectionjob.ValidColumn,
 			mcptoken.Table:              mcptoken.ValidColumn,
