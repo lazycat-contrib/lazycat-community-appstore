@@ -1,0 +1,9 @@
+{
+  "date": "2026-07-30",
+  "framework": "React 19 with Vite",
+  "font_stack": "Existing Inter and system UI stack",
+  "palette": "Existing Astryx semantic theme tokens with light and dark modes",
+  "motion": "CSS motion; no JavaScript animation library",
+  "spacing": "Existing 4/8px rhythm",
+  "preserve": ["font stack", "semantic palette", "spacing rhythm", "side navigation", "reduced-motion behavior"]
+}
