@@ -756,6 +756,9 @@ func TestGitHubLPKUpdateDisabledBeforeRunSkipsGitHubAPI(t *testing.T) {
 
 func TestGitHubLPKUpdateUnsupportedErrorKeepsPolicyEnabled(t *testing.T) {
 	store := newTestApp(t)
+	if err := store.server.githubLPKUpdateScheduler.CloseContext(t.Context()); err != nil {
+		t.Fatalf("stop scheduler: %v", err)
+	}
 	record, _ := createGitHubLPKUpdateFixture(t, store, true)
 	now := time.Date(2026, 7, 28, 17, 0, 0, 0, time.UTC)
 	policy := store.server.db.GitHubLPKUpdatePolicy.Create().

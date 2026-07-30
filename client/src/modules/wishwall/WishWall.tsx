@@ -7,21 +7,24 @@ import {
   Lightbulb,
   ListFilter,
   LoaderCircle,
+  History,
   MessageCircle,
   MessageSquareReply,
   PackagePlus,
   Pencil,
   Plus,
   RefreshCw,
+  Settings2,
   Shapes,
   Trash2,
   Wrench,
+  X,
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
-import { Collapsible as XCollapsible } from '@astryxdesign/core/Collapsible';
+import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { TextArea as XTextArea } from '@astryxdesign/core/TextArea';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +32,7 @@ import { api, clientApi } from '../../shared/api';
 import type { PaginatedResponse, SourceSubscription, Toast, User, Wish, WishKind, WishStatus } from '../../shared/types';
 import { errorMessage, formatDate } from '../../shared/utils';
 import { EmptyState } from '../../shared/components/Feedback';
+import { ModalLayer } from '../../shared/components/ModalLayer';
 import { hasNextWishPage, mergeWishPage } from './wishWallState';
 
 const kinds: WishKind[] = ['SUGGESTION', 'APP_REQUEST', 'CUSTOMIZATION'];
@@ -58,6 +62,8 @@ type WishDraft = {
   contactOther: string;
   statusText: string;
 };
+
+type WishDialogView = 'activity' | 'manage';
 
 const emptyDraft = (): WishDraft => ({
   kind: 'APP_REQUEST', title: '', body: '', referenceUrl: '', contactEmail: '', contactOther: '', statusText: '',
@@ -90,6 +96,7 @@ export function WishWall({
   const [editingID, setEditingID] = useState<number | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
   const [statusDrafts, setStatusDrafts] = useState<Record<number, { status: WishStatus; text: string }>>({});
+  const [wishDialog, setWishDialog] = useState<{ itemID: number; view: WishDialogView } | null>(null);
   const loadEpoch = useRef(0);
   const loadingMoreRef = useRef(false);
   const loadMoreSentinel = useRef<HTMLDivElement | null>(null);
@@ -275,6 +282,11 @@ export function WishWall({
     );
   }
 
+  const dialogItem = wishDialog ? items.find((item) => item.id === wishDialog.itemID) : undefined;
+  const dialogStatusDraft = dialogItem
+    ? statusDrafts[dialogItem.id] || { status: dialogItem.status, text: '' }
+    : undefined;
+
   return (
     <section className="page-grid wish-wall-page" data-mode={mode}>
       <div className="page-heading with-action">
@@ -344,7 +356,6 @@ export function WishWall({
               {mode === 'server' && <div className="wish-board-seam" aria-hidden="true" />}
               {items.map((item, index) => {
                 const ownClientWish = mode === 'client' && Boolean(item.clientUserId);
-                const statusDraft = statusDrafts[item.id] || { status: item.status, text: '' };
                 const KindIcon = kindIcons[item.kind];
                 const StatusIcon = statusIcons[item.status];
                 return (
@@ -367,33 +378,10 @@ export function WishWall({
                       {ownClientWish && <div className="row-actions"><XButton type="button" size="sm" variant="secondary" label={t('common.edit')} icon={<Pencil size={15} />} onClick={() => editWish(item)} /><XButton type="button" size="sm" variant="destructive" label={t('common.delete')} icon={<Trash2 size={15} />} onClick={() => void deleteWish(item)} /></div>}
                     </div>
 
-                    {((item.statusHistory || []).length > 0 || (item.replies || []).length > 0) && (
-                      <XCollapsible
-                        className="wish-disclosure"
-                        defaultIsOpen={false}
-                        trigger={<span className="wish-disclosure-trigger"><span>{t('wishWall.statusHistory')}</span><span className="wish-disclosure-count">{(item.statusHistory || []).length + (item.replies || []).length}</span></span>}
-                      >
-                        <div className="wish-disclosure-content">
-                          {(item.statusHistory || []).length > 0 && <section className="wish-timeline">
-                            <h3>{t('wishWall.statusHistory')}</h3>
-                            {(item.statusHistory || []).map((event) => <div key={event.id}><XBadge label={t(`wishWall.statuses.${event.toStatus}`)} variant="neutral" /><span>{event.text}</span><small>{event.actorName} · {formatDate(event.createdAt)}</small></div>)}
-                          </section>}
-                          {(item.replies || []).length > 0 && <section className="wish-replies"><h3>{t('wishWall.replies')}</h3>{item.replies.map((reply) => <blockquote key={reply.id}><p>{reply.body}</p><footer>{reply.authorName} · {formatDate(reply.createdAt)}</footer></blockquote>)}</section>}
-                        </div>
-                      </XCollapsible>
-                    )}
-
-                    {mode === 'server' && isAdmin && <XCollapsible className="wish-disclosure wish-admin-disclosure" defaultIsOpen={false} trigger={t('wishWall.nextStatus')}>
-                      <section className="wish-admin-actions">
-                        {(item.contactEmail || item.contactOther) && <div className="wish-private"><strong>{t('wishWall.contact')}</strong><span>{[item.contactEmail, item.contactOther].filter(Boolean).join(' · ')}</span></div>}
-                        {item.clientUserId && <code className="wish-client-id">{item.clientUserId}</code>}
-                        <XTextArea label={t('wishWall.reply')} rows={2} maxLength={5000} value={replyDrafts[item.id] || ''} onChange={(value) => setReplyDrafts((current) => ({ ...current, [item.id]: value }))} />
-                        <XButton type="button" size="sm" variant="secondary" label={t('wishWall.sendReply')} icon={<MessageSquareReply size={15} />} onClick={() => void reply(item)} />
-                        <XSelector label={t('wishWall.nextStatus')} value={statusDraft.status} options={statuses.map((status) => ({ value: status, label: t(`wishWall.statuses.${status}`) }))} onChange={(value) => setStatusDrafts((current) => ({ ...current, [item.id]: { ...statusDraft, status: value as WishStatus } }))} />
-                        <XTextArea label={t('wishWall.statusText')} isRequired rows={2} maxLength={1000} value={statusDraft.text} onChange={(value) => setStatusDrafts((current) => ({ ...current, [item.id]: { ...statusDraft, text: value } }))} />
-                        <div className="row-actions"><XButton type="button" size="sm" variant="primary" label={t('wishWall.updateStatus')} onClick={() => void updateStatus(item)} />{user?.role === 'SITE_ADMIN' && item.clientUserId && <XButton type="button" size="sm" variant="destructive" label={t('wishWall.blockAuthor')} icon={<Ban size={15} />} onClick={() => void blockAuthor(item)} />}</div>
-                      </section>
-                    </XCollapsible>}
+                    {mode === 'server' && <div className="wish-card-fab" role="group" aria-label={t('wishWall.cardActions')}>
+                      <XIconButton type="button" size="sm" variant="secondary" label={t('wishWall.openActivity')} tooltip={t('wishWall.openActivity')} icon={<History size={16} />} onClick={() => setWishDialog({ itemID: item.id, view: 'activity' })} />
+                      {isAdmin && <XIconButton type="button" size="sm" variant="primary" label={t('wishWall.openManage')} tooltip={t('wishWall.openManage')} icon={<Settings2 size={16} />} onClick={() => setWishDialog({ itemID: item.id, view: 'manage' })} />}
+                    </div>}
                   </article>
                 );
               })}
@@ -405,6 +393,47 @@ export function WishWall({
           </div>
           </>}
         </>
+      )}
+
+      {wishDialog && dialogItem && (
+        <ModalLayer
+          onClose={() => setWishDialog(null)}
+          purpose={wishDialog.view === 'manage' ? 'form' : 'info'}
+          width="min(680px, calc(100vw - 32px))"
+          maxHeight="min(88vh, 860px)"
+        >
+          <section className="modal-panel wish-dialog" aria-labelledby="wish-dialog-title">
+            <XIconButton className="close" type="button" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={() => setWishDialog(null)} />
+            <header className="wish-dialog-header">
+              <span className="eyebrow subtle">#{dialogItem.id} · {t(`wishWall.kinds.${dialogItem.kind}`)}</span>
+              <h2 id="wish-dialog-title">{wishDialog.view === 'manage' ? t('wishWall.manageTitle') : t('wishWall.activityTitle')}</h2>
+              <p>{dialogItem.title}</p>
+            </header>
+
+            {wishDialog.view === 'activity' && (
+              <div className="wish-dialog-content">
+                {(dialogItem.statusHistory || []).length > 0 && <section className="wish-timeline">
+                  <h3>{t('wishWall.statusHistory')}</h3>
+                  {dialogItem.statusHistory.map((event) => <div key={event.id}><XBadge label={t(`wishWall.statuses.${event.toStatus}`)} variant="neutral" /><span>{event.text}</span><small>{event.actorName} · {formatDate(event.createdAt)}</small></div>)}
+                </section>}
+                {(dialogItem.replies || []).length > 0 && <section className="wish-replies"><h3>{t('wishWall.replies')}</h3>{dialogItem.replies.map((reply) => <blockquote key={reply.id}><p>{reply.body}</p><footer>{reply.authorName} · {formatDate(reply.createdAt)}</footer></blockquote>)}</section>}
+                {(dialogItem.statusHistory || []).length === 0 && (dialogItem.replies || []).length === 0 && <p className="wish-dialog-empty">{t('wishWall.noActivity')}</p>}
+              </div>
+            )}
+
+            {wishDialog.view === 'manage' && isAdmin && dialogStatusDraft && (
+              <section className="wish-admin-actions">
+                {(dialogItem.contactEmail || dialogItem.contactOther) && <div className="wish-private"><strong>{t('wishWall.contact')}</strong><span>{[dialogItem.contactEmail, dialogItem.contactOther].filter(Boolean).join(' · ')}</span></div>}
+                {dialogItem.clientUserId && <code className="wish-client-id">{dialogItem.clientUserId}</code>}
+                <XTextArea label={t('wishWall.reply')} rows={3} maxLength={5000} value={replyDrafts[dialogItem.id] || ''} onChange={(value) => setReplyDrafts((current) => ({ ...current, [dialogItem.id]: value }))} />
+                <XButton type="button" size="sm" variant="secondary" label={t('wishWall.sendReply')} icon={<MessageSquareReply size={15} />} onClick={() => void reply(dialogItem)} />
+                <XSelector label={t('wishWall.nextStatus')} value={dialogStatusDraft.status} options={statuses.map((status) => ({ value: status, label: t(`wishWall.statuses.${status}`) }))} onChange={(value) => setStatusDrafts((current) => ({ ...current, [dialogItem.id]: { ...dialogStatusDraft, status: value as WishStatus } }))} />
+                <XTextArea label={t('wishWall.statusText')} isRequired rows={3} maxLength={1000} value={dialogStatusDraft.text} onChange={(value) => setStatusDrafts((current) => ({ ...current, [dialogItem.id]: { ...dialogStatusDraft, text: value } }))} />
+                <div className="row-actions"><XButton type="button" size="sm" variant="primary" label={t('wishWall.updateStatus')} onClick={() => void updateStatus(dialogItem)} />{user?.role === 'SITE_ADMIN' && dialogItem.clientUserId && <XButton type="button" size="sm" variant="destructive" label={t('wishWall.blockAuthor')} icon={<Ban size={15} />} onClick={() => void blockAuthor(dialogItem)} />}</div>
+              </section>
+            )}
+          </section>
+        </ModalLayer>
       )}
     </section>
   );

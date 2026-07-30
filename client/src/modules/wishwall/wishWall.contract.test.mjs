@@ -23,11 +23,15 @@ test('client wish wall supports create, edit, delete, and source selection', () 
   assert.match(wallSource, /!clientEditing && <>/);
 });
 
-test('server wish details reflow inside narrow cards', async () => {
+test('server wish details open from floating card actions in responsive dialogs', () => {
   const styles = readFileSync(new URL('../../styles/components.css', import.meta.url), 'utf8');
-  assert.match(styles, /container-type:\s*inline-size/);
-  assert.match(styles, /@container \(max-width:\s*300px\)/);
-  assert.match(styles, /\.wish-timeline > div\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+  assert.match(wallSource, /type WishDialogView = 'activity' \| 'manage'/);
+  assert.match(wallSource, /<ModalLayer/);
+  assert.match(wallSource, /wish-card-fab/);
+  assert.match(styles, /\.wish-card-fab\s*\{[^}]*position:\s*absolute/s);
+  assert.match(styles, /\.wish-dialog\s*\{[^}]*width:\s*100%[^}]*box-sizing:\s*border-box/s);
+  assert.match(styles, /\.wish-timeline > div\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+  assert.match(styles, /\.wish-admin-actions\s*\{[^}]*max-width:\s*100%/s);
 });
 
 test('server wish wall provides admin replies, status notes, and block action', () => {
