@@ -1,5 +1,24 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Ban, Lightbulb, MessageSquareReply, Pencil, Plus, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import {
+  Ban,
+  CalendarClock,
+  CheckCircle2,
+  CircleDot,
+  Lightbulb,
+  ListFilter,
+  LoaderCircle,
+  MessageCircle,
+  MessageSquareReply,
+  PackagePlus,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Shapes,
+  Trash2,
+  Wrench,
+  XCircle,
+  type LucideIcon,
+} from 'lucide-react';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Collapsible as XCollapsible } from '@astryxdesign/core/Collapsible';
@@ -10,9 +29,25 @@ import { api, clientApi } from '../../shared/api';
 import type { PaginatedResponse, SourceSubscription, Toast, User, Wish, WishKind, WishStatus } from '../../shared/types';
 import { errorMessage, formatDate } from '../../shared/utils';
 import { EmptyState } from '../../shared/components/Feedback';
+import { hasNextWishPage, mergeWishPage } from './wishWallState';
 
 const kinds: WishKind[] = ['SUGGESTION', 'APP_REQUEST', 'CUSTOMIZATION'];
 const statuses: WishStatus[] = ['OPEN', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'REJECTED'];
+const PAGE_SIZE = 24;
+
+const kindIcons: Record<WishKind, LucideIcon> = {
+  SUGGESTION: MessageCircle,
+  APP_REQUEST: PackagePlus,
+  CUSTOMIZATION: Wrench,
+};
+
+const statusIcons: Record<WishStatus, LucideIcon> = {
+  OPEN: CircleDot,
+  PLANNED: CalendarClock,
+  IN_PROGRESS: LoaderCircle,
+  COMPLETED: CheckCircle2,
+  REJECTED: XCircle,
+};
 
 type WishDraft = {
   kind: WishKind;
@@ -44,6 +79,10 @@ export function WishWall({
   const [sourceID, setSourceID] = useState<string>('');
   const [items, setItems] = useState<Wish[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [kindFilter, setKindFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
@@ -51,6 +90,9 @@ export function WishWall({
   const [editingID, setEditingID] = useState<number | null>(null);
   const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
   const [statusDrafts, setStatusDrafts] = useState<Record<number, { status: WishStatus; text: string }>>({});
+  const loadEpoch = useRef(0);
+  const loadingMoreRef = useRef(false);
+  const loadMoreSentinel = useRef<HTMLDivElement | null>(null);
   const isAdmin = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
 
   useEffect(() => {
@@ -59,28 +101,69 @@ export function WishWall({
     setSourceID(supportedSources[0] ? String(supportedSources[0].id) : '');
   }, [mode, sourceID, supportedSources]);
 
-  const load = useCallback(async () => {
+  const loadPage = useCallback(async (nextPage: number, append: boolean, epoch: number) => {
     if (mode === 'client' && !sourceID) {
       setItems([]);
+      setLoading(false);
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+      setPage(1);
+      setTotalItems(0);
+      setTotalPages(1);
       return;
     }
-    setLoading(true);
+    if (append) {
+      if (loadingMoreRef.current) return;
+      loadingMoreRef.current = true;
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     try {
-      const query = new URLSearchParams({ pageSize: '100' });
+      const query = new URLSearchParams({ page: String(nextPage), pageSize: String(PAGE_SIZE) });
       if (kindFilter) query.set('kind', kindFilter);
       if (statusFilter) query.set('status', statusFilter);
       const data = mode === 'client'
         ? await clientApi<PaginatedResponse<Wish>>(`/sources/${sourceID}/wishes?${query}`)
         : await api<PaginatedResponse<Wish>>(`/api/v1/wishes?${query}`);
-      setItems(data.items || []);
+      if (epoch !== loadEpoch.current) return;
+      setItems((current) => mergeWishPage(current, data.items || [], append));
+      setPage(data.pagination?.page || nextPage);
+      setTotalItems(data.pagination?.totalItems || 0);
+      setTotalPages(data.pagination?.totalPages || 1);
     } catch (error) {
+      if (epoch !== loadEpoch.current) return;
       setToast({ tone: 'error', message: errorMessage(error, t('wishWall.loadFailed')) });
     } finally {
-      setLoading(false);
+      if (append) {
+        loadingMoreRef.current = false;
+        if (epoch === loadEpoch.current) setLoadingMore(false);
+      } else if (epoch === loadEpoch.current) {
+        setLoading(false);
+      }
     }
   }, [kindFilter, mode, setToast, sourceID, statusFilter, t]);
 
+  const load = useCallback(() => {
+    const epoch = loadEpoch.current + 1;
+    loadEpoch.current = epoch;
+    loadingMoreRef.current = false;
+    setLoadingMore(false);
+    return loadPage(1, false, epoch);
+  }, [loadPage]);
+
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    const sentinel = loadMoreSentinel.current;
+    if (!sentinel || !hasNextWishPage(page, totalPages) || loading || loadingMore) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries[0]?.isIntersecting || loadingMoreRef.current) return;
+      void loadPage(page + 1, true, loadEpoch.current);
+    }, { rootMargin: '320px 0px' });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadPage, loading, loadingMore, page, totalPages]);
 
   async function submitWish(event: FormEvent) {
     event.preventDefault();
@@ -159,6 +242,37 @@ export function WishWall({
   }
 
   const canCreate = mode === 'client' && Boolean(sourceID);
+  const visibleKinds = kinds.filter((kind) => mode === 'client' || isAdmin || kind !== 'SUGGESTION');
+
+  function FilterButton({
+    active,
+    icon: Icon,
+    label,
+    tone,
+    onClick,
+  }: {
+    active: boolean;
+    icon: LucideIcon;
+    label: string;
+    tone: string;
+    onClick: () => void;
+  }) {
+    return (
+      <button
+        type="button"
+        className="wish-filter-button"
+        data-active={active}
+        data-tone={tone}
+        aria-pressed={active}
+        aria-label={label}
+        title={label}
+        onClick={onClick}
+      >
+        <Icon size={17} aria-hidden="true" />
+        <span>{label}</span>
+      </button>
+    );
+  }
 
   return (
     <section className="page-grid wish-wall-page" data-mode={mode}>
@@ -205,21 +319,32 @@ export function WishWall({
             </form>
           )}
 
-          <div className="wish-filter-shelf">
-            <div className="wish-filter-label" aria-hidden="true"><SlidersHorizontal size={16} /></div>
-            <div className="wish-filter-row">
-              <XSelector label={t('wishWall.kindLabel')} value={kindFilter} options={[{ value: '', label: t('common.all') }, ...kinds.filter((kind) => mode === 'client' || isAdmin || kind !== 'SUGGESTION').map((kind) => ({ value: kind, label: t(`wishWall.kinds.${kind}`) }))]} onChange={setKindFilter} />
-              <XSelector label={t('wishWall.statusLabel')} value={statusFilter} options={[{ value: '', label: t('common.all') }, ...statuses.map((status) => ({ value: status, label: t(`wishWall.statuses.${status}`) }))]} onChange={setStatusFilter} />
+          <div className="wish-filter-shelf" role="group" aria-label={t('wishWall.filters')}>
+            <div className="wish-filter-group">
+              <span className="wish-filter-group-label"><Shapes size={15} aria-hidden="true" />{t('wishWall.kindLabel')}</span>
+              <div className="wish-filter-row">
+                <FilterButton active={!kindFilter} icon={ListFilter} label={t('common.all')} tone="all" onClick={() => setKindFilter('')} />
+                {visibleKinds.map((kind) => <FilterButton key={kind} active={kindFilter === kind} icon={kindIcons[kind]} label={t(`wishWall.kinds.${kind}`)} tone={kind} onClick={() => setKindFilter(kind)} />)}
+              </div>
             </div>
-            <output className="wish-filter-count" aria-live="polite" aria-label={`${t('wishWall.title')}: ${items.length}`}>{items.length}</output>
+            <div className="wish-filter-group">
+              <span className="wish-filter-group-label"><CircleDot size={15} aria-hidden="true" />{t('wishWall.statusLabel')}</span>
+              <div className="wish-filter-row">
+                <FilterButton active={!statusFilter} icon={ListFilter} label={t('common.all')} tone="all" onClick={() => setStatusFilter('')} />
+                {statuses.map((status) => <FilterButton key={status} active={statusFilter === status} icon={statusIcons[status]} label={t(`wishWall.statuses.${status}`)} tone={status} onClick={() => setStatusFilter(status)} />)}
+              </div>
+            </div>
+            <output className="wish-filter-count" aria-live="polite" aria-label={t('wishWall.totalCount', { count: totalItems })}>{totalItems}</output>
           </div>
 
           {items.length === 0 ? <EmptyState icon={Lightbulb} title={t('wishWall.empty')} body={t('wishWall.emptyBody')} /> : (
-            <div className="wish-board" aria-busy={loading}>
-              <div className="wish-board-seam" aria-hidden="true" />
+            <div className={mode === 'client' ? 'wish-maintenance-list' : 'wish-board'} aria-busy={loading || loadingMore}>
+              {mode === 'server' && <div className="wish-board-seam" aria-hidden="true" />}
               {items.map((item, index) => {
                 const ownClientWish = mode === 'client' && Boolean(item.clientUserId);
                 const statusDraft = statusDrafts[item.id] || { status: item.status, text: '' };
+                const KindIcon = kindIcons[item.kind];
+                const StatusIcon = statusIcons[item.status];
                 return (
                   <article
                     className="wish-card"
@@ -227,10 +352,11 @@ export function WishWall({
                     key={item.id}
                     style={{ '--wish-index': Math.min(index, 5) } as CSSProperties}
                   >
-                    <div className="wish-fastener" aria-hidden="true"><span /></div>
+                    {mode === 'server' && <div className="wish-fastener" aria-hidden="true"><span /></div>}
+                    {mode === 'client' && <div className="wish-list-kind" aria-hidden="true"><KindIcon size={18} /></div>}
                     <header>
-                      <div className="wish-title-block"><span className="wish-kind">#{item.id} · {t(`wishWall.kinds.${item.kind}`)}</span><h2>{item.title}</h2></div>
-                      <XBadge label={t(`wishWall.statuses.${item.status}`)} variant={item.status === 'COMPLETED' ? 'success' : item.status === 'REJECTED' ? 'error' : 'neutral'} />
+                      <div className="wish-title-block"><span className="wish-kind"><KindIcon size={13} aria-hidden="true" />#{item.id} · {t(`wishWall.kinds.${item.kind}`)}</span><h2>{item.title}</h2></div>
+                      <span className="wish-status" data-status={item.status}><StatusIcon size={14} aria-hidden="true" />{t(`wishWall.statuses.${item.status}`)}</span>
                     </header>
                     <p className="wish-body">{item.body}</p>
                     {item.referenceUrl && <a href={item.referenceUrl} target="_blank" rel="noreferrer">{item.referenceUrl}</a>}
@@ -271,6 +397,10 @@ export function WishWall({
               })}
             </div>
           )}
+          <div className="wish-load-more" ref={loadMoreSentinel} aria-live="polite">
+            {loadingMore && <><LoaderCircle className="wish-load-spinner" size={18} aria-hidden="true" /><span>{t('wishWall.loadingMore')}</span></>}
+            {!loading && !loadingMore && items.length > 0 && page >= totalPages && <span>{t('wishWall.allLoaded')}</span>}
+          </div>
         </>
       )}
     </section>

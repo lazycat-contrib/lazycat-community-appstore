@@ -1,3 +1,7 @@
+/* Hallmark · macrostructure: Index-First · genre: playful · theme: existing Astryx semantic system
+ * tone: utilitarian client, tactile server · contrast: pass (40–41) · responsive: pass (34, 49–57)
+ * pre-emit critique: P5 H5 E5 S5 R5 V5
+ */
 .file-drop-field[data-disabled='true'] {
   cursor: not-allowed;
   opacity: 0.62;
@@ -96,16 +100,12 @@
     gap: 8px;
   }
 }
-/* Hallmark · pre-emit critique: P5 H5 E4 S5 R4 V4
- * genre: playful · macrostructure: Workbench · theme: Hum · enrichment: none · nav: existing side rail · footer: workspace shell
- * audience: wish authors and administrators · use: filter, scan, disclose, process · tone: tactile but exact
- */
 .wish-wall-page {
-  max-width: 1120px;
+  max-width: 1240px;
   margin: 0 auto;
-  --wish-coral: color-mix(in srgb, var(--color-background-red) 72%, var(--surface));
-  --wish-sky: color-mix(in srgb, var(--color-background-blue) 72%, var(--surface));
-  --wish-sun: color-mix(in srgb, var(--color-background-yellow) 76%, var(--surface));
+  --wish-suggestion: color-mix(in srgb, var(--color-background-blue) 74%, var(--surface));
+  --wish-app: color-mix(in srgb, var(--color-background-yellow) 78%, var(--surface));
+  --wish-custom: color-mix(in srgb, var(--color-background-red) 70%, var(--surface));
 }
 
 .wish-wall-page .page-heading p,
@@ -148,7 +148,7 @@
 
 .wish-source-picker {
   max-width: 100%;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface);
@@ -156,57 +156,162 @@
 
 .wish-filter-shelf {
   position: relative;
-  z-index: 2;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 14px;
-  padding: 14px 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 12px 16px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--surface) 94%, var(--ink));
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 7%, transparent);
+  background: var(--surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
-.wish-filter-label,
 .wish-filter-count {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  margin-bottom: 1px;
+  min-width: 36px;
+  height: 36px;
+  padding-inline: 10px;
   border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: 999px;
   color: var(--text-secondary);
   background: var(--subtle-surface);
-}
-
-.wish-filter-count {
-  width: auto;
-  min-width: 34px;
-  padding-inline: 9px;
-  border-radius: 999px;
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
 }
 
+.wish-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wish-filter-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
 .wish-filter-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wish-filter-button {
+  --filter-tone: var(--subtle-surface);
   display: grid;
-  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--text-secondary);
+  background: var(--filter-tone);
+  cursor: pointer;
+  transform: translateY(0) scale(1);
+  transition: transform 140ms var(--ease-out), opacity 140ms var(--ease-out);
+}
+
+.wish-filter-button > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.wish-filter-button[data-tone='SUGGESTION'] { --filter-tone: var(--wish-suggestion); }
+.wish-filter-button[data-tone='APP_REQUEST'] { --filter-tone: var(--wish-app); }
+.wish-filter-button[data-tone='CUSTOMIZATION'] { --filter-tone: var(--wish-custom); }
+.wish-filter-button[data-tone='OPEN'] { --filter-tone: var(--status-warning-bg); }
+.wish-filter-button[data-tone='PLANNED'] { --filter-tone: var(--status-info-bg); }
+.wish-filter-button[data-tone='IN_PROGRESS'] { --filter-tone: var(--color-accent-muted); }
+.wish-filter-button[data-tone='COMPLETED'] { --filter-tone: var(--status-success-bg); }
+.wish-filter-button[data-tone='REJECTED'] { --filter-tone: var(--status-danger-bg); }
+
+.wish-filter-button[data-active='false'] {
+  opacity: 0.7;
+  background: var(--surface);
+}
+
+.wish-filter-button[data-active='true'] {
+  border-color: var(--color-border-emphasized);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.wish-filter-button:active {
+  transform: scale(0.96);
+}
+
+.wish-filter-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.wish-maintenance-list {
+  display: grid;
+  gap: 8px;
+  min-height: 180px;
+}
+
+.wish-maintenance-list .wish-card {
+  --wish-note: var(--wish-app);
+  position: relative;
+  display: grid;
   gap: 12px;
+  min-width: 0;
+  padding: 16px 16px 16px 64px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 5%, transparent);
+  transform: translateY(0);
+  transition: transform 160ms var(--ease-out);
+}
+
+.wish-maintenance-list .wish-card[data-kind='SUGGESTION'] { --wish-note: var(--wish-suggestion); }
+.wish-maintenance-list .wish-card[data-kind='CUSTOMIZATION'] { --wish-note: var(--wish-custom); }
+
+.wish-list-kind {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, var(--ink));
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--wish-note);
 }
 
 .wish-board {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
-  gap: 26px 22px;
+  gap: 20px 16px;
   min-height: 240px;
-  padding: clamp(30px, 5vw, 54px) clamp(18px, 4vw, 42px);
+  padding: clamp(24px, 4vw, 40px) clamp(16px, 3vw, 32px);
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--line) 75%, var(--muted));
-  border-radius: 14px;
+  border-radius: 12px;
   background-color: color-mix(in srgb, var(--subtle-surface) 88%, var(--surface));
   background-image:
     radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--muted) 18%, transparent) 1px, transparent 1.2px),
@@ -224,27 +329,29 @@
 }
 
 .wish-card {
-  --wish-note: var(--wish-sun);
+  --wish-note: var(--wish-app);
+}
+
+.wish-board .wish-card {
   position: relative;
   display: grid;
-  gap: 15px;
+  gap: 12px;
   min-width: 0;
-  padding: 26px 22px 20px;
+  padding: 20px 16px 16px;
   border: 1px solid color-mix(in srgb, var(--line) 76%, var(--ink));
-  border-radius: 5px 5px 10px 10px;
+  border-radius: 4px 4px 9px 9px;
   background:
-    linear-gradient(178deg, color-mix(in srgb, var(--wish-note) 92%, var(--surface)) 0%, var(--wish-note) 100%);
-  box-shadow: 0 16px 26px color-mix(in srgb, var(--ink) 10%, transparent);
-  transform: rotate(calc((var(--wish-index) - 3) * 0.18deg));
+    linear-gradient(178deg, color-mix(in srgb, var(--wish-note) 94%, var(--surface)) 0%, var(--wish-note) 100%);
+  box-shadow: 0 9px 18px color-mix(in srgb, var(--ink) 9%, transparent);
+  transform: rotate(calc((var(--wish-index) - 3) * 0.12deg));
   transform-origin: 50% 12px;
-  transition:
-    transform 200ms var(--ease-out);
+  transition: transform 180ms var(--ease-out);
   animation: wish-stick 220ms var(--ease-out) both;
   animation-delay: calc(var(--wish-index) * 30ms);
 }
 
-.wish-card[data-kind='SUGGESTION'] { --wish-note: var(--wish-sky); }
-.wish-card[data-kind='CUSTOMIZATION'] { --wish-note: var(--wish-coral); }
+.wish-board .wish-card[data-kind='SUGGESTION'] { --wish-note: var(--wish-suggestion); }
+.wish-board .wish-card[data-kind='CUSTOMIZATION'] { --wish-note: var(--wish-custom); }
 
 .wish-fastener {
   position: absolute;
@@ -282,6 +389,9 @@
 }
 
 .wish-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.75rem;
   font-weight: 750;
   letter-spacing: 0.04em;
@@ -296,9 +406,37 @@
 
 .wish-card h2 {
   margin-top: 5px;
-  font-size: clamp(1.15rem, 2.2vw, 1.4rem);
+  font-size: clamp(1.02rem, 1.6vw, 1.22rem);
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
+
+.wish-wall-page h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.wish-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  background: var(--subtle-surface);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wish-status[data-status='OPEN'] { background: var(--status-warning-bg); color: var(--status-warning-ink); }
+.wish-status[data-status='PLANNED'] { background: var(--status-info-bg); color: var(--status-info-ink); }
+.wish-status[data-status='IN_PROGRESS'] { background: var(--color-accent-muted); color: var(--color-text-accent); }
+.wish-status[data-status='COMPLETED'] { background: var(--status-success-bg); color: var(--status-success-ink); }
+.wish-status[data-status='REJECTED'] { background: var(--status-danger-bg); color: var(--status-danger-ink); }
 
 .wish-card > a {
   color: var(--ink);
@@ -309,7 +447,7 @@
 
 .wish-body {
   white-space: pre-wrap;
-  line-height: 1.65;
+  line-height: 1.55;
 }
 
 .wish-meta,
@@ -389,6 +527,20 @@
   padding-top: 8px;
 }
 
+.wish-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.wish-load-spinner {
+  animation: wish-spin 700ms linear infinite;
+}
+
 .wish-timeline > div {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -412,6 +564,15 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .wish-filter-button:hover {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+
+  .wish-maintenance-list .wish-card:hover {
+    transform: translateY(-1px);
+  }
+
   .wish-disclosure > button:hover {
     color: var(--ink);
   }
@@ -424,14 +585,18 @@
   }
 }
 
+@keyframes wish-spin {
+  to { transform: rotate(1turn); }
+}
+
 @media (hover: hover) and (pointer: fine) {
-  .wish-card:hover {
+  .wish-board .wish-card:hover {
     z-index: 1;
     transform: translateY(-2px) rotate(0deg);
   }
 }
 
-.wish-card:focus-within {
+.wish-board .wish-card:focus-within {
   z-index: 1;
   transform: translateY(-2px) rotate(0deg);
 }
@@ -443,6 +608,9 @@
     transition: none;
   }
 
+  .wish-load-spinner {
+    animation-duration: 1400ms;
+  }
 }
 
 @media (pointer: coarse) {
@@ -457,34 +625,40 @@
 
 @media (max-width: 760px) {
   .wish-board {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 32px 18px;
   }
 
   .wish-filter-shelf {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .wish-filter-label {
-    display: none;
-  }
-
-  .wish-filter-row,
   .wish-timeline > div {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 480px) {
-  .wish-filter-shelf {
     grid-template-columns: 1fr;
   }
 
   .wish-filter-count {
-    display: none;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 480px) {
+  .wish-board {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .wish-card {
-    padding-inline: 16px;
+  .wish-filter-group {
+    align-items: flex-start;
+    flex-direction: column;
   }
+
+  .wish-filter-count {
+    position: static;
+    justify-self: start;
+  }
+
+  .wish-filter-row {
+    flex-wrap: wrap;
+  }
+
 }
