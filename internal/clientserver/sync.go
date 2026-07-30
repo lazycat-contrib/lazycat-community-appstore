@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -74,9 +75,14 @@ type feedIndex struct {
 type feedSiteMeta struct {
 	ClientPolicy SourceClientPolicyDTO `json:"clientPolicy"`
 	Chat         feedChatMeta          `json:"chat"`
+	WishWall     feedWishWallMeta      `json:"wishWall"`
 }
 
 type feedChatMeta struct {
+	Enabled bool `json:"enabled"`
+}
+
+type feedWishWallMeta struct {
 	Enabled bool `json:"enabled"`
 }
 
@@ -89,7 +95,11 @@ func (s *Server) handleSyncSource(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		var syncErr sourceSyncError
 		if errors.As(err, &syncErr) {
-			writeError(w, syncErr.status, "SOURCE_SYNC_FAILED", syncErr.message)
+			code := "SOURCE_SYNC_FAILED"
+			if syncErr.code == "blocked" {
+				code = "CLIENT_BLOCKED"
+			}
+			writeError(w, syncErr.status, code, syncErr.message)
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "SOURCE_SYNC_FAILED", "Could not sync source")
@@ -161,7 +171,7 @@ func (s *Server) syncAllSources(ctx context.Context, userID string) (SyncAllResu
 			}
 			continue
 		}
-		if _, err := s.saveSourceApps(ctx, item.source, item.apps, item.mirrors, item.categories, item.announcements, item.ads, item.clientPolicy, item.groups, item.invalidCodes, item.chatAvailable, item.etag); err != nil {
+		if _, err := s.saveSourceApps(ctx, item.source, item.apps, item.mirrors, item.categories, item.announcements, item.ads, item.clientPolicy, item.groups, item.invalidCodes, item.chatAvailable, item.wishWallAvailable, item.etag); err != nil {
 			result.Failed++
 		} else {
 			result.Success++
@@ -177,17 +187,18 @@ type fetchedSource struct {
 }
 
 type sourceFeedFetch struct {
-	apps          []feedApp
-	mirrors       []mirror.Entry
-	categories    []SourceCategoryDTO
-	announcements []SourceAnnouncementDTO
-	ads           []SourceAdDTO
-	clientPolicy  SourceClientPolicyDTO
-	groups        []SourceGroupDTO
-	invalidCodes  []string
-	chatAvailable bool
-	etag          string
-	notModified   bool
+	apps              []feedApp
+	mirrors           []mirror.Entry
+	categories        []SourceCategoryDTO
+	announcements     []SourceAnnouncementDTO
+	ads               []SourceAdDTO
+	clientPolicy      SourceClientPolicyDTO
+	groups            []SourceGroupDTO
+	invalidCodes      []string
+	chatAvailable     bool
+	wishWallAvailable bool
+	etag              string
+	notModified       bool
 }
 
 const sourceAppInsertBatchSize = 50
@@ -209,7 +220,7 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 	if fetch.notModified {
 		return s.recordSourceNotModified(ctx, source, fetch.etag)
 	}
-	return s.saveSourceApps(ctx, source, fetch.apps, fetch.mirrors, fetch.categories, fetch.announcements, fetch.ads, fetch.clientPolicy, fetch.groups, fetch.invalidCodes, fetch.chatAvailable, fetch.etag)
+	return s.saveSourceApps(ctx, source, fetch.apps, fetch.mirrors, fetch.categories, fetch.announcements, fetch.ads, fetch.clientPolicy, fetch.groups, fetch.invalidCodes, fetch.chatAvailable, fetch.wishWallAvailable, fetch.etag)
 }
 
 func (s *Server) recordSourceSyncFailure(ctx context.Context, sourceID int, err error) sourceSyncError {
@@ -244,7 +255,7 @@ func (s *Server) recordSourceNotModified(ctx context.Context, source *ent.Client
 	return sourceDTO(updated), nil
 }
 
-func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, apps []feedApp, mirrors []mirror.Entry, categories []SourceCategoryDTO, announcements []SourceAnnouncementDTO, ads []SourceAdDTO, clientPolicy SourceClientPolicyDTO, groups []SourceGroupDTO, invalidCodes []string, chatAvailable bool, etag string) (SourceDTO, error) {
+func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, apps []feedApp, mirrors []mirror.Entry, categories []SourceCategoryDTO, announcements []SourceAnnouncementDTO, ads []SourceAdDTO, clientPolicy SourceClientPolicyDTO, groups []SourceGroupDTO, invalidCodes []string, chatAvailable, wishWallAvailable bool, etag string) (SourceDTO, error) {
 	oldAppRecords, err := s.db.ClientSourceApp.Query().
 		Where(clientsourceapp.SourceIDEQ(source.ID)).
 		All(ctx)
@@ -345,6 +356,7 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 		SetMinClientVersion(clientPolicy.MinVersion).
 		SetMinClientVersionMessage(clientPolicy.Message).
 		SetChatAvailable(chatAvailable).
+		SetWishWallAvailable(wishWallAvailable).
 		SetDefaultDownloadMirrorID(defaultDownloadMirrorID).
 		SetDefaultRawMirrorID(defaultRawMirrorID).
 		Save(ctx)
@@ -511,6 +523,8 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 		return sourceFeedFetch{}, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Invalid source URL"}
 	}
 	req.Header.Set("Accept-Encoding", "br, gzip")
+	req.Header.Set("X-LazyCat-Client-User-ID", pseudonymousClientUserID(source.URL, source.UserID))
+	req.Header.Set("X-LazyCat-Client-Proxy", "lazycat-appstore-client")
 	if source.Password != "" {
 		req.Header.Set("X-Source-Password", source.Password)
 	}
@@ -531,6 +545,18 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusUnauthorized {
 		return sourceFeedFetch{}, sourceSyncError{code: "auth", status: http.StatusUnauthorized, message: "Source password is invalid"}
+	}
+	if resp.StatusCode == http.StatusForbidden {
+		var response struct {
+			Error struct {
+				Code string `json:"code"`
+			} `json:"error"`
+		}
+		limited, readErr := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+		if readErr == nil && json.Unmarshal(limited, &response) == nil && response.Error.Code == "CLIENT_BLOCKED" {
+			return sourceFeedFetch{}, sourceSyncError{code: "blocked", status: http.StatusForbidden, message: "已被该软件源封禁"}
+		}
+		return sourceFeedFetch{}, sourceSyncError{code: "http", status: http.StatusForbidden, message: "Source denied access"}
 	}
 	etag := strings.TrimSpace(resp.Header.Get("ETag"))
 	if resp.StatusCode == http.StatusNotModified {
@@ -589,16 +615,17 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 		out = append(out, app)
 	}
 	return sourceFeedFetch{
-		apps:          out,
-		mirrors:       mirrors,
-		categories:    categories,
-		announcements: announcements,
-		ads:           ads,
-		clientPolicy:  normalizeSourceClientPolicy(root.Site.ClientPolicy),
-		groups:        root.Groups,
-		invalidCodes:  normalizeGroupCodes(root.InvalidGroupCodes),
-		chatAvailable: root.Site.Chat.Enabled,
-		etag:          etag,
+		apps:              out,
+		mirrors:           mirrors,
+		categories:        categories,
+		announcements:     announcements,
+		ads:               ads,
+		clientPolicy:      normalizeSourceClientPolicy(root.Site.ClientPolicy),
+		groups:            root.Groups,
+		invalidCodes:      normalizeGroupCodes(root.InvalidGroupCodes),
+		chatAvailable:     root.Site.Chat.Enabled,
+		wishWallAvailable: root.Site.WishWall.Enabled,
+		etag:              etag,
 	}, nil
 }
 

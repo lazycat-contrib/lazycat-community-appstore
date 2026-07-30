@@ -41,6 +41,11 @@ func (s *Server) handleSourceIndexV2(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSourceIndex(w http.ResponseWriter, r *http.Request, version int) {
+	if r.Header.Get("X-LazyCat-Client-Proxy") == "lazycat-appstore-client" {
+		if clientUserID := sanitizeIdentity(r.Header.Get("X-LazyCat-Client-User-ID")); clientUserID != "" && s.rejectBlockedClient(w, r, clientUserID) {
+			return
+		}
+	}
 	sourcePassword := s.sourcePassword(r.Context())
 	if sourcePassword != "" {
 		password := r.Header.Get("X-Source-Password")
@@ -114,6 +119,7 @@ func (s *Server) buildSourceFeed(ctx context.Context, version int, scope sourceF
 				Enabled:       profile.Chat.Enabled,
 				RetentionDays: profile.Chat.RetentionDays,
 			},
+			WishWall: feed.WishWallMeta{Enabled: s.cfg.TrustLazyCatClientComments},
 		},
 		Announcement: siteAnnouncementToFeed(profile.Announcement),
 		Apps:         make([]feed.AppInput, 0, len(apps)),

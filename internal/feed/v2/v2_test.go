@@ -11,6 +11,7 @@ func TestBuildIndexPublishesStructuredCategories(t *testing.T) {
 	parentID := 1
 	index := feedv2.BuildIndex(feed.Input{
 		BaseURL: "https://store.example.com",
+		Site:    feed.SiteMeta{WishWall: feed.WishWallMeta{Enabled: true}},
 		Categories: []feed.CategoryInput{
 			{ID: parentID, Name: "Tools", Slug: "tools"},
 			{ID: 2, Name: "Download", Slug: "download", ParentID: &parentID, SortOrder: 10},
@@ -45,6 +46,9 @@ func TestBuildIndexPublishesStructuredCategories(t *testing.T) {
 	}
 	if got := index.Apps[0].DownloadCount; got != 27 {
 		t.Fatalf("download count = %d, want 27", got)
+	}
+	if !index.Site.WishWall.Enabled {
+		t.Fatal("wish wall capability was not published")
 	}
 }
 

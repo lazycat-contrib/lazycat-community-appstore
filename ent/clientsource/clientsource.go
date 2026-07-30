@@ -47,6 +47,8 @@ const (
 	FieldMinClientVersionMessage = "min_client_version_message"
 	// FieldChatAvailable holds the string denoting the chat_available field in the database.
 	FieldChatAvailable = "chat_available"
+	// FieldWishWallAvailable holds the string denoting the wish_wall_available field in the database.
+	FieldWishWallAvailable = "wish_wall_available"
 	// FieldChatEnabled holds the string denoting the chat_enabled field in the database.
 	FieldChatEnabled = "chat_enabled"
 	// FieldAdsPreference holds the string denoting the ads_preference field in the database.
@@ -99,6 +101,7 @@ var Columns = []string{
 	FieldMinClientVersion,
 	FieldMinClientVersionMessage,
 	FieldChatAvailable,
+	FieldWishWallAvailable,
 	FieldChatEnabled,
 	FieldAdsPreference,
 	FieldLastEtag,
@@ -154,6 +157,8 @@ var (
 	DefaultMinClientVersionMessage string
 	// DefaultChatAvailable holds the default value on creation for the "chat_available" field.
 	DefaultChatAvailable bool
+	// DefaultWishWallAvailable holds the default value on creation for the "wish_wall_available" field.
+	DefaultWishWallAvailable bool
 	// DefaultChatEnabled holds the default value on creation for the "chat_enabled" field.
 	DefaultChatEnabled bool
 	// DefaultLastEtag holds the default value on creation for the "last_etag" field.
@@ -203,6 +208,7 @@ type LastErrorCode string
 // LastErrorCode values.
 const (
 	LastErrorCodeAuth    LastErrorCode = "auth"
+	LastErrorCodeBlocked LastErrorCode = "blocked"
 	LastErrorCodeFormat  LastErrorCode = "format"
 	LastErrorCodeHTTP    LastErrorCode = "http"
 	LastErrorCodeNetwork LastErrorCode = "network"
@@ -215,7 +221,7 @@ func (lec LastErrorCode) String() string {
 // LastErrorCodeValidator is a validator for the "last_error_code" field enum values. It is called by the builders before save.
 func LastErrorCodeValidator(lec LastErrorCode) error {
 	switch lec {
-	case LastErrorCodeAuth, LastErrorCodeFormat, LastErrorCodeHTTP, LastErrorCodeNetwork:
+	case LastErrorCodeAuth, LastErrorCodeBlocked, LastErrorCodeFormat, LastErrorCodeHTTP, LastErrorCodeNetwork:
 		return nil
 	default:
 		return fmt.Errorf("clientsource: invalid enum value for last_error_code field: %q", lec)
@@ -308,6 +314,11 @@ func ByMinClientVersionMessage(opts ...sql.OrderTermOption) OrderOption {
 // ByChatAvailable orders the results by the chat_available field.
 func ByChatAvailable(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldChatAvailable, opts...).ToFunc()
+}
+
+// ByWishWallAvailable orders the results by the wish_wall_available field.
+func ByWishWallAvailable(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWishWallAvailable, opts...).ToFunc()
 }
 
 // ByChatEnabled orders the results by the chat_enabled field.

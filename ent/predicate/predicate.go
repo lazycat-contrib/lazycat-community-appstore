@@ -99,6 +99,9 @@ type Comment func(*sql.Selector)
 // CommentNotification is the predicate function for commentnotification builders.
 type CommentNotification func(*sql.Selector)
 
+// DownstreamClientUser is the predicate function for downstreamclientuser builders.
+type DownstreamClientUser func(*sql.Selector)
+
 // Favorite is the predicate function for favorite builders.
 type Favorite func(*sql.Selector)
 
@@ -137,3 +140,12 @@ type User func(*sql.Selector)
 
 // UserGroup is the predicate function for usergroup builders.
 type UserGroup func(*sql.Selector)
+
+// Wish is the predicate function for wish builders.
+type Wish func(*sql.Selector)
+
+// WishReply is the predicate function for wishreply builders.
+type WishReply func(*sql.Selector)
+
+// WishStatusEvent is the predicate function for wishstatusevent builders.
+type WishStatusEvent func(*sql.Selector)

@@ -1,5 +1,5 @@
 import { type FormEvent } from 'react';
-import { MessageSquare, Trash2 } from 'lucide-react';
+import { Ban, MessageSquare, Trash2 } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { Skeleton as XSkeleton } from '@astryxdesign/core/Skeleton';
@@ -19,6 +19,7 @@ export function CommentList({
   onReplyText,
   onReply,
   onDelete,
+  onBlockClient,
 }: {
   comments: Comment[];
   commentsState?: 'idle' | 'loading' | 'loaded' | 'error';
@@ -29,6 +30,7 @@ export function CommentList({
   onReplyText: (value: string) => void;
   onReply: (event: FormEvent, parentId: number) => void;
   onDelete: (id: number) => void;
+  onBlockClient?: (clientUserId: string) => void;
 }) {
   const { t } = useTranslation();
   if (commentsState === 'loading') {
@@ -45,7 +47,7 @@ export function CommentList({
     <div className="comments">
       {comments.map((comment) => (
         <article className="comment" key={comment.id}>
-          <CommentBody comment={comment} onDelete={onDelete} />
+          <CommentBody comment={comment} onDelete={onDelete} onBlockClient={onBlockClient} />
           {canReply && (
             <div className="comment-actions">
               <XButton type="button" variant="secondary" size="sm" label={t('drawer.reply')} icon={<MessageSquare size={15} />} onClick={() => onReplyTarget(replyTarget === comment.id ? null : comment.id)} />
@@ -67,7 +69,7 @@ export function CommentList({
             <div className="comment-replies">
               {comment.replies.map((reply) => (
                 <article className="comment reply" key={reply.id}>
-                  <CommentBody comment={reply} onDelete={onDelete} />
+                  <CommentBody comment={reply} onDelete={onDelete} onBlockClient={onBlockClient} />
                 </article>
               ))}
             </div>
@@ -78,7 +80,7 @@ export function CommentList({
   );
 }
 
-function CommentBody({ comment, onDelete }: { comment: Comment; onDelete: (id: number) => void }) {
+function CommentBody({ comment, onDelete, onBlockClient }: { comment: Comment; onDelete: (id: number) => void; onBlockClient?: (clientUserId: string) => void }) {
   const { t } = useTranslation();
   return (
     <>
@@ -87,9 +89,10 @@ function CommentBody({ comment, onDelete }: { comment: Comment; onDelete: (id: n
           <strong>{comment.username}</strong>
           <span>{formatDate(comment.createdAt)}</span>
         </div>
-        {comment.canDelete && (
-          <XIconButton type="button" variant="destructive" label={t('drawer.deleteComment')} icon={<Trash2 size={15} />} onClick={() => onDelete(comment.id)} />
-        )}
+        <div className="row-actions">
+          {onBlockClient && comment.clientUserId && <XIconButton type="button" variant="destructive" label={t('wishWall.blockAuthor')} icon={<Ban size={15} />} onClick={() => onBlockClient(comment.clientUserId!)} />}
+          {comment.canDelete && <XIconButton type="button" variant="destructive" label={t('drawer.deleteComment')} icon={<Trash2 size={15} />} onClick={() => onDelete(comment.id)} />}
+        </div>
       </div>
       <p>{comment.body}</p>
     </>

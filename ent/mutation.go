@@ -42,6 +42,7 @@ import (
 	"lazycat.community/appstore/ent/collectionapp"
 	"lazycat.community/appstore/ent/comment"
 	"lazycat.community/appstore/ent/commentnotification"
+	"lazycat.community/appstore/ent/downstreamclientuser"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 	"lazycat.community/appstore/ent/groupmember"
@@ -56,6 +57,9 @@ import (
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/ent/usergroup"
+	"lazycat.community/appstore/ent/wish"
+	"lazycat.community/appstore/ent/wishreply"
+	"lazycat.community/appstore/ent/wishstatusevent"
 )
 
 const (
@@ -98,6 +102,7 @@ const (
 	TypeCollectionApp         = "CollectionApp"
 	TypeComment               = "Comment"
 	TypeCommentNotification   = "CommentNotification"
+	TypeDownstreamClientUser  = "DownstreamClientUser"
 	TypeFavorite              = "Favorite"
 	TypeGitHubLPKUpdatePolicy = "GitHubLPKUpdatePolicy"
 	TypeGroupMember           = "GroupMember"
@@ -111,6 +116,9 @@ const (
 	TypeTag                   = "Tag"
 	TypeUser                  = "User"
 	TypeUserGroup             = "UserGroup"
+	TypeWish                  = "Wish"
+	TypeWishReply             = "WishReply"
+	TypeWishStatusEvent       = "WishStatusEvent"
 )
 
 // APITokenMutation represents an operation that mutates the APIToken nodes in the graph.
@@ -16815,6 +16823,7 @@ type ClientSourceMutation struct {
 	min_client_version            *string
 	min_client_version_message    *string
 	chat_available                *bool
+	wish_wall_available           *bool
 	chat_enabled                  *bool
 	ads_preference                *clientsource.AdsPreference
 	last_etag                     *string
@@ -17510,6 +17519,42 @@ func (m *ClientSourceMutation) ResetChatAvailable() {
 	m.chat_available = nil
 }
 
+// SetWishWallAvailable sets the "wish_wall_available" field.
+func (m *ClientSourceMutation) SetWishWallAvailable(b bool) {
+	m.wish_wall_available = &b
+}
+
+// WishWallAvailable returns the value of the "wish_wall_available" field in the mutation.
+func (m *ClientSourceMutation) WishWallAvailable() (r bool, exists bool) {
+	v := m.wish_wall_available
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWishWallAvailable returns the old "wish_wall_available" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldWishWallAvailable(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWishWallAvailable is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWishWallAvailable requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWishWallAvailable: %w", err)
+	}
+	return oldValue.WishWallAvailable, nil
+}
+
+// ResetWishWallAvailable resets all changes to the "wish_wall_available" field.
+func (m *ClientSourceMutation) ResetWishWallAvailable() {
+	m.wish_wall_available = nil
+}
+
 // SetChatEnabled sets the "chat_enabled" field.
 func (m *ClientSourceMutation) SetChatEnabled(b bool) {
 	m.chat_enabled = &b
@@ -18037,7 +18082,7 @@ func (m *ClientSourceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceMutation) Fields() []string {
-	fields := make([]string, 0, 26)
+	fields := make([]string, 0, 27)
 	if m.user_id != nil {
 		fields = append(fields, clientsource.FieldUserID)
 	}
@@ -18085,6 +18130,9 @@ func (m *ClientSourceMutation) Fields() []string {
 	}
 	if m.chat_available != nil {
 		fields = append(fields, clientsource.FieldChatAvailable)
+	}
+	if m.wish_wall_available != nil {
+		fields = append(fields, clientsource.FieldWishWallAvailable)
 	}
 	if m.chat_enabled != nil {
 		fields = append(fields, clientsource.FieldChatEnabled)
@@ -18156,6 +18204,8 @@ func (m *ClientSourceMutation) Field(name string) (ent.Value, bool) {
 		return m.MinClientVersionMessage()
 	case clientsource.FieldChatAvailable:
 		return m.ChatAvailable()
+	case clientsource.FieldWishWallAvailable:
+		return m.WishWallAvailable()
 	case clientsource.FieldChatEnabled:
 		return m.ChatEnabled()
 	case clientsource.FieldAdsPreference:
@@ -18217,6 +18267,8 @@ func (m *ClientSourceMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldMinClientVersionMessage(ctx)
 	case clientsource.FieldChatAvailable:
 		return m.OldChatAvailable(ctx)
+	case clientsource.FieldWishWallAvailable:
+		return m.OldWishWallAvailable(ctx)
 	case clientsource.FieldChatEnabled:
 		return m.OldChatEnabled(ctx)
 	case clientsource.FieldAdsPreference:
@@ -18357,6 +18409,13 @@ func (m *ClientSourceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetChatAvailable(v)
+		return nil
+	case clientsource.FieldWishWallAvailable:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWishWallAvailable(v)
 		return nil
 	case clientsource.FieldChatEnabled:
 		v, ok := value.(bool)
@@ -18572,6 +18631,9 @@ func (m *ClientSourceMutation) ResetField(name string) error {
 		return nil
 	case clientsource.FieldChatAvailable:
 		m.ResetChatAvailable()
+		return nil
+	case clientsource.FieldWishWallAvailable:
+		m.ResetWishWallAvailable()
 		return nil
 	case clientsource.FieldChatEnabled:
 		m.ResetChatEnabled()
@@ -27137,6 +27199,1004 @@ func (m *CommentNotificationMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *CommentNotificationMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown CommentNotification edge %s", name)
+}
+
+// DownstreamClientUserMutation represents an operation that mutates the DownstreamClientUser nodes in the graph.
+type DownstreamClientUserMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	client_user_id   *string
+	display_name     *string
+	seen_in_comments *bool
+	seen_in_wishes   *bool
+	blocked          *bool
+	block_reason     *string
+	blocked_by       *int
+	addblocked_by    *int
+	blocked_at       *time.Time
+	first_seen_at    *time.Time
+	last_seen_at     *time.Time
+	created_at       *time.Time
+	updated_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*DownstreamClientUser, error)
+	predicates       []predicate.DownstreamClientUser
+}
+
+var _ ent.Mutation = (*DownstreamClientUserMutation)(nil)
+
+// downstreamclientuserOption allows management of the mutation configuration using functional options.
+type downstreamclientuserOption func(*DownstreamClientUserMutation)
+
+// newDownstreamClientUserMutation creates new mutation for the DownstreamClientUser entity.
+func newDownstreamClientUserMutation(c config, op Op, opts ...downstreamclientuserOption) *DownstreamClientUserMutation {
+	m := &DownstreamClientUserMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeDownstreamClientUser,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withDownstreamClientUserID sets the ID field of the mutation.
+func withDownstreamClientUserID(id int) downstreamclientuserOption {
+	return func(m *DownstreamClientUserMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *DownstreamClientUser
+		)
+		m.oldValue = func(ctx context.Context) (*DownstreamClientUser, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().DownstreamClientUser.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withDownstreamClientUser sets the old DownstreamClientUser of the mutation.
+func withDownstreamClientUser(node *DownstreamClientUser) downstreamclientuserOption {
+	return func(m *DownstreamClientUserMutation) {
+		m.oldValue = func(context.Context) (*DownstreamClientUser, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m DownstreamClientUserMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m DownstreamClientUserMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *DownstreamClientUserMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *DownstreamClientUserMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().DownstreamClientUser.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetClientUserID sets the "client_user_id" field.
+func (m *DownstreamClientUserMutation) SetClientUserID(s string) {
+	m.client_user_id = &s
+}
+
+// ClientUserID returns the value of the "client_user_id" field in the mutation.
+func (m *DownstreamClientUserMutation) ClientUserID() (r string, exists bool) {
+	v := m.client_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClientUserID returns the old "client_user_id" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldClientUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClientUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClientUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClientUserID: %w", err)
+	}
+	return oldValue.ClientUserID, nil
+}
+
+// ResetClientUserID resets all changes to the "client_user_id" field.
+func (m *DownstreamClientUserMutation) ResetClientUserID() {
+	m.client_user_id = nil
+}
+
+// SetDisplayName sets the "display_name" field.
+func (m *DownstreamClientUserMutation) SetDisplayName(s string) {
+	m.display_name = &s
+}
+
+// DisplayName returns the value of the "display_name" field in the mutation.
+func (m *DownstreamClientUserMutation) DisplayName() (r string, exists bool) {
+	v := m.display_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplayName returns the old "display_name" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldDisplayName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplayName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplayName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplayName: %w", err)
+	}
+	return oldValue.DisplayName, nil
+}
+
+// ResetDisplayName resets all changes to the "display_name" field.
+func (m *DownstreamClientUserMutation) ResetDisplayName() {
+	m.display_name = nil
+}
+
+// SetSeenInComments sets the "seen_in_comments" field.
+func (m *DownstreamClientUserMutation) SetSeenInComments(b bool) {
+	m.seen_in_comments = &b
+}
+
+// SeenInComments returns the value of the "seen_in_comments" field in the mutation.
+func (m *DownstreamClientUserMutation) SeenInComments() (r bool, exists bool) {
+	v := m.seen_in_comments
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSeenInComments returns the old "seen_in_comments" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldSeenInComments(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSeenInComments is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSeenInComments requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSeenInComments: %w", err)
+	}
+	return oldValue.SeenInComments, nil
+}
+
+// ResetSeenInComments resets all changes to the "seen_in_comments" field.
+func (m *DownstreamClientUserMutation) ResetSeenInComments() {
+	m.seen_in_comments = nil
+}
+
+// SetSeenInWishes sets the "seen_in_wishes" field.
+func (m *DownstreamClientUserMutation) SetSeenInWishes(b bool) {
+	m.seen_in_wishes = &b
+}
+
+// SeenInWishes returns the value of the "seen_in_wishes" field in the mutation.
+func (m *DownstreamClientUserMutation) SeenInWishes() (r bool, exists bool) {
+	v := m.seen_in_wishes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSeenInWishes returns the old "seen_in_wishes" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldSeenInWishes(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSeenInWishes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSeenInWishes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSeenInWishes: %w", err)
+	}
+	return oldValue.SeenInWishes, nil
+}
+
+// ResetSeenInWishes resets all changes to the "seen_in_wishes" field.
+func (m *DownstreamClientUserMutation) ResetSeenInWishes() {
+	m.seen_in_wishes = nil
+}
+
+// SetBlocked sets the "blocked" field.
+func (m *DownstreamClientUserMutation) SetBlocked(b bool) {
+	m.blocked = &b
+}
+
+// Blocked returns the value of the "blocked" field in the mutation.
+func (m *DownstreamClientUserMutation) Blocked() (r bool, exists bool) {
+	v := m.blocked
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBlocked returns the old "blocked" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldBlocked(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBlocked is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBlocked requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBlocked: %w", err)
+	}
+	return oldValue.Blocked, nil
+}
+
+// ResetBlocked resets all changes to the "blocked" field.
+func (m *DownstreamClientUserMutation) ResetBlocked() {
+	m.blocked = nil
+}
+
+// SetBlockReason sets the "block_reason" field.
+func (m *DownstreamClientUserMutation) SetBlockReason(s string) {
+	m.block_reason = &s
+}
+
+// BlockReason returns the value of the "block_reason" field in the mutation.
+func (m *DownstreamClientUserMutation) BlockReason() (r string, exists bool) {
+	v := m.block_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBlockReason returns the old "block_reason" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldBlockReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBlockReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBlockReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBlockReason: %w", err)
+	}
+	return oldValue.BlockReason, nil
+}
+
+// ResetBlockReason resets all changes to the "block_reason" field.
+func (m *DownstreamClientUserMutation) ResetBlockReason() {
+	m.block_reason = nil
+}
+
+// SetBlockedBy sets the "blocked_by" field.
+func (m *DownstreamClientUserMutation) SetBlockedBy(i int) {
+	m.blocked_by = &i
+	m.addblocked_by = nil
+}
+
+// BlockedBy returns the value of the "blocked_by" field in the mutation.
+func (m *DownstreamClientUserMutation) BlockedBy() (r int, exists bool) {
+	v := m.blocked_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBlockedBy returns the old "blocked_by" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldBlockedBy(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBlockedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBlockedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBlockedBy: %w", err)
+	}
+	return oldValue.BlockedBy, nil
+}
+
+// AddBlockedBy adds i to the "blocked_by" field.
+func (m *DownstreamClientUserMutation) AddBlockedBy(i int) {
+	if m.addblocked_by != nil {
+		*m.addblocked_by += i
+	} else {
+		m.addblocked_by = &i
+	}
+}
+
+// AddedBlockedBy returns the value that was added to the "blocked_by" field in this mutation.
+func (m *DownstreamClientUserMutation) AddedBlockedBy() (r int, exists bool) {
+	v := m.addblocked_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearBlockedBy clears the value of the "blocked_by" field.
+func (m *DownstreamClientUserMutation) ClearBlockedBy() {
+	m.blocked_by = nil
+	m.addblocked_by = nil
+	m.clearedFields[downstreamclientuser.FieldBlockedBy] = struct{}{}
+}
+
+// BlockedByCleared returns if the "blocked_by" field was cleared in this mutation.
+func (m *DownstreamClientUserMutation) BlockedByCleared() bool {
+	_, ok := m.clearedFields[downstreamclientuser.FieldBlockedBy]
+	return ok
+}
+
+// ResetBlockedBy resets all changes to the "blocked_by" field.
+func (m *DownstreamClientUserMutation) ResetBlockedBy() {
+	m.blocked_by = nil
+	m.addblocked_by = nil
+	delete(m.clearedFields, downstreamclientuser.FieldBlockedBy)
+}
+
+// SetBlockedAt sets the "blocked_at" field.
+func (m *DownstreamClientUserMutation) SetBlockedAt(t time.Time) {
+	m.blocked_at = &t
+}
+
+// BlockedAt returns the value of the "blocked_at" field in the mutation.
+func (m *DownstreamClientUserMutation) BlockedAt() (r time.Time, exists bool) {
+	v := m.blocked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBlockedAt returns the old "blocked_at" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldBlockedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBlockedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBlockedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBlockedAt: %w", err)
+	}
+	return oldValue.BlockedAt, nil
+}
+
+// ClearBlockedAt clears the value of the "blocked_at" field.
+func (m *DownstreamClientUserMutation) ClearBlockedAt() {
+	m.blocked_at = nil
+	m.clearedFields[downstreamclientuser.FieldBlockedAt] = struct{}{}
+}
+
+// BlockedAtCleared returns if the "blocked_at" field was cleared in this mutation.
+func (m *DownstreamClientUserMutation) BlockedAtCleared() bool {
+	_, ok := m.clearedFields[downstreamclientuser.FieldBlockedAt]
+	return ok
+}
+
+// ResetBlockedAt resets all changes to the "blocked_at" field.
+func (m *DownstreamClientUserMutation) ResetBlockedAt() {
+	m.blocked_at = nil
+	delete(m.clearedFields, downstreamclientuser.FieldBlockedAt)
+}
+
+// SetFirstSeenAt sets the "first_seen_at" field.
+func (m *DownstreamClientUserMutation) SetFirstSeenAt(t time.Time) {
+	m.first_seen_at = &t
+}
+
+// FirstSeenAt returns the value of the "first_seen_at" field in the mutation.
+func (m *DownstreamClientUserMutation) FirstSeenAt() (r time.Time, exists bool) {
+	v := m.first_seen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstSeenAt returns the old "first_seen_at" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldFirstSeenAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstSeenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstSeenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstSeenAt: %w", err)
+	}
+	return oldValue.FirstSeenAt, nil
+}
+
+// ResetFirstSeenAt resets all changes to the "first_seen_at" field.
+func (m *DownstreamClientUserMutation) ResetFirstSeenAt() {
+	m.first_seen_at = nil
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (m *DownstreamClientUserMutation) SetLastSeenAt(t time.Time) {
+	m.last_seen_at = &t
+}
+
+// LastSeenAt returns the value of the "last_seen_at" field in the mutation.
+func (m *DownstreamClientUserMutation) LastSeenAt() (r time.Time, exists bool) {
+	v := m.last_seen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSeenAt returns the old "last_seen_at" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldLastSeenAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSeenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSeenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSeenAt: %w", err)
+	}
+	return oldValue.LastSeenAt, nil
+}
+
+// ResetLastSeenAt resets all changes to the "last_seen_at" field.
+func (m *DownstreamClientUserMutation) ResetLastSeenAt() {
+	m.last_seen_at = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *DownstreamClientUserMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *DownstreamClientUserMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *DownstreamClientUserMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *DownstreamClientUserMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *DownstreamClientUserMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the DownstreamClientUser entity.
+// If the DownstreamClientUser object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *DownstreamClientUserMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *DownstreamClientUserMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the DownstreamClientUserMutation builder.
+func (m *DownstreamClientUserMutation) Where(ps ...predicate.DownstreamClientUser) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the DownstreamClientUserMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *DownstreamClientUserMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.DownstreamClientUser, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *DownstreamClientUserMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *DownstreamClientUserMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (DownstreamClientUser).
+func (m *DownstreamClientUserMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *DownstreamClientUserMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.client_user_id != nil {
+		fields = append(fields, downstreamclientuser.FieldClientUserID)
+	}
+	if m.display_name != nil {
+		fields = append(fields, downstreamclientuser.FieldDisplayName)
+	}
+	if m.seen_in_comments != nil {
+		fields = append(fields, downstreamclientuser.FieldSeenInComments)
+	}
+	if m.seen_in_wishes != nil {
+		fields = append(fields, downstreamclientuser.FieldSeenInWishes)
+	}
+	if m.blocked != nil {
+		fields = append(fields, downstreamclientuser.FieldBlocked)
+	}
+	if m.block_reason != nil {
+		fields = append(fields, downstreamclientuser.FieldBlockReason)
+	}
+	if m.blocked_by != nil {
+		fields = append(fields, downstreamclientuser.FieldBlockedBy)
+	}
+	if m.blocked_at != nil {
+		fields = append(fields, downstreamclientuser.FieldBlockedAt)
+	}
+	if m.first_seen_at != nil {
+		fields = append(fields, downstreamclientuser.FieldFirstSeenAt)
+	}
+	if m.last_seen_at != nil {
+		fields = append(fields, downstreamclientuser.FieldLastSeenAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, downstreamclientuser.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, downstreamclientuser.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *DownstreamClientUserMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case downstreamclientuser.FieldClientUserID:
+		return m.ClientUserID()
+	case downstreamclientuser.FieldDisplayName:
+		return m.DisplayName()
+	case downstreamclientuser.FieldSeenInComments:
+		return m.SeenInComments()
+	case downstreamclientuser.FieldSeenInWishes:
+		return m.SeenInWishes()
+	case downstreamclientuser.FieldBlocked:
+		return m.Blocked()
+	case downstreamclientuser.FieldBlockReason:
+		return m.BlockReason()
+	case downstreamclientuser.FieldBlockedBy:
+		return m.BlockedBy()
+	case downstreamclientuser.FieldBlockedAt:
+		return m.BlockedAt()
+	case downstreamclientuser.FieldFirstSeenAt:
+		return m.FirstSeenAt()
+	case downstreamclientuser.FieldLastSeenAt:
+		return m.LastSeenAt()
+	case downstreamclientuser.FieldCreatedAt:
+		return m.CreatedAt()
+	case downstreamclientuser.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *DownstreamClientUserMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case downstreamclientuser.FieldClientUserID:
+		return m.OldClientUserID(ctx)
+	case downstreamclientuser.FieldDisplayName:
+		return m.OldDisplayName(ctx)
+	case downstreamclientuser.FieldSeenInComments:
+		return m.OldSeenInComments(ctx)
+	case downstreamclientuser.FieldSeenInWishes:
+		return m.OldSeenInWishes(ctx)
+	case downstreamclientuser.FieldBlocked:
+		return m.OldBlocked(ctx)
+	case downstreamclientuser.FieldBlockReason:
+		return m.OldBlockReason(ctx)
+	case downstreamclientuser.FieldBlockedBy:
+		return m.OldBlockedBy(ctx)
+	case downstreamclientuser.FieldBlockedAt:
+		return m.OldBlockedAt(ctx)
+	case downstreamclientuser.FieldFirstSeenAt:
+		return m.OldFirstSeenAt(ctx)
+	case downstreamclientuser.FieldLastSeenAt:
+		return m.OldLastSeenAt(ctx)
+	case downstreamclientuser.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case downstreamclientuser.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown DownstreamClientUser field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DownstreamClientUserMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case downstreamclientuser.FieldClientUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClientUserID(v)
+		return nil
+	case downstreamclientuser.FieldDisplayName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplayName(v)
+		return nil
+	case downstreamclientuser.FieldSeenInComments:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSeenInComments(v)
+		return nil
+	case downstreamclientuser.FieldSeenInWishes:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSeenInWishes(v)
+		return nil
+	case downstreamclientuser.FieldBlocked:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBlocked(v)
+		return nil
+	case downstreamclientuser.FieldBlockReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBlockReason(v)
+		return nil
+	case downstreamclientuser.FieldBlockedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBlockedBy(v)
+		return nil
+	case downstreamclientuser.FieldBlockedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBlockedAt(v)
+		return nil
+	case downstreamclientuser.FieldFirstSeenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstSeenAt(v)
+		return nil
+	case downstreamclientuser.FieldLastSeenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSeenAt(v)
+		return nil
+	case downstreamclientuser.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case downstreamclientuser.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DownstreamClientUser field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *DownstreamClientUserMutation) AddedFields() []string {
+	var fields []string
+	if m.addblocked_by != nil {
+		fields = append(fields, downstreamclientuser.FieldBlockedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *DownstreamClientUserMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case downstreamclientuser.FieldBlockedBy:
+		return m.AddedBlockedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *DownstreamClientUserMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case downstreamclientuser.FieldBlockedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBlockedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown DownstreamClientUser numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *DownstreamClientUserMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(downstreamclientuser.FieldBlockedBy) {
+		fields = append(fields, downstreamclientuser.FieldBlockedBy)
+	}
+	if m.FieldCleared(downstreamclientuser.FieldBlockedAt) {
+		fields = append(fields, downstreamclientuser.FieldBlockedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *DownstreamClientUserMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *DownstreamClientUserMutation) ClearField(name string) error {
+	switch name {
+	case downstreamclientuser.FieldBlockedBy:
+		m.ClearBlockedBy()
+		return nil
+	case downstreamclientuser.FieldBlockedAt:
+		m.ClearBlockedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown DownstreamClientUser nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *DownstreamClientUserMutation) ResetField(name string) error {
+	switch name {
+	case downstreamclientuser.FieldClientUserID:
+		m.ResetClientUserID()
+		return nil
+	case downstreamclientuser.FieldDisplayName:
+		m.ResetDisplayName()
+		return nil
+	case downstreamclientuser.FieldSeenInComments:
+		m.ResetSeenInComments()
+		return nil
+	case downstreamclientuser.FieldSeenInWishes:
+		m.ResetSeenInWishes()
+		return nil
+	case downstreamclientuser.FieldBlocked:
+		m.ResetBlocked()
+		return nil
+	case downstreamclientuser.FieldBlockReason:
+		m.ResetBlockReason()
+		return nil
+	case downstreamclientuser.FieldBlockedBy:
+		m.ResetBlockedBy()
+		return nil
+	case downstreamclientuser.FieldBlockedAt:
+		m.ResetBlockedAt()
+		return nil
+	case downstreamclientuser.FieldFirstSeenAt:
+		m.ResetFirstSeenAt()
+		return nil
+	case downstreamclientuser.FieldLastSeenAt:
+		m.ResetLastSeenAt()
+		return nil
+	case downstreamclientuser.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case downstreamclientuser.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown DownstreamClientUser field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *DownstreamClientUserMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *DownstreamClientUserMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *DownstreamClientUserMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *DownstreamClientUserMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *DownstreamClientUserMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *DownstreamClientUserMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *DownstreamClientUserMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown DownstreamClientUser unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *DownstreamClientUserMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown DownstreamClientUser edge %s", name)
 }
 
 // FavoriteMutation represents an operation that mutates the Favorite nodes in the graph.
@@ -37839,4 +38899,2439 @@ func (m *UserGroupMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *UserGroupMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown UserGroup edge %s", name)
+}
+
+// WishMutation represents an operation that mutates the Wish nodes in the graph.
+type WishMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int
+	kind             *wish.Kind
+	status           *wish.Status
+	title            *string
+	body             *string
+	reference_url    *string
+	contact_email    *string
+	contact_other    *string
+	client_user_id   *string
+	author_name      *string
+	created_at       *time.Time
+	updated_at       *time.Time
+	last_activity_at *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*Wish, error)
+	predicates       []predicate.Wish
+}
+
+var _ ent.Mutation = (*WishMutation)(nil)
+
+// wishOption allows management of the mutation configuration using functional options.
+type wishOption func(*WishMutation)
+
+// newWishMutation creates new mutation for the Wish entity.
+func newWishMutation(c config, op Op, opts ...wishOption) *WishMutation {
+	m := &WishMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeWish,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withWishID sets the ID field of the mutation.
+func withWishID(id int) wishOption {
+	return func(m *WishMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Wish
+		)
+		m.oldValue = func(ctx context.Context) (*Wish, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Wish.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withWish sets the old Wish of the mutation.
+func withWish(node *Wish) wishOption {
+	return func(m *WishMutation) {
+		m.oldValue = func(context.Context) (*Wish, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m WishMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m WishMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *WishMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *WishMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Wish.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetKind sets the "kind" field.
+func (m *WishMutation) SetKind(w wish.Kind) {
+	m.kind = &w
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *WishMutation) Kind() (r wish.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldKind(ctx context.Context) (v wish.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *WishMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *WishMutation) SetStatus(w wish.Status) {
+	m.status = &w
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *WishMutation) Status() (r wish.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldStatus(ctx context.Context) (v wish.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *WishMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetTitle sets the "title" field.
+func (m *WishMutation) SetTitle(s string) {
+	m.title = &s
+}
+
+// Title returns the value of the "title" field in the mutation.
+func (m *WishMutation) Title() (r string, exists bool) {
+	v := m.title
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitle returns the old "title" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldTitle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitle: %w", err)
+	}
+	return oldValue.Title, nil
+}
+
+// ResetTitle resets all changes to the "title" field.
+func (m *WishMutation) ResetTitle() {
+	m.title = nil
+}
+
+// SetBody sets the "body" field.
+func (m *WishMutation) SetBody(s string) {
+	m.body = &s
+}
+
+// Body returns the value of the "body" field in the mutation.
+func (m *WishMutation) Body() (r string, exists bool) {
+	v := m.body
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBody returns the old "body" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldBody(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBody is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBody requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBody: %w", err)
+	}
+	return oldValue.Body, nil
+}
+
+// ResetBody resets all changes to the "body" field.
+func (m *WishMutation) ResetBody() {
+	m.body = nil
+}
+
+// SetReferenceURL sets the "reference_url" field.
+func (m *WishMutation) SetReferenceURL(s string) {
+	m.reference_url = &s
+}
+
+// ReferenceURL returns the value of the "reference_url" field in the mutation.
+func (m *WishMutation) ReferenceURL() (r string, exists bool) {
+	v := m.reference_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReferenceURL returns the old "reference_url" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldReferenceURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReferenceURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReferenceURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReferenceURL: %w", err)
+	}
+	return oldValue.ReferenceURL, nil
+}
+
+// ResetReferenceURL resets all changes to the "reference_url" field.
+func (m *WishMutation) ResetReferenceURL() {
+	m.reference_url = nil
+}
+
+// SetContactEmail sets the "contact_email" field.
+func (m *WishMutation) SetContactEmail(s string) {
+	m.contact_email = &s
+}
+
+// ContactEmail returns the value of the "contact_email" field in the mutation.
+func (m *WishMutation) ContactEmail() (r string, exists bool) {
+	v := m.contact_email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContactEmail returns the old "contact_email" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldContactEmail(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContactEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContactEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContactEmail: %w", err)
+	}
+	return oldValue.ContactEmail, nil
+}
+
+// ResetContactEmail resets all changes to the "contact_email" field.
+func (m *WishMutation) ResetContactEmail() {
+	m.contact_email = nil
+}
+
+// SetContactOther sets the "contact_other" field.
+func (m *WishMutation) SetContactOther(s string) {
+	m.contact_other = &s
+}
+
+// ContactOther returns the value of the "contact_other" field in the mutation.
+func (m *WishMutation) ContactOther() (r string, exists bool) {
+	v := m.contact_other
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContactOther returns the old "contact_other" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldContactOther(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContactOther is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContactOther requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContactOther: %w", err)
+	}
+	return oldValue.ContactOther, nil
+}
+
+// ResetContactOther resets all changes to the "contact_other" field.
+func (m *WishMutation) ResetContactOther() {
+	m.contact_other = nil
+}
+
+// SetClientUserID sets the "client_user_id" field.
+func (m *WishMutation) SetClientUserID(s string) {
+	m.client_user_id = &s
+}
+
+// ClientUserID returns the value of the "client_user_id" field in the mutation.
+func (m *WishMutation) ClientUserID() (r string, exists bool) {
+	v := m.client_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClientUserID returns the old "client_user_id" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldClientUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClientUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClientUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClientUserID: %w", err)
+	}
+	return oldValue.ClientUserID, nil
+}
+
+// ResetClientUserID resets all changes to the "client_user_id" field.
+func (m *WishMutation) ResetClientUserID() {
+	m.client_user_id = nil
+}
+
+// SetAuthorName sets the "author_name" field.
+func (m *WishMutation) SetAuthorName(s string) {
+	m.author_name = &s
+}
+
+// AuthorName returns the value of the "author_name" field in the mutation.
+func (m *WishMutation) AuthorName() (r string, exists bool) {
+	v := m.author_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthorName returns the old "author_name" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldAuthorName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthorName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthorName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthorName: %w", err)
+	}
+	return oldValue.AuthorName, nil
+}
+
+// ResetAuthorName resets all changes to the "author_name" field.
+func (m *WishMutation) ResetAuthorName() {
+	m.author_name = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *WishMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *WishMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *WishMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *WishMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *WishMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *WishMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetLastActivityAt sets the "last_activity_at" field.
+func (m *WishMutation) SetLastActivityAt(t time.Time) {
+	m.last_activity_at = &t
+}
+
+// LastActivityAt returns the value of the "last_activity_at" field in the mutation.
+func (m *WishMutation) LastActivityAt() (r time.Time, exists bool) {
+	v := m.last_activity_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastActivityAt returns the old "last_activity_at" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldLastActivityAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastActivityAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastActivityAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastActivityAt: %w", err)
+	}
+	return oldValue.LastActivityAt, nil
+}
+
+// ResetLastActivityAt resets all changes to the "last_activity_at" field.
+func (m *WishMutation) ResetLastActivityAt() {
+	m.last_activity_at = nil
+}
+
+// Where appends a list predicates to the WishMutation builder.
+func (m *WishMutation) Where(ps ...predicate.Wish) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the WishMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *WishMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Wish, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *WishMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *WishMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Wish).
+func (m *WishMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *WishMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.kind != nil {
+		fields = append(fields, wish.FieldKind)
+	}
+	if m.status != nil {
+		fields = append(fields, wish.FieldStatus)
+	}
+	if m.title != nil {
+		fields = append(fields, wish.FieldTitle)
+	}
+	if m.body != nil {
+		fields = append(fields, wish.FieldBody)
+	}
+	if m.reference_url != nil {
+		fields = append(fields, wish.FieldReferenceURL)
+	}
+	if m.contact_email != nil {
+		fields = append(fields, wish.FieldContactEmail)
+	}
+	if m.contact_other != nil {
+		fields = append(fields, wish.FieldContactOther)
+	}
+	if m.client_user_id != nil {
+		fields = append(fields, wish.FieldClientUserID)
+	}
+	if m.author_name != nil {
+		fields = append(fields, wish.FieldAuthorName)
+	}
+	if m.created_at != nil {
+		fields = append(fields, wish.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, wish.FieldUpdatedAt)
+	}
+	if m.last_activity_at != nil {
+		fields = append(fields, wish.FieldLastActivityAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *WishMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case wish.FieldKind:
+		return m.Kind()
+	case wish.FieldStatus:
+		return m.Status()
+	case wish.FieldTitle:
+		return m.Title()
+	case wish.FieldBody:
+		return m.Body()
+	case wish.FieldReferenceURL:
+		return m.ReferenceURL()
+	case wish.FieldContactEmail:
+		return m.ContactEmail()
+	case wish.FieldContactOther:
+		return m.ContactOther()
+	case wish.FieldClientUserID:
+		return m.ClientUserID()
+	case wish.FieldAuthorName:
+		return m.AuthorName()
+	case wish.FieldCreatedAt:
+		return m.CreatedAt()
+	case wish.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case wish.FieldLastActivityAt:
+		return m.LastActivityAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *WishMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case wish.FieldKind:
+		return m.OldKind(ctx)
+	case wish.FieldStatus:
+		return m.OldStatus(ctx)
+	case wish.FieldTitle:
+		return m.OldTitle(ctx)
+	case wish.FieldBody:
+		return m.OldBody(ctx)
+	case wish.FieldReferenceURL:
+		return m.OldReferenceURL(ctx)
+	case wish.FieldContactEmail:
+		return m.OldContactEmail(ctx)
+	case wish.FieldContactOther:
+		return m.OldContactOther(ctx)
+	case wish.FieldClientUserID:
+		return m.OldClientUserID(ctx)
+	case wish.FieldAuthorName:
+		return m.OldAuthorName(ctx)
+	case wish.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case wish.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case wish.FieldLastActivityAt:
+		return m.OldLastActivityAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Wish field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WishMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case wish.FieldKind:
+		v, ok := value.(wish.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case wish.FieldStatus:
+		v, ok := value.(wish.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case wish.FieldTitle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitle(v)
+		return nil
+	case wish.FieldBody:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBody(v)
+		return nil
+	case wish.FieldReferenceURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReferenceURL(v)
+		return nil
+	case wish.FieldContactEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContactEmail(v)
+		return nil
+	case wish.FieldContactOther:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContactOther(v)
+		return nil
+	case wish.FieldClientUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClientUserID(v)
+		return nil
+	case wish.FieldAuthorName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthorName(v)
+		return nil
+	case wish.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case wish.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case wish.FieldLastActivityAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastActivityAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Wish field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *WishMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *WishMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WishMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Wish numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *WishMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *WishMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *WishMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Wish nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *WishMutation) ResetField(name string) error {
+	switch name {
+	case wish.FieldKind:
+		m.ResetKind()
+		return nil
+	case wish.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case wish.FieldTitle:
+		m.ResetTitle()
+		return nil
+	case wish.FieldBody:
+		m.ResetBody()
+		return nil
+	case wish.FieldReferenceURL:
+		m.ResetReferenceURL()
+		return nil
+	case wish.FieldContactEmail:
+		m.ResetContactEmail()
+		return nil
+	case wish.FieldContactOther:
+		m.ResetContactOther()
+		return nil
+	case wish.FieldClientUserID:
+		m.ResetClientUserID()
+		return nil
+	case wish.FieldAuthorName:
+		m.ResetAuthorName()
+		return nil
+	case wish.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case wish.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case wish.FieldLastActivityAt:
+		m.ResetLastActivityAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Wish field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *WishMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *WishMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *WishMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *WishMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *WishMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *WishMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *WishMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Wish unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *WishMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Wish edge %s", name)
+}
+
+// WishReplyMutation represents an operation that mutates the WishReply nodes in the graph.
+type WishReplyMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int
+	wish_id           *int
+	addwish_id        *int
+	author_user_id    *int
+	addauthor_user_id *int
+	author_name       *string
+	body              *string
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*WishReply, error)
+	predicates        []predicate.WishReply
+}
+
+var _ ent.Mutation = (*WishReplyMutation)(nil)
+
+// wishreplyOption allows management of the mutation configuration using functional options.
+type wishreplyOption func(*WishReplyMutation)
+
+// newWishReplyMutation creates new mutation for the WishReply entity.
+func newWishReplyMutation(c config, op Op, opts ...wishreplyOption) *WishReplyMutation {
+	m := &WishReplyMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeWishReply,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withWishReplyID sets the ID field of the mutation.
+func withWishReplyID(id int) wishreplyOption {
+	return func(m *WishReplyMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *WishReply
+		)
+		m.oldValue = func(ctx context.Context) (*WishReply, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().WishReply.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withWishReply sets the old WishReply of the mutation.
+func withWishReply(node *WishReply) wishreplyOption {
+	return func(m *WishReplyMutation) {
+		m.oldValue = func(context.Context) (*WishReply, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m WishReplyMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m WishReplyMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *WishReplyMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *WishReplyMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().WishReply.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetWishID sets the "wish_id" field.
+func (m *WishReplyMutation) SetWishID(i int) {
+	m.wish_id = &i
+	m.addwish_id = nil
+}
+
+// WishID returns the value of the "wish_id" field in the mutation.
+func (m *WishReplyMutation) WishID() (r int, exists bool) {
+	v := m.wish_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWishID returns the old "wish_id" field's value of the WishReply entity.
+// If the WishReply object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishReplyMutation) OldWishID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWishID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWishID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWishID: %w", err)
+	}
+	return oldValue.WishID, nil
+}
+
+// AddWishID adds i to the "wish_id" field.
+func (m *WishReplyMutation) AddWishID(i int) {
+	if m.addwish_id != nil {
+		*m.addwish_id += i
+	} else {
+		m.addwish_id = &i
+	}
+}
+
+// AddedWishID returns the value that was added to the "wish_id" field in this mutation.
+func (m *WishReplyMutation) AddedWishID() (r int, exists bool) {
+	v := m.addwish_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWishID resets all changes to the "wish_id" field.
+func (m *WishReplyMutation) ResetWishID() {
+	m.wish_id = nil
+	m.addwish_id = nil
+}
+
+// SetAuthorUserID sets the "author_user_id" field.
+func (m *WishReplyMutation) SetAuthorUserID(i int) {
+	m.author_user_id = &i
+	m.addauthor_user_id = nil
+}
+
+// AuthorUserID returns the value of the "author_user_id" field in the mutation.
+func (m *WishReplyMutation) AuthorUserID() (r int, exists bool) {
+	v := m.author_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthorUserID returns the old "author_user_id" field's value of the WishReply entity.
+// If the WishReply object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishReplyMutation) OldAuthorUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthorUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthorUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthorUserID: %w", err)
+	}
+	return oldValue.AuthorUserID, nil
+}
+
+// AddAuthorUserID adds i to the "author_user_id" field.
+func (m *WishReplyMutation) AddAuthorUserID(i int) {
+	if m.addauthor_user_id != nil {
+		*m.addauthor_user_id += i
+	} else {
+		m.addauthor_user_id = &i
+	}
+}
+
+// AddedAuthorUserID returns the value that was added to the "author_user_id" field in this mutation.
+func (m *WishReplyMutation) AddedAuthorUserID() (r int, exists bool) {
+	v := m.addauthor_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAuthorUserID resets all changes to the "author_user_id" field.
+func (m *WishReplyMutation) ResetAuthorUserID() {
+	m.author_user_id = nil
+	m.addauthor_user_id = nil
+}
+
+// SetAuthorName sets the "author_name" field.
+func (m *WishReplyMutation) SetAuthorName(s string) {
+	m.author_name = &s
+}
+
+// AuthorName returns the value of the "author_name" field in the mutation.
+func (m *WishReplyMutation) AuthorName() (r string, exists bool) {
+	v := m.author_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthorName returns the old "author_name" field's value of the WishReply entity.
+// If the WishReply object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishReplyMutation) OldAuthorName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthorName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthorName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthorName: %w", err)
+	}
+	return oldValue.AuthorName, nil
+}
+
+// ResetAuthorName resets all changes to the "author_name" field.
+func (m *WishReplyMutation) ResetAuthorName() {
+	m.author_name = nil
+}
+
+// SetBody sets the "body" field.
+func (m *WishReplyMutation) SetBody(s string) {
+	m.body = &s
+}
+
+// Body returns the value of the "body" field in the mutation.
+func (m *WishReplyMutation) Body() (r string, exists bool) {
+	v := m.body
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBody returns the old "body" field's value of the WishReply entity.
+// If the WishReply object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishReplyMutation) OldBody(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBody is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBody requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBody: %w", err)
+	}
+	return oldValue.Body, nil
+}
+
+// ResetBody resets all changes to the "body" field.
+func (m *WishReplyMutation) ResetBody() {
+	m.body = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *WishReplyMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *WishReplyMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the WishReply entity.
+// If the WishReply object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishReplyMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *WishReplyMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *WishReplyMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *WishReplyMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the WishReply entity.
+// If the WishReply object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishReplyMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *WishReplyMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the WishReplyMutation builder.
+func (m *WishReplyMutation) Where(ps ...predicate.WishReply) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the WishReplyMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *WishReplyMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.WishReply, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *WishReplyMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *WishReplyMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (WishReply).
+func (m *WishReplyMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *WishReplyMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.wish_id != nil {
+		fields = append(fields, wishreply.FieldWishID)
+	}
+	if m.author_user_id != nil {
+		fields = append(fields, wishreply.FieldAuthorUserID)
+	}
+	if m.author_name != nil {
+		fields = append(fields, wishreply.FieldAuthorName)
+	}
+	if m.body != nil {
+		fields = append(fields, wishreply.FieldBody)
+	}
+	if m.created_at != nil {
+		fields = append(fields, wishreply.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, wishreply.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *WishReplyMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case wishreply.FieldWishID:
+		return m.WishID()
+	case wishreply.FieldAuthorUserID:
+		return m.AuthorUserID()
+	case wishreply.FieldAuthorName:
+		return m.AuthorName()
+	case wishreply.FieldBody:
+		return m.Body()
+	case wishreply.FieldCreatedAt:
+		return m.CreatedAt()
+	case wishreply.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *WishReplyMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case wishreply.FieldWishID:
+		return m.OldWishID(ctx)
+	case wishreply.FieldAuthorUserID:
+		return m.OldAuthorUserID(ctx)
+	case wishreply.FieldAuthorName:
+		return m.OldAuthorName(ctx)
+	case wishreply.FieldBody:
+		return m.OldBody(ctx)
+	case wishreply.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case wishreply.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown WishReply field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WishReplyMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case wishreply.FieldWishID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWishID(v)
+		return nil
+	case wishreply.FieldAuthorUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthorUserID(v)
+		return nil
+	case wishreply.FieldAuthorName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthorName(v)
+		return nil
+	case wishreply.FieldBody:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBody(v)
+		return nil
+	case wishreply.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case wishreply.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown WishReply field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *WishReplyMutation) AddedFields() []string {
+	var fields []string
+	if m.addwish_id != nil {
+		fields = append(fields, wishreply.FieldWishID)
+	}
+	if m.addauthor_user_id != nil {
+		fields = append(fields, wishreply.FieldAuthorUserID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *WishReplyMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case wishreply.FieldWishID:
+		return m.AddedWishID()
+	case wishreply.FieldAuthorUserID:
+		return m.AddedAuthorUserID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WishReplyMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case wishreply.FieldWishID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWishID(v)
+		return nil
+	case wishreply.FieldAuthorUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAuthorUserID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown WishReply numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *WishReplyMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *WishReplyMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *WishReplyMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown WishReply nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *WishReplyMutation) ResetField(name string) error {
+	switch name {
+	case wishreply.FieldWishID:
+		m.ResetWishID()
+		return nil
+	case wishreply.FieldAuthorUserID:
+		m.ResetAuthorUserID()
+		return nil
+	case wishreply.FieldAuthorName:
+		m.ResetAuthorName()
+		return nil
+	case wishreply.FieldBody:
+		m.ResetBody()
+		return nil
+	case wishreply.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case wishreply.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown WishReply field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *WishReplyMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *WishReplyMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *WishReplyMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *WishReplyMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *WishReplyMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *WishReplyMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *WishReplyMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown WishReply unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *WishReplyMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown WishReply edge %s", name)
+}
+
+// WishStatusEventMutation represents an operation that mutates the WishStatusEvent nodes in the graph.
+type WishStatusEventMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int
+	wish_id              *int
+	addwish_id           *int
+	from_status          *string
+	to_status            *wishstatusevent.ToStatus
+	actor_type           *wishstatusevent.ActorType
+	actor_user_id        *int
+	addactor_user_id     *int
+	actor_client_user_id *string
+	actor_name           *string
+	text                 *string
+	created_at           *time.Time
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*WishStatusEvent, error)
+	predicates           []predicate.WishStatusEvent
+}
+
+var _ ent.Mutation = (*WishStatusEventMutation)(nil)
+
+// wishstatuseventOption allows management of the mutation configuration using functional options.
+type wishstatuseventOption func(*WishStatusEventMutation)
+
+// newWishStatusEventMutation creates new mutation for the WishStatusEvent entity.
+func newWishStatusEventMutation(c config, op Op, opts ...wishstatuseventOption) *WishStatusEventMutation {
+	m := &WishStatusEventMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeWishStatusEvent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withWishStatusEventID sets the ID field of the mutation.
+func withWishStatusEventID(id int) wishstatuseventOption {
+	return func(m *WishStatusEventMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *WishStatusEvent
+		)
+		m.oldValue = func(ctx context.Context) (*WishStatusEvent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().WishStatusEvent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withWishStatusEvent sets the old WishStatusEvent of the mutation.
+func withWishStatusEvent(node *WishStatusEvent) wishstatuseventOption {
+	return func(m *WishStatusEventMutation) {
+		m.oldValue = func(context.Context) (*WishStatusEvent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m WishStatusEventMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m WishStatusEventMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *WishStatusEventMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *WishStatusEventMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().WishStatusEvent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetWishID sets the "wish_id" field.
+func (m *WishStatusEventMutation) SetWishID(i int) {
+	m.wish_id = &i
+	m.addwish_id = nil
+}
+
+// WishID returns the value of the "wish_id" field in the mutation.
+func (m *WishStatusEventMutation) WishID() (r int, exists bool) {
+	v := m.wish_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWishID returns the old "wish_id" field's value of the WishStatusEvent entity.
+// If the WishStatusEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishStatusEventMutation) OldWishID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWishID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWishID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWishID: %w", err)
+	}
+	return oldValue.WishID, nil
+}
+
+// AddWishID adds i to the "wish_id" field.
+func (m *WishStatusEventMutation) AddWishID(i int) {
+	if m.addwish_id != nil {
+		*m.addwish_id += i
+	} else {
+		m.addwish_id = &i
+	}
+}
+
+// AddedWishID returns the value that was added to the "wish_id" field in this mutation.
+func (m *WishStatusEventMutation) AddedWishID() (r int, exists bool) {
+	v := m.addwish_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWishID resets all changes to the "wish_id" field.
+func (m *WishStatusEventMutation) ResetWishID() {
+	m.wish_id = nil
+	m.addwish_id = nil
+}
+
+// SetFromStatus sets the "from_status" field.
+func (m *WishStatusEventMutation) SetFromStatus(s string) {
+	m.from_status = &s
+}
+
+// FromStatus returns the value of the "from_status" field in the mutation.
+func (m *WishStatusEventMutation) FromStatus() (r string, exists bool) {
+	v := m.from_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFromStatus returns the old "from_status" field's value of the WishStatusEvent entity.
+// If the WishStatusEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishStatusEventMutation) OldFromStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFromStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFromStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFromStatus: %w", err)
+	}
+	return oldValue.FromStatus, nil
+}
+
+// ResetFromStatus resets all changes to the "from_status" field.
+func (m *WishStatusEventMutation) ResetFromStatus() {
+	m.from_status = nil
+}
+
+// SetToStatus sets the "to_status" field.
+func (m *WishStatusEventMutation) SetToStatus(ws wishstatusevent.ToStatus) {
+	m.to_status = &ws
+}
+
+// ToStatus returns the value of the "to_status" field in the mutation.
+func (m *WishStatusEventMutation) ToStatus() (r wishstatusevent.ToStatus, exists bool) {
+	v := m.to_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldToStatus returns the old "to_status" field's value of the WishStatusEvent entity.
+// If the WishStatusEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishStatusEventMutation) OldToStatus(ctx context.Context) (v wishstatusevent.ToStatus, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldToStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldToStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldToStatus: %w", err)
+	}
+	return oldValue.ToStatus, nil
+}
+
+// ResetToStatus resets all changes to the "to_status" field.
+func (m *WishStatusEventMutation) ResetToStatus() {
+	m.to_status = nil
+}
+
+// SetActorType sets the "actor_type" field.
+func (m *WishStatusEventMutation) SetActorType(wt wishstatusevent.ActorType) {
+	m.actor_type = &wt
+}
+
+// ActorType returns the value of the "actor_type" field in the mutation.
+func (m *WishStatusEventMutation) ActorType() (r wishstatusevent.ActorType, exists bool) {
+	v := m.actor_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorType returns the old "actor_type" field's value of the WishStatusEvent entity.
+// If the WishStatusEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishStatusEventMutation) OldActorType(ctx context.Context) (v wishstatusevent.ActorType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorType: %w", err)
+	}
+	return oldValue.ActorType, nil
+}
+
+// ResetActorType resets all changes to the "actor_type" field.
+func (m *WishStatusEventMutation) ResetActorType() {
+	m.actor_type = nil
+}
+
+// SetActorUserID sets the "actor_user_id" field.
+func (m *WishStatusEventMutation) SetActorUserID(i int) {
+	m.actor_user_id = &i
+	m.addactor_user_id = nil
+}
+
+// ActorUserID returns the value of the "actor_user_id" field in the mutation.
+func (m *WishStatusEventMutation) ActorUserID() (r int, exists bool) {
+	v := m.actor_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorUserID returns the old "actor_user_id" field's value of the WishStatusEvent entity.
+// If the WishStatusEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishStatusEventMutation) OldActorUserID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorUserID: %w", err)
+	}
+	return oldValue.ActorUserID, nil
+}
+
+// AddActorUserID adds i to the "actor_user_id" field.
+func (m *WishStatusEventMutation) AddActorUserID(i int) {
+	if m.addactor_user_id != nil {
+		*m.addactor_user_id += i
+	} else {
+		m.addactor_user_id = &i
+	}
+}
+
+// AddedActorUserID returns the value that was added to the "actor_user_id" field in this mutation.
+func (m *WishStatusEventMutation) AddedActorUserID() (r int, exists bool) {
+	v := m.addactor_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearActorUserID clears the value of the "actor_user_id" field.
+func (m *WishStatusEventMutation) ClearActorUserID() {
+	m.actor_user_id = nil
+	m.addactor_user_id = nil
+	m.clearedFields[wishstatusevent.FieldActorUserID] = struct{}{}
+}
+
+// ActorUserIDCleared returns if the "actor_user_id" field was cleared in this mutation.
+func (m *WishStatusEventMutation) ActorUserIDCleared() bool {
+	_, ok := m.clearedFields[wishstatusevent.FieldActorUserID]
+	return ok
+}
+
+// ResetActorUserID resets all changes to the "actor_user_id" field.
+func (m *WishStatusEventMutation) ResetActorUserID() {
+	m.actor_user_id = nil
+	m.addactor_user_id = nil
+	delete(m.clearedFields, wishstatusevent.FieldActorUserID)
+}
+
+// SetActorClientUserID sets the "actor_client_user_id" field.
+func (m *WishStatusEventMutation) SetActorClientUserID(s string) {
+	m.actor_client_user_id = &s
+}
+
+// ActorClientUserID returns the value of the "actor_client_user_id" field in the mutation.
+func (m *WishStatusEventMutation) ActorClientUserID() (r string, exists bool) {
+	v := m.actor_client_user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorClientUserID returns the old "actor_client_user_id" field's value of the WishStatusEvent entity.
+// If the WishStatusEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishStatusEventMutation) OldActorClientUserID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorClientUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorClientUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorClientUserID: %w", err)
+	}
+	return oldValue.ActorClientUserID, nil
+}
+
+// ResetActorClientUserID resets all changes to the "actor_client_user_id" field.
+func (m *WishStatusEventMutation) ResetActorClientUserID() {
+	m.actor_client_user_id = nil
+}
+
+// SetActorName sets the "actor_name" field.
+func (m *WishStatusEventMutation) SetActorName(s string) {
+	m.actor_name = &s
+}
+
+// ActorName returns the value of the "actor_name" field in the mutation.
+func (m *WishStatusEventMutation) ActorName() (r string, exists bool) {
+	v := m.actor_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActorName returns the old "actor_name" field's value of the WishStatusEvent entity.
+// If the WishStatusEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishStatusEventMutation) OldActorName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActorName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActorName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActorName: %w", err)
+	}
+	return oldValue.ActorName, nil
+}
+
+// ResetActorName resets all changes to the "actor_name" field.
+func (m *WishStatusEventMutation) ResetActorName() {
+	m.actor_name = nil
+}
+
+// SetText sets the "text" field.
+func (m *WishStatusEventMutation) SetText(s string) {
+	m.text = &s
+}
+
+// Text returns the value of the "text" field in the mutation.
+func (m *WishStatusEventMutation) Text() (r string, exists bool) {
+	v := m.text
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldText returns the old "text" field's value of the WishStatusEvent entity.
+// If the WishStatusEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishStatusEventMutation) OldText(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldText is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldText requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldText: %w", err)
+	}
+	return oldValue.Text, nil
+}
+
+// ResetText resets all changes to the "text" field.
+func (m *WishStatusEventMutation) ResetText() {
+	m.text = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *WishStatusEventMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *WishStatusEventMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the WishStatusEvent entity.
+// If the WishStatusEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishStatusEventMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *WishStatusEventMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the WishStatusEventMutation builder.
+func (m *WishStatusEventMutation) Where(ps ...predicate.WishStatusEvent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the WishStatusEventMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *WishStatusEventMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.WishStatusEvent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *WishStatusEventMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *WishStatusEventMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (WishStatusEvent).
+func (m *WishStatusEventMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *WishStatusEventMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.wish_id != nil {
+		fields = append(fields, wishstatusevent.FieldWishID)
+	}
+	if m.from_status != nil {
+		fields = append(fields, wishstatusevent.FieldFromStatus)
+	}
+	if m.to_status != nil {
+		fields = append(fields, wishstatusevent.FieldToStatus)
+	}
+	if m.actor_type != nil {
+		fields = append(fields, wishstatusevent.FieldActorType)
+	}
+	if m.actor_user_id != nil {
+		fields = append(fields, wishstatusevent.FieldActorUserID)
+	}
+	if m.actor_client_user_id != nil {
+		fields = append(fields, wishstatusevent.FieldActorClientUserID)
+	}
+	if m.actor_name != nil {
+		fields = append(fields, wishstatusevent.FieldActorName)
+	}
+	if m.text != nil {
+		fields = append(fields, wishstatusevent.FieldText)
+	}
+	if m.created_at != nil {
+		fields = append(fields, wishstatusevent.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *WishStatusEventMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case wishstatusevent.FieldWishID:
+		return m.WishID()
+	case wishstatusevent.FieldFromStatus:
+		return m.FromStatus()
+	case wishstatusevent.FieldToStatus:
+		return m.ToStatus()
+	case wishstatusevent.FieldActorType:
+		return m.ActorType()
+	case wishstatusevent.FieldActorUserID:
+		return m.ActorUserID()
+	case wishstatusevent.FieldActorClientUserID:
+		return m.ActorClientUserID()
+	case wishstatusevent.FieldActorName:
+		return m.ActorName()
+	case wishstatusevent.FieldText:
+		return m.Text()
+	case wishstatusevent.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *WishStatusEventMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case wishstatusevent.FieldWishID:
+		return m.OldWishID(ctx)
+	case wishstatusevent.FieldFromStatus:
+		return m.OldFromStatus(ctx)
+	case wishstatusevent.FieldToStatus:
+		return m.OldToStatus(ctx)
+	case wishstatusevent.FieldActorType:
+		return m.OldActorType(ctx)
+	case wishstatusevent.FieldActorUserID:
+		return m.OldActorUserID(ctx)
+	case wishstatusevent.FieldActorClientUserID:
+		return m.OldActorClientUserID(ctx)
+	case wishstatusevent.FieldActorName:
+		return m.OldActorName(ctx)
+	case wishstatusevent.FieldText:
+		return m.OldText(ctx)
+	case wishstatusevent.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown WishStatusEvent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WishStatusEventMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case wishstatusevent.FieldWishID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWishID(v)
+		return nil
+	case wishstatusevent.FieldFromStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFromStatus(v)
+		return nil
+	case wishstatusevent.FieldToStatus:
+		v, ok := value.(wishstatusevent.ToStatus)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetToStatus(v)
+		return nil
+	case wishstatusevent.FieldActorType:
+		v, ok := value.(wishstatusevent.ActorType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorType(v)
+		return nil
+	case wishstatusevent.FieldActorUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorUserID(v)
+		return nil
+	case wishstatusevent.FieldActorClientUserID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorClientUserID(v)
+		return nil
+	case wishstatusevent.FieldActorName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActorName(v)
+		return nil
+	case wishstatusevent.FieldText:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetText(v)
+		return nil
+	case wishstatusevent.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown WishStatusEvent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *WishStatusEventMutation) AddedFields() []string {
+	var fields []string
+	if m.addwish_id != nil {
+		fields = append(fields, wishstatusevent.FieldWishID)
+	}
+	if m.addactor_user_id != nil {
+		fields = append(fields, wishstatusevent.FieldActorUserID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *WishStatusEventMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case wishstatusevent.FieldWishID:
+		return m.AddedWishID()
+	case wishstatusevent.FieldActorUserID:
+		return m.AddedActorUserID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *WishStatusEventMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case wishstatusevent.FieldWishID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWishID(v)
+		return nil
+	case wishstatusevent.FieldActorUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddActorUserID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown WishStatusEvent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *WishStatusEventMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(wishstatusevent.FieldActorUserID) {
+		fields = append(fields, wishstatusevent.FieldActorUserID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *WishStatusEventMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *WishStatusEventMutation) ClearField(name string) error {
+	switch name {
+	case wishstatusevent.FieldActorUserID:
+		m.ClearActorUserID()
+		return nil
+	}
+	return fmt.Errorf("unknown WishStatusEvent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *WishStatusEventMutation) ResetField(name string) error {
+	switch name {
+	case wishstatusevent.FieldWishID:
+		m.ResetWishID()
+		return nil
+	case wishstatusevent.FieldFromStatus:
+		m.ResetFromStatus()
+		return nil
+	case wishstatusevent.FieldToStatus:
+		m.ResetToStatus()
+		return nil
+	case wishstatusevent.FieldActorType:
+		m.ResetActorType()
+		return nil
+	case wishstatusevent.FieldActorUserID:
+		m.ResetActorUserID()
+		return nil
+	case wishstatusevent.FieldActorClientUserID:
+		m.ResetActorClientUserID()
+		return nil
+	case wishstatusevent.FieldActorName:
+		m.ResetActorName()
+		return nil
+	case wishstatusevent.FieldText:
+		m.ResetText()
+		return nil
+	case wishstatusevent.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown WishStatusEvent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *WishStatusEventMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *WishStatusEventMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *WishStatusEventMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *WishStatusEventMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *WishStatusEventMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *WishStatusEventMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *WishStatusEventMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown WishStatusEvent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *WishStatusEventMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown WishStatusEvent edge %s", name)
 }

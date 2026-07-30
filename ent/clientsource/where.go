@@ -135,6 +135,11 @@ func ChatAvailable(v bool) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldChatAvailable, v))
 }
 
+// WishWallAvailable applies equality check predicate on the "wish_wall_available" field. It's identical to WishWallAvailableEQ.
+func WishWallAvailable(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldWishWallAvailable, v))
+}
+
 // ChatEnabled applies equality check predicate on the "chat_enabled" field. It's identical to ChatEnabledEQ.
 func ChatEnabled(v bool) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldChatEnabled, v))
@@ -1158,6 +1163,16 @@ func ChatAvailableEQ(v bool) predicate.ClientSource {
 // ChatAvailableNEQ applies the NEQ predicate on the "chat_available" field.
 func ChatAvailableNEQ(v bool) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldNEQ(FieldChatAvailable, v))
+}
+
+// WishWallAvailableEQ applies the EQ predicate on the "wish_wall_available" field.
+func WishWallAvailableEQ(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldWishWallAvailable, v))
+}
+
+// WishWallAvailableNEQ applies the NEQ predicate on the "wish_wall_available" field.
+func WishWallAvailableNEQ(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldWishWallAvailable, v))
 }
 
 // ChatEnabledEQ applies the EQ predicate on the "chat_enabled" field.

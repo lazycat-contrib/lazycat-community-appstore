@@ -43,6 +43,7 @@ import (
 	"lazycat.community/appstore/ent/collectionapp"
 	"lazycat.community/appstore/ent/comment"
 	"lazycat.community/appstore/ent/commentnotification"
+	"lazycat.community/appstore/ent/downstreamclientuser"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 	"lazycat.community/appstore/ent/groupmember"
@@ -56,6 +57,9 @@ import (
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/ent/usergroup"
+	"lazycat.community/appstore/ent/wish"
+	"lazycat.community/appstore/ent/wishreply"
+	"lazycat.community/appstore/ent/wishstatusevent"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -147,6 +151,7 @@ func checkColumn(t, c string) error {
 			collectionapp.Table:         collectionapp.ValidColumn,
 			comment.Table:               comment.ValidColumn,
 			commentnotification.Table:   commentnotification.ValidColumn,
+			downstreamclientuser.Table:  downstreamclientuser.ValidColumn,
 			favorite.Table:              favorite.ValidColumn,
 			githublpkupdatepolicy.Table: githublpkupdatepolicy.ValidColumn,
 			groupmember.Table:           groupmember.ValidColumn,
@@ -160,6 +165,9 @@ func checkColumn(t, c string) error {
 			tag.Table:                   tag.ValidColumn,
 			user.Table:                  user.ValidColumn,
 			usergroup.Table:             usergroup.ValidColumn,
+			wish.Table:                  wish.ValidColumn,
+			wishreply.Table:             wishreply.ValidColumn,
+			wishstatusevent.Table:       wishstatusevent.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

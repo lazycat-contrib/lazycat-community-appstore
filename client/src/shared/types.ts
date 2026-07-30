@@ -164,6 +164,59 @@ export type Comment = {
   createdAt: string;
 };
 
+export type WishKind = 'SUGGESTION' | 'APP_REQUEST' | 'CUSTOMIZATION';
+export type WishStatus = 'OPEN' | 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
+
+export type WishReply = {
+  id: number;
+  authorName: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WishStatusEvent = {
+  id: number;
+  fromStatus?: string;
+  toStatus: WishStatus;
+  actorType: 'CLIENT' | 'USER';
+  actorName: string;
+  text: string;
+  createdAt: string;
+};
+
+export type Wish = {
+  id: number;
+  kind: WishKind;
+  status: WishStatus;
+  title: string;
+  body: string;
+  referenceUrl?: string;
+  contactEmail?: string;
+  contactOther?: string;
+  clientUserId?: string;
+  authorName: string;
+  replies: WishReply[];
+  statusHistory: WishStatusEvent[];
+  createdAt: string;
+  updatedAt: string;
+  lastActivityAt: string;
+};
+
+export type DownstreamClientUser = {
+  id: number;
+  clientUserId: string;
+  displayName: string;
+  seenInComments: boolean;
+  seenInWishes: boolean;
+  blocked: boolean;
+  blockReason?: string;
+  blockedBy?: number;
+  blockedAt?: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+};
+
 export type Review = {
   id: number;
   kind: string;
@@ -346,6 +399,7 @@ export type SourceSubscription = {
   lastInvalidGroupCodes?: string[];
   githubMirrors: GitHubMirror[];
   chatAvailable?: boolean;
+  wishWallAvailable?: boolean;
   chatEnabled?: boolean;
   adsPreference?: AdsPreference;
   lastSync?: string;
@@ -609,7 +663,7 @@ export type ClientSourceStats = {
   installableSourceAppCount: number;
 };
 
-export type SourceErrorCode = 'auth' | 'format' | 'http' | 'network';
+export type SourceErrorCode = 'auth' | 'blocked' | 'format' | 'http' | 'network';
 
 export type InstalledApplication = {
   appid?: string;

@@ -4,6 +4,7 @@ import {
   Download,
   History,
   Home,
+  Lightbulb,
   MessageSquare,
   PackagePlus,
   Search,
@@ -13,7 +14,7 @@ import {
 } from 'lucide-react';
 import type { User } from '../../shared/types';
 
-export type TabKey = 'home' | 'search' | 'sources' | 'profile' | 'history' | 'settings' | 'admin' | 'chat';
+export type TabKey = 'home' | 'search' | 'wishwall' | 'sources' | 'profile' | 'history' | 'settings' | 'admin' | 'chat';
 export type NavItem = { key: TabKey; labelKey: string; icon: LucideIcon };
 
 const serverBaseTabs: NavItem[] = [
@@ -24,9 +25,11 @@ const serverBaseTabs: NavItem[] = [
 
 const serverAdminTab: NavItem = { key: 'admin', labelKey: 'nav.admin', icon: ShieldCheck };
 const chatTab: NavItem = { key: 'chat', labelKey: 'nav.chat', icon: MessageSquare };
+const wishWallTab: NavItem = { key: 'wishwall', labelKey: 'nav.wishWall', icon: Lightbulb };
 
 const clientBaseTabs: NavItem[] = [
 	{ key: 'search', labelKey: 'nav.install', icon: Download },
+	wishWallTab,
 	{ key: 'profile', labelKey: 'nav.installed', icon: Archive },
 	{ key: 'sources', labelKey: 'nav.sources', icon: Cloud },
 	{ key: 'history', labelKey: 'nav.history', icon: History },
@@ -53,12 +56,13 @@ export function buildNavItems({
   }
 
   if (!user) {
-    return serverBaseTabs.filter((item) => item.key !== 'profile');
+    return [...serverBaseTabs.filter((item) => item.key !== 'profile'), wishWallTab];
   }
 
   return [
     serverBaseTabs[0],
     serverBaseTabs[1],
+    wishWallTab,
     ...(serverChatVisible ? [chatTab] : []),
     serverBaseTabs[2],
     ...(canReview ? [serverAdminTab] : []),

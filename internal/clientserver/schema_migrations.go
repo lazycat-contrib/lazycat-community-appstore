@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	currentClientSchemaVersion = 4
+	currentClientSchemaVersion = 5
 	systemClientUserID         = "_system"
 	settingClientSchemaVersion = "schema_version"
 )
@@ -50,6 +50,14 @@ func migrateSchema(ctx context.Context, db *ent.Client) error {
 			return err
 		}
 		if err := setSystemClientSetting(ctx, db, settingClientSchemaVersion, "4"); err != nil {
+			return err
+		}
+	}
+	if version < 5 {
+		if err := server.invalidateSourceFeedETags(ctx); err != nil {
+			return err
+		}
+		if err := setSystemClientSetting(ctx, db, settingClientSchemaVersion, "5"); err != nil {
 			return err
 		}
 	}

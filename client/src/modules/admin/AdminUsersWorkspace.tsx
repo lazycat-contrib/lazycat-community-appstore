@@ -1,10 +1,11 @@
 import { type FormEvent, useState } from 'react';
-import { Users, UserRound } from 'lucide-react';
+import { ShieldCheck, Users, UserRound } from 'lucide-react';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
 import { useTranslation } from 'react-i18next';
 import type { Pagination, Toast, User } from '../../shared/types';
 import { AdminGroupsPanel } from './AdminGroupsPanel';
 import { AdminUsersPanel, type ManagedUserDraft } from './AdminUsersPanel';
+import { DownstreamClientsPanel } from './DownstreamClientsPanel';
 
 export function AdminUsersWorkspace({
   users,
@@ -44,14 +45,15 @@ export function AdminUsersWorkspace({
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<'users' | 'groups'>('users');
+  const [tab, setTab] = useState<'users' | 'groups' | 'downstream'>('users');
 
   return (
     <section className="workspace-pane admin-users-workspace">
       <div className="horizontal-control-scroll">
-        <XTabList value={tab} onChange={(value) => setTab(value as 'users' | 'groups')} hasDivider size="sm">
+        <XTabList value={tab} onChange={(value) => setTab(value as 'users' | 'groups' | 'downstream')} hasDivider size="sm">
           <XTab value="users" label={t('admin.usersTabs.users')} icon={<UserRound size={16} />} />
           <XTab value="groups" label={t('admin.usersTabs.groups')} icon={<Users size={16} />} />
+          <XTab value="downstream" label={t('admin.usersTabs.downstream')} icon={<ShieldCheck size={16} />} />
         </XTabList>
       </div>
       {tab === 'users' ? (
@@ -72,8 +74,10 @@ export function AdminUsersWorkspace({
           isDeletingUserID={isDeletingUserID}
           loadUsersPage={loadUsersPage}
         />
-      ) : (
+      ) : tab === 'groups' ? (
         <AdminGroupsPanel sourceURL={sourceURL} setToast={setToast} />
+      ) : (
+        <DownstreamClientsPanel setToast={setToast} />
       )}
     </section>
   );

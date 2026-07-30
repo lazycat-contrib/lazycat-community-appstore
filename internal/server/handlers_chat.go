@@ -525,6 +525,9 @@ func (s *Server) chatActorFromRequest(w http.ResponseWriter, r *http.Request) (c
 		writeError(w, http.StatusUnauthorized, "SOURCE_PASSWORD_REQUIRED", "A valid source password is required", nil)
 		return chatActor{}, false
 	}
+	if s.rejectBlockedClient(w, r, clientUserID) {
+		return chatActor{}, false
+	}
 	displayName := sanitizeDisplayName(r.Header.Get("X-LazyCat-Client-Display-Name"))
 	if displayName == "" {
 		displayName = "MiaoMiao " + trimRunes(clientUserID, 12)

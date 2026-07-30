@@ -1594,6 +1594,16 @@ export function AppDrawer({
               onReplyText={setReplyText}
               onReply={(event, parentId) => void submitComment(event, parentId)}
               onDelete={(commentID) => void deleteComment(commentID)}
+              onBlockClient={user?.role === 'SITE_ADMIN' ? async (clientUserId) => {
+                const reason = window.prompt(t('wishWall.blockReason'))?.trim();
+                if (!reason) return;
+                try {
+                  await api(`/api/v1/admin/downstream-clients/${encodeURIComponent(clientUserId)}/block`, { method: 'POST', body: JSON.stringify({ reason }) });
+                  setToast({ tone: 'success', message: t('wishWall.blocked') });
+                } catch (error) {
+                  setToast({ tone: 'error', message: errorMessage(error, t('wishWall.blockFailed')) });
+                }
+              } : undefined}
             />
           </section>
         )}

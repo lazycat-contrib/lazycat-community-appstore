@@ -253,6 +253,20 @@ func (_u *ClientSourceUpdate) SetNillableChatAvailable(v *bool) *ClientSourceUpd
 	return _u
 }
 
+// SetWishWallAvailable sets the "wish_wall_available" field.
+func (_u *ClientSourceUpdate) SetWishWallAvailable(v bool) *ClientSourceUpdate {
+	_u.mutation.SetWishWallAvailable(v)
+	return _u
+}
+
+// SetNillableWishWallAvailable sets the "wish_wall_available" field if the given value is not nil.
+func (_u *ClientSourceUpdate) SetNillableWishWallAvailable(v *bool) *ClientSourceUpdate {
+	if v != nil {
+		_u.SetWishWallAvailable(*v)
+	}
+	return _u
+}
+
 // SetChatEnabled sets the "chat_enabled" field.
 func (_u *ClientSourceUpdate) SetChatEnabled(v bool) *ClientSourceUpdate {
 	_u.mutation.SetChatEnabled(v)
@@ -584,6 +598,9 @@ func (_u *ClientSourceUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.ChatAvailable(); ok {
 		_spec.SetField(clientsource.FieldChatAvailable, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.WishWallAvailable(); ok {
+		_spec.SetField(clientsource.FieldWishWallAvailable, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.ChatEnabled(); ok {
 		_spec.SetField(clientsource.FieldChatEnabled, field.TypeBool, value)
 	}
@@ -914,6 +931,20 @@ func (_u *ClientSourceUpdateOne) SetChatAvailable(v bool) *ClientSourceUpdateOne
 func (_u *ClientSourceUpdateOne) SetNillableChatAvailable(v *bool) *ClientSourceUpdateOne {
 	if v != nil {
 		_u.SetChatAvailable(*v)
+	}
+	return _u
+}
+
+// SetWishWallAvailable sets the "wish_wall_available" field.
+func (_u *ClientSourceUpdateOne) SetWishWallAvailable(v bool) *ClientSourceUpdateOne {
+	_u.mutation.SetWishWallAvailable(v)
+	return _u
+}
+
+// SetNillableWishWallAvailable sets the "wish_wall_available" field if the given value is not nil.
+func (_u *ClientSourceUpdateOne) SetNillableWishWallAvailable(v *bool) *ClientSourceUpdateOne {
+	if v != nil {
+		_u.SetWishWallAvailable(*v)
 	}
 	return _u
 }
@@ -1278,6 +1309,9 @@ func (_u *ClientSourceUpdateOne) sqlSave(ctx context.Context) (_node *ClientSour
 	}
 	if value, ok := _u.mutation.ChatAvailable(); ok {
 		_spec.SetField(clientsource.FieldChatAvailable, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.WishWallAvailable(); ok {
+		_spec.SetField(clientsource.FieldWishWallAvailable, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.ChatEnabled(); ok {
 		_spec.SetField(clientsource.FieldChatEnabled, field.TypeBool, value)

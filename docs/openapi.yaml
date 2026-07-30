@@ -1757,6 +1757,146 @@ paths:
         "401":
           $ref: "#/components/responses/Error"
 
+  /api/v1/wishes:
+    get:
+      tags: [Wish Wall]
+      summary: List wishes visible to the current browser or LazyCat client identity
+      security: []
+      parameters:
+        - { name: kind, in: query, schema: { $ref: "#/components/schemas/WishKind" } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/WishStatus" } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        "200":
+          description: Privacy-filtered wish page. Anonymous viewers never receive suggestions or contact details.
+    post:
+      tags: [Wish Wall]
+      summary: Create a wish from a trusted, identified LazyCat client
+      security: []
+      parameters:
+        - { name: X-LazyCat-Client-Proxy, in: header, required: true, schema: { type: string, enum: [lazycat-appstore-client] } }
+        - { name: X-LazyCat-Client-User-ID, in: header, required: true, schema: { type: string } }
+        - { name: X-LazyCat-Client-Device-ID, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateWishRequest" }
+      responses:
+        "201": { description: Wish created with its initial OPEN status event. }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /api/v1/wishes/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [Wish Wall]
+      summary: Get a visible wish
+      security: []
+      responses:
+        "200": { description: Wish detail with replies and immutable status history. }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      tags: [Wish Wall]
+      summary: Update wish content as its LazyCat client author
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateWishRequest" }
+      responses:
+        "200": { description: Wish updated. }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [Wish Wall]
+      summary: Delete a wish as its LazyCat client author
+      security: []
+      responses:
+        "200": { description: "Wish, replies, and status events deleted." }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /api/v1/admin/wishes/{id}/replies:
+    post:
+      tags: [Wish Wall]
+      summary: Add an administrator reply
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties: { body: { type: string, minLength: 1, maxLength: 5000 } }
+      responses:
+        "201": { description: Reply created. }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /api/v1/admin/wishes/{id}/status:
+    post:
+      tags: [Wish Wall]
+      summary: Append an administrator status transition
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, statusText]
+              properties:
+                status: { $ref: "#/components/schemas/WishStatus" }
+                statusText: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        "200": { description: Status event appended. }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /api/v1/admin/downstream-clients:
+    get:
+      tags: [Admin]
+      summary: List downstream client identities observed in comments or wishes
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: blocked, in: query, schema: { type: boolean } }
+      responses:
+        "200": { description: Paginated downstream client list. }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /api/v1/admin/downstream-clients/{clientUserId}/block:
+    post:
+      tags: [Admin]
+      summary: Block a downstream client user (site administrator only)
+      parameters:
+        - { name: clientUserId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties: { reason: { type: string, minLength: 1, maxLength: 500 } }
+      responses:
+        "200": { description: Client user blocked. }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /api/v1/admin/downstream-clients/{clientUserId}/unblock:
+    post:
+      tags: [Admin]
+      summary: Unblock a downstream client user (site administrator only)
+      parameters:
+        - { name: clientUserId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Client user unblocked. }
+        "403": { $ref: "#/components/responses/Error" }
+
 components:
   securitySchemes:
     cookieAuth:
@@ -1833,6 +1973,36 @@ components:
                   type: integer
 
   schemas:
+    WishKind:
+      type: string
+      enum: [SUGGESTION, APP_REQUEST, CUSTOMIZATION]
+
+    WishStatus:
+      type: string
+      enum: [OPEN, PLANNED, IN_PROGRESS, COMPLETED, REJECTED]
+
+    CreateWishRequest:
+      type: object
+      required: [kind, title, body, statusText]
+      properties:
+        kind: { $ref: "#/components/schemas/WishKind" }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        body: { type: string, minLength: 1, maxLength: 5000 }
+        referenceUrl: { type: string, format: uri, maxLength: 500 }
+        contactEmail: { type: string, format: email, maxLength: 254, description: Required for CUSTOMIZATION. }
+        contactOther: { type: string, maxLength: 500 }
+        statusText: { type: string, minLength: 1, maxLength: 1000 }
+
+    UpdateWishRequest:
+      type: object
+      required: [title, body]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        body: { type: string, minLength: 1, maxLength: 5000 }
+        referenceUrl: { type: string, format: uri, maxLength: 500 }
+        contactEmail: { type: string, format: email, maxLength: 254 }
+        contactOther: { type: string, maxLength: 500 }
+
     LocalizedText:
       type: object
       additionalProperties:

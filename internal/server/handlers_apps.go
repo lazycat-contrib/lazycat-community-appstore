@@ -1692,13 +1692,17 @@ func (s *Server) commentDTO(r *http.Request, record *entgo.Comment, actor commen
 	if !canDelete && actor.IsClient && record.AuthorType == commentpkg.AuthorTypeCLIENT && record.ClientUserID != "" && record.ClientUserID == actor.ClientUserID {
 		canDelete = true
 	}
+	clientUserID := ""
+	if actor.User != nil && isAdmin(actor.User) {
+		clientUserID = record.ClientUserID
+	}
 	return comment{
 		ID:           record.ID,
 		AppID:        record.AppID,
 		UserID:       record.UserID,
 		ParentID:     record.ParentID,
 		AuthorType:   authorType,
-		ClientUserID: record.ClientUserID,
+		ClientUserID: clientUserID,
 		Username:     username,
 		Body:         record.Body,
 		CanDelete:    canDelete,

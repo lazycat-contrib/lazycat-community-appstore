@@ -40,6 +40,11 @@ type commentActor struct {
 }
 
 func (s *Server) handleListComments(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-LazyCat-Client-Proxy") == "lazycat-appstore-client" {
+		if clientUserID := sanitizeIdentity(r.Header.Get("X-LazyCat-Client-User-ID")); clientUserID != "" && s.rejectBlockedClient(w, r, clientUserID) {
+			return
+		}
+	}
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		badRequest(w, err)
@@ -74,6 +79,9 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 		writeError(w, status, code, message, nil)
 		return
 	}
+	if actor.IsClient && s.rejectBlockedClient(w, r, actor.ClientUserID) {
+		return
+	}
 	record, err := s.db.App.Get(r.Context(), id)
 	if err != nil || record.Status != app.StatusAPPROVED {
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
@@ -96,6 +104,12 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 	if body == "" {
 		writeError(w, http.StatusUnprocessableEntity, "VALIDATION_ERROR", "Comment body is required", nil)
 		return
+	}
+	if actor.IsClient {
+		if err := s.observeDownstreamClient(r.Context(), actor.ClientUserID, actor.DisplayName, downstreamSeenComment); err != nil {
+			writeError(w, http.StatusInternalServerError, "COMMENT_CREATE_FAILED", "Could not record comment author", nil)
+			return
+		}
 	}
 	var parentID *int
 	if input.ParentID != nil && *input.ParentID > 0 {
@@ -141,6 +155,9 @@ func (s *Server) handleDeleteComment(w http.ResponseWriter, r *http.Request) {
 	actor, status, code, message := s.resolveCommentActor(r)
 	if status != 0 {
 		writeError(w, status, code, message, nil)
+		return
+	}
+	if actor.IsClient && s.rejectBlockedClient(w, r, actor.ClientUserID) {
 		return
 	}
 	record, err := s.db.Comment.Get(r.Context(), id)
@@ -615,6 +632,9 @@ func (s *Server) handleMarkOutdated(w http.ResponseWriter, r *http.Request) {
 		writeError(w, status, code, message, nil)
 		return
 	}
+	if actor.IsClient && s.rejectBlockedClient(w, r, actor.ClientUserID) {
+		return
+	}
 	record, err := s.db.App.Get(r.Context(), id)
 	if err != nil || record.Status != app.StatusAPPROVED {
 		writeError(w, http.StatusNotFound, "APP_NOT_FOUND", "App not found", nil)
@@ -666,6 +686,9 @@ func (s *Server) handleClearOutdated(w http.ResponseWriter, r *http.Request) {
 	actor, status, code, message := s.resolveOutdatedActor(r)
 	if status != 0 {
 		writeError(w, status, code, message, nil)
+		return
+	}
+	if actor.IsClient && s.rejectBlockedClient(w, r, actor.ClientUserID) {
 		return
 	}
 	record, err := s.db.App.Get(r.Context(), id)

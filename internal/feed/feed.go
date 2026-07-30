@@ -28,6 +28,7 @@ type SiteMeta struct {
 	SourceURL    string           `json:"sourceUrl"`
 	ClientPolicy ClientPolicyMeta `json:"clientPolicy,omitempty"`
 	Chat         ChatMeta         `json:"chat"`
+	WishWall     WishWallMeta     `json:"wishWall"`
 }
 
 type ClientPolicyMeta struct {
@@ -38,6 +39,10 @@ type ClientPolicyMeta struct {
 type ChatMeta struct {
 	Enabled       bool `json:"enabled"`
 	RetentionDays int  `json:"retentionDays,omitempty"`
+}
+
+type WishWallMeta struct {
+	Enabled bool `json:"enabled"`
 }
 
 type AnnouncementMeta struct {

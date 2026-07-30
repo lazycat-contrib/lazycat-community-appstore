@@ -74,6 +74,8 @@ type Tx struct {
 	Comment *CommentClient
 	// CommentNotification is the client for interacting with the CommentNotification builders.
 	CommentNotification *CommentNotificationClient
+	// DownstreamClientUser is the client for interacting with the DownstreamClientUser builders.
+	DownstreamClientUser *DownstreamClientUserClient
 	// Favorite is the client for interacting with the Favorite builders.
 	Favorite *FavoriteClient
 	// GitHubLPKUpdatePolicy is the client for interacting with the GitHubLPKUpdatePolicy builders.
@@ -100,6 +102,12 @@ type Tx struct {
 	User *UserClient
 	// UserGroup is the client for interacting with the UserGroup builders.
 	UserGroup *UserGroupClient
+	// Wish is the client for interacting with the Wish builders.
+	Wish *WishClient
+	// WishReply is the client for interacting with the WishReply builders.
+	WishReply *WishReplyClient
+	// WishStatusEvent is the client for interacting with the WishStatusEvent builders.
+	WishStatusEvent *WishStatusEventClient
 
 	// lazily loaded.
 	client     *Client
@@ -262,6 +270,7 @@ func (tx *Tx) init() {
 	tx.CollectionApp = NewCollectionAppClient(tx.config)
 	tx.Comment = NewCommentClient(tx.config)
 	tx.CommentNotification = NewCommentNotificationClient(tx.config)
+	tx.DownstreamClientUser = NewDownstreamClientUserClient(tx.config)
 	tx.Favorite = NewFavoriteClient(tx.config)
 	tx.GitHubLPKUpdatePolicy = NewGitHubLPKUpdatePolicyClient(tx.config)
 	tx.GroupMember = NewGroupMemberClient(tx.config)
@@ -275,6 +284,9 @@ func (tx *Tx) init() {
 	tx.Tag = NewTagClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserGroup = NewUserGroupClient(tx.config)
+	tx.Wish = NewWishClient(tx.config)
+	tx.WishReply = NewWishReplyClient(tx.config)
+	tx.WishStatusEvent = NewWishStatusEventClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

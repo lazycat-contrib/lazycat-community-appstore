@@ -19,6 +19,7 @@ export function SearchView({
   onOpenSource,
   onInstall,
   onGoSources,
+  onGoWishWall,
   defaultPageSize,
   activeInstallKey,
   clientCatalogState,
@@ -40,6 +41,7 @@ export function SearchView({
   onOpenSource: (app: SourceApp) => void;
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
+  onGoWishWall: () => void;
   defaultPageSize: number;
   activeInstallKey?: string;
   clientCatalogState: ClientCatalogViewState;
@@ -58,6 +60,7 @@ export function SearchView({
         onOpenSource={onOpenSource}
         onInstall={onInstall}
         onGoSources={onGoSources}
+        onGoWishWall={onGoWishWall}
         defaultPageSize={defaultPageSize}
         activeInstallKey={activeInstallKey}
         viewState={clientCatalogState}

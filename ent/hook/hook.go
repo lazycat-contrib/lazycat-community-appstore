@@ -381,6 +381,18 @@ func (f CommentNotificationFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CommentNotificationMutation", m)
 }
 
+// The DownstreamClientUserFunc type is an adapter to allow the use of ordinary
+// function as DownstreamClientUser mutator.
+type DownstreamClientUserFunc func(context.Context, *ent.DownstreamClientUserMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DownstreamClientUserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DownstreamClientUserMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DownstreamClientUserMutation", m)
+}
+
 // The FavoriteFunc type is an adapter to allow the use of ordinary
 // function as Favorite mutator.
 type FavoriteFunc func(context.Context, *ent.FavoriteMutation) (ent.Value, error)
@@ -535,6 +547,42 @@ func (f UserGroupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserGroupMutation", m)
+}
+
+// The WishFunc type is an adapter to allow the use of ordinary
+// function as Wish mutator.
+type WishFunc func(context.Context, *ent.WishMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WishFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WishMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WishMutation", m)
+}
+
+// The WishReplyFunc type is an adapter to allow the use of ordinary
+// function as WishReply mutator.
+type WishReplyFunc func(context.Context, *ent.WishReplyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WishReplyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WishReplyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WishReplyMutation", m)
+}
+
+// The WishStatusEventFunc type is an adapter to allow the use of ordinary
+// function as WishStatusEvent mutator.
+type WishStatusEventFunc func(context.Context, *ent.WishStatusEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f WishStatusEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.WishStatusEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.WishStatusEventMutation", m)
 }
 
 // Condition is a hook condition function.

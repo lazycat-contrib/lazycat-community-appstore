@@ -272,6 +272,7 @@ func sourceDTO(source *ent.ClientSource) SourceDTO {
 		LastInvalidGroupCodes:   decodeStringSlice(source.LastInvalidGroupCodesJSON),
 		GitHubMirrors:           mirrors,
 		ChatAvailable:           source.ChatAvailable,
+		WishWallAvailable:       source.WishWallAvailable,
 		ChatEnabled:             source.ChatEnabled,
 		AdsPreference:           sourceAdsPreferenceString(source.AdsPreference),
 		LastSync:                source.LastSync,

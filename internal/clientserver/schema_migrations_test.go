@@ -84,7 +84,27 @@ func TestMigrateSchemaV4InvalidatesSourceETagsWithoutChangingAppUpdateTimes(t *t
 	if got := client.ClientSourceApp.Query().OnlyX(ctx).UpdatedAt; !got.Equal(updatedAt) {
 		t.Fatalf("updated_at = %s, want %s", got, updatedAt)
 	}
-	if got := storedClientSchemaVersion(ctx, client); got != 4 {
-		t.Fatalf("schema version = %d, want 4", got)
+	if got := storedClientSchemaVersion(ctx, client); got != currentClientSchemaVersion {
+		t.Fatalf("schema version = %d, want %d", got, currentClientSchemaVersion)
+	}
+}
+
+func TestMigrateSchemaV5InvalidatesSourceETagsForWishWallCapability(t *testing.T) {
+	ctx := context.Background()
+	client := testClient(t)
+	t.Cleanup(func() { _ = client.Close() })
+	source := client.ClientSource.Create().SetUserID("alice").SetName("Community").
+		SetURL("https://store.example/source/v2/index.json").SetLastEtag(`"wish-wall-unknown"`).SaveX(ctx)
+	if err := setSystemClientSetting(ctx, client, settingClientSchemaVersion, "4"); err != nil {
+		t.Fatal(err)
+	}
+	if err := migrateSchema(ctx, client); err != nil {
+		t.Fatal(err)
+	}
+	if got := client.ClientSource.GetX(ctx, source.ID).LastEtag; got != "" {
+		t.Fatalf("last_etag = %q, want empty", got)
+	}
+	if got := storedClientSchemaVersion(ctx, client); got != 5 {
+		t.Fatalf("schema version = %d, want 5", got)
 	}
 }

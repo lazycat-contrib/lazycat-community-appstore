@@ -36,6 +36,7 @@ import (
 	"lazycat.community/appstore/ent/collectionapp"
 	"lazycat.community/appstore/ent/comment"
 	"lazycat.community/appstore/ent/commentnotification"
+	"lazycat.community/appstore/ent/downstreamclientuser"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 	"lazycat.community/appstore/ent/groupmember"
@@ -50,6 +51,9 @@ import (
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/ent/usergroup"
+	"lazycat.community/appstore/ent/wish"
+	"lazycat.community/appstore/ent/wishreply"
+	"lazycat.community/appstore/ent/wishstatusevent"
 )
 
 // The init function reads all schema descriptors with runtime code
@@ -716,28 +720,32 @@ func init() {
 	clientsourceDescChatAvailable := clientsourceFields[15].Descriptor()
 	// clientsource.DefaultChatAvailable holds the default value on creation for the chat_available field.
 	clientsource.DefaultChatAvailable = clientsourceDescChatAvailable.Default.(bool)
+	// clientsourceDescWishWallAvailable is the schema descriptor for wish_wall_available field.
+	clientsourceDescWishWallAvailable := clientsourceFields[16].Descriptor()
+	// clientsource.DefaultWishWallAvailable holds the default value on creation for the wish_wall_available field.
+	clientsource.DefaultWishWallAvailable = clientsourceDescWishWallAvailable.Default.(bool)
 	// clientsourceDescChatEnabled is the schema descriptor for chat_enabled field.
-	clientsourceDescChatEnabled := clientsourceFields[16].Descriptor()
+	clientsourceDescChatEnabled := clientsourceFields[17].Descriptor()
 	// clientsource.DefaultChatEnabled holds the default value on creation for the chat_enabled field.
 	clientsource.DefaultChatEnabled = clientsourceDescChatEnabled.Default.(bool)
 	// clientsourceDescLastEtag is the schema descriptor for last_etag field.
-	clientsourceDescLastEtag := clientsourceFields[18].Descriptor()
+	clientsourceDescLastEtag := clientsourceFields[19].Descriptor()
 	// clientsource.DefaultLastEtag holds the default value on creation for the last_etag field.
 	clientsource.DefaultLastEtag = clientsourceDescLastEtag.Default.(string)
 	// clientsourceDescLastAppCount is the schema descriptor for last_app_count field.
-	clientsourceDescLastAppCount := clientsourceFields[22].Descriptor()
+	clientsourceDescLastAppCount := clientsourceFields[23].Descriptor()
 	// clientsource.DefaultLastAppCount holds the default value on creation for the last_app_count field.
 	clientsource.DefaultLastAppCount = clientsourceDescLastAppCount.Default.(int)
 	// clientsourceDescLastInstallableCount is the schema descriptor for last_installable_count field.
-	clientsourceDescLastInstallableCount := clientsourceFields[23].Descriptor()
+	clientsourceDescLastInstallableCount := clientsourceFields[24].Descriptor()
 	// clientsource.DefaultLastInstallableCount holds the default value on creation for the last_installable_count field.
 	clientsource.DefaultLastInstallableCount = clientsourceDescLastInstallableCount.Default.(int)
 	// clientsourceDescCreatedAt is the schema descriptor for created_at field.
-	clientsourceDescCreatedAt := clientsourceFields[24].Descriptor()
+	clientsourceDescCreatedAt := clientsourceFields[25].Descriptor()
 	// clientsource.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsource.DefaultCreatedAt = clientsourceDescCreatedAt.Default.(func() time.Time)
 	// clientsourceDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsourceDescUpdatedAt := clientsourceFields[25].Descriptor()
+	clientsourceDescUpdatedAt := clientsourceFields[26].Descriptor()
 	// clientsource.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsource.DefaultUpdatedAt = clientsourceDescUpdatedAt.Default.(func() time.Time)
 	// clientsource.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1014,6 +1022,50 @@ func init() {
 	commentnotificationDescCreatedAt := commentnotificationFields[7].Descriptor()
 	// commentnotification.DefaultCreatedAt holds the default value on creation for the created_at field.
 	commentnotification.DefaultCreatedAt = commentnotificationDescCreatedAt.Default.(func() time.Time)
+	downstreamclientuserFields := schema.DownstreamClientUser{}.Fields()
+	_ = downstreamclientuserFields
+	// downstreamclientuserDescClientUserID is the schema descriptor for client_user_id field.
+	downstreamclientuserDescClientUserID := downstreamclientuserFields[0].Descriptor()
+	// downstreamclientuser.ClientUserIDValidator is a validator for the "client_user_id" field. It is called by the builders before save.
+	downstreamclientuser.ClientUserIDValidator = downstreamclientuserDescClientUserID.Validators[0].(func(string) error)
+	// downstreamclientuserDescDisplayName is the schema descriptor for display_name field.
+	downstreamclientuserDescDisplayName := downstreamclientuserFields[1].Descriptor()
+	// downstreamclientuser.DefaultDisplayName holds the default value on creation for the display_name field.
+	downstreamclientuser.DefaultDisplayName = downstreamclientuserDescDisplayName.Default.(string)
+	// downstreamclientuserDescSeenInComments is the schema descriptor for seen_in_comments field.
+	downstreamclientuserDescSeenInComments := downstreamclientuserFields[2].Descriptor()
+	// downstreamclientuser.DefaultSeenInComments holds the default value on creation for the seen_in_comments field.
+	downstreamclientuser.DefaultSeenInComments = downstreamclientuserDescSeenInComments.Default.(bool)
+	// downstreamclientuserDescSeenInWishes is the schema descriptor for seen_in_wishes field.
+	downstreamclientuserDescSeenInWishes := downstreamclientuserFields[3].Descriptor()
+	// downstreamclientuser.DefaultSeenInWishes holds the default value on creation for the seen_in_wishes field.
+	downstreamclientuser.DefaultSeenInWishes = downstreamclientuserDescSeenInWishes.Default.(bool)
+	// downstreamclientuserDescBlocked is the schema descriptor for blocked field.
+	downstreamclientuserDescBlocked := downstreamclientuserFields[4].Descriptor()
+	// downstreamclientuser.DefaultBlocked holds the default value on creation for the blocked field.
+	downstreamclientuser.DefaultBlocked = downstreamclientuserDescBlocked.Default.(bool)
+	// downstreamclientuserDescBlockReason is the schema descriptor for block_reason field.
+	downstreamclientuserDescBlockReason := downstreamclientuserFields[5].Descriptor()
+	// downstreamclientuser.DefaultBlockReason holds the default value on creation for the block_reason field.
+	downstreamclientuser.DefaultBlockReason = downstreamclientuserDescBlockReason.Default.(string)
+	// downstreamclientuserDescFirstSeenAt is the schema descriptor for first_seen_at field.
+	downstreamclientuserDescFirstSeenAt := downstreamclientuserFields[8].Descriptor()
+	// downstreamclientuser.DefaultFirstSeenAt holds the default value on creation for the first_seen_at field.
+	downstreamclientuser.DefaultFirstSeenAt = downstreamclientuserDescFirstSeenAt.Default.(func() time.Time)
+	// downstreamclientuserDescLastSeenAt is the schema descriptor for last_seen_at field.
+	downstreamclientuserDescLastSeenAt := downstreamclientuserFields[9].Descriptor()
+	// downstreamclientuser.DefaultLastSeenAt holds the default value on creation for the last_seen_at field.
+	downstreamclientuser.DefaultLastSeenAt = downstreamclientuserDescLastSeenAt.Default.(func() time.Time)
+	// downstreamclientuserDescCreatedAt is the schema descriptor for created_at field.
+	downstreamclientuserDescCreatedAt := downstreamclientuserFields[10].Descriptor()
+	// downstreamclientuser.DefaultCreatedAt holds the default value on creation for the created_at field.
+	downstreamclientuser.DefaultCreatedAt = downstreamclientuserDescCreatedAt.Default.(func() time.Time)
+	// downstreamclientuserDescUpdatedAt is the schema descriptor for updated_at field.
+	downstreamclientuserDescUpdatedAt := downstreamclientuserFields[11].Descriptor()
+	// downstreamclientuser.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	downstreamclientuser.DefaultUpdatedAt = downstreamclientuserDescUpdatedAt.Default.(func() time.Time)
+	// downstreamclientuser.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	downstreamclientuser.UpdateDefaultUpdatedAt = downstreamclientuserDescUpdatedAt.UpdateDefault.(func() time.Time)
 	favoriteFields := schema.Favorite{}.Fields()
 	_ = favoriteFields
 	// favoriteDescCreatedAt is the schema descriptor for created_at field.
@@ -1366,4 +1418,90 @@ func init() {
 	usergroup.DefaultUpdatedAt = usergroupDescUpdatedAt.Default.(func() time.Time)
 	// usergroup.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	usergroup.UpdateDefaultUpdatedAt = usergroupDescUpdatedAt.UpdateDefault.(func() time.Time)
+	wishFields := schema.Wish{}.Fields()
+	_ = wishFields
+	// wishDescTitle is the schema descriptor for title field.
+	wishDescTitle := wishFields[2].Descriptor()
+	// wish.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	wish.TitleValidator = wishDescTitle.Validators[0].(func(string) error)
+	// wishDescBody is the schema descriptor for body field.
+	wishDescBody := wishFields[3].Descriptor()
+	// wish.BodyValidator is a validator for the "body" field. It is called by the builders before save.
+	wish.BodyValidator = wishDescBody.Validators[0].(func(string) error)
+	// wishDescReferenceURL is the schema descriptor for reference_url field.
+	wishDescReferenceURL := wishFields[4].Descriptor()
+	// wish.DefaultReferenceURL holds the default value on creation for the reference_url field.
+	wish.DefaultReferenceURL = wishDescReferenceURL.Default.(string)
+	// wishDescContactEmail is the schema descriptor for contact_email field.
+	wishDescContactEmail := wishFields[5].Descriptor()
+	// wish.DefaultContactEmail holds the default value on creation for the contact_email field.
+	wish.DefaultContactEmail = wishDescContactEmail.Default.(string)
+	// wishDescContactOther is the schema descriptor for contact_other field.
+	wishDescContactOther := wishFields[6].Descriptor()
+	// wish.DefaultContactOther holds the default value on creation for the contact_other field.
+	wish.DefaultContactOther = wishDescContactOther.Default.(string)
+	// wishDescClientUserID is the schema descriptor for client_user_id field.
+	wishDescClientUserID := wishFields[7].Descriptor()
+	// wish.ClientUserIDValidator is a validator for the "client_user_id" field. It is called by the builders before save.
+	wish.ClientUserIDValidator = wishDescClientUserID.Validators[0].(func(string) error)
+	// wishDescAuthorName is the schema descriptor for author_name field.
+	wishDescAuthorName := wishFields[8].Descriptor()
+	// wish.DefaultAuthorName holds the default value on creation for the author_name field.
+	wish.DefaultAuthorName = wishDescAuthorName.Default.(string)
+	// wishDescCreatedAt is the schema descriptor for created_at field.
+	wishDescCreatedAt := wishFields[9].Descriptor()
+	// wish.DefaultCreatedAt holds the default value on creation for the created_at field.
+	wish.DefaultCreatedAt = wishDescCreatedAt.Default.(func() time.Time)
+	// wishDescUpdatedAt is the schema descriptor for updated_at field.
+	wishDescUpdatedAt := wishFields[10].Descriptor()
+	// wish.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	wish.DefaultUpdatedAt = wishDescUpdatedAt.Default.(func() time.Time)
+	// wish.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	wish.UpdateDefaultUpdatedAt = wishDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// wishDescLastActivityAt is the schema descriptor for last_activity_at field.
+	wishDescLastActivityAt := wishFields[11].Descriptor()
+	// wish.DefaultLastActivityAt holds the default value on creation for the last_activity_at field.
+	wish.DefaultLastActivityAt = wishDescLastActivityAt.Default.(func() time.Time)
+	wishreplyFields := schema.WishReply{}.Fields()
+	_ = wishreplyFields
+	// wishreplyDescAuthorName is the schema descriptor for author_name field.
+	wishreplyDescAuthorName := wishreplyFields[2].Descriptor()
+	// wishreply.DefaultAuthorName holds the default value on creation for the author_name field.
+	wishreply.DefaultAuthorName = wishreplyDescAuthorName.Default.(string)
+	// wishreplyDescBody is the schema descriptor for body field.
+	wishreplyDescBody := wishreplyFields[3].Descriptor()
+	// wishreply.BodyValidator is a validator for the "body" field. It is called by the builders before save.
+	wishreply.BodyValidator = wishreplyDescBody.Validators[0].(func(string) error)
+	// wishreplyDescCreatedAt is the schema descriptor for created_at field.
+	wishreplyDescCreatedAt := wishreplyFields[4].Descriptor()
+	// wishreply.DefaultCreatedAt holds the default value on creation for the created_at field.
+	wishreply.DefaultCreatedAt = wishreplyDescCreatedAt.Default.(func() time.Time)
+	// wishreplyDescUpdatedAt is the schema descriptor for updated_at field.
+	wishreplyDescUpdatedAt := wishreplyFields[5].Descriptor()
+	// wishreply.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	wishreply.DefaultUpdatedAt = wishreplyDescUpdatedAt.Default.(func() time.Time)
+	// wishreply.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	wishreply.UpdateDefaultUpdatedAt = wishreplyDescUpdatedAt.UpdateDefault.(func() time.Time)
+	wishstatuseventFields := schema.WishStatusEvent{}.Fields()
+	_ = wishstatuseventFields
+	// wishstatuseventDescFromStatus is the schema descriptor for from_status field.
+	wishstatuseventDescFromStatus := wishstatuseventFields[1].Descriptor()
+	// wishstatusevent.DefaultFromStatus holds the default value on creation for the from_status field.
+	wishstatusevent.DefaultFromStatus = wishstatuseventDescFromStatus.Default.(string)
+	// wishstatuseventDescActorClientUserID is the schema descriptor for actor_client_user_id field.
+	wishstatuseventDescActorClientUserID := wishstatuseventFields[5].Descriptor()
+	// wishstatusevent.DefaultActorClientUserID holds the default value on creation for the actor_client_user_id field.
+	wishstatusevent.DefaultActorClientUserID = wishstatuseventDescActorClientUserID.Default.(string)
+	// wishstatuseventDescActorName is the schema descriptor for actor_name field.
+	wishstatuseventDescActorName := wishstatuseventFields[6].Descriptor()
+	// wishstatusevent.DefaultActorName holds the default value on creation for the actor_name field.
+	wishstatusevent.DefaultActorName = wishstatuseventDescActorName.Default.(string)
+	// wishstatuseventDescText is the schema descriptor for text field.
+	wishstatuseventDescText := wishstatuseventFields[7].Descriptor()
+	// wishstatusevent.TextValidator is a validator for the "text" field. It is called by the builders before save.
+	wishstatusevent.TextValidator = wishstatuseventDescText.Validators[0].(func(string) error)
+	// wishstatuseventDescCreatedAt is the schema descriptor for created_at field.
+	wishstatuseventDescCreatedAt := wishstatuseventFields[8].Descriptor()
+	// wishstatusevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	wishstatusevent.DefaultCreatedAt = wishstatuseventDescCreatedAt.Default.(func() time.Time)
 }

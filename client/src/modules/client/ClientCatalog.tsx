@@ -1,4 +1,4 @@
-import { Cloud, Download, PackageCheck, Search, Server } from 'lucide-react';
+import { Cloud, Download, Lightbulb, PackageCheck, Search, Server } from 'lucide-react';
 import { type Dispatch, type SetStateAction, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
@@ -52,6 +52,7 @@ export function ClientCatalog({
   onOpenSource,
   onInstall,
   onGoSources,
+  onGoWishWall,
   defaultPageSize,
   activeInstallKey,
   viewState,
@@ -64,6 +65,7 @@ export function ClientCatalog({
   onOpenSource: (app: SourceApp) => void;
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
+  onGoWishWall: () => void;
   defaultPageSize: number;
   activeInstallKey?: string;
   viewState: ClientCatalogViewState;
@@ -170,7 +172,10 @@ export function ClientCatalog({
           <h1>{t('search.clientTitle')}</h1>
           <p>{t('search.clientDescription')}</p>
         </div>
-        <XButton type="button" variant="secondary" label={t('search.noSyncedAppsAction')} icon={<Cloud size={18} />} onClick={onGoSources} />
+        <div className="row-actions">
+          <XButton type="button" variant="secondary" label={t('wishWall.title')} icon={<Lightbulb size={18} />} onClick={onGoWishWall} />
+          <XButton type="button" variant="secondary" label={t('search.noSyncedAppsAction')} icon={<Cloud size={18} />} onClick={onGoSources} />
+        </div>
       </div>
       <div className="client-summary-grid client-discovery-summary" aria-label={t('search.installReadiness')}>
         <div>

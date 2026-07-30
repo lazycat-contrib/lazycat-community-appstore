@@ -24,6 +24,7 @@ type SourceDTO struct {
 	LastInvalidGroupCodes   []string                `json:"lastInvalidGroupCodes,omitempty"`
 	GitHubMirrors           []mirror.Entry          `json:"githubMirrors"`
 	ChatAvailable           bool                    `json:"chatAvailable"`
+	WishWallAvailable       bool                    `json:"wishWallAvailable"`
 	ChatEnabled             bool                    `json:"chatEnabled"`
 	AdsPreference           string                  `json:"adsPreference"`
 	LastSync                *time.Time              `json:"lastSync,omitempty"`

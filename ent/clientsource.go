@@ -49,6 +49,8 @@ type ClientSource struct {
 	MinClientVersionMessage string `json:"min_client_version_message,omitempty"`
 	// ChatAvailable holds the value of the "chat_available" field.
 	ChatAvailable bool `json:"chat_available,omitempty"`
+	// WishWallAvailable holds the value of the "wish_wall_available" field.
+	WishWallAvailable bool `json:"wish_wall_available,omitempty"`
 	// ChatEnabled holds the value of the "chat_enabled" field.
 	ChatEnabled bool `json:"chat_enabled,omitempty"`
 	// AdsPreference holds the value of the "ads_preference" field.
@@ -98,7 +100,7 @@ func (*ClientSource) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case clientsource.FieldChatAvailable, clientsource.FieldChatEnabled:
+		case clientsource.FieldChatAvailable, clientsource.FieldWishWallAvailable, clientsource.FieldChatEnabled:
 			values[i] = new(sql.NullBool)
 		case clientsource.FieldID, clientsource.FieldLastAppCount, clientsource.FieldLastInstallableCount:
 			values[i] = new(sql.NullInt64)
@@ -222,6 +224,12 @@ func (_m *ClientSource) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field chat_available", values[i])
 			} else if value.Valid {
 				_m.ChatAvailable = value.Bool
+			}
+		case clientsource.FieldWishWallAvailable:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field wish_wall_available", values[i])
+			} else if value.Valid {
+				_m.WishWallAvailable = value.Bool
 			}
 		case clientsource.FieldChatEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -374,6 +382,9 @@ func (_m *ClientSource) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("chat_available=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ChatAvailable))
+	builder.WriteString(", ")
+	builder.WriteString("wish_wall_available=")
+	builder.WriteString(fmt.Sprintf("%v", _m.WishWallAvailable))
 	builder.WriteString(", ")
 	builder.WriteString("chat_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ChatEnabled))

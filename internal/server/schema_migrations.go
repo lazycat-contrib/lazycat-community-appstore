@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/app"
+	commentpkg "lazycat.community/appstore/ent/comment"
+	"lazycat.community/appstore/ent/downstreamclientuser"
 	"lazycat.community/appstore/ent/sitesetting"
 )
 
-const currentServerSchemaVersion = 2
+const currentServerSchemaVersion = 3
 
 func (s *Server) migrateSchema(ctx context.Context) error {
 	version := s.storedSchemaVersion(ctx)
@@ -34,6 +37,65 @@ func (s *Server) migrateSchema(ctx context.Context) error {
 		version = 2
 		if err := s.setSetting(ctx, settingSchemaVersion, strconv.Itoa(version)); err != nil {
 			return err
+		}
+	}
+	if version < 3 {
+		if err := s.migrateDownstreamClientUsers(ctx); err != nil {
+			return err
+		}
+		version = 3
+		if err := s.setSetting(ctx, settingSchemaVersion, strconv.Itoa(version)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) migrateDownstreamClientUsers(ctx context.Context) error {
+	records, err := s.db.Comment.Query().
+		Where(commentpkg.AuthorTypeEQ(commentpkg.AuthorTypeCLIENT), commentpkg.ClientUserIDNEQ("")).
+		Order(entgo.Asc(commentpkg.FieldCreatedAt), entgo.Asc(commentpkg.FieldID)).All(ctx)
+	if err != nil {
+		return fmt.Errorf("load downstream comment authors: %w", err)
+	}
+	type observation struct {
+		name        string
+		first, last time.Time
+	}
+	observations := map[string]observation{}
+	for _, record := range records {
+		id := sanitizeIdentity(record.ClientUserID)
+		if !strings.HasPrefix(id, "lc_") {
+			continue
+		}
+		item, ok := observations[id]
+		if !ok {
+			item.first = record.CreatedAt
+		}
+		item.last = record.CreatedAt
+		if name := sanitizeDisplayName(record.AuthorName); name != "" {
+			item.name = name
+		}
+		observations[id] = item
+	}
+	for id, item := range observations {
+		existing, queryErr := s.db.DownstreamClientUser.Query().Where(downstreamclientuser.ClientUserIDEQ(id)).Only(ctx)
+		if queryErr == nil {
+			update := s.db.DownstreamClientUser.UpdateOne(existing).SetSeenInComments(true).SetLastSeenAt(item.last)
+			if item.name != "" {
+				update.SetDisplayName(item.name)
+			}
+			if _, updateErr := update.Save(ctx); updateErr != nil {
+				return updateErr
+			}
+			continue
+		}
+		if !entgo.IsNotFound(queryErr) {
+			return queryErr
+		}
+		if _, createErr := s.db.DownstreamClientUser.Create().SetClientUserID(id).SetDisplayName(item.name).SetSeenInComments(true).
+			SetFirstSeenAt(item.first).SetLastSeenAt(item.last).Save(ctx); createErr != nil {
+			return createErr
 		}
 	}
 	return nil

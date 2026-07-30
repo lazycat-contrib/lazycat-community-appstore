@@ -1,6 +1,7 @@
 import {
   Archive,
   AlertTriangle,
+  Lightbulb,
   LogIn,
   LogOut,
   Megaphone,
@@ -111,6 +112,7 @@ const ProfileView = lazy(() => import('./modules/profile/ProfileView').then((mod
 const SearchView = lazy(() => import('./modules/search/SearchView').then((module) => ({ default: module.SearchView })));
 const AppDrawer = lazy(() => import('./modules/storefront/AppDrawer').then((module) => ({ default: module.AppDrawer })));
 const ChatWorkspace = lazy(() => import('./modules/chat/ChatWorkspace').then((module) => ({ default: module.ChatWorkspace })));
+const WishWall = lazy(() => import('./modules/wishwall/WishWall').then((module) => ({ default: module.WishWall })));
 const ClientHistoryView = lazy(() => import('./modules/client/ClientHistoryView').then((module) => ({ default: module.ClientHistoryView })));
 const InstallActivityPanel = lazy(() => import('./modules/client/InstallActivityPanel').then((module) => ({ default: module.InstallActivityPanel })));
 const InstallOptionsDialog = lazy(() => import('./modules/client/InstallOptionsDialog').then((module) => ({ default: module.InstallOptionsDialog })));
@@ -280,6 +282,7 @@ export function App() {
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
   const [openSubmitSignal, setOpenSubmitSignal] = useState(0);
+  const [wishPendingCount, setWishPendingCount] = useState(0);
 	const acceptedCollaborationInviteRef = useRef('');
 	const defaultSourceCheckedRef = useRef(false);
 	const clientLandingResolvedRef = useRef(false);
@@ -301,6 +304,15 @@ export function App() {
     serverChatVisible,
     clientChatVisible,
   });
+  useEffect(() => {
+    if (!HAS_API || !canReview) {
+      setWishPendingCount(0);
+      return;
+    }
+    void api<{ pendingCount?: number }>('/api/v1/wishes?page=1&pageSize=1')
+      .then((data) => setWishPendingCount(data.pendingCount || 0))
+      .catch(() => setWishPendingCount(0));
+  }, [canReview, user?.id]);
   const siteTitle = HAS_API ? siteProfile.title : clientSettings.clientTitle?.trim() || t('appName');
   const footerYear = new Date().getFullYear();
   const siteFooterName = siteProfile.title || siteTitle;
@@ -1339,6 +1351,13 @@ export function App() {
                             icon: <ShieldCheck size={16} />,
                             onClick: () => setIsSecurityDialogOpen(true),
                           },
+                          ...(canReview
+                            ? [{
+                                label: t('wishWall.notificationEntry', { count: wishPendingCount }),
+                                icon: <Lightbulb size={16} />,
+                                onClick: () => navigateTo('wishwall'),
+                              }]
+                            : []),
                           ...(serverChatVisible
                             ? [{
                                 label: t('nav.chat'),
@@ -1548,6 +1567,7 @@ export function App() {
                 onOpenSource={setSelectedSourceApp}
                 onInstall={installApp}
                 onGoSources={() => navigateTo('sources')}
+                onGoWishWall={() => navigateTo('wishwall')}
                 defaultPageSize={HAS_API ? siteProfile.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE : clientSettings.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE}
 				activeInstallKey={installActivity?.status === 'running' ? installActivity.appKey : undefined}
                 clientCatalogState={clientCatalogState}
@@ -1564,6 +1584,9 @@ export function App() {
                 onFocusConsumed={consumeChatFocus}
                 setToast={setToast}
               />
+            )}
+            {tab === 'wishwall' && (
+              <WishWall mode={HAS_API ? 'server' : 'client'} sources={sources} user={user} setToast={setToast} />
             )}
             {tab === 'sources' && (
               <ClientSourcesView

@@ -65,6 +65,8 @@ npm run dev
 
 Users can open the Software Sources page, add a source URL, sync it, and install LPKs through the system Go SDK-backed client API. Installs initiated through the client are recorded in the client SQLite database, including the source, package ID, selected version, result, and error message when an install fails. The client can also show older versions from a synced source and install a selected older version for rollback.
 
+The Software Installation catalog defaults to recently updated apps and can also sort by cumulative downloads. Sources that advertise the V2 Wish Wall capability allow identified LazyCat client users to submit suggestions, app requests, and customization requests. Authors can edit or delete their own wishes in the client and follow administrator replies and status notes.
+
 Optional runtime config is loaded from `app-config.js`:
 
 ```js
@@ -110,6 +112,8 @@ lzc-cli project release -o ../../dist/lazycat-community-appstore-client.lpk
 - SHA256 calculation for uploaded LPK files; external URL versions can auto-detect SHA256 when the URL is reachable and points to a valid V2 LPK.
 - Local, WebDAV, S3-compatible storage backends, and GitHub external-link mode.
 - App screenshots, comments, favorites, outdated marks, collaborator requests.
+- Privacy-aware Wish Wall with public app/customization requests, private suggestions, administrator replies, and immutable status notes.
+- Downstream client identity management sourced from comments and wishes, including site-admin blocking across source sync and client interactions.
 - User groups and app visibility filtering.
 - Categories, tags, manual collections, recent-updated collections, most-downloaded collections.
 - Site title, icon, public source URL, and storefront announcement customization.

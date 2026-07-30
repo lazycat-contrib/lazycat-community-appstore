@@ -721,12 +721,13 @@ var (
 		{Name: "min_client_version", Type: field.TypeString, Default: ""},
 		{Name: "min_client_version_message", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "chat_available", Type: field.TypeBool, Default: false},
+		{Name: "wish_wall_available", Type: field.TypeBool, Default: false},
 		{Name: "chat_enabled", Type: field.TypeBool, Default: true},
 		{Name: "ads_preference", Type: field.TypeEnum, Enums: []string{"unset", "enabled", "disabled"}, Default: "unset"},
 		{Name: "last_etag", Type: field.TypeString, Default: ""},
 		{Name: "last_sync", Type: field.TypeTime, Nullable: true},
 		{Name: "last_error", Type: field.TypeString, Nullable: true},
-		{Name: "last_error_code", Type: field.TypeEnum, Nullable: true, Enums: []string{"auth", "format", "http", "network"}},
+		{Name: "last_error_code", Type: field.TypeEnum, Nullable: true, Enums: []string{"auth", "blocked", "format", "http", "network"}},
 		{Name: "last_app_count", Type: field.TypeInt, Default: 0},
 		{Name: "last_installable_count", Type: field.TypeInt, Default: 0},
 		{Name: "created_at", Type: field.TypeTime},
@@ -746,7 +747,7 @@ var (
 			{
 				Name:    "clientsource_user_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[26]},
+				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[27]},
 			},
 		},
 	}
@@ -1104,6 +1105,40 @@ var (
 				Name:    "commentnotification_comment_id",
 				Unique:  false,
 				Columns: []*schema.Column{CommentNotificationsColumns[3]},
+			},
+		},
+	}
+	// DownstreamClientUsersColumns holds the columns for the "downstream_client_users" table.
+	DownstreamClientUsersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "client_user_id", Type: field.TypeString, Unique: true},
+		{Name: "display_name", Type: field.TypeString, Default: ""},
+		{Name: "seen_in_comments", Type: field.TypeBool, Default: false},
+		{Name: "seen_in_wishes", Type: field.TypeBool, Default: false},
+		{Name: "blocked", Type: field.TypeBool, Default: false},
+		{Name: "block_reason", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "blocked_by", Type: field.TypeInt, Nullable: true},
+		{Name: "blocked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "first_seen_at", Type: field.TypeTime},
+		{Name: "last_seen_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// DownstreamClientUsersTable holds the schema information for the "downstream_client_users" table.
+	DownstreamClientUsersTable = &schema.Table{
+		Name:       "downstream_client_users",
+		Columns:    DownstreamClientUsersColumns,
+		PrimaryKey: []*schema.Column{DownstreamClientUsersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "downstreamclientuser_blocked_last_seen_at",
+				Unique:  false,
+				Columns: []*schema.Column{DownstreamClientUsersColumns[5], DownstreamClientUsersColumns[10]},
+			},
+			{
+				Name:    "downstreamclientuser_last_seen_at",
+				Unique:  false,
+				Columns: []*schema.Column{DownstreamClientUsersColumns[10]},
 			},
 		},
 	}
@@ -1498,6 +1533,104 @@ var (
 			},
 		},
 	}
+	// WishesColumns holds the columns for the "wishes" table.
+	WishesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"SUGGESTION", "APP_REQUEST", "CUSTOMIZATION"}},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"OPEN", "PLANNED", "IN_PROGRESS", "COMPLETED", "REJECTED"}, Default: "OPEN"},
+		{Name: "title", Type: field.TypeString},
+		{Name: "body", Type: field.TypeString, Size: 2147483647},
+		{Name: "reference_url", Type: field.TypeString, Default: ""},
+		{Name: "contact_email", Type: field.TypeString, Default: ""},
+		{Name: "contact_other", Type: field.TypeString, Default: ""},
+		{Name: "client_user_id", Type: field.TypeString},
+		{Name: "author_name", Type: field.TypeString, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "last_activity_at", Type: field.TypeTime},
+	}
+	// WishesTable holds the schema information for the "wishes" table.
+	WishesTable = &schema.Table{
+		Name:       "wishes",
+		Columns:    WishesColumns,
+		PrimaryKey: []*schema.Column{WishesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "wish_kind_status_last_activity_at",
+				Unique:  false,
+				Columns: []*schema.Column{WishesColumns[1], WishesColumns[2], WishesColumns[12]},
+			},
+			{
+				Name:    "wish_status_last_activity_at",
+				Unique:  false,
+				Columns: []*schema.Column{WishesColumns[2], WishesColumns[12]},
+			},
+			{
+				Name:    "wish_client_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{WishesColumns[8], WishesColumns[10]},
+			},
+		},
+	}
+	// WishRepliesColumns holds the columns for the "wish_replies" table.
+	WishRepliesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "wish_id", Type: field.TypeInt},
+		{Name: "author_user_id", Type: field.TypeInt},
+		{Name: "author_name", Type: field.TypeString, Default: ""},
+		{Name: "body", Type: field.TypeString, Size: 2147483647},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// WishRepliesTable holds the schema information for the "wish_replies" table.
+	WishRepliesTable = &schema.Table{
+		Name:       "wish_replies",
+		Columns:    WishRepliesColumns,
+		PrimaryKey: []*schema.Column{WishRepliesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "wishreply_wish_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{WishRepliesColumns[1], WishRepliesColumns[5]},
+			},
+		},
+	}
+	// WishStatusEventsColumns holds the columns for the "wish_status_events" table.
+	WishStatusEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "wish_id", Type: field.TypeInt},
+		{Name: "from_status", Type: field.TypeString, Default: ""},
+		{Name: "to_status", Type: field.TypeEnum, Enums: []string{"OPEN", "PLANNED", "IN_PROGRESS", "COMPLETED", "REJECTED"}},
+		{Name: "actor_type", Type: field.TypeEnum, Enums: []string{"CLIENT", "USER"}},
+		{Name: "actor_user_id", Type: field.TypeInt, Nullable: true},
+		{Name: "actor_client_user_id", Type: field.TypeString, Default: ""},
+		{Name: "actor_name", Type: field.TypeString, Default: ""},
+		{Name: "text", Type: field.TypeString, Size: 2147483647},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// WishStatusEventsTable holds the schema information for the "wish_status_events" table.
+	WishStatusEventsTable = &schema.Table{
+		Name:       "wish_status_events",
+		Columns:    WishStatusEventsColumns,
+		PrimaryKey: []*schema.Column{WishStatusEventsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "wishstatusevent_wish_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{WishStatusEventsColumns[1], WishStatusEventsColumns[9]},
+			},
+			{
+				Name:    "wishstatusevent_actor_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{WishStatusEventsColumns[5], WishStatusEventsColumns[9]},
+			},
+			{
+				Name:    "wishstatusevent_actor_client_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{WishStatusEventsColumns[6], WishStatusEventsColumns[9]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APITokensTable,
@@ -1531,6 +1664,7 @@ var (
 		CollectionAppsTable,
 		CommentsTable,
 		CommentNotificationsTable,
+		DownstreamClientUsersTable,
 		FavoritesTable,
 		GithubLpkUpdatePoliciesTable,
 		GroupMembersTable,
@@ -1544,6 +1678,9 @@ var (
 		TagsTable,
 		UsersTable,
 		UserGroupsTable,
+		WishesTable,
+		WishRepliesTable,
+		WishStatusEventsTable,
 	}
 )
 

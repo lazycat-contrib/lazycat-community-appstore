@@ -46,6 +46,7 @@ import (
 	"lazycat.community/appstore/ent/collectionapp"
 	"lazycat.community/appstore/ent/comment"
 	"lazycat.community/appstore/ent/commentnotification"
+	"lazycat.community/appstore/ent/downstreamclientuser"
 	"lazycat.community/appstore/ent/favorite"
 	"lazycat.community/appstore/ent/githublpkupdatepolicy"
 	"lazycat.community/appstore/ent/groupmember"
@@ -59,6 +60,9 @@ import (
 	"lazycat.community/appstore/ent/tag"
 	"lazycat.community/appstore/ent/user"
 	"lazycat.community/appstore/ent/usergroup"
+	"lazycat.community/appstore/ent/wish"
+	"lazycat.community/appstore/ent/wishreply"
+	"lazycat.community/appstore/ent/wishstatusevent"
 )
 
 // Client is the client that holds all ent builders.
@@ -128,6 +132,8 @@ type Client struct {
 	Comment *CommentClient
 	// CommentNotification is the client for interacting with the CommentNotification builders.
 	CommentNotification *CommentNotificationClient
+	// DownstreamClientUser is the client for interacting with the DownstreamClientUser builders.
+	DownstreamClientUser *DownstreamClientUserClient
 	// Favorite is the client for interacting with the Favorite builders.
 	Favorite *FavoriteClient
 	// GitHubLPKUpdatePolicy is the client for interacting with the GitHubLPKUpdatePolicy builders.
@@ -154,6 +160,12 @@ type Client struct {
 	User *UserClient
 	// UserGroup is the client for interacting with the UserGroup builders.
 	UserGroup *UserGroupClient
+	// Wish is the client for interacting with the Wish builders.
+	Wish *WishClient
+	// WishReply is the client for interacting with the WishReply builders.
+	WishReply *WishReplyClient
+	// WishStatusEvent is the client for interacting with the WishStatusEvent builders.
+	WishStatusEvent *WishStatusEventClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -196,6 +208,7 @@ func (c *Client) init() {
 	c.CollectionApp = NewCollectionAppClient(c.config)
 	c.Comment = NewCommentClient(c.config)
 	c.CommentNotification = NewCommentNotificationClient(c.config)
+	c.DownstreamClientUser = NewDownstreamClientUserClient(c.config)
 	c.Favorite = NewFavoriteClient(c.config)
 	c.GitHubLPKUpdatePolicy = NewGitHubLPKUpdatePolicyClient(c.config)
 	c.GroupMember = NewGroupMemberClient(c.config)
@@ -209,6 +222,9 @@ func (c *Client) init() {
 	c.Tag = NewTagClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserGroup = NewUserGroupClient(c.config)
+	c.Wish = NewWishClient(c.config)
+	c.WishReply = NewWishReplyClient(c.config)
+	c.WishStatusEvent = NewWishStatusEventClient(c.config)
 }
 
 type (
@@ -332,6 +348,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		CollectionApp:         NewCollectionAppClient(cfg),
 		Comment:               NewCommentClient(cfg),
 		CommentNotification:   NewCommentNotificationClient(cfg),
+		DownstreamClientUser:  NewDownstreamClientUserClient(cfg),
 		Favorite:              NewFavoriteClient(cfg),
 		GitHubLPKUpdatePolicy: NewGitHubLPKUpdatePolicyClient(cfg),
 		GroupMember:           NewGroupMemberClient(cfg),
@@ -345,6 +362,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Tag:                   NewTagClient(cfg),
 		User:                  NewUserClient(cfg),
 		UserGroup:             NewUserGroupClient(cfg),
+		Wish:                  NewWishClient(cfg),
+		WishReply:             NewWishReplyClient(cfg),
+		WishStatusEvent:       NewWishStatusEventClient(cfg),
 	}, nil
 }
 
@@ -395,6 +415,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		CollectionApp:         NewCollectionAppClient(cfg),
 		Comment:               NewCommentClient(cfg),
 		CommentNotification:   NewCommentNotificationClient(cfg),
+		DownstreamClientUser:  NewDownstreamClientUserClient(cfg),
 		Favorite:              NewFavoriteClient(cfg),
 		GitHubLPKUpdatePolicy: NewGitHubLPKUpdatePolicyClient(cfg),
 		GroupMember:           NewGroupMemberClient(cfg),
@@ -408,6 +429,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Tag:                   NewTagClient(cfg),
 		User:                  NewUserClient(cfg),
 		UserGroup:             NewUserGroupClient(cfg),
+		Wish:                  NewWishClient(cfg),
+		WishReply:             NewWishReplyClient(cfg),
+		WishStatusEvent:       NewWishStatusEventClient(cfg),
 	}, nil
 }
 
@@ -444,9 +468,11 @@ func (c *Client) Use(hooks ...Hook) {
 		c.ClientInstallHistory, c.ClientSetting, c.ClientSource, c.ClientSourceApp,
 		c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
 		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
-		c.CommentNotification, c.Favorite, c.GitHubLPKUpdatePolicy, c.GroupMember,
-		c.LPKInspectionJob, c.MCPToken, c.OutdatedMark, c.RegistrationInvite,
-		c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
+		c.CommentNotification, c.DownstreamClientUser, c.Favorite,
+		c.GitHubLPKUpdatePolicy, c.GroupMember, c.LPKInspectionJob, c.MCPToken,
+		c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest, c.SiteSetting,
+		c.StorageConfig, c.Tag, c.User, c.UserGroup, c.Wish, c.WishReply,
+		c.WishStatusEvent,
 	} {
 		n.Use(hooks...)
 	}
@@ -463,9 +489,11 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.ClientInstallHistory, c.ClientSetting, c.ClientSource, c.ClientSourceApp,
 		c.ClientSyncSetting, c.Collaborator, c.CollaboratorInvite,
 		c.CollaboratorRequest, c.Collection, c.CollectionApp, c.Comment,
-		c.CommentNotification, c.Favorite, c.GitHubLPKUpdatePolicy, c.GroupMember,
-		c.LPKInspectionJob, c.MCPToken, c.OutdatedMark, c.RegistrationInvite,
-		c.ReviewRequest, c.SiteSetting, c.StorageConfig, c.Tag, c.User, c.UserGroup,
+		c.CommentNotification, c.DownstreamClientUser, c.Favorite,
+		c.GitHubLPKUpdatePolicy, c.GroupMember, c.LPKInspectionJob, c.MCPToken,
+		c.OutdatedMark, c.RegistrationInvite, c.ReviewRequest, c.SiteSetting,
+		c.StorageConfig, c.Tag, c.User, c.UserGroup, c.Wish, c.WishReply,
+		c.WishStatusEvent,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -536,6 +564,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Comment.mutate(ctx, m)
 	case *CommentNotificationMutation:
 		return c.CommentNotification.mutate(ctx, m)
+	case *DownstreamClientUserMutation:
+		return c.DownstreamClientUser.mutate(ctx, m)
 	case *FavoriteMutation:
 		return c.Favorite.mutate(ctx, m)
 	case *GitHubLPKUpdatePolicyMutation:
@@ -562,6 +592,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.User.mutate(ctx, m)
 	case *UserGroupMutation:
 		return c.UserGroup.mutate(ctx, m)
+	case *WishMutation:
+		return c.Wish.mutate(ctx, m)
+	case *WishReplyMutation:
+		return c.WishReply.mutate(ctx, m)
+	case *WishStatusEventMutation:
+		return c.WishStatusEvent.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -4738,6 +4774,139 @@ func (c *CommentNotificationClient) mutate(ctx context.Context, m *CommentNotifi
 	}
 }
 
+// DownstreamClientUserClient is a client for the DownstreamClientUser schema.
+type DownstreamClientUserClient struct {
+	config
+}
+
+// NewDownstreamClientUserClient returns a client for the DownstreamClientUser from the given config.
+func NewDownstreamClientUserClient(c config) *DownstreamClientUserClient {
+	return &DownstreamClientUserClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `downstreamclientuser.Hooks(f(g(h())))`.
+func (c *DownstreamClientUserClient) Use(hooks ...Hook) {
+	c.hooks.DownstreamClientUser = append(c.hooks.DownstreamClientUser, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `downstreamclientuser.Intercept(f(g(h())))`.
+func (c *DownstreamClientUserClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DownstreamClientUser = append(c.inters.DownstreamClientUser, interceptors...)
+}
+
+// Create returns a builder for creating a DownstreamClientUser entity.
+func (c *DownstreamClientUserClient) Create() *DownstreamClientUserCreate {
+	mutation := newDownstreamClientUserMutation(c.config, OpCreate)
+	return &DownstreamClientUserCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DownstreamClientUser entities.
+func (c *DownstreamClientUserClient) CreateBulk(builders ...*DownstreamClientUserCreate) *DownstreamClientUserCreateBulk {
+	return &DownstreamClientUserCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DownstreamClientUserClient) MapCreateBulk(slice any, setFunc func(*DownstreamClientUserCreate, int)) *DownstreamClientUserCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DownstreamClientUserCreateBulk{err: fmt.Errorf("calling to DownstreamClientUserClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DownstreamClientUserCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DownstreamClientUserCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DownstreamClientUser.
+func (c *DownstreamClientUserClient) Update() *DownstreamClientUserUpdate {
+	mutation := newDownstreamClientUserMutation(c.config, OpUpdate)
+	return &DownstreamClientUserUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DownstreamClientUserClient) UpdateOne(_m *DownstreamClientUser) *DownstreamClientUserUpdateOne {
+	mutation := newDownstreamClientUserMutation(c.config, OpUpdateOne, withDownstreamClientUser(_m))
+	return &DownstreamClientUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DownstreamClientUserClient) UpdateOneID(id int) *DownstreamClientUserUpdateOne {
+	mutation := newDownstreamClientUserMutation(c.config, OpUpdateOne, withDownstreamClientUserID(id))
+	return &DownstreamClientUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DownstreamClientUser.
+func (c *DownstreamClientUserClient) Delete() *DownstreamClientUserDelete {
+	mutation := newDownstreamClientUserMutation(c.config, OpDelete)
+	return &DownstreamClientUserDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DownstreamClientUserClient) DeleteOne(_m *DownstreamClientUser) *DownstreamClientUserDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DownstreamClientUserClient) DeleteOneID(id int) *DownstreamClientUserDeleteOne {
+	builder := c.Delete().Where(downstreamclientuser.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DownstreamClientUserDeleteOne{builder}
+}
+
+// Query returns a query builder for DownstreamClientUser.
+func (c *DownstreamClientUserClient) Query() *DownstreamClientUserQuery {
+	return &DownstreamClientUserQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDownstreamClientUser},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DownstreamClientUser entity by its id.
+func (c *DownstreamClientUserClient) Get(ctx context.Context, id int) (*DownstreamClientUser, error) {
+	return c.Query().Where(downstreamclientuser.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DownstreamClientUserClient) GetX(ctx context.Context, id int) *DownstreamClientUser {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DownstreamClientUserClient) Hooks() []Hook {
+	return c.hooks.DownstreamClientUser
+}
+
+// Interceptors returns the client interceptors.
+func (c *DownstreamClientUserClient) Interceptors() []Interceptor {
+	return c.inters.DownstreamClientUser
+}
+
+func (c *DownstreamClientUserClient) mutate(ctx context.Context, m *DownstreamClientUserMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DownstreamClientUserCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DownstreamClientUserUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DownstreamClientUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DownstreamClientUserDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DownstreamClientUser mutation op: %q", m.Op())
+	}
+}
+
 // FavoriteClient is a client for the Favorite schema.
 type FavoriteClient struct {
 	config
@@ -6483,6 +6652,405 @@ func (c *UserGroupClient) mutate(ctx context.Context, m *UserGroupMutation) (Val
 	}
 }
 
+// WishClient is a client for the Wish schema.
+type WishClient struct {
+	config
+}
+
+// NewWishClient returns a client for the Wish from the given config.
+func NewWishClient(c config) *WishClient {
+	return &WishClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `wish.Hooks(f(g(h())))`.
+func (c *WishClient) Use(hooks ...Hook) {
+	c.hooks.Wish = append(c.hooks.Wish, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `wish.Intercept(f(g(h())))`.
+func (c *WishClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Wish = append(c.inters.Wish, interceptors...)
+}
+
+// Create returns a builder for creating a Wish entity.
+func (c *WishClient) Create() *WishCreate {
+	mutation := newWishMutation(c.config, OpCreate)
+	return &WishCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Wish entities.
+func (c *WishClient) CreateBulk(builders ...*WishCreate) *WishCreateBulk {
+	return &WishCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WishClient) MapCreateBulk(slice any, setFunc func(*WishCreate, int)) *WishCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WishCreateBulk{err: fmt.Errorf("calling to WishClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WishCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WishCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Wish.
+func (c *WishClient) Update() *WishUpdate {
+	mutation := newWishMutation(c.config, OpUpdate)
+	return &WishUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WishClient) UpdateOne(_m *Wish) *WishUpdateOne {
+	mutation := newWishMutation(c.config, OpUpdateOne, withWish(_m))
+	return &WishUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WishClient) UpdateOneID(id int) *WishUpdateOne {
+	mutation := newWishMutation(c.config, OpUpdateOne, withWishID(id))
+	return &WishUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Wish.
+func (c *WishClient) Delete() *WishDelete {
+	mutation := newWishMutation(c.config, OpDelete)
+	return &WishDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WishClient) DeleteOne(_m *Wish) *WishDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WishClient) DeleteOneID(id int) *WishDeleteOne {
+	builder := c.Delete().Where(wish.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WishDeleteOne{builder}
+}
+
+// Query returns a query builder for Wish.
+func (c *WishClient) Query() *WishQuery {
+	return &WishQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWish},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Wish entity by its id.
+func (c *WishClient) Get(ctx context.Context, id int) (*Wish, error) {
+	return c.Query().Where(wish.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WishClient) GetX(ctx context.Context, id int) *Wish {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WishClient) Hooks() []Hook {
+	return c.hooks.Wish
+}
+
+// Interceptors returns the client interceptors.
+func (c *WishClient) Interceptors() []Interceptor {
+	return c.inters.Wish
+}
+
+func (c *WishClient) mutate(ctx context.Context, m *WishMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WishCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WishUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WishUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WishDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Wish mutation op: %q", m.Op())
+	}
+}
+
+// WishReplyClient is a client for the WishReply schema.
+type WishReplyClient struct {
+	config
+}
+
+// NewWishReplyClient returns a client for the WishReply from the given config.
+func NewWishReplyClient(c config) *WishReplyClient {
+	return &WishReplyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `wishreply.Hooks(f(g(h())))`.
+func (c *WishReplyClient) Use(hooks ...Hook) {
+	c.hooks.WishReply = append(c.hooks.WishReply, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `wishreply.Intercept(f(g(h())))`.
+func (c *WishReplyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WishReply = append(c.inters.WishReply, interceptors...)
+}
+
+// Create returns a builder for creating a WishReply entity.
+func (c *WishReplyClient) Create() *WishReplyCreate {
+	mutation := newWishReplyMutation(c.config, OpCreate)
+	return &WishReplyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WishReply entities.
+func (c *WishReplyClient) CreateBulk(builders ...*WishReplyCreate) *WishReplyCreateBulk {
+	return &WishReplyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WishReplyClient) MapCreateBulk(slice any, setFunc func(*WishReplyCreate, int)) *WishReplyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WishReplyCreateBulk{err: fmt.Errorf("calling to WishReplyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WishReplyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WishReplyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WishReply.
+func (c *WishReplyClient) Update() *WishReplyUpdate {
+	mutation := newWishReplyMutation(c.config, OpUpdate)
+	return &WishReplyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WishReplyClient) UpdateOne(_m *WishReply) *WishReplyUpdateOne {
+	mutation := newWishReplyMutation(c.config, OpUpdateOne, withWishReply(_m))
+	return &WishReplyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WishReplyClient) UpdateOneID(id int) *WishReplyUpdateOne {
+	mutation := newWishReplyMutation(c.config, OpUpdateOne, withWishReplyID(id))
+	return &WishReplyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WishReply.
+func (c *WishReplyClient) Delete() *WishReplyDelete {
+	mutation := newWishReplyMutation(c.config, OpDelete)
+	return &WishReplyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WishReplyClient) DeleteOne(_m *WishReply) *WishReplyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WishReplyClient) DeleteOneID(id int) *WishReplyDeleteOne {
+	builder := c.Delete().Where(wishreply.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WishReplyDeleteOne{builder}
+}
+
+// Query returns a query builder for WishReply.
+func (c *WishReplyClient) Query() *WishReplyQuery {
+	return &WishReplyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWishReply},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WishReply entity by its id.
+func (c *WishReplyClient) Get(ctx context.Context, id int) (*WishReply, error) {
+	return c.Query().Where(wishreply.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WishReplyClient) GetX(ctx context.Context, id int) *WishReply {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WishReplyClient) Hooks() []Hook {
+	return c.hooks.WishReply
+}
+
+// Interceptors returns the client interceptors.
+func (c *WishReplyClient) Interceptors() []Interceptor {
+	return c.inters.WishReply
+}
+
+func (c *WishReplyClient) mutate(ctx context.Context, m *WishReplyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WishReplyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WishReplyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WishReplyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WishReplyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WishReply mutation op: %q", m.Op())
+	}
+}
+
+// WishStatusEventClient is a client for the WishStatusEvent schema.
+type WishStatusEventClient struct {
+	config
+}
+
+// NewWishStatusEventClient returns a client for the WishStatusEvent from the given config.
+func NewWishStatusEventClient(c config) *WishStatusEventClient {
+	return &WishStatusEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `wishstatusevent.Hooks(f(g(h())))`.
+func (c *WishStatusEventClient) Use(hooks ...Hook) {
+	c.hooks.WishStatusEvent = append(c.hooks.WishStatusEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `wishstatusevent.Intercept(f(g(h())))`.
+func (c *WishStatusEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.WishStatusEvent = append(c.inters.WishStatusEvent, interceptors...)
+}
+
+// Create returns a builder for creating a WishStatusEvent entity.
+func (c *WishStatusEventClient) Create() *WishStatusEventCreate {
+	mutation := newWishStatusEventMutation(c.config, OpCreate)
+	return &WishStatusEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of WishStatusEvent entities.
+func (c *WishStatusEventClient) CreateBulk(builders ...*WishStatusEventCreate) *WishStatusEventCreateBulk {
+	return &WishStatusEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *WishStatusEventClient) MapCreateBulk(slice any, setFunc func(*WishStatusEventCreate, int)) *WishStatusEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &WishStatusEventCreateBulk{err: fmt.Errorf("calling to WishStatusEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*WishStatusEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &WishStatusEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for WishStatusEvent.
+func (c *WishStatusEventClient) Update() *WishStatusEventUpdate {
+	mutation := newWishStatusEventMutation(c.config, OpUpdate)
+	return &WishStatusEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *WishStatusEventClient) UpdateOne(_m *WishStatusEvent) *WishStatusEventUpdateOne {
+	mutation := newWishStatusEventMutation(c.config, OpUpdateOne, withWishStatusEvent(_m))
+	return &WishStatusEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *WishStatusEventClient) UpdateOneID(id int) *WishStatusEventUpdateOne {
+	mutation := newWishStatusEventMutation(c.config, OpUpdateOne, withWishStatusEventID(id))
+	return &WishStatusEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for WishStatusEvent.
+func (c *WishStatusEventClient) Delete() *WishStatusEventDelete {
+	mutation := newWishStatusEventMutation(c.config, OpDelete)
+	return &WishStatusEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *WishStatusEventClient) DeleteOne(_m *WishStatusEvent) *WishStatusEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *WishStatusEventClient) DeleteOneID(id int) *WishStatusEventDeleteOne {
+	builder := c.Delete().Where(wishstatusevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &WishStatusEventDeleteOne{builder}
+}
+
+// Query returns a query builder for WishStatusEvent.
+func (c *WishStatusEventClient) Query() *WishStatusEventQuery {
+	return &WishStatusEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeWishStatusEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a WishStatusEvent entity by its id.
+func (c *WishStatusEventClient) Get(ctx context.Context, id int) (*WishStatusEvent, error) {
+	return c.Query().Where(wishstatusevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *WishStatusEventClient) GetX(ctx context.Context, id int) *WishStatusEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *WishStatusEventClient) Hooks() []Hook {
+	return c.hooks.WishStatusEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *WishStatusEventClient) Interceptors() []Interceptor {
+	return c.inters.WishStatusEvent
+}
+
+func (c *WishStatusEventClient) mutate(ctx context.Context, m *WishStatusEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&WishStatusEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&WishStatusEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&WishStatusEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&WishStatusEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown WishStatusEvent mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
@@ -6492,9 +7060,10 @@ type (
 		ClientAssetLink, ClientInstallHistory, ClientSetting, ClientSource,
 		ClientSourceApp, ClientSyncSetting, Collaborator, CollaboratorInvite,
 		CollaboratorRequest, Collection, CollectionApp, Comment, CommentNotification,
-		Favorite, GitHubLPKUpdatePolicy, GroupMember, LPKInspectionJob, MCPToken,
-		OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig,
-		Tag, User, UserGroup []ent.Hook
+		DownstreamClientUser, Favorite, GitHubLPKUpdatePolicy, GroupMember,
+		LPKInspectionJob, MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest,
+		SiteSetting, StorageConfig, Tag, User, UserGroup, Wish, WishReply,
+		WishStatusEvent []ent.Hook
 	}
 	inters struct {
 		APIToken, Ad, Announcement, App, AppDownload, AppScreenshot, AppTag, AppVersion,
@@ -6503,8 +7072,9 @@ type (
 		ClientAssetLink, ClientInstallHistory, ClientSetting, ClientSource,
 		ClientSourceApp, ClientSyncSetting, Collaborator, CollaboratorInvite,
 		CollaboratorRequest, Collection, CollectionApp, Comment, CommentNotification,
-		Favorite, GitHubLPKUpdatePolicy, GroupMember, LPKInspectionJob, MCPToken,
-		OutdatedMark, RegistrationInvite, ReviewRequest, SiteSetting, StorageConfig,
-		Tag, User, UserGroup []ent.Interceptor
+		DownstreamClientUser, Favorite, GitHubLPKUpdatePolicy, GroupMember,
+		LPKInspectionJob, MCPToken, OutdatedMark, RegistrationInvite, ReviewRequest,
+		SiteSetting, StorageConfig, Tag, User, UserGroup, Wish, WishReply,
+		WishStatusEvent []ent.Interceptor
 	}
 )
