@@ -820,24 +820,30 @@ func init() {
 	clientsourceappDescOutdatedMarks := clientsourceappFields[20].Descriptor()
 	// clientsourceapp.DefaultOutdatedMarks holds the default value on creation for the outdated_marks field.
 	clientsourceapp.DefaultOutdatedMarks = clientsourceappDescOutdatedMarks.Default.(int)
+	// clientsourceappDescDownloadCount is the schema descriptor for download_count field.
+	clientsourceappDescDownloadCount := clientsourceappFields[21].Descriptor()
+	// clientsourceapp.DefaultDownloadCount holds the default value on creation for the download_count field.
+	clientsourceapp.DefaultDownloadCount = clientsourceappDescDownloadCount.Default.(int)
+	// clientsourceapp.DownloadCountValidator is a validator for the "download_count" field. It is called by the builders before save.
+	clientsourceapp.DownloadCountValidator = clientsourceappDescDownloadCount.Validators[0].(func(int) error)
 	// clientsourceappDescScreenshotsJSON is the schema descriptor for screenshots_json field.
-	clientsourceappDescScreenshotsJSON := clientsourceappFields[21].Descriptor()
+	clientsourceappDescScreenshotsJSON := clientsourceappFields[22].Descriptor()
 	// clientsourceapp.DefaultScreenshotsJSON holds the default value on creation for the screenshots_json field.
 	clientsourceapp.DefaultScreenshotsJSON = clientsourceappDescScreenshotsJSON.Default.(string)
 	// clientsourceappDescLatestVersionJSON is the schema descriptor for latest_version_json field.
-	clientsourceappDescLatestVersionJSON := clientsourceappFields[22].Descriptor()
+	clientsourceappDescLatestVersionJSON := clientsourceappFields[23].Descriptor()
 	// clientsourceapp.DefaultLatestVersionJSON holds the default value on creation for the latest_version_json field.
 	clientsourceapp.DefaultLatestVersionJSON = clientsourceappDescLatestVersionJSON.Default.(string)
 	// clientsourceappDescVersionsJSON is the schema descriptor for versions_json field.
-	clientsourceappDescVersionsJSON := clientsourceappFields[23].Descriptor()
+	clientsourceappDescVersionsJSON := clientsourceappFields[24].Descriptor()
 	// clientsourceapp.DefaultVersionsJSON holds the default value on creation for the versions_json field.
 	clientsourceapp.DefaultVersionsJSON = clientsourceappDescVersionsJSON.Default.(string)
 	// clientsourceappDescCreatedAt is the schema descriptor for created_at field.
-	clientsourceappDescCreatedAt := clientsourceappFields[24].Descriptor()
+	clientsourceappDescCreatedAt := clientsourceappFields[25].Descriptor()
 	// clientsourceapp.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsourceapp.DefaultCreatedAt = clientsourceappDescCreatedAt.Default.(func() time.Time)
 	// clientsourceappDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsourceappDescUpdatedAt := clientsourceappFields[25].Descriptor()
+	clientsourceappDescUpdatedAt := clientsourceappFields[26].Descriptor()
 	// clientsourceapp.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsourceapp.DefaultUpdatedAt = clientsourceappDescUpdatedAt.Default.(func() time.Time)
 	// clientsourceapp.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

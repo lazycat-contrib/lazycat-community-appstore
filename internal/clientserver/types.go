@@ -142,6 +142,7 @@ type SourceAppDTO struct {
 	InstallProtected bool                     `json:"installProtected"`
 	CommentsEnabled  bool                     `json:"commentsEnabled"`
 	OutdatedMarks    int                      `json:"outdatedMarks,omitempty"`
+	DownloadCount    int                      `json:"downloadCount,omitempty"`
 	Screenshots      []catalogmeta.Screenshot `json:"screenshots,omitempty"`
 	LatestVersion    *VersionDTO              `json:"latestVersion,omitempty"`
 	Versions         []VersionDTO             `json:"versions,omitempty"`

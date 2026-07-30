@@ -332,6 +332,7 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 				"name":            "Notes",
 				"slug":            "notes",
 				"summary":         "Write notes",
+				"downloadCount":   27,
 				"updatedAt":       "2026-07-15T05:04:03Z",
 				"author":          "LazyCat Community",
 				"homepage":        "https://example.com/notes",
@@ -393,6 +394,9 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	if !strings.Contains(body, `"updatedAt":"2026-07-15T05:04:03Z"`) {
 		t.Fatalf("cached app did not expose source update time: %s", body)
 	}
+	if !strings.Contains(body, `"downloadCount":27`) {
+		t.Fatalf("cached app did not expose download count: %s", body)
+	}
 	if !strings.Contains(body, `"publishedAt":"2026-07-15T04:03:02Z"`) {
 		t.Fatalf("cached app did not expose software update time: %s", body)
 	}
@@ -400,6 +404,9 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 		t.Fatalf("cached app did not expose software update fallback time: %s", body)
 	}
 	record := app.server.db.ClientSourceApp.Query().OnlyX(t.Context())
+	if record.DownloadCount != 27 {
+		t.Fatalf("cached download count = %d, want 27", record.DownloadCount)
+	}
 	if got := record.UpdatedAt.UTC().Format(time.RFC3339); got != "2026-07-15T05:04:03Z" {
 		t.Fatalf("cached update time = %q", got)
 	}

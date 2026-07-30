@@ -160,6 +160,7 @@ func (s *Server) buildSourceFeed(ctx context.Context, version int, scope sourceF
 			InstallProtected: record.InstallPasswordHash != "",
 			CommentsEnabled:  &commentsEnabled,
 			OutdatedMarks:    preload.outdatedMarks[record.ID],
+			DownloadCount:    max(record.DownloadCount, 0),
 			Screenshots:      preload.screenshots[record.ID],
 			Submitter:        preload.submitters[record.OwnerID],
 			Versions:         preload.versions[record.ID],

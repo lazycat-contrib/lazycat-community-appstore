@@ -107,6 +107,7 @@ type AppInput struct {
 	InstallProtected bool                     `json:"installProtected"`
 	CommentsEnabled  *bool                    `json:"commentsEnabled,omitempty"`
 	OutdatedMarks    int                      `json:"outdatedMarks,omitempty"`
+	DownloadCount    int                      `json:"downloadCount,omitempty"`
 	UpdatedAt        time.Time                `json:"updatedAt"`
 	Versions         []VersionInput           `json:"versions"`
 }
@@ -147,6 +148,7 @@ type App struct {
 	InstallProtected bool                     `json:"installProtected"`
 	CommentsEnabled  bool                     `json:"commentsEnabled"`
 	OutdatedMarks    int                      `json:"outdatedMarks,omitempty"`
+	DownloadCount    int                      `json:"downloadCount,omitempty"`
 	UpdatedAt        time.Time                `json:"updatedAt"`
 	LatestVersion    Version                  `json:"latestVersion"`
 	Versions         []Version                `json:"versions"`
@@ -196,6 +198,7 @@ func BuildApp(inApp AppInput) (App, bool) {
 		InstallProtected: inApp.InstallProtected,
 		CommentsEnabled:  commentsEnabled,
 		OutdatedMarks:    inApp.OutdatedMarks,
+		DownloadCount:    max(inApp.DownloadCount, 0),
 		UpdatedAt:        inApp.UpdatedAt,
 		LatestVersion:    versions[0],
 		Versions:         versions,

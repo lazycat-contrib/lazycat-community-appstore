@@ -18719,6 +18719,8 @@ type ClientSourceAppMutation struct {
 	comments_enabled      *bool
 	outdated_marks        *int
 	addoutdated_marks     *int
+	download_count        *int
+	adddownload_count     *int
 	screenshots_json      *string
 	latest_version_json   *string
 	versions_json         *string
@@ -19640,6 +19642,62 @@ func (m *ClientSourceAppMutation) ResetOutdatedMarks() {
 	m.addoutdated_marks = nil
 }
 
+// SetDownloadCount sets the "download_count" field.
+func (m *ClientSourceAppMutation) SetDownloadCount(i int) {
+	m.download_count = &i
+	m.adddownload_count = nil
+}
+
+// DownloadCount returns the value of the "download_count" field in the mutation.
+func (m *ClientSourceAppMutation) DownloadCount() (r int, exists bool) {
+	v := m.download_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDownloadCount returns the old "download_count" field's value of the ClientSourceApp entity.
+// If the ClientSourceApp object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceAppMutation) OldDownloadCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDownloadCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDownloadCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDownloadCount: %w", err)
+	}
+	return oldValue.DownloadCount, nil
+}
+
+// AddDownloadCount adds i to the "download_count" field.
+func (m *ClientSourceAppMutation) AddDownloadCount(i int) {
+	if m.adddownload_count != nil {
+		*m.adddownload_count += i
+	} else {
+		m.adddownload_count = &i
+	}
+}
+
+// AddedDownloadCount returns the value that was added to the "download_count" field in this mutation.
+func (m *ClientSourceAppMutation) AddedDownloadCount() (r int, exists bool) {
+	v := m.adddownload_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDownloadCount resets all changes to the "download_count" field.
+func (m *ClientSourceAppMutation) ResetDownloadCount() {
+	m.download_count = nil
+	m.adddownload_count = nil
+}
+
 // SetScreenshotsJSON sets the "screenshots_json" field.
 func (m *ClientSourceAppMutation) SetScreenshotsJSON(s string) {
 	m.screenshots_json = &s
@@ -19881,7 +19939,7 @@ func (m *ClientSourceAppMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceAppMutation) Fields() []string {
-	fields := make([]string, 0, 26)
+	fields := make([]string, 0, 27)
 	if m.source != nil {
 		fields = append(fields, clientsourceapp.FieldSourceID)
 	}
@@ -19944,6 +20002,9 @@ func (m *ClientSourceAppMutation) Fields() []string {
 	}
 	if m.outdated_marks != nil {
 		fields = append(fields, clientsourceapp.FieldOutdatedMarks)
+	}
+	if m.download_count != nil {
+		fields = append(fields, clientsourceapp.FieldDownloadCount)
 	}
 	if m.screenshots_json != nil {
 		fields = append(fields, clientsourceapp.FieldScreenshotsJSON)
@@ -20010,6 +20071,8 @@ func (m *ClientSourceAppMutation) Field(name string) (ent.Value, bool) {
 		return m.CommentsEnabled()
 	case clientsourceapp.FieldOutdatedMarks:
 		return m.OutdatedMarks()
+	case clientsourceapp.FieldDownloadCount:
+		return m.DownloadCount()
 	case clientsourceapp.FieldScreenshotsJSON:
 		return m.ScreenshotsJSON()
 	case clientsourceapp.FieldLatestVersionJSON:
@@ -20071,6 +20134,8 @@ func (m *ClientSourceAppMutation) OldField(ctx context.Context, name string) (en
 		return m.OldCommentsEnabled(ctx)
 	case clientsourceapp.FieldOutdatedMarks:
 		return m.OldOutdatedMarks(ctx)
+	case clientsourceapp.FieldDownloadCount:
+		return m.OldDownloadCount(ctx)
 	case clientsourceapp.FieldScreenshotsJSON:
 		return m.OldScreenshotsJSON(ctx)
 	case clientsourceapp.FieldLatestVersionJSON:
@@ -20237,6 +20302,13 @@ func (m *ClientSourceAppMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetOutdatedMarks(v)
 		return nil
+	case clientsourceapp.FieldDownloadCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDownloadCount(v)
+		return nil
 	case clientsourceapp.FieldScreenshotsJSON:
 		v, ok := value.(string)
 		if !ok {
@@ -20286,6 +20358,9 @@ func (m *ClientSourceAppMutation) AddedFields() []string {
 	if m.addoutdated_marks != nil {
 		fields = append(fields, clientsourceapp.FieldOutdatedMarks)
 	}
+	if m.adddownload_count != nil {
+		fields = append(fields, clientsourceapp.FieldDownloadCount)
+	}
 	return fields
 }
 
@@ -20298,6 +20373,8 @@ func (m *ClientSourceAppMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCategoryID()
 	case clientsourceapp.FieldOutdatedMarks:
 		return m.AddedOutdatedMarks()
+	case clientsourceapp.FieldDownloadCount:
+		return m.AddedDownloadCount()
 	}
 	return nil, false
 }
@@ -20320,6 +20397,13 @@ func (m *ClientSourceAppMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddOutdatedMarks(v)
+		return nil
+	case clientsourceapp.FieldDownloadCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDownloadCount(v)
 		return nil
 	}
 	return fmt.Errorf("unknown ClientSourceApp numeric field %s", name)
@@ -20419,6 +20503,9 @@ func (m *ClientSourceAppMutation) ResetField(name string) error {
 		return nil
 	case clientsourceapp.FieldOutdatedMarks:
 		m.ResetOutdatedMarks()
+		return nil
+	case clientsourceapp.FieldDownloadCount:
+		m.ResetDownloadCount()
 		return nil
 	case clientsourceapp.FieldScreenshotsJSON:
 		m.ResetScreenshotsJSON()

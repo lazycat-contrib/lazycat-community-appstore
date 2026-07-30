@@ -438,6 +438,7 @@ export type SourceApp = {
   installProtected?: boolean;
   commentsEnabled?: boolean;
   outdatedMarks?: number;
+  downloadCount?: number;
   updatedAt?: string;
   screenshots?: Screenshot[];
   latestVersion?: SourceVersion;

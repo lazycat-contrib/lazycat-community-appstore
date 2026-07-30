@@ -160,6 +160,11 @@ func OutdatedMarks(v int) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldOutdatedMarks, v))
 }
 
+// DownloadCount applies equality check predicate on the "download_count" field. It's identical to DownloadCountEQ.
+func DownloadCount(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldDownloadCount, v))
+}
+
 // ScreenshotsJSON applies equality check predicate on the "screenshots_json" field. It's identical to ScreenshotsJSONEQ.
 func ScreenshotsJSON(v string) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldEQ(FieldScreenshotsJSON, v))
@@ -1353,6 +1358,46 @@ func OutdatedMarksLT(v int) predicate.ClientSourceApp {
 // OutdatedMarksLTE applies the LTE predicate on the "outdated_marks" field.
 func OutdatedMarksLTE(v int) predicate.ClientSourceApp {
 	return predicate.ClientSourceApp(sql.FieldLTE(FieldOutdatedMarks, v))
+}
+
+// DownloadCountEQ applies the EQ predicate on the "download_count" field.
+func DownloadCountEQ(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldEQ(FieldDownloadCount, v))
+}
+
+// DownloadCountNEQ applies the NEQ predicate on the "download_count" field.
+func DownloadCountNEQ(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNEQ(FieldDownloadCount, v))
+}
+
+// DownloadCountIn applies the In predicate on the "download_count" field.
+func DownloadCountIn(vs ...int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldIn(FieldDownloadCount, vs...))
+}
+
+// DownloadCountNotIn applies the NotIn predicate on the "download_count" field.
+func DownloadCountNotIn(vs ...int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldNotIn(FieldDownloadCount, vs...))
+}
+
+// DownloadCountGT applies the GT predicate on the "download_count" field.
+func DownloadCountGT(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGT(FieldDownloadCount, v))
+}
+
+// DownloadCountGTE applies the GTE predicate on the "download_count" field.
+func DownloadCountGTE(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldGTE(FieldDownloadCount, v))
+}
+
+// DownloadCountLT applies the LT predicate on the "download_count" field.
+func DownloadCountLT(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLT(FieldDownloadCount, v))
+}
+
+// DownloadCountLTE applies the LTE predicate on the "download_count" field.
+func DownloadCountLTE(v int) predicate.ClientSourceApp {
+	return predicate.ClientSourceApp(sql.FieldLTE(FieldDownloadCount, v))
 }
 
 // ScreenshotsJSONEQ applies the EQ predicate on the "screenshots_json" field.

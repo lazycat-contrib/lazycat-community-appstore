@@ -36,6 +36,7 @@ func (ClientSourceApp) Fields() []ent.Field {
 		field.Bool("install_protected").Default(false),
 		field.Bool("comments_enabled").Default(true),
 		field.Int("outdated_marks").Default(0),
+		field.Int("download_count").Default(0).NonNegative(),
 		field.Text("screenshots_json").Default(""),
 		field.Text("latest_version_json").Default(""),
 		field.Text("versions_json").Default(""),

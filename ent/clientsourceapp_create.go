@@ -283,6 +283,20 @@ func (_c *ClientSourceAppCreate) SetNillableOutdatedMarks(v *int) *ClientSourceA
 	return _c
 }
 
+// SetDownloadCount sets the "download_count" field.
+func (_c *ClientSourceAppCreate) SetDownloadCount(v int) *ClientSourceAppCreate {
+	_c.mutation.SetDownloadCount(v)
+	return _c
+}
+
+// SetNillableDownloadCount sets the "download_count" field if the given value is not nil.
+func (_c *ClientSourceAppCreate) SetNillableDownloadCount(v *int) *ClientSourceAppCreate {
+	if v != nil {
+		_c.SetDownloadCount(*v)
+	}
+	return _c
+}
+
 // SetScreenshotsJSON sets the "screenshots_json" field.
 func (_c *ClientSourceAppCreate) SetScreenshotsJSON(v string) *ClientSourceAppCreate {
 	_c.mutation.SetScreenshotsJSON(v)
@@ -457,6 +471,10 @@ func (_c *ClientSourceAppCreate) defaults() {
 		v := clientsourceapp.DefaultOutdatedMarks
 		_c.mutation.SetOutdatedMarks(v)
 	}
+	if _, ok := _c.mutation.DownloadCount(); !ok {
+		v := clientsourceapp.DefaultDownloadCount
+		_c.mutation.SetDownloadCount(v)
+	}
 	if _, ok := _c.mutation.ScreenshotsJSON(); !ok {
 		v := clientsourceapp.DefaultScreenshotsJSON
 		_c.mutation.SetScreenshotsJSON(v)
@@ -555,6 +573,14 @@ func (_c *ClientSourceAppCreate) check() error {
 	}
 	if _, ok := _c.mutation.OutdatedMarks(); !ok {
 		return &ValidationError{Name: "outdated_marks", err: errors.New(`ent: missing required field "ClientSourceApp.outdated_marks"`)}
+	}
+	if _, ok := _c.mutation.DownloadCount(); !ok {
+		return &ValidationError{Name: "download_count", err: errors.New(`ent: missing required field "ClientSourceApp.download_count"`)}
+	}
+	if v, ok := _c.mutation.DownloadCount(); ok {
+		if err := clientsourceapp.DownloadCountValidator(v); err != nil {
+			return &ValidationError{Name: "download_count", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.download_count": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.ScreenshotsJSON(); !ok {
 		return &ValidationError{Name: "screenshots_json", err: errors.New(`ent: missing required field "ClientSourceApp.screenshots_json"`)}
@@ -679,6 +705,10 @@ func (_c *ClientSourceAppCreate) createSpec() (*ClientSourceApp, *sqlgraph.Creat
 	if value, ok := _c.mutation.OutdatedMarks(); ok {
 		_spec.SetField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)
 		_node.OutdatedMarks = value
+	}
+	if value, ok := _c.mutation.DownloadCount(); ok {
+		_spec.SetField(clientsourceapp.FieldDownloadCount, field.TypeInt, value)
+		_node.DownloadCount = value
 	}
 	if value, ok := _c.mutation.ScreenshotsJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldScreenshotsJSON, field.TypeString, value)

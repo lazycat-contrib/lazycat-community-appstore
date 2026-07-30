@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	currentClientSchemaVersion = 3
+	currentClientSchemaVersion = 4
 	systemClientUserID         = "_system"
 	settingClientSchemaVersion = "schema_version"
 )
@@ -42,6 +42,14 @@ func migrateSchema(ctx context.Context, db *ent.Client) error {
 			return err
 		}
 		if err := setSystemClientSetting(ctx, db, settingClientSchemaVersion, "3"); err != nil {
+			return err
+		}
+	}
+	if version < 4 {
+		if err := server.invalidateSourceFeedETags(ctx); err != nil {
+			return err
+		}
+		if err := setSystemClientSetting(ctx, db, settingClientSchemaVersion, "4"); err != nil {
 			return err
 		}
 	}
@@ -81,6 +89,11 @@ func (s *Server) invalidateLegacySourceUpdateTimes(ctx context.Context) error {
 	if _, err := s.db.ClientSourceApp.Update().SetUpdatedAt(time.Unix(0, 0).UTC()).Save(ctx); err != nil {
 		return err
 	}
+	_, err := s.db.ClientSource.Update().SetLastEtag("").Save(ctx)
+	return err
+}
+
+func (s *Server) invalidateSourceFeedETags(ctx context.Context) error {
 	_, err := s.db.ClientSource.Update().SetLastEtag("").Save(ctx)
 	return err
 }

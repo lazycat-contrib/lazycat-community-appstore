@@ -245,7 +245,7 @@ export function App() {
   const [clientCatalogState, setClientCatalogState] = useState<ClientCatalogViewState>({
     filters: [],
     selectedCategoryFilter: 'all',
-    sortMode: 'default',
+		sortMode: 'recent',
     page: 1,
     pageSize: DEFAULT_CLIENT_PAGE_SIZE,
   });

@@ -52,6 +52,7 @@ type feedApp struct {
 	InstallProtected bool                     `json:"installProtected"`
 	CommentsEnabled  *bool                    `json:"commentsEnabled"`
 	OutdatedMarks    int                      `json:"outdatedMarks"`
+	DownloadCount    int                      `json:"downloadCount"`
 	Screenshots      []catalogmeta.Screenshot `json:"screenshots"`
 	LatestVersion    *VersionDTO              `json:"latestVersion"`
 	Versions         []VersionDTO             `json:"versions"`
@@ -388,6 +389,7 @@ type sourceAppCacheRow struct {
 	InstallProtected    bool
 	CommentsEnabled     bool
 	OutdatedMarks       int
+	DownloadCount       int
 	ScreenshotsJSON     string
 	LatestVersionJSON   string
 	VersionsJSON        string
@@ -449,6 +451,7 @@ func buildSourceAppCacheRow(app feedApp) (sourceAppCacheRow, error) {
 		InstallProtected:    app.InstallProtected,
 		CommentsEnabled:     commentsEnabled,
 		OutdatedMarks:       app.OutdatedMarks,
+		DownloadCount:       max(app.DownloadCount, 0),
 		ScreenshotsJSON:     screenshotsJSON,
 		LatestVersionJSON:   versionJSON,
 		VersionsJSON:        versionsJSON,
@@ -479,6 +482,7 @@ func sourceAppCreateBuilder(tx *ent.Tx, sourceID int, row sourceAppCacheRow) *en
 		SetInstallProtected(row.InstallProtected).
 		SetCommentsEnabled(row.CommentsEnabled).
 		SetOutdatedMarks(row.OutdatedMarks).
+		SetDownloadCount(row.DownloadCount).
 		SetScreenshotsJSON(row.ScreenshotsJSON).
 		SetLatestVersionJSON(row.LatestVersionJSON).
 		SetVersionsJSON(row.VersionsJSON).

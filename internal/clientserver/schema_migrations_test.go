@@ -46,7 +46,45 @@ func TestMigrateSchemaV3InvalidatesLegacySourceUpdateTimes(t *testing.T) {
 	if migratedSource.LastEtag != "" {
 		t.Fatalf("last_etag = %q, want empty", migratedSource.LastEtag)
 	}
-	if got := storedClientSchemaVersion(ctx, client); got != 3 {
-		t.Fatalf("schema version = %d, want 3", got)
+	if got := storedClientSchemaVersion(ctx, client); got != currentClientSchemaVersion {
+		t.Fatalf("schema version = %d, want %d", got, currentClientSchemaVersion)
+	}
+}
+
+func TestMigrateSchemaV4InvalidatesSourceETagsWithoutChangingAppUpdateTimes(t *testing.T) {
+	ctx := context.Background()
+	client := testClient(t)
+	t.Cleanup(func() { _ = client.Close() })
+
+	source := client.ClientSource.Create().
+		SetUserID("alice").
+		SetName("Community").
+		SetURL("https://store.example/source/v2/index.json").
+		SetLastEtag(`"download-count-missing"`).
+		SaveX(ctx)
+	updatedAt := time.Date(2026, 7, 30, 12, 0, 0, 0, time.UTC)
+	client.ClientSourceApp.Create().
+		SetSourceID(source.ID).
+		SetPackageID("cloud.lazycat.app.notes").
+		SetName("Notes").
+		SetSlug("notes").
+		SetUpdatedAt(updatedAt).
+		SaveX(ctx)
+	if err := setSystemClientSetting(ctx, client, settingClientSchemaVersion, "3"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := migrateSchema(ctx, client); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := client.ClientSource.GetX(ctx, source.ID).LastEtag; got != "" {
+		t.Fatalf("last_etag = %q, want empty", got)
+	}
+	if got := client.ClientSourceApp.Query().OnlyX(ctx).UpdatedAt; !got.Equal(updatedAt) {
+		t.Fatalf("updated_at = %s, want %s", got, updatedAt)
+	}
+	if got := storedClientSchemaVersion(ctx, client); got != 4 {
+		t.Fatalf("schema version = %d, want 4", got)
 	}
 }

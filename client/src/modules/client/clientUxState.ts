@@ -21,10 +21,11 @@ export function requiresInstallOptions({
   return !confirmed && mirrorOptionCount > 0;
 }
 
-export type ClientCatalogSortMode = 'default' | 'recent' | 'name' | 'source';
+export type ClientCatalogSortMode = 'recent' | 'downloads' | 'name' | 'source';
 
 type SortableSourceApp = {
   sourceName: string;
+  downloadCount?: number;
   updatedAt?: string;
   latestVersion?: {
     publishedAt?: string;
@@ -37,8 +38,13 @@ export function sortClientCatalogApps<T extends SortableSourceApp>(
   mode: ClientCatalogSortMode,
   displayName: (app: T) => string,
 ) {
-  if (mode === 'default') return [...apps];
   return [...apps].sort((a, b) => {
+	if (mode === 'downloads') {
+	  const downloadDelta = Math.max(0, Number(b.downloadCount) || 0) - Math.max(0, Number(a.downloadCount) || 0);
+	  if (downloadDelta !== 0) return downloadDelta;
+	  const timeDelta = softwareUpdatedAtMillis(b) - softwareUpdatedAtMillis(a);
+	  if (timeDelta !== 0) return timeDelta;
+	}
     if (mode === 'recent') {
       const timeDelta = softwareUpdatedAtMillis(b) - softwareUpdatedAtMillis(a);
       if (timeDelta !== 0) return timeDelta;

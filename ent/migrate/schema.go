@@ -773,6 +773,7 @@ var (
 		{Name: "install_protected", Type: field.TypeBool, Default: false},
 		{Name: "comments_enabled", Type: field.TypeBool, Default: true},
 		{Name: "outdated_marks", Type: field.TypeInt, Default: 0},
+		{Name: "download_count", Type: field.TypeInt, Default: 0},
 		{Name: "screenshots_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "latest_version_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "versions_json", Type: field.TypeString, Size: 2147483647, Default: ""},
@@ -788,7 +789,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "client_source_apps_client_sources_apps",
-				Columns:    []*schema.Column{ClientSourceAppsColumns[26]},
+				Columns:    []*schema.Column{ClientSourceAppsColumns[27]},
 				RefColumns: []*schema.Column{ClientSourcesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -797,12 +798,12 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_package_id",
 				Unique:  true,
-				Columns: []*schema.Column{ClientSourceAppsColumns[26], ClientSourceAppsColumns[2]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[27], ClientSourceAppsColumns[2]},
 			},
 			{
 				Name:    "clientsourceapp_source_id_slug",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[26], ClientSourceAppsColumns[5]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[27], ClientSourceAppsColumns[5]},
 			},
 			{
 				Name:    "clientsourceapp_package_id",
@@ -812,7 +813,7 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_category_id",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[26], ClientSourceAppsColumns[13]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[27], ClientSourceAppsColumns[13]},
 			},
 			{
 				Name:    "clientsourceapp_category",
@@ -822,7 +823,7 @@ var (
 			{
 				Name:    "clientsourceapp_source_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourceAppsColumns[26], ClientSourceAppsColumns[25]},
+				Columns: []*schema.Column{ClientSourceAppsColumns[27], ClientSourceAppsColumns[26]},
 			},
 		},
 	}

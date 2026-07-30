@@ -212,8 +212,8 @@ export function ClientCatalog({
             isLabelHidden
             value={sortMode}
             options={[
-              { value: 'default', label: t('search.defaultOrder') },
               { value: 'recent', label: t('search.recent') },
+			  { value: 'downloads', label: t('search.downloads') },
               { value: 'name', label: t('search.name') },
               { value: 'source', label: t('search.sourceName') },
             ]}

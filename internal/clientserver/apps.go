@@ -154,6 +154,7 @@ func sourceAppDTO(app *ent.ClientSourceApp) (SourceAppDTO, error) {
 		InstallProtected: app.InstallProtected,
 		CommentsEnabled:  app.CommentsEnabled,
 		OutdatedMarks:    app.OutdatedMarks,
+		DownloadCount:    app.DownloadCount,
 		Screenshots:      screenshots,
 		LatestVersion:    version,
 		Versions:         versions,

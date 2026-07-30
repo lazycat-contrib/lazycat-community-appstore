@@ -56,6 +56,8 @@ const (
 	FieldCommentsEnabled = "comments_enabled"
 	// FieldOutdatedMarks holds the string denoting the outdated_marks field in the database.
 	FieldOutdatedMarks = "outdated_marks"
+	// FieldDownloadCount holds the string denoting the download_count field in the database.
+	FieldDownloadCount = "download_count"
 	// FieldScreenshotsJSON holds the string denoting the screenshots_json field in the database.
 	FieldScreenshotsJSON = "screenshots_json"
 	// FieldLatestVersionJSON holds the string denoting the latest_version_json field in the database.
@@ -103,6 +105,7 @@ var Columns = []string{
 	FieldInstallProtected,
 	FieldCommentsEnabled,
 	FieldOutdatedMarks,
+	FieldDownloadCount,
 	FieldScreenshotsJSON,
 	FieldLatestVersionJSON,
 	FieldVersionsJSON,
@@ -159,6 +162,10 @@ var (
 	DefaultCommentsEnabled bool
 	// DefaultOutdatedMarks holds the default value on creation for the "outdated_marks" field.
 	DefaultOutdatedMarks int
+	// DefaultDownloadCount holds the default value on creation for the "download_count" field.
+	DefaultDownloadCount int
+	// DownloadCountValidator is a validator for the "download_count" field. It is called by the builders before save.
+	DownloadCountValidator func(int) error
 	// DefaultScreenshotsJSON holds the default value on creation for the "screenshots_json" field.
 	DefaultScreenshotsJSON string
 	// DefaultLatestVersionJSON holds the default value on creation for the "latest_version_json" field.
@@ -284,6 +291,11 @@ func ByCommentsEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByOutdatedMarks orders the results by the outdated_marks field.
 func ByOutdatedMarks(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOutdatedMarks, opts...).ToFunc()
+}
+
+// ByDownloadCount orders the results by the download_count field.
+func ByDownloadCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDownloadCount, opts...).ToFunc()
 }
 
 // ByScreenshotsJSON orders the results by the screenshots_json field.

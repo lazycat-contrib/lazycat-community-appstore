@@ -60,6 +60,8 @@ type ClientSourceApp struct {
 	CommentsEnabled bool `json:"comments_enabled,omitempty"`
 	// OutdatedMarks holds the value of the "outdated_marks" field.
 	OutdatedMarks int `json:"outdated_marks,omitempty"`
+	// DownloadCount holds the value of the "download_count" field.
+	DownloadCount int `json:"download_count,omitempty"`
 	// ScreenshotsJSON holds the value of the "screenshots_json" field.
 	ScreenshotsJSON string `json:"screenshots_json,omitempty"`
 	// LatestVersionJSON holds the value of the "latest_version_json" field.
@@ -103,7 +105,7 @@ func (*ClientSourceApp) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case clientsourceapp.FieldInstallProtected, clientsourceapp.FieldCommentsEnabled:
 			values[i] = new(sql.NullBool)
-		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID, clientsourceapp.FieldCategoryID, clientsourceapp.FieldOutdatedMarks:
+		case clientsourceapp.FieldID, clientsourceapp.FieldSourceID, clientsourceapp.FieldCategoryID, clientsourceapp.FieldOutdatedMarks, clientsourceapp.FieldDownloadCount:
 			values[i] = new(sql.NullInt64)
 		case clientsourceapp.FieldExternalID, clientsourceapp.FieldPackageID, clientsourceapp.FieldName, clientsourceapp.FieldNameI18nJSON, clientsourceapp.FieldSlug, clientsourceapp.FieldSummary, clientsourceapp.FieldSummaryI18nJSON, clientsourceapp.FieldDescriptionI18nJSON, clientsourceapp.FieldAuthor, clientsourceapp.FieldHomepage, clientsourceapp.FieldLicense, clientsourceapp.FieldMinOsVersion, clientsourceapp.FieldCategory, clientsourceapp.FieldCategoryI18nJSON, clientsourceapp.FieldIconURL, clientsourceapp.FieldIconOriginURL, clientsourceapp.FieldScreenshotsJSON, clientsourceapp.FieldLatestVersionJSON, clientsourceapp.FieldVersionsJSON:
 			values[i] = new(sql.NullString)
@@ -257,6 +259,12 @@ func (_m *ClientSourceApp) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.OutdatedMarks = int(value.Int64)
 			}
+		case clientsourceapp.FieldDownloadCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field download_count", values[i])
+			} else if value.Valid {
+				_m.DownloadCount = int(value.Int64)
+			}
 		case clientsourceapp.FieldScreenshotsJSON:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field screenshots_json", values[i])
@@ -392,6 +400,9 @@ func (_m *ClientSourceApp) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("outdated_marks=")
 	builder.WriteString(fmt.Sprintf("%v", _m.OutdatedMarks))
+	builder.WriteString(", ")
+	builder.WriteString("download_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DownloadCount))
 	builder.WriteString(", ")
 	builder.WriteString("screenshots_json=")
 	builder.WriteString(_m.ScreenshotsJSON)

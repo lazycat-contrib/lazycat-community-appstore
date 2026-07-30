@@ -17,12 +17,13 @@ func TestBuildIndexPublishesStructuredCategories(t *testing.T) {
 		},
 		Apps: []feed.AppInput{
 			{
-				ID:         1,
-				PackageID:  "cloud.lazycat.app.demo",
-				Name:       "Demo",
-				Slug:       "demo",
-				CategoryID: intPtr(2),
-				Category:   "Download",
+				ID:            1,
+				PackageID:     "cloud.lazycat.app.demo",
+				Name:          "Demo",
+				Slug:          "demo",
+				CategoryID:    intPtr(2),
+				Category:      "Download",
+				DownloadCount: 27,
 				Versions: []feed.VersionInput{
 					{Version: "1.0.0", Status: "APPROVED", DownloadURL: "https://store.example.com/api/v1/apps/1/versions/1/download"},
 				},
@@ -41,6 +42,9 @@ func TestBuildIndexPublishesStructuredCategories(t *testing.T) {
 	}
 	if len(index.Apps) != 1 || index.Apps[0].CategoryID == nil || *index.Apps[0].CategoryID != 2 {
 		t.Fatalf("apps = %#v", index.Apps)
+	}
+	if got := index.Apps[0].DownloadCount; got != 27 {
+		t.Fatalf("download count = %d, want 27", got)
 	}
 }
 

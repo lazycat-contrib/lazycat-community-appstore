@@ -343,6 +343,27 @@ func (_u *ClientSourceAppUpdate) AddOutdatedMarks(v int) *ClientSourceAppUpdate 
 	return _u
 }
 
+// SetDownloadCount sets the "download_count" field.
+func (_u *ClientSourceAppUpdate) SetDownloadCount(v int) *ClientSourceAppUpdate {
+	_u.mutation.ResetDownloadCount()
+	_u.mutation.SetDownloadCount(v)
+	return _u
+}
+
+// SetNillableDownloadCount sets the "download_count" field if the given value is not nil.
+func (_u *ClientSourceAppUpdate) SetNillableDownloadCount(v *int) *ClientSourceAppUpdate {
+	if v != nil {
+		_u.SetDownloadCount(*v)
+	}
+	return _u
+}
+
+// AddDownloadCount adds value to the "download_count" field.
+func (_u *ClientSourceAppUpdate) AddDownloadCount(v int) *ClientSourceAppUpdate {
+	_u.mutation.AddDownloadCount(v)
+	return _u
+}
+
 // SetScreenshotsJSON sets the "screenshots_json" field.
 func (_u *ClientSourceAppUpdate) SetScreenshotsJSON(v string) *ClientSourceAppUpdate {
 	_u.mutation.SetScreenshotsJSON(v)
@@ -474,6 +495,11 @@ func (_u *ClientSourceAppUpdate) check() error {
 			return &ValidationError{Name: "slug", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.slug": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DownloadCount(); ok {
+		if err := clientsourceapp.DownloadCountValidator(v); err != nil {
+			return &ValidationError{Name: "download_count", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.download_count": %w`, err)}
+		}
+	}
 	if _u.mutation.SourceCleared() && len(_u.mutation.SourceIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "ClientSourceApp.source"`)
 	}
@@ -560,6 +586,12 @@ func (_u *ClientSourceAppUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.AddedOutdatedMarks(); ok {
 		_spec.AddField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.DownloadCount(); ok {
+		_spec.SetField(clientsourceapp.FieldDownloadCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDownloadCount(); ok {
+		_spec.AddField(clientsourceapp.FieldDownloadCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ScreenshotsJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldScreenshotsJSON, field.TypeString, value)
@@ -939,6 +971,27 @@ func (_u *ClientSourceAppUpdateOne) AddOutdatedMarks(v int) *ClientSourceAppUpda
 	return _u
 }
 
+// SetDownloadCount sets the "download_count" field.
+func (_u *ClientSourceAppUpdateOne) SetDownloadCount(v int) *ClientSourceAppUpdateOne {
+	_u.mutation.ResetDownloadCount()
+	_u.mutation.SetDownloadCount(v)
+	return _u
+}
+
+// SetNillableDownloadCount sets the "download_count" field if the given value is not nil.
+func (_u *ClientSourceAppUpdateOne) SetNillableDownloadCount(v *int) *ClientSourceAppUpdateOne {
+	if v != nil {
+		_u.SetDownloadCount(*v)
+	}
+	return _u
+}
+
+// AddDownloadCount adds value to the "download_count" field.
+func (_u *ClientSourceAppUpdateOne) AddDownloadCount(v int) *ClientSourceAppUpdateOne {
+	_u.mutation.AddDownloadCount(v)
+	return _u
+}
+
 // SetScreenshotsJSON sets the "screenshots_json" field.
 func (_u *ClientSourceAppUpdateOne) SetScreenshotsJSON(v string) *ClientSourceAppUpdateOne {
 	_u.mutation.SetScreenshotsJSON(v)
@@ -1083,6 +1136,11 @@ func (_u *ClientSourceAppUpdateOne) check() error {
 			return &ValidationError{Name: "slug", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.slug": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DownloadCount(); ok {
+		if err := clientsourceapp.DownloadCountValidator(v); err != nil {
+			return &ValidationError{Name: "download_count", err: fmt.Errorf(`ent: validator failed for field "ClientSourceApp.download_count": %w`, err)}
+		}
+	}
 	if _u.mutation.SourceCleared() && len(_u.mutation.SourceIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "ClientSourceApp.source"`)
 	}
@@ -1186,6 +1244,12 @@ func (_u *ClientSourceAppUpdateOne) sqlSave(ctx context.Context) (_node *ClientS
 	}
 	if value, ok := _u.mutation.AddedOutdatedMarks(); ok {
 		_spec.AddField(clientsourceapp.FieldOutdatedMarks, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.DownloadCount(); ok {
+		_spec.SetField(clientsourceapp.FieldDownloadCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedDownloadCount(); ok {
+		_spec.AddField(clientsourceapp.FieldDownloadCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ScreenshotsJSON(); ok {
 		_spec.SetField(clientsourceapp.FieldScreenshotsJSON, field.TypeString, value)

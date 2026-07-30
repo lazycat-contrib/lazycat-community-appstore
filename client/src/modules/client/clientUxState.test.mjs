@@ -64,16 +64,36 @@ test('client catalog recent sorting uses published software time and stable fall
   );
   assert.equal(softwareUpdatedAt(apps[1]), '2026-07-17T00:00:00Z');
   assert.equal(softwareUpdatedAt(apps[2]), '2026-07-15T00:00:00Z');
-  assert.deepEqual(sortClientCatalogApps(apps, 'default', (app) => app.name).map((app) => app.id), [1, 2, 3, 4, 5]);
   assert.deepEqual(sortClientCatalogApps(apps, 'name', (app) => app.name).map((app) => app.id), [3, 2, 5, 1, 4]);
   assert.deepEqual(sortClientCatalogApps(apps, 'source', (app) => app.name).map((app) => app.id), [2, 5, 3, 1, 4]);
+});
+
+test('client catalog download sorting uses stable recent and name fallbacks', () => {
+  const apps = [
+    { id: 1, name: 'Zulu', sourceName: 'B', downloadCount: 3, updatedAt: '2026-07-20T00:00:00Z' },
+    { id: 2, name: 'Beta', sourceName: 'A', downloadCount: 9, updatedAt: '2026-07-18T00:00:00Z' },
+    { id: 3, name: 'Alpha', sourceName: 'A', downloadCount: 9, updatedAt: '2026-07-19T00:00:00Z' },
+    { id: 4, name: 'Missing', sourceName: 'C' },
+  ];
+
+  assert.deepEqual(
+    sortClientCatalogApps(apps, 'downloads', (app) => app.name).map((app) => app.id),
+    [3, 2, 1, 4],
+  );
 });
 
 test('client catalog exposes the recently updated sort option', async () => {
   const catalog = await source('./ClientCatalog.tsx');
 
   assert.match(catalog, /\{ value: 'recent', label: t\('search\.recent'\) \}/);
+  assert.match(catalog, /\{ value: 'downloads', label: t\('search\.downloads'\) \}/);
+  assert.doesNotMatch(catalog, /value: 'default'/);
   assert.match(catalog, /sortClientCatalogApps\(filtered, sortMode, localizedAppName\)/);
+});
+
+test('client catalog defaults to recent sorting', async () => {
+  const app = await source('../../App.tsx');
+  assert.match(app, /selectedCategoryFilter: 'all',[\s\S]*sortMode: 'recent'/);
 });
 
 test('client automatically loads installed applications after authentication', async () => {
