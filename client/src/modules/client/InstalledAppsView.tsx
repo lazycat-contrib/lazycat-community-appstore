@@ -12,7 +12,7 @@ import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { InstalledApplication, SourceApp, SourceSubscription, UpdateQueueRequest, UpdateQueueResult } from '../../shared/types';
 import { compareVersions, cx, sourceMirrorOptions } from '../../shared/utils';
-import { autoUpdatePolicyPresentation, buildUpdateCandidateSnapshot, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation } from './clientUxState';
+import { autoUpdatePolicyPresentation, buildUpdateCandidateSnapshot, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation, orderClientUpdateRowsLast } from './clientUxState';
 
 type InstalledRow = { item: InstalledApplication; source?: SourceApp };
 type InstalledGroupKind = 'updates' | 'managed' | 'local';
@@ -64,7 +64,7 @@ export function InstalledAppsView({
       }
       managed.push({ item, source });
     }
-    return { updates, managed, local };
+    return { updates: orderClientUpdateRowsLast(updates), managed, local };
   }, [installedApps, sourceApps]);
   const installedEmptyTitle = installedState === 'loaded'
     ? t('profile.installedEmptyLoaded')

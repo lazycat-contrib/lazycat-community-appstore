@@ -88,6 +88,25 @@ func TestUpdateQueueContinuesAfterFailure(t *testing.T) {
 	}
 }
 
+func TestUpdateQueueInstallsClientLast(t *testing.T) {
+	app := testServer(t)
+	apps := sourceAppsForUpdateTestOnClient(t, app.server.db,
+		updateTestSourceApp{PackageID: clientPackageID, Version: "2.0.0"},
+		updateTestSourceApp{PackageID: "notes", Version: "2.0.0"},
+	)
+	app.server.pkg = &updateQueuePackageManager{
+		installed: []InstalledApplicationDTO{{AppID: clientPackageID, Version: "1.0.0"}, {AppID: "notes", Version: "1.0.0"}},
+		install:   []InstallResultDTO{{Status: "INSTALL_OK"}, {Status: "INSTALL_OK"}},
+	}
+	result := app.server.RunUpdateQueueWithOptions(t.Context(), "alice", UpdateQueueRequestDTO{Candidates: []UpdateQueueCandidateDTO{
+		{AppID: apps[0].ID, SourceID: apps[0].SourceID, PackageID: clientPackageID, InstalledVersion: "1.0.0", TargetVersion: "2.0.0"},
+		{AppID: apps[1].ID, SourceID: apps[1].SourceID, PackageID: "notes", InstalledVersion: "1.0.0", TargetVersion: "2.0.0"},
+	}})
+	if len(result.Items) != 2 || result.Items[0].PackageID != "notes" || result.Items[1].PackageID != clientPackageID {
+		t.Fatalf("items = %#v", result.Items)
+	}
+}
+
 func TestUpdateQueueRejectsConcurrentUserRun(t *testing.T) {
 	app := testServer(t)
 	sourceAppsForUpdateTestOnClient(t, app.server.db, updateTestSourceApp{PackageID: "notes", Version: "2.0.0"})

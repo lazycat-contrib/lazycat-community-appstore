@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,16 @@ type updateCandidate struct {
 	PackageID        string
 	InstalledVersion string
 	Version          VersionDTO
+}
+
+const clientPackageID = "community.lazycat.app-store"
+
+func orderClientUpdateLast(candidates []updateCandidate) {
+	sort.SliceStable(candidates, func(left, right int) bool {
+		leftIsClient := normalizePolicyPackageID(candidates[left].PackageID) == clientPackageID
+		rightIsClient := normalizePolicyPackageID(candidates[right].PackageID) == clientPackageID
+		return !leftIsClient && rightIsClient
+	})
 }
 
 type installOperationKind string
@@ -338,6 +349,7 @@ func (s *Server) RunUpdateQueueWithOptions(ctx context.Context, userID string, o
 		}
 		return UpdateQueueResultDTO{Status: "no_updates"}
 	}
+	orderClientUpdateLast(candidates)
 
 	result := UpdateQueueResultDTO{Status: "running", Items: make([]UpdateQueueItemDTO, len(candidates)), PasswordRequired: passwordRequired}
 	for index, candidate := range candidates {

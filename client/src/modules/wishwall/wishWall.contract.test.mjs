@@ -19,6 +19,15 @@ test('client wish wall supports create, edit, delete, and source selection', () 
   assert.match(wallSource, /wishWallAvailable/);
   assert.match(wallSource, /statusText/);
   assert.match(wallSource, /wish-maintenance-list/);
+  assert.match(wallSource, /const clientEditing = mode === 'client' && editingID !== null/);
+  assert.match(wallSource, /!clientEditing && <>/);
+});
+
+test('server wish details reflow inside narrow cards', async () => {
+  const styles = readFileSync(new URL('../../styles/components.css', import.meta.url), 'utf8');
+  assert.match(styles, /container-type:\s*inline-size/);
+  assert.match(styles, /@container \(max-width:\s*300px\)/);
+  assert.match(styles, /\.wish-timeline > div\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
 });
 
 test('server wish wall provides admin replies, status notes, and block action', () => {

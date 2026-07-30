@@ -333,6 +333,7 @@
 }
 
 .wish-board .wish-card {
+  container-type: inline-size;
   position: relative;
   display: grid;
   gap: 12px;
@@ -501,6 +502,7 @@
 .wish-disclosure-content {
   display: grid;
   gap: 14px;
+  min-width: 0;
   padding-bottom: 4px;
 }
 
@@ -546,6 +548,31 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 10px;
+}
+
+.wish-timeline > div > span,
+.wish-timeline > div > small,
+.wish-replies blockquote,
+.wish-replies p,
+.wish-replies footer {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@container (max-width: 300px) {
+  .wish-timeline > div {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 6px;
+  }
+
+  .wish-timeline > div > :first-child {
+    justify-self: start;
+  }
+
+  .wish-timeline > div > small {
+    line-height: 1.45;
+  }
 }
 
 .wish-replies blockquote {

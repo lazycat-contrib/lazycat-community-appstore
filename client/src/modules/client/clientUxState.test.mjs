@@ -7,6 +7,7 @@ import {
   buildUpdateCandidateSnapshot,
   buildInstallTimeline,
   buildUpdateConfirmation,
+  CLIENT_PACKAGE_ID,
   findStableSourceApp,
   installTaskProgress,
   installTaskState,
@@ -14,6 +15,7 @@ import {
 	inspectionPresentation,
   normalizeEditableClientSettings,
   normalizeAutomationSettings,
+  orderClientUpdateRowsLast,
   requiresInstallOptions,
   sameEditableClientSettings,
   sortClientCatalogApps,
@@ -279,6 +281,34 @@ test('bulk update candidate snapshot matches the visible confirmation rows', () 
     { item: { appid: 'first', version: '1.0.0' }, source: { id: 11, sourceId: 2, packageId: 'first', latestVersion: { version: '2.0.0' } } },
     { item: { appid: 'protected', version: '1.0.0' }, source: { id: 12, sourceId: 2, packageId: 'protected', installProtected: true, latestVersion: { version: '2.0.0' } } },
   ]), [{ appId: 11, sourceId: 2, packageId: 'first', installedVersion: '1.0.0', targetVersion: '2.0.0' }]);
+});
+
+test('bulk update order keeps the client itself last', () => {
+  const rows = [
+    { item: { appid: 'community.lazycat.app-store' }, source: { packageId: 'community.lazycat.app-store' } },
+    { item: { appid: 'notes' }, source: { packageId: 'notes' } },
+    { item: { appid: 'photos' }, source: { packageId: 'photos' } },
+  ];
+  assert.deepEqual(orderClientUpdateRowsLast(rows).map((row) => row.item.appid), [
+    'notes',
+    'photos',
+    'community.lazycat.app-store',
+  ]);
+  assert.deepEqual(rows.map((row) => row.item.appid), [
+    'community.lazycat.app-store',
+    'notes',
+    'photos',
+  ]);
+});
+
+test('client self-update identity stays aligned with the package manifest and executor', async () => {
+  const [manifest, executor] = await Promise.all([
+    source('../../../../lazycat/client/package.yml'),
+    source('../../../../internal/clientserver/update_queue.go'),
+  ]);
+  const manifestPackageID = manifest.match(/^package:\s*(\S+)$/m)?.[1];
+  assert.equal(CLIENT_PACKAGE_ID, manifestPackageID);
+  assert.match(executor, new RegExp(`const clientPackageID = ${JSON.stringify(CLIENT_PACKAGE_ID)}`));
 });
 
 test('install options open only when the dialog has a password or mirror control', () => {

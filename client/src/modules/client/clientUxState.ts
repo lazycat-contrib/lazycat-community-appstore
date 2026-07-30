@@ -170,6 +170,21 @@ export function buildUpdateConfirmation<T extends {
 	return { eligible, skipped };
 }
 
+export const CLIENT_PACKAGE_ID = 'community.lazycat.app-store';
+
+export function orderClientUpdateRowsLast<T extends {
+  item: { appid?: string };
+  source?: { packageId?: string };
+}>(rows: T[]) {
+  return rows.map((row, index) => ({ row, index })).sort((left, right) => {
+    const leftPackageID = (left.row.source?.packageId || left.row.item.appid || '').trim().toLowerCase();
+    const rightPackageID = (right.row.source?.packageId || right.row.item.appid || '').trim().toLowerCase();
+    const leftIsClient = leftPackageID === CLIENT_PACKAGE_ID;
+    const rightIsClient = rightPackageID === CLIENT_PACKAGE_ID;
+    return leftIsClient === rightIsClient ? left.index - right.index : leftIsClient ? 1 : -1;
+  }).map(({ row }) => row);
+}
+
 export function buildUpdateCandidateSnapshot<T extends {
   item: { appid?: string; version?: string };
   source?: { id?: number | string; sourceId?: number | string; packageId?: string; installProtected?: boolean; latestVersion?: { version?: string } };

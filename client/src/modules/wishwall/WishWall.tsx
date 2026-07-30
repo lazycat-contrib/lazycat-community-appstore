@@ -242,6 +242,7 @@ export function WishWall({
   }
 
   const canCreate = mode === 'client' && Boolean(sourceID);
+  const clientEditing = mode === 'client' && editingID !== null;
   const visibleKinds = kinds.filter((kind) => mode === 'client' || isAdmin || kind !== 'SUGGESTION');
 
   function FilterButton({
@@ -282,13 +283,13 @@ export function WishWall({
           <h1>{t('wishWall.title')}</h1>
           <p>{t(mode === 'client' ? 'wishWall.clientDescription' : 'wishWall.serverDescription')}</p>
         </div>
-        <div className="row-actions">
+        {!clientEditing && <div className="row-actions">
           <XButton type="button" variant="secondary" label={t('common.refresh')} icon={<RefreshCw size={17} />} isLoading={loading} onClick={() => void load()} />
           {canCreate && <XButton type="button" variant="primary" label={t('wishWall.create')} icon={<Plus size={17} />} onClick={() => { setEditingID(null); setDraft(emptyDraft()); setShowCreate((value) => !value); }} />}
-        </div>
+        </div>}
       </div>
 
-      {mode === 'client' && supportedSources.length > 0 && (
+      {mode === 'client' && supportedSources.length > 0 && !clientEditing && (
         <div className="wish-source-picker">
           <XSelector label={t('wishWall.targetSource')} value={sourceID} options={supportedSources.map((source) => ({ value: String(source.id), label: source.name }))} onChange={setSourceID} />
         </div>
@@ -319,6 +320,7 @@ export function WishWall({
             </form>
           )}
 
+          {!clientEditing && <>
           <div className="wish-filter-shelf" role="group" aria-label={t('wishWall.filters')}>
             <div className="wish-filter-group">
               <span className="wish-filter-group-label"><Shapes size={15} aria-hidden="true" />{t('wishWall.kindLabel')}</span>
@@ -401,6 +403,7 @@ export function WishWall({
             {loadingMore && <><LoaderCircle className="wish-load-spinner" size={18} aria-hidden="true" /><span>{t('wishWall.loadingMore')}</span></>}
             {!loading && !loadingMore && items.length > 0 && page >= totalPages && <span>{t('wishWall.allLoaded')}</span>}
           </div>
+          </>}
         </>
       )}
     </section>
