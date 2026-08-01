@@ -139,6 +139,7 @@ function defaultClientSettings(): ClientSettings {
   installSuccessDismissSeconds: DEFAULT_INSTALL_SUCCESS_DISMISS_SECONDS,
   autoUpdateEnabled: false,
   autoUpdateIntervalMinutes: 60,
+  autoUpdateNotifyEnabled: true,
 };
 }
 

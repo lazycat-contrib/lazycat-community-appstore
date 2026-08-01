@@ -17,6 +17,7 @@ const (
 	settingCommentDisplayName           = "comment_display_name"
 	settingDefaultPageSize              = "default_page_size"
 	settingInstallSuccessDismissSeconds = "install_success_dismiss_seconds"
+	settingAutoUpdateNotifyEnabled      = "auto_update_notify_enabled"
 )
 
 const (
@@ -67,12 +68,24 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
 	}
+	autoUpdateNotifyEnabled, err := s.clientAutoUpdateNotifyEnabled(r.Context(), userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "SETTING_LOAD_FAILED", "Could not load settings")
+		return
+	}
+	if input.AutoUpdateNotifyEnabled != nil {
+		autoUpdateNotifyEnabled = *input.AutoUpdateNotifyEnabled
+	}
+	if err := s.setClientSetting(r, settingAutoUpdateNotifyEnabled, strconv.FormatBool(autoUpdateNotifyEnabled)); err != nil {
+		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
+		return
+	}
 	syncSetting, err := s.setClientSyncSetting(r.Context(), userID, input)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettingsDTO(clientTitle, displayName, defaultPageSize, installSuccessDismissSeconds, syncSetting)})
+	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettingsDTO(clientTitle, displayName, defaultPageSize, installSuccessDismissSeconds, autoUpdateNotifyEnabled, syncSetting)})
 }
 
 func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSettingsDTO, error) {
@@ -80,14 +93,18 @@ func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSetti
 	commentDisplayName := strings.TrimSpace(s.clientSetting(ctx, userID, settingCommentDisplayName))
 	defaultPageSize := s.clientDefaultPageSize(ctx, userID, pagination.DefaultPageSize, 100)
 	installSuccessDismissSeconds := s.clientInstallSuccessDismissSeconds(ctx, userID)
+	autoUpdateNotifyEnabled, err := s.clientAutoUpdateNotifyEnabled(ctx, userID)
+	if err != nil {
+		return ClientSettingsDTO{}, err
+	}
 	syncSetting, err := s.clientSyncSetting(ctx, userID)
 	if err != nil {
 		return ClientSettingsDTO{}, err
 	}
-	return s.clientSettingsDTO(clientTitle, commentDisplayName, defaultPageSize, installSuccessDismissSeconds, syncSetting), nil
+	return s.clientSettingsDTO(clientTitle, commentDisplayName, defaultPageSize, installSuccessDismissSeconds, autoUpdateNotifyEnabled, syncSetting), nil
 }
 
-func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string, defaultPageSize int, installSuccessDismissSeconds int, syncSetting *ent.ClientSyncSetting) ClientSettingsDTO {
+func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string, defaultPageSize int, installSuccessDismissSeconds int, autoUpdateNotifyEnabled bool, syncSetting *ent.ClientSyncSetting) ClientSettingsDTO {
 	dto := ClientSettingsDTO{
 		ClientTitle:                  clientTitle,
 		CommentDisplayName:           commentDisplayName,
@@ -95,6 +112,7 @@ func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string
 		AutoSyncIntervalMinutes:      defaultAutoSyncIntervalMinutes,
 		AutoUpdateIntervalMinutes:    defaultAutoSyncIntervalMinutes,
 		InstallSuccessDismissSeconds: sanitizeInstallSuccessDismissSeconds(installSuccessDismissSeconds),
+		AutoUpdateNotifyEnabled:      autoUpdateNotifyEnabled,
 	}
 	if syncSetting == nil {
 		return dto
@@ -125,6 +143,20 @@ func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string
 		dto.LastAutoUpdateError = *syncSetting.LastAutoUpdateError
 	}
 	return dto
+}
+
+func (s *Server) clientAutoUpdateNotifyEnabled(ctx context.Context, userID string) (bool, error) {
+	record, err := s.db.ClientSetting.Query().
+		Where(clientsetting.UserIDEQ(userID), clientsetting.KeyEQ(settingAutoUpdateNotifyEnabled)).
+		Only(ctx)
+	if ent.IsNotFound(err) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	enabled, parseErr := strconv.ParseBool(strings.TrimSpace(record.Value))
+	return parseErr == nil && enabled, nil
 }
 
 func (s *Server) clientInstallSuccessDismissSeconds(ctx context.Context, userID string) int {

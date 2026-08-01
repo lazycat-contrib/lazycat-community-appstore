@@ -294,6 +294,7 @@ type ClientSettingsDTO struct {
 	LastAutoSyncError            string     `json:"lastAutoSyncError,omitempty"`
 	AutoUpdateEnabled            bool       `json:"autoUpdateEnabled"`
 	AutoUpdateIntervalMinutes    int        `json:"autoUpdateIntervalMinutes"`
+	AutoUpdateNotifyEnabled      bool       `json:"autoUpdateNotifyEnabled"`
 	LastAutoUpdateAt             *time.Time `json:"lastAutoUpdateAt,omitempty"`
 	LastAutoUpdateStatus         string     `json:"lastAutoUpdateStatus,omitempty"`
 	LastAutoUpdateError          string     `json:"lastAutoUpdateError,omitempty"`
@@ -309,4 +310,5 @@ type ClientSettingsUpdateDTO struct {
 	InstallSuccessDismissSeconds *int   `json:"installSuccessDismissSeconds"`
 	AutoUpdateEnabled            bool   `json:"autoUpdateEnabled"`
 	AutoUpdateIntervalMinutes    int    `json:"autoUpdateIntervalMinutes"`
+	AutoUpdateNotifyEnabled      *bool  `json:"autoUpdateNotifyEnabled"`
 }

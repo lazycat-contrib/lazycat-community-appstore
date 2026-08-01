@@ -585,6 +585,8 @@ const en = {
         pageSizeOption: '{{count}} per page',
         installTitle: 'Install notification',
         installBody: 'Control how completed install status appears. Failed install details stay visible for troubleshooting.',
+        autoUpdateNotify: 'Notify after automatic updates',
+        autoUpdateNotifyHelp: 'Send a LazyCat system notification with the completion time and updated apps. Partial runs also include the failed update count.',
         installSuccessDismiss: 'Close completed install after',
         installSuccessDismissHelp: 'Automatically closes the lower-right install status after success. Failed installs stay visible for troubleshooting.',
         installDismissSeconds: 'Close after {{count}} seconds',

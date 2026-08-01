@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	entgo.io/ent v0.14.6
-	gitee.com/linakesi/lzc-sdk v0.1.0
+	gitee.com/linakesi/lzc-sdk v0.1.1-0.20260616013851-7bbb8766e5a2
 	github.com/andybalholm/brotli v1.2.2
 	github.com/aws/aws-sdk-go-v2 v1.42.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.24

@@ -252,7 +252,13 @@ func (s *sourceSyncScheduler) updateUser(ctx context.Context, userID string) {
 
 	queueResult := s.server.RunUpdateQueueWithOptions(ctx, userID, UpdateQueueRequestDTO{RespectAutoUpdatePolicy: true})
 	status, message := autoUpdateResultStatus(queueResult)
-	_ = s.recordAutoUpdateResult(ctx, userID, status, message)
+	completedAt := time.Now()
+	_ = s.recordAutoUpdateResultAt(ctx, userID, status, message, completedAt)
+	apps, failed := successfulAutoUpdateApps(queueResult)
+	notifyEnabled, notifySettingErr := s.server.clientAutoUpdateNotifyEnabled(ctx, userID)
+	if (len(apps) > 0 || failed > 0) && notifySettingErr == nil && notifyEnabled {
+		_ = s.server.notifier.NotifyAutoUpdate(ctx, userID, completedAt, apps, failed)
+	}
 }
 
 func (s *sourceSyncScheduler) markRunning(userID string) bool {
@@ -356,8 +362,7 @@ func autoUpdateResultStatus(queueResult UpdateQueueResultDTO) (clientsyncsetting
 	return status, message
 }
 
-func (s *sourceSyncScheduler) recordAutoUpdateResult(ctx context.Context, userID string, status clientsyncsetting.LastAutoUpdateStatus, message string) error {
-	now := time.Now()
+func (s *sourceSyncScheduler) recordAutoUpdateResultAt(ctx context.Context, userID string, status clientsyncsetting.LastAutoUpdateStatus, message string, now time.Time) error {
 	record, err := s.server.db.ClientSyncSetting.Query().
 		Where(clientsyncsetting.UserIDEQ(userID)).
 		Only(ctx)

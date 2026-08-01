@@ -196,6 +196,7 @@ test('editable settings comparison ignores server-owned sync result fields', () 
     autoSyncIntervalMinutes: 60,
     syncOnStartup: false,
     installSuccessDismissSeconds: 3,
+    autoUpdateNotifyEnabled: true,
     lastAutoSyncAt: '2026-07-10T00:00:00Z',
     lastAutoSyncStatus: 'success',
     autoUpdateEnabled: true,
@@ -225,6 +226,7 @@ test('editable settings normalization trims strings and applies numeric defaults
       autoSyncIntervalMinutes: 0,
       syncOnStartup: true,
       installSuccessDismissSeconds: Number.NaN,
+      autoUpdateNotifyEnabled: true,
       autoUpdateEnabled: true,
       autoUpdateIntervalMinutes: 0,
     }),
@@ -236,6 +238,7 @@ test('editable settings normalization trims strings and applies numeric defaults
       autoSyncIntervalMinutes: 60,
       syncOnStartup: true,
       installSuccessDismissSeconds: 3,
+      autoUpdateNotifyEnabled: true,
       autoUpdateEnabled: true,
       autoUpdateIntervalMinutes: 60,
     },
@@ -260,10 +263,26 @@ test('editable settings comparison detects user-owned changes', () => {
     autoSyncIntervalMinutes: 60,
     syncOnStartup: false,
     installSuccessDismissSeconds: 3,
+    autoUpdateNotifyEnabled: true,
     autoUpdateEnabled: false,
     autoUpdateIntervalMinutes: 60,
   };
   assert.equal(sameEditableClientSettings(base, { ...base, syncOnStartup: true }), false);
+  assert.equal(sameEditableClientSettings(base, { ...base, autoUpdateNotifyEnabled: false }), false);
+});
+
+test('install settings expose the LazyCat automatic update notification option', async () => {
+  const [view, zh, en, manifest] = await Promise.all([
+    source('./ClientSettingsView.tsx'),
+    source('../../locales/zh.ts'),
+    source('../../locales/en.ts'),
+    source('../../../../lazycat/client/package.yml'),
+  ]);
+  assert.match(view, /autoUpdateNotifyEnabled/);
+  assert.match(zh, /自动更新完成后通知/);
+  assert.match(en, /Notify after automatic updates/);
+  assert.match(manifest, /min_os_version:\s*1\.6\.0/);
+  assert.match(manifest, /- user\.notify/);
 });
 
 test('bulk update confirmation excludes password-protected applications', () => {

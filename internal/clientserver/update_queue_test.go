@@ -226,6 +226,8 @@ func TestAutoUpdateSchedulerUsesCachedApplications(t *testing.T) {
 		tasks:     map[string]InstallTaskDTO{"task-1": {TaskID: "task-1", Status: "INSTALL_OK"}},
 	}
 	app.server.pkg = pm
+	notifier := &capturedSystemNotifier{}
+	app.server.notifier = notifier
 	scheduler := &sourceSyncScheduler{server: app.server, running: make(map[string]struct{})}
 	if err := scheduler.runDueAutoUpdates(t.Context(), ""); err != nil {
 		t.Fatal(err)
@@ -236,6 +238,54 @@ func TestAutoUpdateSchedulerUsesCachedApplications(t *testing.T) {
 	}
 	if pm.installCalls != 1 {
 		t.Fatalf("install calls = %d", pm.installCalls)
+	}
+	if notifier.calls != 1 || notifier.userID != "alice" || len(notifier.apps) != 1 || notifier.apps[0] != "notes" {
+		t.Fatalf("notification = %#v", notifier)
+	}
+}
+
+func TestAutoUpdateSchedulerRespectsDisabledNotificationPreference(t *testing.T) {
+	app := testServer(t)
+	sourceAppsForUpdateTestOnClient(t, app.server.db, updateTestSourceApp{PackageID: "notes", Version: "2.0.0"})
+	app.server.db.ClientSyncSetting.Create().
+		SetUserID("alice").
+		SetAutoUpdateEnabled(true).
+		SetAutoUpdateIntervalMinutes(5).
+		SaveX(t.Context())
+	app.server.db.ClientSetting.Create().SetUserID("alice").SetKey(settingAutoUpdateNotifyEnabled).SetValue("false").SaveX(t.Context())
+	app.server.pkg = &updateQueuePackageManager{
+		installed: []InstalledApplicationDTO{{AppID: "notes", Version: "1.0.0"}},
+		install:   []InstallResultDTO{{Status: "INSTALL_OK"}},
+	}
+	notifier := &capturedSystemNotifier{}
+	app.server.notifier = notifier
+
+	scheduler := &sourceSyncScheduler{server: app.server, running: make(map[string]struct{})}
+	if err := scheduler.runDueAutoUpdates(t.Context(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if notifier.calls != 0 {
+		t.Fatalf("notification calls = %d, want 0", notifier.calls)
+	}
+}
+
+func TestAutoUpdateSchedulerNotifiesWhenAllUpdatesFail(t *testing.T) {
+	app := testServer(t)
+	sourceAppsForUpdateTestOnClient(t, app.server.db, updateTestSourceApp{PackageID: "notes", Version: "2.0.0"})
+	app.server.db.ClientSyncSetting.Create().SetUserID("alice").SetAutoUpdateEnabled(true).SetAutoUpdateIntervalMinutes(5).SaveX(t.Context())
+	app.server.pkg = &updateQueuePackageManager{
+		installed:   []InstalledApplicationDTO{{AppID: "notes", Version: "1.0.0"}},
+		installErrs: []error{errors.New("install failed")},
+	}
+	notifier := &capturedSystemNotifier{}
+	app.server.notifier = notifier
+
+	scheduler := &sourceSyncScheduler{server: app.server, running: make(map[string]struct{})}
+	if err := scheduler.runDueAutoUpdates(t.Context(), ""); err != nil {
+		t.Fatal(err)
+	}
+	if notifier.calls != 1 || len(notifier.apps) != 0 || notifier.failed != 1 {
+		t.Fatalf("notification = %#v", notifier)
 	}
 }
 
@@ -372,6 +422,23 @@ type updateQueuePackageManager struct {
 	releaseInstall  chan struct{}
 	cancelErrors    map[string]error
 }
+
+type capturedSystemNotifier struct {
+	calls  int
+	userID string
+	apps   []string
+	failed int
+}
+
+func (f *capturedSystemNotifier) NotifyAutoUpdate(_ context.Context, userID string, _ time.Time, apps []string, failed int) error {
+	f.calls++
+	f.userID = userID
+	f.apps = append([]string(nil), apps...)
+	f.failed = failed
+	return nil
+}
+
+var _ SystemNotifier = (*capturedSystemNotifier)(nil)
 
 func (f *updateQueuePackageManager) QueryInstalled(context.Context, string) ([]InstalledApplicationDTO, error) {
 	return f.installed, nil

@@ -585,6 +585,8 @@ const zh = {
         pageSizeOption: '每页 {{count}} 条',
         installTitle: '安装提示',
         installBody: '控制安装完成后的状态浮层表现，失败信息会继续保留，便于排查。',
+        autoUpdateNotify: '自动更新完成后通知',
+        autoUpdateNotifyHelp: '自动更新结束后，通过懒猫系统通知告知完成时间和已更新的软件；部分失败时也会显示失败数量。',
         installSuccessDismiss: '安装完成提示关闭时间',
         installSuccessDismissHelp: '安装成功后自动关闭右下角状态浮层；失败状态仍会保留，便于查看原因。',
         installDismissSeconds: '{{count}} 秒后关闭',

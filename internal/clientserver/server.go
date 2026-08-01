@@ -20,6 +20,7 @@ type Server struct {
 	db                 *ent.Client
 	sqlDB              *sql.DB
 	pkg                PackageManager
+	notifier           SystemNotifier
 	installCoordinator *installCoordinator
 	mux                *http.ServeMux
 	syncScheduler      *sourceSyncScheduler
@@ -56,6 +57,7 @@ func New(cfg Config) (*Server, error) {
 		db:                 db,
 		sqlDB:              sqlDB,
 		pkg:                NewLazyCatPackageManager(),
+		notifier:           NewLazyCatSystemNotifier(),
 		installCoordinator: newInstallCoordinator(),
 		mux:                http.NewServeMux(),
 		auth:               auth,
@@ -81,6 +83,7 @@ func newTestServer(db *ent.Client) *Server {
 		cfg:                Config{DefaultSourceName: "喵喵私有商店", SessionSecret: "test-client-session-secret"},
 		db:                 db,
 		pkg:                unavailablePackageManager{},
+		notifier:           unavailableSystemNotifier{},
 		installCoordinator: newInstallCoordinator(),
 		mux:                http.NewServeMux(),
 		auth:               &clientAuth{secret: []byte("test-client-session-secret")},

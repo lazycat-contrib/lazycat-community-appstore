@@ -214,6 +214,7 @@ export type EditableClientSettings = {
   lastAutoSyncError?: string;
   autoUpdateEnabled: boolean;
   autoUpdateIntervalMinutes: number;
+  autoUpdateNotifyEnabled: boolean;
   lastAutoUpdateAt?: string;
   lastAutoUpdateStatus?: string;
   lastAutoUpdateError?: string;
@@ -249,6 +250,7 @@ export function normalizeEditableClientSettings(settings: EditableClientSettings
       : 3,
     autoUpdateEnabled: Boolean(settings.autoUpdateEnabled),
     autoUpdateIntervalMinutes: Number(settings.autoUpdateIntervalMinutes) || 60,
+    autoUpdateNotifyEnabled: Boolean(settings.autoUpdateNotifyEnabled),
   });
 }
 

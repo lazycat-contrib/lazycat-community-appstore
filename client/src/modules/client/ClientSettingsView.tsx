@@ -81,6 +81,7 @@ export function ClientSettingsView({
     settings.autoSyncIntervalMinutes,
 	settings.autoUpdateEnabled,
 	settings.autoUpdateIntervalMinutes,
+	settings.autoUpdateNotifyEnabled,
     settings.clientTitle,
     settings.commentDisplayName,
     settings.defaultPageSize,
@@ -318,6 +319,12 @@ export function ClientSettingsView({
             <StatusBadge tone="synced" label={t('clientSettings.localOnly')} />
           </div>
           <p className="muted-text">{t('clientSettings.installBody')}</p>
+          <XSwitch
+            label={t('clientSettings.autoUpdateNotify')}
+            description={t('clientSettings.autoUpdateNotifyHelp')}
+            value={draft.autoUpdateNotifyEnabled}
+            onChange={(checked) => updateDraft({ ...draft, autoUpdateNotifyEnabled: checked })}
+          />
           <XSelector
             label={t('clientSettings.installSuccessDismiss')}
             description={t('clientSettings.installSuccessDismissHelp')}

@@ -427,6 +427,7 @@ export type ClientSettings = {
   lastAutoSyncError?: string;
   autoUpdateEnabled: boolean;
   autoUpdateIntervalMinutes: number;
+  autoUpdateNotifyEnabled: boolean;
   lastAutoUpdateAt?: string;
   lastAutoUpdateStatus?: string;
   lastAutoUpdateError?: string;
