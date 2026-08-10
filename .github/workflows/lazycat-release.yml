@@ -91,7 +91,9 @@ jobs:
 
       - name: Build and verify LPK
         id: build
-        uses: ca-x/lazycat-github-action@v1
+        # v1.2.4 rejects this monorepo's client-v*/server-v* event tags before
+        # honoring the explicit SemVer input. Pin the last compatible release.
+        uses: ca-x/lazycat-github-action@7e3694f5b327c6e0117208f942ea422cab033a28 # v1.1.24
         env:
           LAZYCAT_WORKFLOW_TOOLCHAINS: go,node
           LAZYCAT_WORKFLOW_GO_VERSION: 1.26.4
@@ -213,7 +215,7 @@ jobs:
       - name: Publish to MiaoMiao store
         id: publish-private
         continue-on-error: true
-        uses: ca-x/lazycat-github-action@v1
+        uses: ca-x/lazycat-github-action@7e3694f5b327c6e0117208f942ea422cab033a28 # v1.1.24
         env:
           APPSTORE_URL: ${{ secrets.APPSTORE_URL }}
           APPSTORE_TOKEN: ${{ secrets.APPSTORE_TOKEN }}
@@ -232,7 +234,7 @@ jobs:
         id: publish-official
         if: ${{ !cancelled() && steps.release.outputs.component == 'client' }}
         continue-on-error: true
-        uses: ca-x/lazycat-github-action@v1
+        uses: ca-x/lazycat-github-action@7e3694f5b327c6e0117208f942ea422cab033a28 # v1.1.24
         env:
           LAZYCAT_TOKEN: ${{ secrets.LAZYCAT_TOKEN }}
         with:
