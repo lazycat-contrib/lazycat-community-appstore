@@ -13,6 +13,7 @@ type SourceDTO struct {
 	Name                    string                  `json:"name"`
 	URL                     string                  `json:"url"`
 	Password                string                  `json:"password"`
+	IconURL                 string                  `json:"iconUrl,omitempty"`
 	DefaultDownloadMirrorID string                  `json:"defaultDownloadMirrorId"`
 	DefaultRawMirrorID      string                  `json:"defaultRawMirrorId"`
 	GroupCodes              []string                `json:"groupCodes,omitempty"`

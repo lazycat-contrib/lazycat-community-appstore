@@ -25,6 +25,8 @@ type ClientSource struct {
 	URL string `json:"url,omitempty"`
 	// Password holds the value of the "password" field.
 	Password string `json:"password,omitempty"`
+	// IconURL holds the value of the "icon_url" field.
+	IconURL string `json:"icon_url,omitempty"`
 	// DefaultDownloadMirrorID holds the value of the "default_download_mirror_id" field.
 	DefaultDownloadMirrorID string `json:"default_download_mirror_id,omitempty"`
 	// DefaultRawMirrorID holds the value of the "default_raw_mirror_id" field.
@@ -104,7 +106,7 @@ func (*ClientSource) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case clientsource.FieldID, clientsource.FieldLastAppCount, clientsource.FieldLastInstallableCount:
 			values[i] = new(sql.NullInt64)
-		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldGroupCodesJSON, clientsource.FieldGroupNamesJSON, clientsource.FieldLastInvalidGroupCodesJSON, clientsource.FieldMirrorsJSON, clientsource.FieldCategoriesJSON, clientsource.FieldAnnouncementsJSON, clientsource.FieldAdsJSON, clientsource.FieldMinClientVersion, clientsource.FieldMinClientVersionMessage, clientsource.FieldAdsPreference, clientsource.FieldLastEtag, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
+		case clientsource.FieldUserID, clientsource.FieldName, clientsource.FieldURL, clientsource.FieldPassword, clientsource.FieldIconURL, clientsource.FieldDefaultDownloadMirrorID, clientsource.FieldDefaultRawMirrorID, clientsource.FieldGroupCodesJSON, clientsource.FieldGroupNamesJSON, clientsource.FieldLastInvalidGroupCodesJSON, clientsource.FieldMirrorsJSON, clientsource.FieldCategoriesJSON, clientsource.FieldAnnouncementsJSON, clientsource.FieldAdsJSON, clientsource.FieldMinClientVersion, clientsource.FieldMinClientVersionMessage, clientsource.FieldAdsPreference, clientsource.FieldLastEtag, clientsource.FieldLastError, clientsource.FieldLastErrorCode:
 			values[i] = new(sql.NullString)
 		case clientsource.FieldLastSync, clientsource.FieldCreatedAt, clientsource.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -152,6 +154,12 @@ func (_m *ClientSource) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field password", values[i])
 			} else if value.Valid {
 				_m.Password = value.String
+			}
+		case clientsource.FieldIconURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field icon_url", values[i])
+			} else if value.Valid {
+				_m.IconURL = value.String
 			}
 		case clientsource.FieldDefaultDownloadMirrorID:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -346,6 +354,9 @@ func (_m *ClientSource) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("password=")
 	builder.WriteString(_m.Password)
+	builder.WriteString(", ")
+	builder.WriteString("icon_url=")
+	builder.WriteString(_m.IconURL)
 	builder.WriteString(", ")
 	builder.WriteString("default_download_mirror_id=")
 	builder.WriteString(_m.DefaultDownloadMirrorID)

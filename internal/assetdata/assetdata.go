@@ -76,7 +76,24 @@ func NewImagePayload(data []byte, mediaType string, maxBytes int64) (Payload, er
 	if declared != "" && declared != detected {
 		return Payload{}, fmt.Errorf("image content type does not match declared media type")
 	}
+	if err := validateImageDimensions(data); err != nil {
+		return Payload{}, err
+	}
 	return Payload{MediaType: detected, Data: append([]byte(nil), data...)}, nil
+}
+
+func validateImageDimensions(data []byte) error {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("decode image config: %w", err)
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 {
+		return fmt.Errorf("invalid image dimensions")
+	}
+	if cfg.Width > 4096 || cfg.Height > 4096 || int64(cfg.Width)*int64(cfg.Height) > 16*1024*1024 {
+		return ErrTooManyPixels
+	}
+	return nil
 }
 
 func NormalizeImage(data []byte, mediaType string, maxBytes int64, maxSide int) (Payload, error) {
@@ -86,16 +103,6 @@ func NormalizeImage(data []byte, mediaType string, maxBytes int64, maxSide int) 
 	}
 	if maxSide <= 0 {
 		return Payload{}, fmt.Errorf("max image side must be positive")
-	}
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(payload.Data))
-	if err != nil {
-		return Payload{}, fmt.Errorf("decode image config: %w", err)
-	}
-	if cfg.Width <= 0 || cfg.Height <= 0 {
-		return Payload{}, fmt.Errorf("invalid image dimensions")
-	}
-	if cfg.Width > 4096 || cfg.Height > 4096 || int64(cfg.Width)*int64(cfg.Height) > 16*1024*1024 {
-		return Payload{}, ErrTooManyPixels
 	}
 	img, _, err := image.Decode(bytes.NewReader(payload.Data))
 	if err != nil {

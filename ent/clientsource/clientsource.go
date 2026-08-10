@@ -23,6 +23,8 @@ const (
 	FieldURL = "url"
 	// FieldPassword holds the string denoting the password field in the database.
 	FieldPassword = "password"
+	// FieldIconURL holds the string denoting the icon_url field in the database.
+	FieldIconURL = "icon_url"
 	// FieldDefaultDownloadMirrorID holds the string denoting the default_download_mirror_id field in the database.
 	FieldDefaultDownloadMirrorID = "default_download_mirror_id"
 	// FieldDefaultRawMirrorID holds the string denoting the default_raw_mirror_id field in the database.
@@ -89,6 +91,7 @@ var Columns = []string{
 	FieldName,
 	FieldURL,
 	FieldPassword,
+	FieldIconURL,
 	FieldDefaultDownloadMirrorID,
 	FieldDefaultRawMirrorID,
 	FieldGroupCodesJSON,
@@ -133,6 +136,8 @@ var (
 	URLValidator func(string) error
 	// DefaultPassword holds the default value on creation for the "password" field.
 	DefaultPassword string
+	// DefaultIconURL holds the default value on creation for the "icon_url" field.
+	DefaultIconURL string
 	// DefaultDefaultDownloadMirrorID holds the default value on creation for the "default_download_mirror_id" field.
 	DefaultDefaultDownloadMirrorID string
 	// DefaultDefaultRawMirrorID holds the default value on creation for the "default_raw_mirror_id" field.
@@ -254,6 +259,11 @@ func ByURL(opts ...sql.OrderTermOption) OrderOption {
 // ByPassword orders the results by the password field.
 func ByPassword(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPassword, opts...).ToFunc()
+}
+
+// ByIconURL orders the results by the icon_url field.
+func ByIconURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIconURL, opts...).ToFunc()
 }
 
 // ByDefaultDownloadMirrorID orders the results by the default_download_mirror_id field.

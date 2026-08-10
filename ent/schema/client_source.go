@@ -19,6 +19,7 @@ func (ClientSource) Fields() []ent.Field {
 		field.String("name").NotEmpty(),
 		field.String("url").NotEmpty(),
 		field.String("password").Default(""),
+		field.String("icon_url").Default(""),
 		field.String("default_download_mirror_id").Default(""),
 		field.String("default_raw_mirror_id").Default(""),
 		field.Text("group_codes_json").Default(""),

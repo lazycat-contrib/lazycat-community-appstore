@@ -53,6 +53,10 @@ func TestNewImagePayloadValidation(t *testing.T) {
 	if _, err := NewImagePayload([]byte("not an image"), "image/png", 1024); !errors.Is(err, ErrUnsupportedImage) {
 		t.Fatalf("unsupported image error = %v, want ErrUnsupportedImage", err)
 	}
+	oversized := testPNG(t, 4097, 1)
+	if _, err := NewImagePayload(oversized, "image/png", int64(len(oversized))); !errors.Is(err, ErrTooManyPixels) {
+		t.Fatalf("oversized dimensions error = %v, want ErrTooManyPixels", err)
+	}
 }
 
 func TestNormalizeImageResizesToMaxSide(t *testing.T) {

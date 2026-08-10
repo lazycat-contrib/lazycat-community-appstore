@@ -22,6 +22,7 @@ type Server struct {
 	pkg                PackageManager
 	notifier           SystemNotifier
 	installCoordinator *installCoordinator
+	sourceCoordinator  *sourceOperationCoordinator
 	mux                *http.ServeMux
 	syncScheduler      *sourceSyncScheduler
 	auth               *clientAuth
@@ -59,6 +60,7 @@ func New(cfg Config) (*Server, error) {
 		pkg:                NewLazyCatPackageManager(),
 		notifier:           NewLazyCatSystemNotifier(),
 		installCoordinator: newInstallCoordinator(),
+		sourceCoordinator:  newSourceOperationCoordinator(),
 		mux:                http.NewServeMux(),
 		auth:               auth,
 		httpClient:         httpClient,
@@ -85,6 +87,7 @@ func newTestServer(db *ent.Client) *Server {
 		pkg:                unavailablePackageManager{},
 		notifier:           unavailableSystemNotifier{},
 		installCoordinator: newInstallCoordinator(),
+		sourceCoordinator:  newSourceOperationCoordinator(),
 		mux:                http.NewServeMux(),
 		auth:               &clientAuth{secret: []byte("test-client-session-secret")},
 		httpClient:         httpClient,

@@ -16811,6 +16811,7 @@ type ClientSourceMutation struct {
 	name                          *string
 	url                           *string
 	password                      *string
+	icon_url                      *string
 	default_download_mirror_id    *string
 	default_raw_mirror_id         *string
 	group_codes_json              *string
@@ -17085,6 +17086,42 @@ func (m *ClientSourceMutation) OldPassword(ctx context.Context) (v string, err e
 // ResetPassword resets all changes to the "password" field.
 func (m *ClientSourceMutation) ResetPassword() {
 	m.password = nil
+}
+
+// SetIconURL sets the "icon_url" field.
+func (m *ClientSourceMutation) SetIconURL(s string) {
+	m.icon_url = &s
+}
+
+// IconURL returns the value of the "icon_url" field in the mutation.
+func (m *ClientSourceMutation) IconURL() (r string, exists bool) {
+	v := m.icon_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIconURL returns the old "icon_url" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldIconURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIconURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIconURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIconURL: %w", err)
+	}
+	return oldValue.IconURL, nil
+}
+
+// ResetIconURL resets all changes to the "icon_url" field.
+func (m *ClientSourceMutation) ResetIconURL() {
+	m.icon_url = nil
 }
 
 // SetDefaultDownloadMirrorID sets the "default_download_mirror_id" field.
@@ -18082,7 +18119,7 @@ func (m *ClientSourceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceMutation) Fields() []string {
-	fields := make([]string, 0, 27)
+	fields := make([]string, 0, 28)
 	if m.user_id != nil {
 		fields = append(fields, clientsource.FieldUserID)
 	}
@@ -18094,6 +18131,9 @@ func (m *ClientSourceMutation) Fields() []string {
 	}
 	if m.password != nil {
 		fields = append(fields, clientsource.FieldPassword)
+	}
+	if m.icon_url != nil {
+		fields = append(fields, clientsource.FieldIconURL)
 	}
 	if m.default_download_mirror_id != nil {
 		fields = append(fields, clientsource.FieldDefaultDownloadMirrorID)
@@ -18180,6 +18220,8 @@ func (m *ClientSourceMutation) Field(name string) (ent.Value, bool) {
 		return m.URL()
 	case clientsource.FieldPassword:
 		return m.Password()
+	case clientsource.FieldIconURL:
+		return m.IconURL()
 	case clientsource.FieldDefaultDownloadMirrorID:
 		return m.DefaultDownloadMirrorID()
 	case clientsource.FieldDefaultRawMirrorID:
@@ -18243,6 +18285,8 @@ func (m *ClientSourceMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldURL(ctx)
 	case clientsource.FieldPassword:
 		return m.OldPassword(ctx)
+	case clientsource.FieldIconURL:
+		return m.OldIconURL(ctx)
 	case clientsource.FieldDefaultDownloadMirrorID:
 		return m.OldDefaultDownloadMirrorID(ctx)
 	case clientsource.FieldDefaultRawMirrorID:
@@ -18325,6 +18369,13 @@ func (m *ClientSourceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPassword(v)
+		return nil
+	case clientsource.FieldIconURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIconURL(v)
 		return nil
 	case clientsource.FieldDefaultDownloadMirrorID:
 		v, ok := value.(string)
@@ -18595,6 +18646,9 @@ func (m *ClientSourceMutation) ResetField(name string) error {
 		return nil
 	case clientsource.FieldPassword:
 		m.ResetPassword()
+		return nil
+	case clientsource.FieldIconURL:
+		m.ResetIconURL()
 		return nil
 	case clientsource.FieldDefaultDownloadMirrorID:
 		m.ResetDefaultDownloadMirrorID()

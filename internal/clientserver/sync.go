@@ -73,6 +73,7 @@ type feedIndex struct {
 }
 
 type feedSiteMeta struct {
+	IconURL      string                `json:"iconUrl"`
 	ClientPolicy SourceClientPolicyDTO `json:"clientPolicy"`
 	Chat         feedChatMeta          `json:"chat"`
 	WishWall     feedWishWallMeta      `json:"wishWall"`
@@ -158,26 +159,48 @@ func (s *Server) syncAllSources(ctx context.Context, userID string) (SyncAllResu
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
-		if item.err != nil {
-			_ = s.recordSourceSyncFailure(ctx, item.source.ID, item.err)
-			result.Failed++
+		skipped, err := s.applyFetchedSource(ctx, userID, item)
+		if skipped {
 			continue
 		}
-		if item.notModified {
-			if _, err := s.recordSourceNotModified(ctx, item.source, item.etag); err != nil {
-				result.Failed++
-			} else {
-				result.Success++
-			}
-			continue
-		}
-		if _, err := s.saveSourceApps(ctx, item.source, item.apps, item.mirrors, item.categories, item.announcements, item.ads, item.clientPolicy, item.groups, item.invalidCodes, item.chatAvailable, item.wishWallAvailable, item.etag); err != nil {
+		if err != nil {
 			result.Failed++
 		} else {
 			result.Success++
 		}
 	}
 	return result, nil
+}
+
+func (s *Server) applyFetchedSource(ctx context.Context, userID string, item fetchedSource) (bool, error) {
+	unlock := s.sourceCoordinator.lock(item.source.ID)
+	defer unlock()
+
+	current, err := s.db.ClientSource.Query().
+		Where(clientsource.IDEQ(item.source.ID), clientsource.UserIDEQ(userID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return true, nil
+		}
+		return false, err
+	}
+	if !current.UpdatedAt.Equal(item.source.UpdatedAt) {
+		fetch, fetchErr := s.fetchSourceApps(ctx, current)
+		item = fetchedSource{source: current, sourceFeedFetch: fetch, err: fetchErr}
+	} else {
+		item.source = current
+	}
+	if item.err != nil {
+		_ = s.recordSourceSyncFailure(ctx, item.source.ID, item.err)
+		return false, item.err
+	}
+	if item.notModified {
+		_, err := s.recordSourceNotModified(ctx, item.source, item.etag)
+		return false, err
+	}
+	_, err = s.saveSourceApps(ctx, item.source, item.apps, item.siteIconURL, item.mirrors, item.categories, item.announcements, item.ads, item.clientPolicy, item.groups, item.invalidCodes, item.chatAvailable, item.wishWallAvailable, item.etag)
+	return false, err
 }
 
 type fetchedSource struct {
@@ -188,6 +211,7 @@ type fetchedSource struct {
 
 type sourceFeedFetch struct {
 	apps              []feedApp
+	siteIconURL       string
 	mirrors           []mirror.Entry
 	categories        []SourceCategoryDTO
 	announcements     []SourceAnnouncementDTO
@@ -204,6 +228,9 @@ type sourceFeedFetch struct {
 const sourceAppInsertBatchSize = 50
 
 func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (SourceDTO, error) {
+	unlock := s.sourceCoordinator.lock(sourceID)
+	defer unlock()
+
 	source, err := s.db.ClientSource.Query().
 		Where(clientsource.IDEQ(sourceID), clientsource.UserIDEQ(userID)).
 		Only(ctx)
@@ -220,7 +247,7 @@ func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (S
 	if fetch.notModified {
 		return s.recordSourceNotModified(ctx, source, fetch.etag)
 	}
-	return s.saveSourceApps(ctx, source, fetch.apps, fetch.mirrors, fetch.categories, fetch.announcements, fetch.ads, fetch.clientPolicy, fetch.groups, fetch.invalidCodes, fetch.chatAvailable, fetch.wishWallAvailable, fetch.etag)
+	return s.saveSourceApps(ctx, source, fetch.apps, fetch.siteIconURL, fetch.mirrors, fetch.categories, fetch.announcements, fetch.ads, fetch.clientPolicy, fetch.groups, fetch.invalidCodes, fetch.chatAvailable, fetch.wishWallAvailable, fetch.etag)
 }
 
 func (s *Server) recordSourceSyncFailure(ctx context.Context, sourceID int, err error) sourceSyncError {
@@ -255,7 +282,7 @@ func (s *Server) recordSourceNotModified(ctx context.Context, source *ent.Client
 	return sourceDTO(updated), nil
 }
 
-func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, apps []feedApp, mirrors []mirror.Entry, categories []SourceCategoryDTO, announcements []SourceAnnouncementDTO, ads []SourceAdDTO, clientPolicy SourceClientPolicyDTO, groups []SourceGroupDTO, invalidCodes []string, chatAvailable, wishWallAvailable bool, etag string) (SourceDTO, error) {
+func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, apps []feedApp, siteIconURL string, mirrors []mirror.Entry, categories []SourceCategoryDTO, announcements []SourceAnnouncementDTO, ads []SourceAdDTO, clientPolicy SourceClientPolicyDTO, groups []SourceGroupDTO, invalidCodes []string, chatAvailable, wishWallAvailable bool, etag string) (SourceDTO, error) {
 	oldAppRecords, err := s.db.ClientSourceApp.Query().
 		Where(clientsourceapp.SourceIDEQ(source.ID)).
 		All(ctx)
@@ -269,6 +296,19 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 	if err := s.materializeSourceIcons(ctx, source, apps, oldAppRecords); err != nil {
 		return SourceDTO{}, err
 	}
+	materializedSiteIconURL, siteIconAssetID, err := s.materializeSourceSiteIcon(ctx, source, siteIconURL)
+	if err != nil {
+		return SourceDTO{}, err
+	}
+	siteIconCommitted := false
+	defer func() {
+		if siteIconCommitted || siteIconAssetID <= 0 {
+			return
+		}
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), clientAssetFetchTimeout)
+		defer cancel()
+		_ = s.cleanupClientAssetIDs(cleanupCtx, siteIconAssetID)
+	}()
 	installableCount := 0
 	rows := make([]sourceAppCacheRow, 0, len(apps))
 	categories = normalizeSourceCategories(categories)
@@ -337,6 +377,11 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 			return SourceDTO{}, err
 		}
 	}
+	oldSiteIconAssetIDs, err := replaceClientSourceIconAssetLinks(ctx, tx.ClientAssetLink, source.ID, siteIconAssetID)
+	if err != nil {
+		_ = tx.Rollback()
+		return SourceDTO{}, err
+	}
 	now := time.Now()
 	groupCodes := removeInvalidGroupCodes(decodeStringSlice(source.GroupCodesJSON), invalidCodes)
 	updated, err := tx.ClientSource.UpdateOneID(source.ID).
@@ -345,7 +390,8 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 		ClearLastErrorCode().
 		SetLastAppCount(len(apps)).
 		SetLastInstallableCount(installableCount).
-		SetLastEtag("").
+		SetIconURL(materializedSiteIconURL).
+		SetLastEtag(strings.TrimSpace(etag)).
 		SetGroupCodesJSON(encodeStringSlice(groupCodes)).
 		SetGroupNamesJSON(encodeSourceGroups(groups)).
 		SetLastInvalidGroupCodesJSON(encodeStringSlice(invalidCodes)).
@@ -367,14 +413,14 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 	if err := tx.Commit(); err != nil {
 		return SourceDTO{}, err
 	}
+	siteIconCommitted = true
 	if err := s.linkClientSourceAppIconAssets(ctx, updated.ID); err != nil {
 		return SourceDTO{}, err
 	}
 	if err := s.deleteClientAssetLinksForOwnerIDs(ctx, clientAssetOwnerSourceApp, oldAppIDs); err != nil {
 		return SourceDTO{}, err
 	}
-	updated, err = s.db.ClientSource.UpdateOneID(updated.ID).SetLastEtag(strings.TrimSpace(etag)).Save(ctx)
-	if err != nil {
+	if err := s.cleanupClientAssetIDs(ctx, oldSiteIconAssetIDs...); err != nil {
 		return SourceDTO{}, err
 	}
 	return sourceDTO(updated), nil
@@ -599,6 +645,7 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	ads := normalizeSourceAds(root.Ads)
 	categoryIDs := sourceCategoryIDs(categories)
 	out := make([]feedApp, 0, len(apps))
+	packages := make(map[string]struct{}, len(apps))
 	for _, app := range apps {
 		app.PackageID = strings.TrimSpace(app.PackageID)
 		app.Name = strings.TrimSpace(app.Name)
@@ -607,6 +654,11 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 		if app.PackageID == "" || app.Name == "" || app.Slug == "" {
 			continue
 		}
+		packageKey := strings.ToLower(app.PackageID)
+		if _, exists := packages[packageKey]; exists {
+			return sourceFeedFetch{}, sourceSyncError{code: "format", status: http.StatusUnprocessableEntity, message: "Source feed contains duplicate package IDs"}
+		}
+		packages[packageKey] = struct{}{}
 		if app.CategoryID != nil {
 			if _, ok := categoryIDs[*app.CategoryID]; !ok {
 				app.CategoryID = nil
@@ -616,6 +668,7 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 	}
 	return sourceFeedFetch{
 		apps:              out,
+		siteIconURL:       strings.TrimSpace(root.Site.IconURL),
 		mirrors:           mirrors,
 		categories:        categories,
 		announcements:     announcements,

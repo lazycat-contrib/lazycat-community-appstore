@@ -1146,11 +1146,18 @@ export function App() {
   }
 
   async function addClientSource(input: SourceInput) {
-    await clientApi<{ source: SourceSubscription }>('/sources', {
+    const created = await clientApi<{ source: SourceSubscription }>('/sources', {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    void refreshClientData({ silent: true });
+    let synced = true;
+    try {
+      await clientApi<{ source: SourceSubscription }>(`/sources/${created.source.id}/sync`, { method: 'POST' });
+    } catch {
+      synced = false;
+    }
+    await loadClientSources();
+    return { synced };
   }
 
   async function updateClientSource(source: SourceSubscription) {

@@ -53,6 +53,26 @@ test('install options dialog consumes a shared mirror config', async () => {
   assert.doesNotMatch(dialog, /source\?: SourceSubscription/);
 });
 
+test('source rows prefer cached site artwork and recover to the default mark', async () => {
+  const [app, types, row, styles] = await Promise.all([
+    source('../../App.tsx'),
+    source('../../shared/types.ts'),
+    source('./SourceStatusRow.tsx'),
+    source('../../styles/client.css'),
+  ]);
+
+  assert.match(types, /iconUrl\?: string/);
+  assert.match(row, /const showSiteIcon = Boolean\(source\.iconUrl\) && !failed/);
+  assert.match(row, /<img src=\{source\.iconUrl\} alt="" loading="lazy" onError=\{\(\) => setFailed\(true\)\}/);
+  assert.match(row, /: <Server size=\{19\} \/>/);
+  assert.match(styles, /\.client-source-row-icon img \{[\s\S]*object-fit: cover/);
+  assert.match(styles, /\.client-source-url \{[\s\S]*display: block/);
+  assert.match(app, /const created = await clientApi<\{ source: SourceSubscription \}>\('\/sources'/);
+  assert.match(app, /`\/sources\/\$\{created\.source\.id\}\/sync`/);
+  assert.match(app, /await loadClientSources\(\)/);
+  assert.match(app, /return \{ synced \}/);
+});
+
 test('client catalog recent sorting uses published software time and stable fallbacks', () => {
   const apps = [
     { id: 1, name: 'Missing', sourceName: 'B' },

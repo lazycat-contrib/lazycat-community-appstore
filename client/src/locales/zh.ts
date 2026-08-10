@@ -531,7 +531,8 @@ const zh = {
         duplicate: '这个软件源已经添加过',
         nameRequired: '请输入软件源名称',
         added: '软件源已添加',
-        addedNext: '软件源已添加，请同步以缓存可安装应用。',
+        addedNext: '软件源已添加，客户端会自动同步站点信息和应用缓存。',
+        addedSyncFailed: '软件源已添加，但首次同步失败。请检查软件源状态后重试。',
       },
       clientSettings: {
         title: '客户端设置',

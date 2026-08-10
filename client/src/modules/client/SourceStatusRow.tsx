@@ -1,10 +1,28 @@
 import { AlertCircle, KeyRound, Pencil, RefreshCw, Server, Trash2, UsersRound } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { SourceHealth, SourceSubscription } from '../../shared/types';
 import { cx, formatDate } from '../../shared/utils';
+
+function SourceIcon({ source }: { source: SourceSubscription }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [source.iconUrl]);
+
+  const showSiteIcon = Boolean(source.iconUrl) && !failed;
+  return (
+    <span className={cx('client-source-row-icon', showSiteIcon && 'has-site-icon')} aria-hidden="true">
+      {showSiteIcon
+        ? <img src={source.iconUrl} alt="" loading="lazy" onError={() => setFailed(true)} />
+        : <Server size={19} />}
+    </span>
+  );
+}
 
 export function SourceStatusRow({
   source,
@@ -35,7 +53,7 @@ export function SourceStatusRow({
   return (
     <article className={cx('client-source-row', issue && 'has-error')} aria-busy={isSyncing}>
       <div className="client-source-row-main">
-        <span className="client-source-row-icon" aria-hidden="true"><Server size={19} /></span>
+        <SourceIcon source={source} />
         <div>
           <div className="client-source-row-title">
             <strong>{source.name}</strong>

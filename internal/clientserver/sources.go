@@ -80,6 +80,8 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 	if !s.validateSourceURL(w, r, input.URL) {
 		return
 	}
+	unlock := s.sourceCoordinator.lock(id)
+	defer unlock()
 	source, err := s.db.ClientSource.Query().
 		Where(clientsource.IDEQ(id), clientsource.UserIDEQ(currentUserID(r))).
 		Only(r.Context())
@@ -105,7 +107,13 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 	}
 	groupCodesChanged := !sameSourceGroupCodes(decodeStringSlice(source.GroupCodesJSON), input.GroupCodes)
 	requestIdentityChanged := source.URL != input.URL || source.Password != input.Password || groupCodesChanged
-	update := s.db.ClientSource.UpdateOne(source).
+	sourceURLChanged := source.URL != input.URL
+	tx, err := s.db.Tx(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "SOURCE_UPDATE_FAILED", "Could not update source")
+		return
+	}
+	update := tx.ClientSource.UpdateOneID(source.ID).
 		SetName(input.Name).
 		SetURL(input.URL).
 		SetPassword(input.Password).
@@ -122,8 +130,21 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 	if source.URL != input.URL || groupCodesChanged {
 		update.SetGroupNamesJSON("").SetLastInvalidGroupCodesJSON("")
 	}
+	if sourceURLChanged {
+		update.SetIconURL("")
+	}
+	oldAssetIDs := []int(nil)
+	if sourceURLChanged {
+		oldAssetIDs, err = replaceClientSourceIconAssetLinks(r.Context(), tx.ClientAssetLink, source.ID, 0)
+		if err != nil {
+			_ = tx.Rollback()
+			writeError(w, http.StatusInternalServerError, "SOURCE_UPDATE_FAILED", "Could not update source")
+			return
+		}
+	}
 	record, err := update.Save(r.Context())
 	if err != nil {
+		_ = tx.Rollback()
 		if ent.IsConstraintError(err) {
 			writeError(w, http.StatusConflict, "SOURCE_EXISTS", "Source URL already exists")
 			return
@@ -131,6 +152,11 @@ func (s *Server) handleUpdateSource(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SOURCE_UPDATE_FAILED", "Could not update source")
 		return
 	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "SOURCE_UPDATE_FAILED", "Could not update source")
+		return
+	}
+	_ = s.cleanupClientAssetIDs(r.Context(), oldAssetIDs...)
 	writeJSON(w, http.StatusOK, map[string]any{"source": sourceDTO(record)})
 }
 
@@ -169,6 +195,8 @@ func (s *Server) handleDeleteSource(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	unlock := s.sourceCoordinator.lock(id)
+	defer unlock()
 	source, err := s.db.ClientSource.Query().
 		Where(clientsource.IDEQ(id), clientsource.UserIDEQ(currentUserID(r))).
 		Only(r.Context())
@@ -189,15 +217,38 @@ func (s *Server) handleDeleteSource(w http.ResponseWriter, r *http.Request) {
 	for _, record := range appRecords {
 		appIDs = append(appIDs, record.ID)
 	}
-	if _, err := s.db.ClientSourceApp.Delete().Where(clientsourceapp.SourceIDEQ(source.ID)).Exec(r.Context()); err != nil {
-		writeError(w, http.StatusInternalServerError, "SOURCE_DELETE_FAILED", "Could not delete source apps")
-		return
-	}
-	if err := s.db.ClientSource.DeleteOne(source).Exec(r.Context()); err != nil {
+	tx, err := s.db.Tx(r.Context())
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SOURCE_DELETE_FAILED", "Could not delete source")
 		return
 	}
-	_ = s.deleteClientAssetLinksForOwnerIDs(r.Context(), clientAssetOwnerSourceApp, appIDs)
+	appAssetIDs, err := deleteClientAssetLinksForOwnerIDsWithClient(r.Context(), tx.ClientAssetLink, clientAssetOwnerSourceApp, appIDs)
+	if err != nil {
+		_ = tx.Rollback()
+		writeError(w, http.StatusInternalServerError, "SOURCE_DELETE_FAILED", "Could not delete source assets")
+		return
+	}
+	sourceAssetIDs, err := deleteClientAssetLinksForOwnerIDsWithClient(r.Context(), tx.ClientAssetLink, clientAssetOwnerSource, []int{source.ID})
+	if err != nil {
+		_ = tx.Rollback()
+		writeError(w, http.StatusInternalServerError, "SOURCE_DELETE_FAILED", "Could not delete source assets")
+		return
+	}
+	if _, err := tx.ClientSourceApp.Delete().Where(clientsourceapp.SourceIDEQ(source.ID)).Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
+		writeError(w, http.StatusInternalServerError, "SOURCE_DELETE_FAILED", "Could not delete source apps")
+		return
+	}
+	if err := tx.ClientSource.DeleteOneID(source.ID).Exec(r.Context()); err != nil {
+		_ = tx.Rollback()
+		writeError(w, http.StatusInternalServerError, "SOURCE_DELETE_FAILED", "Could not delete source")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "SOURCE_DELETE_FAILED", "Could not delete source")
+		return
+	}
+	_ = s.cleanupClientAssetIDs(r.Context(), append(appAssetIDs, sourceAssetIDs...)...)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -261,6 +312,7 @@ func sourceDTO(source *ent.ClientSource) SourceDTO {
 		Name:                    source.Name,
 		URL:                     source.URL,
 		Password:                source.Password,
+		IconURL:                 source.IconURL,
 		DefaultDownloadMirrorID: source.DefaultDownloadMirrorID,
 		DefaultRawMirrorID:      source.DefaultRawMirrorID,
 		GroupCodes:              decodeStringSlice(source.GroupCodesJSON),

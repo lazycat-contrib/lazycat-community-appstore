@@ -75,6 +75,11 @@ func Password(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldPassword, v))
 }
 
+// IconURL applies equality check predicate on the "icon_url" field. It's identical to IconURLEQ.
+func IconURL(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldIconURL, v))
+}
+
 // DefaultDownloadMirrorID applies equality check predicate on the "default_download_mirror_id" field. It's identical to DefaultDownloadMirrorIDEQ.
 func DefaultDownloadMirrorID(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldDefaultDownloadMirrorID, v))
@@ -438,6 +443,71 @@ func PasswordEqualFold(v string) predicate.ClientSource {
 // PasswordContainsFold applies the ContainsFold predicate on the "password" field.
 func PasswordContainsFold(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldContainsFold(FieldPassword, v))
+}
+
+// IconURLEQ applies the EQ predicate on the "icon_url" field.
+func IconURLEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldIconURL, v))
+}
+
+// IconURLNEQ applies the NEQ predicate on the "icon_url" field.
+func IconURLNEQ(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldIconURL, v))
+}
+
+// IconURLIn applies the In predicate on the "icon_url" field.
+func IconURLIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldIn(FieldIconURL, vs...))
+}
+
+// IconURLNotIn applies the NotIn predicate on the "icon_url" field.
+func IconURLNotIn(vs ...string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNotIn(FieldIconURL, vs...))
+}
+
+// IconURLGT applies the GT predicate on the "icon_url" field.
+func IconURLGT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGT(FieldIconURL, v))
+}
+
+// IconURLGTE applies the GTE predicate on the "icon_url" field.
+func IconURLGTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldGTE(FieldIconURL, v))
+}
+
+// IconURLLT applies the LT predicate on the "icon_url" field.
+func IconURLLT(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLT(FieldIconURL, v))
+}
+
+// IconURLLTE applies the LTE predicate on the "icon_url" field.
+func IconURLLTE(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldLTE(FieldIconURL, v))
+}
+
+// IconURLContains applies the Contains predicate on the "icon_url" field.
+func IconURLContains(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContains(FieldIconURL, v))
+}
+
+// IconURLHasPrefix applies the HasPrefix predicate on the "icon_url" field.
+func IconURLHasPrefix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasPrefix(FieldIconURL, v))
+}
+
+// IconURLHasSuffix applies the HasSuffix predicate on the "icon_url" field.
+func IconURLHasSuffix(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldHasSuffix(FieldIconURL, v))
+}
+
+// IconURLEqualFold applies the EqualFold predicate on the "icon_url" field.
+func IconURLEqualFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEqualFold(FieldIconURL, v))
+}
+
+// IconURLContainsFold applies the ContainsFold predicate on the "icon_url" field.
+func IconURLContainsFold(v string) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldContainsFold(FieldIconURL, v))
 }
 
 // DefaultDownloadMirrorIDEQ applies the EQ predicate on the "default_download_mirror_id" field.

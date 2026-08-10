@@ -2,6 +2,8 @@ package clientserver
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -104,7 +106,48 @@ func TestMigrateSchemaV5InvalidatesSourceETagsForWishWallCapability(t *testing.T
 	if got := client.ClientSource.GetX(ctx, source.ID).LastEtag; got != "" {
 		t.Fatalf("last_etag = %q, want empty", got)
 	}
-	if got := storedClientSchemaVersion(ctx, client); got != 5 {
-		t.Fatalf("schema version = %d, want 5", got)
+	if got := storedClientSchemaVersion(ctx, client); got != currentClientSchemaVersion {
+		t.Fatalf("schema version = %d, want %d", got, currentClientSchemaVersion)
+	}
+}
+
+func TestMigrateSchemaV6InvalidatesSourceETagsForSiteIcons(t *testing.T) {
+	ctx := context.Background()
+	client := testClient(t)
+	t.Cleanup(func() { _ = client.Close() })
+	source := client.ClientSource.Create().SetUserID("alice").SetName("Community").
+		SetURL("https://store.example/source/v2/index.json").SetLastEtag(`"site-icon-unknown"`).SaveX(ctx)
+	if err := setSystemClientSetting(ctx, client, settingClientSchemaVersion, "5"); err != nil {
+		t.Fatal(err)
+	}
+	if err := migrateSchema(ctx, client); err != nil {
+		t.Fatal(err)
+	}
+	if got := client.ClientSource.GetX(ctx, source.ID).LastEtag; got != "" {
+		t.Fatalf("last_etag = %q, want empty", got)
+	}
+	if got := storedClientSchemaVersion(ctx, client); got != currentClientSchemaVersion {
+		t.Fatalf("schema version = %d, want %d", got, currentClientSchemaVersion)
+	}
+}
+
+func TestMigrateSchemaCleansUnlinkedClientAssets(t *testing.T) {
+	ctx := context.Background()
+	client := testClient(t)
+	t.Cleanup(func() { _ = client.Close() })
+	client.ClientAsset.Create().
+		SetSha256(strings.Repeat("a", 64)).
+		SetMediaType("image/png").
+		SetSize(1).
+		SetData([]byte{0}).
+		SaveX(ctx)
+	if err := setSystemClientSetting(ctx, client, settingClientSchemaVersion, strconv.Itoa(currentClientSchemaVersion)); err != nil {
+		t.Fatal(err)
+	}
+	if err := migrateSchema(ctx, client); err != nil {
+		t.Fatal(err)
+	}
+	if count := client.ClientAsset.Query().CountX(ctx); count != 0 {
+		t.Fatalf("unlinked client assets = %d, want 0", count)
 	}
 }

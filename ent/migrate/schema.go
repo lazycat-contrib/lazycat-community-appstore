@@ -709,6 +709,7 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "url", Type: field.TypeString},
 		{Name: "password", Type: field.TypeString, Default: ""},
+		{Name: "icon_url", Type: field.TypeString, Default: ""},
 		{Name: "default_download_mirror_id", Type: field.TypeString, Default: ""},
 		{Name: "default_raw_mirror_id", Type: field.TypeString, Default: ""},
 		{Name: "group_codes_json", Type: field.TypeString, Size: 2147483647, Default: ""},
@@ -747,7 +748,7 @@ var (
 			{
 				Name:    "clientsource_user_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[27]},
+				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[28]},
 			},
 		},
 	}

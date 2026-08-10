@@ -389,6 +389,7 @@ export type SourceSubscription = {
   name: string;
   url: string;
   password: string;
+  iconUrl?: string;
   defaultDownloadMirrorId: string;
   defaultRawMirrorId: string;
   groupCodes?: string[];

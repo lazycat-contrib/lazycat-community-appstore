@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	currentClientSchemaVersion = 5
+	currentClientSchemaVersion = 6
 	systemClientUserID         = "_system"
 	settingClientSchemaVersion = "schema_version"
 )
@@ -22,7 +22,7 @@ func migrateSchema(ctx context.Context, db *ent.Client) error {
 	server := &Server{db: db}
 	version := storedClientSchemaVersion(ctx, db)
 	if version >= currentClientSchemaVersion {
-		return nil
+		return server.cleanupUnlinkedClientAssets(ctx)
 	}
 	if version < 1 {
 		if err := server.migrateClientIconDataURLs(ctx); err != nil {
@@ -61,7 +61,15 @@ func migrateSchema(ctx context.Context, db *ent.Client) error {
 			return err
 		}
 	}
-	return nil
+	if version < 6 {
+		if err := server.invalidateSourceFeedETags(ctx); err != nil {
+			return err
+		}
+		if err := setSystemClientSetting(ctx, db, settingClientSchemaVersion, "6"); err != nil {
+			return err
+		}
+	}
+	return server.cleanupUnlinkedClientAssets(ctx)
 }
 
 func storedClientSchemaVersion(ctx context.Context, db *ent.Client) int {

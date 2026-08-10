@@ -672,80 +672,84 @@ func init() {
 	clientsourceDescPassword := clientsourceFields[3].Descriptor()
 	// clientsource.DefaultPassword holds the default value on creation for the password field.
 	clientsource.DefaultPassword = clientsourceDescPassword.Default.(string)
+	// clientsourceDescIconURL is the schema descriptor for icon_url field.
+	clientsourceDescIconURL := clientsourceFields[4].Descriptor()
+	// clientsource.DefaultIconURL holds the default value on creation for the icon_url field.
+	clientsource.DefaultIconURL = clientsourceDescIconURL.Default.(string)
 	// clientsourceDescDefaultDownloadMirrorID is the schema descriptor for default_download_mirror_id field.
-	clientsourceDescDefaultDownloadMirrorID := clientsourceFields[4].Descriptor()
+	clientsourceDescDefaultDownloadMirrorID := clientsourceFields[5].Descriptor()
 	// clientsource.DefaultDefaultDownloadMirrorID holds the default value on creation for the default_download_mirror_id field.
 	clientsource.DefaultDefaultDownloadMirrorID = clientsourceDescDefaultDownloadMirrorID.Default.(string)
 	// clientsourceDescDefaultRawMirrorID is the schema descriptor for default_raw_mirror_id field.
-	clientsourceDescDefaultRawMirrorID := clientsourceFields[5].Descriptor()
+	clientsourceDescDefaultRawMirrorID := clientsourceFields[6].Descriptor()
 	// clientsource.DefaultDefaultRawMirrorID holds the default value on creation for the default_raw_mirror_id field.
 	clientsource.DefaultDefaultRawMirrorID = clientsourceDescDefaultRawMirrorID.Default.(string)
 	// clientsourceDescGroupCodesJSON is the schema descriptor for group_codes_json field.
-	clientsourceDescGroupCodesJSON := clientsourceFields[6].Descriptor()
+	clientsourceDescGroupCodesJSON := clientsourceFields[7].Descriptor()
 	// clientsource.DefaultGroupCodesJSON holds the default value on creation for the group_codes_json field.
 	clientsource.DefaultGroupCodesJSON = clientsourceDescGroupCodesJSON.Default.(string)
 	// clientsourceDescGroupNamesJSON is the schema descriptor for group_names_json field.
-	clientsourceDescGroupNamesJSON := clientsourceFields[7].Descriptor()
+	clientsourceDescGroupNamesJSON := clientsourceFields[8].Descriptor()
 	// clientsource.DefaultGroupNamesJSON holds the default value on creation for the group_names_json field.
 	clientsource.DefaultGroupNamesJSON = clientsourceDescGroupNamesJSON.Default.(string)
 	// clientsourceDescLastInvalidGroupCodesJSON is the schema descriptor for last_invalid_group_codes_json field.
-	clientsourceDescLastInvalidGroupCodesJSON := clientsourceFields[8].Descriptor()
+	clientsourceDescLastInvalidGroupCodesJSON := clientsourceFields[9].Descriptor()
 	// clientsource.DefaultLastInvalidGroupCodesJSON holds the default value on creation for the last_invalid_group_codes_json field.
 	clientsource.DefaultLastInvalidGroupCodesJSON = clientsourceDescLastInvalidGroupCodesJSON.Default.(string)
 	// clientsourceDescMirrorsJSON is the schema descriptor for mirrors_json field.
-	clientsourceDescMirrorsJSON := clientsourceFields[9].Descriptor()
+	clientsourceDescMirrorsJSON := clientsourceFields[10].Descriptor()
 	// clientsource.DefaultMirrorsJSON holds the default value on creation for the mirrors_json field.
 	clientsource.DefaultMirrorsJSON = clientsourceDescMirrorsJSON.Default.(string)
 	// clientsourceDescCategoriesJSON is the schema descriptor for categories_json field.
-	clientsourceDescCategoriesJSON := clientsourceFields[10].Descriptor()
+	clientsourceDescCategoriesJSON := clientsourceFields[11].Descriptor()
 	// clientsource.DefaultCategoriesJSON holds the default value on creation for the categories_json field.
 	clientsource.DefaultCategoriesJSON = clientsourceDescCategoriesJSON.Default.(string)
 	// clientsourceDescAnnouncementsJSON is the schema descriptor for announcements_json field.
-	clientsourceDescAnnouncementsJSON := clientsourceFields[11].Descriptor()
+	clientsourceDescAnnouncementsJSON := clientsourceFields[12].Descriptor()
 	// clientsource.DefaultAnnouncementsJSON holds the default value on creation for the announcements_json field.
 	clientsource.DefaultAnnouncementsJSON = clientsourceDescAnnouncementsJSON.Default.(string)
 	// clientsourceDescAdsJSON is the schema descriptor for ads_json field.
-	clientsourceDescAdsJSON := clientsourceFields[12].Descriptor()
+	clientsourceDescAdsJSON := clientsourceFields[13].Descriptor()
 	// clientsource.DefaultAdsJSON holds the default value on creation for the ads_json field.
 	clientsource.DefaultAdsJSON = clientsourceDescAdsJSON.Default.(string)
 	// clientsourceDescMinClientVersion is the schema descriptor for min_client_version field.
-	clientsourceDescMinClientVersion := clientsourceFields[13].Descriptor()
+	clientsourceDescMinClientVersion := clientsourceFields[14].Descriptor()
 	// clientsource.DefaultMinClientVersion holds the default value on creation for the min_client_version field.
 	clientsource.DefaultMinClientVersion = clientsourceDescMinClientVersion.Default.(string)
 	// clientsourceDescMinClientVersionMessage is the schema descriptor for min_client_version_message field.
-	clientsourceDescMinClientVersionMessage := clientsourceFields[14].Descriptor()
+	clientsourceDescMinClientVersionMessage := clientsourceFields[15].Descriptor()
 	// clientsource.DefaultMinClientVersionMessage holds the default value on creation for the min_client_version_message field.
 	clientsource.DefaultMinClientVersionMessage = clientsourceDescMinClientVersionMessage.Default.(string)
 	// clientsourceDescChatAvailable is the schema descriptor for chat_available field.
-	clientsourceDescChatAvailable := clientsourceFields[15].Descriptor()
+	clientsourceDescChatAvailable := clientsourceFields[16].Descriptor()
 	// clientsource.DefaultChatAvailable holds the default value on creation for the chat_available field.
 	clientsource.DefaultChatAvailable = clientsourceDescChatAvailable.Default.(bool)
 	// clientsourceDescWishWallAvailable is the schema descriptor for wish_wall_available field.
-	clientsourceDescWishWallAvailable := clientsourceFields[16].Descriptor()
+	clientsourceDescWishWallAvailable := clientsourceFields[17].Descriptor()
 	// clientsource.DefaultWishWallAvailable holds the default value on creation for the wish_wall_available field.
 	clientsource.DefaultWishWallAvailable = clientsourceDescWishWallAvailable.Default.(bool)
 	// clientsourceDescChatEnabled is the schema descriptor for chat_enabled field.
-	clientsourceDescChatEnabled := clientsourceFields[17].Descriptor()
+	clientsourceDescChatEnabled := clientsourceFields[18].Descriptor()
 	// clientsource.DefaultChatEnabled holds the default value on creation for the chat_enabled field.
 	clientsource.DefaultChatEnabled = clientsourceDescChatEnabled.Default.(bool)
 	// clientsourceDescLastEtag is the schema descriptor for last_etag field.
-	clientsourceDescLastEtag := clientsourceFields[19].Descriptor()
+	clientsourceDescLastEtag := clientsourceFields[20].Descriptor()
 	// clientsource.DefaultLastEtag holds the default value on creation for the last_etag field.
 	clientsource.DefaultLastEtag = clientsourceDescLastEtag.Default.(string)
 	// clientsourceDescLastAppCount is the schema descriptor for last_app_count field.
-	clientsourceDescLastAppCount := clientsourceFields[23].Descriptor()
+	clientsourceDescLastAppCount := clientsourceFields[24].Descriptor()
 	// clientsource.DefaultLastAppCount holds the default value on creation for the last_app_count field.
 	clientsource.DefaultLastAppCount = clientsourceDescLastAppCount.Default.(int)
 	// clientsourceDescLastInstallableCount is the schema descriptor for last_installable_count field.
-	clientsourceDescLastInstallableCount := clientsourceFields[24].Descriptor()
+	clientsourceDescLastInstallableCount := clientsourceFields[25].Descriptor()
 	// clientsource.DefaultLastInstallableCount holds the default value on creation for the last_installable_count field.
 	clientsource.DefaultLastInstallableCount = clientsourceDescLastInstallableCount.Default.(int)
 	// clientsourceDescCreatedAt is the schema descriptor for created_at field.
-	clientsourceDescCreatedAt := clientsourceFields[25].Descriptor()
+	clientsourceDescCreatedAt := clientsourceFields[26].Descriptor()
 	// clientsource.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsource.DefaultCreatedAt = clientsourceDescCreatedAt.Default.(func() time.Time)
 	// clientsourceDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsourceDescUpdatedAt := clientsourceFields[26].Descriptor()
+	clientsourceDescUpdatedAt := clientsourceFields[27].Descriptor()
 	// clientsource.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsource.DefaultUpdatedAt = clientsourceDescUpdatedAt.Default.(func() time.Time)
 	// clientsource.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

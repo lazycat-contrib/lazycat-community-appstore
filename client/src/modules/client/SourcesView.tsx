@@ -61,7 +61,7 @@ type SourcesViewProps = {
   sources: SourceSubscription[];
   sourceApps: SourceApp[];
   sourceAppsLoading?: boolean;
-  onAddSource: (input: SourceInput) => Promise<void>;
+  onAddSource: (input: SourceInput) => Promise<{ synced: boolean }>;
   onUpdateSource: (source: SourceSubscription) => Promise<void>;
   onDeleteSource: (source: SourceSubscription) => Promise<void>;
   onSync: (source: SourceSubscription) => Promise<void>;
@@ -157,7 +157,7 @@ export function SourcesView({
         });
         setToast({ tone: 'success', message: t('sources.groupCodesMerged') });
       } else {
-        await onAddSource({
+        const result = await onAddSource({
           name,
           url,
           password: draft.password,
@@ -167,7 +167,10 @@ export function SourcesView({
           chatEnabled: draft.chatEnabled !== false,
           adsPreference: draft.adsPreference || 'unset',
         });
-        setToast({ tone: 'success', message: t('sources.addedNext') });
+        setToast({
+          tone: result.synced ? 'success' : 'neutral',
+          message: t(result.synced ? 'sources.addedNext' : 'sources.addedSyncFailed'),
+        });
       }
       setDraft(emptySourceDraft);
       setIsAddSourceOpen(false);

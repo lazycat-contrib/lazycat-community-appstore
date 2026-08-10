@@ -531,7 +531,8 @@ const en = {
         duplicate: 'This source has already been added',
         nameRequired: 'Enter a source name',
         added: 'Source added',
-        addedNext: 'Source added. Sync it to cache installable apps.',
+        addedNext: 'Source added. The client automatically syncs site details and the app cache.',
+        addedSyncFailed: 'Source added, but the first sync failed. Check its status and try again.',
       },
       clientSettings: {
         title: 'Client settings',

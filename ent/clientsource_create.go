@@ -53,6 +53,20 @@ func (_c *ClientSourceCreate) SetNillablePassword(v *string) *ClientSourceCreate
 	return _c
 }
 
+// SetIconURL sets the "icon_url" field.
+func (_c *ClientSourceCreate) SetIconURL(v string) *ClientSourceCreate {
+	_c.mutation.SetIconURL(v)
+	return _c
+}
+
+// SetNillableIconURL sets the "icon_url" field if the given value is not nil.
+func (_c *ClientSourceCreate) SetNillableIconURL(v *string) *ClientSourceCreate {
+	if v != nil {
+		_c.SetIconURL(*v)
+	}
+	return _c
+}
+
 // SetDefaultDownloadMirrorID sets the "default_download_mirror_id" field.
 func (_c *ClientSourceCreate) SetDefaultDownloadMirrorID(v string) *ClientSourceCreate {
 	_c.mutation.SetDefaultDownloadMirrorID(v)
@@ -429,6 +443,10 @@ func (_c *ClientSourceCreate) defaults() {
 		v := clientsource.DefaultPassword
 		_c.mutation.SetPassword(v)
 	}
+	if _, ok := _c.mutation.IconURL(); !ok {
+		v := clientsource.DefaultIconURL
+		_c.mutation.SetIconURL(v)
+	}
 	if _, ok := _c.mutation.DefaultDownloadMirrorID(); !ok {
 		v := clientsource.DefaultDefaultDownloadMirrorID
 		_c.mutation.SetDefaultDownloadMirrorID(v)
@@ -539,6 +557,9 @@ func (_c *ClientSourceCreate) check() error {
 	}
 	if _, ok := _c.mutation.Password(); !ok {
 		return &ValidationError{Name: "password", err: errors.New(`ent: missing required field "ClientSource.password"`)}
+	}
+	if _, ok := _c.mutation.IconURL(); !ok {
+		return &ValidationError{Name: "icon_url", err: errors.New(`ent: missing required field "ClientSource.icon_url"`)}
 	}
 	if _, ok := _c.mutation.DefaultDownloadMirrorID(); !ok {
 		return &ValidationError{Name: "default_download_mirror_id", err: errors.New(`ent: missing required field "ClientSource.default_download_mirror_id"`)}
@@ -651,6 +672,10 @@ func (_c *ClientSourceCreate) createSpec() (*ClientSource, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.Password(); ok {
 		_spec.SetField(clientsource.FieldPassword, field.TypeString, value)
 		_node.Password = value
+	}
+	if value, ok := _c.mutation.IconURL(); ok {
+		_spec.SetField(clientsource.FieldIconURL, field.TypeString, value)
+		_node.IconURL = value
 	}
 	if value, ok := _c.mutation.DefaultDownloadMirrorID(); ok {
 		_spec.SetField(clientsource.FieldDefaultDownloadMirrorID, field.TypeString, value)

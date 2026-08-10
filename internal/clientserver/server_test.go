@@ -549,6 +549,259 @@ func TestSyncSourceCachesDataURLIconAsClientAsset(t *testing.T) {
 	}
 }
 
+func TestSyncSourceCachesSiteIconAsClientAsset(t *testing.T) {
+	var iconRequests atomic.Int32
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/site-icon.png" {
+			iconRequests.Add(1)
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write(clientTestPNG1x1)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"site": map[string]any{
+				"iconUrl": feedURL(r) + "/site-icon.png",
+			},
+			"apps": []map[string]any{{
+				"id": 1, "packageId": "cloud.lazycat.site-icon", "name": "Site Icon", "slug": "site-icon",
+			}},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("Branded Source").SetURL(feed.URL).SaveX(t.Context())
+	rec := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("sync source = %d %s", rec.Code, rec.Body.String())
+	}
+	if iconRequests.Load() != 1 {
+		t.Fatalf("site icon requests = %d, want 1", iconRequests.Load())
+	}
+	stored := app.server.db.ClientSource.GetX(t.Context(), source.ID)
+	if !strings.HasPrefix(stored.IconURL, clientAssetURLPrefix+"/") {
+		t.Fatalf("cached site icon URL = %q", stored.IconURL)
+	}
+	if !strings.Contains(rec.Body.String(), `"iconUrl":"`+clientAssetURLPrefix+`/`) {
+		t.Fatalf("sync response did not expose cached site icon: %s", rec.Body.String())
+	}
+	assetRec := app.request(http.MethodGet, stored.IconURL, "", "alice")
+	if assetRec.Code != http.StatusOK || !strings.HasPrefix(assetRec.Header().Get("Content-Type"), "image/png") {
+		t.Fatalf("site icon asset response = %d content-type=%q", assetRec.Code, assetRec.Header().Get("Content-Type"))
+	}
+}
+
+func TestSyncSourceIgnoresUnavailableSiteIcon(t *testing.T) {
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/not-an-image" {
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte("<html>not an icon</html>"))
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"site":   map[string]any{"iconUrl": feedURL(r) + "/not-an-image"},
+			"apps": []map[string]any{{
+				"id": 1, "packageId": "cloud.lazycat.no-site-icon", "name": "No Site Icon", "slug": "no-site-icon",
+			}},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("No Icon").SetURL(feed.URL).SaveX(t.Context())
+	rec := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("invalid site icon blocked source sync: %d %s", rec.Code, rec.Body.String())
+	}
+	stored := app.server.db.ClientSource.GetX(t.Context(), source.ID)
+	if stored.IconURL != "" || stored.LastAppCount != 1 {
+		t.Fatalf("source icon/app count = %q/%d, want empty/1", stored.IconURL, stored.LastAppCount)
+	}
+}
+
+func TestSyncSourceDoesNotFetchCrossOriginSiteIcon(t *testing.T) {
+	var iconRequests atomic.Int32
+	iconServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		iconRequests.Add(1)
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(clientTestPNG1x1)
+	}))
+	defer iconServer.Close()
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"site":   map[string]any{"iconUrl": iconServer.URL + "/site-icon.png"},
+			"apps":   []map[string]any{},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("Untrusted Icon").SetURL(feed.URL).SaveX(t.Context())
+	rec := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("cross-origin site icon blocked source sync: %d %s", rec.Code, rec.Body.String())
+	}
+	if iconRequests.Load() != 0 {
+		t.Fatalf("cross-origin site icon was fetched %d times", iconRequests.Load())
+	}
+	if got := app.server.db.ClientSource.GetX(t.Context(), source.ID).IconURL; got != "" {
+		t.Fatalf("cross-origin site icon was stored: %q", got)
+	}
+}
+
+func TestSyncSourceKeepsCachedSiteIconAfterTransientFailure(t *testing.T) {
+	var feedVersion atomic.Int32
+	feedVersion.Store(1)
+	var iconUnavailable atomic.Bool
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/site-icon.png" {
+			if iconUnavailable.Load() {
+				http.Error(w, "temporary failure", http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Set("Content-Type", "image/png")
+			_, _ = w.Write(clientTestPNG1x1)
+			return
+		}
+		etag := fmt.Sprintf(`"feed-%d"`, feedVersion.Load())
+		w.Header().Set("ETag", etag)
+		if r.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"site":   map[string]any{"iconUrl": feedURL(r) + "/site-icon.png"},
+			"apps": []map[string]any{{
+				"id": 1, "packageId": "cloud.lazycat.resilient-site-icon", "name": "Resilient Icon", "slug": "resilient-icon",
+			}},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("Resilient").SetURL(feed.URL).SaveX(t.Context())
+	first := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if first.Code != http.StatusOK {
+		t.Fatalf("initial sync = %d %s", first.Code, first.Body.String())
+	}
+	initial := app.server.db.ClientSource.GetX(t.Context(), source.ID)
+	if !strings.HasPrefix(initial.IconURL, clientAssetURLPrefix+"/") {
+		t.Fatalf("initial icon URL = %q", initial.IconURL)
+	}
+
+	feedVersion.Store(2)
+	iconUnavailable.Store(true)
+	second := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if second.Code != http.StatusOK {
+		t.Fatalf("transient icon failure blocked sync = %d %s", second.Code, second.Body.String())
+	}
+	updated := app.server.db.ClientSource.GetX(t.Context(), source.ID)
+	if updated.IconURL != initial.IconURL || updated.LastEtag != `"feed-2"` {
+		t.Fatalf("icon/etag after transient failure = %q/%q, want %q/%q", updated.IconURL, updated.LastEtag, initial.IconURL, `"feed-2"`)
+	}
+	third := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if third.Code != http.StatusOK {
+		t.Fatalf("304 sync = %d %s", third.Code, third.Body.String())
+	}
+	asset := app.request(http.MethodGet, updated.IconURL, "", "alice")
+	if asset.Code != http.StatusOK {
+		t.Fatalf("cached icon after 304 = %d %s", asset.Code, asset.Body.String())
+	}
+}
+
+func TestSyncSourceRejectsDuplicatePackagesBeforeCachingSiteIcon(t *testing.T) {
+	iconDataURL := "data:image/png;base64," + base64.StdEncoding.EncodeToString(clientTestPNG1x1)
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"site":   map[string]any{"iconUrl": iconDataURL},
+			"apps": []map[string]any{
+				{"id": 1, "packageId": "cloud.lazycat.duplicate", "name": "One", "slug": "one"},
+				{"id": 2, "packageId": "CLOUD.LAZYCAT.DUPLICATE", "name": "Two", "slug": "two"},
+			},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("Duplicate").SetURL(feed.URL).SaveX(t.Context())
+	rec := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("duplicate package sync = %d %s", rec.Code, rec.Body.String())
+	}
+	if count := app.server.db.ClientAsset.Query().CountX(t.Context()); count != 0 {
+		t.Fatalf("cached assets after rejected feed = %d, want 0", count)
+	}
+}
+
+func TestSourceURLChangeAndDeleteCleanSiteIconAssets(t *testing.T) {
+	newFeed := func(packageID string) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/site-icon.png" {
+				w.Header().Set("Content-Type", "image/png")
+				_, _ = w.Write(clientTestPNG1x1)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{
+				"schema": "lazycat.appstore.source.v2",
+				"site":   map[string]any{"iconUrl": feedURL(r) + "/site-icon.png"},
+				"apps": []map[string]any{{
+					"id": 1, "packageId": packageID, "name": "Lifecycle", "slug": "lifecycle",
+				}},
+			})
+		}))
+	}
+	firstFeed := newFeed("cloud.lazycat.lifecycle-one")
+	defer firstFeed.Close()
+	secondFeed := newFeed("cloud.lazycat.lifecycle-two")
+	defer secondFeed.Close()
+
+	app := testServer(t)
+	source := app.server.db.ClientSource.Create().SetUserID("alice").SetName("Lifecycle").SetURL(firstFeed.URL).SaveX(t.Context())
+	firstSync := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if firstSync.Code != http.StatusOK {
+		t.Fatalf("first sync = %d %s", firstSync.Code, firstSync.Body.String())
+	}
+	firstIconURL := app.server.db.ClientSource.GetX(t.Context(), source.ID).IconURL
+
+	updatePayload, err := json.Marshal(SourceInput{
+		Name: "Lifecycle", URL: secondFeed.URL, DefaultDownloadMirrorID: "", DefaultRawMirrorID: "",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	update := app.request(http.MethodPatch, fmt.Sprintf("/api/client/v1/sources/%d", source.ID), string(updatePayload), "alice")
+	if update.Code != http.StatusOK {
+		t.Fatalf("source update = %d %s", update.Code, update.Body.String())
+	}
+	if got := app.server.db.ClientSource.GetX(t.Context(), source.ID).IconURL; got != "" {
+		t.Fatalf("icon after URL change = %q, want empty", got)
+	}
+	if oldAsset := app.request(http.MethodGet, firstIconURL, "", "alice"); oldAsset.Code != http.StatusNotFound {
+		t.Fatalf("old site icon after URL change = %d, want 404", oldAsset.Code)
+	}
+
+	secondSync := app.request(http.MethodPost, fmt.Sprintf("/api/client/v1/sources/%d/sync", source.ID), "", "alice")
+	if secondSync.Code != http.StatusOK {
+		t.Fatalf("second sync = %d %s", secondSync.Code, secondSync.Body.String())
+	}
+	secondIconURL := app.server.db.ClientSource.GetX(t.Context(), source.ID).IconURL
+	remove := app.request(http.MethodDelete, fmt.Sprintf("/api/client/v1/sources/%d", source.ID), "", "alice")
+	if remove.Code != http.StatusOK {
+		t.Fatalf("source delete = %d %s", remove.Code, remove.Body.String())
+	}
+	if asset := app.request(http.MethodGet, secondIconURL, "", "alice"); asset.Code != http.StatusNotFound {
+		t.Fatalf("site icon after source delete = %d, want 404", asset.Code)
+	}
+	if links := app.server.db.ClientAssetLink.Query().CountX(t.Context()); links != 0 {
+		t.Fatalf("asset links after source delete = %d, want 0", links)
+	}
+}
+
 func TestSyncSourceReusesUnchangedMaterializedIcon(t *testing.T) {
 	var feedRequests atomic.Int32
 	var iconRequests atomic.Int32

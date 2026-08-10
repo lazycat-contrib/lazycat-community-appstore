@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 
 const (
 	clientAssetURLPrefix      = "/api/client/v1/assets"
+	clientAssetOwnerSource    = "source"
 	clientAssetOwnerSourceApp = "source_app"
 	clientAssetRoleIcon       = "icon"
 	clientAssetMaxImageSize   = 2 << 20
@@ -38,6 +40,14 @@ type sourceIconJob struct {
 type sourceIconResult struct {
 	url string
 	err error
+}
+
+type sourceIconHTTPError struct {
+	status int
+}
+
+func (e sourceIconHTTPError) Error() string {
+	return fmt.Sprintf("source icon returned HTTP %d", e.status)
 }
 
 func (s *Server) materializeSourceIcons(ctx context.Context, source *ent.ClientSource, apps []feedApp, oldApps []*ent.ClientSourceApp) error {
@@ -215,6 +225,110 @@ func (s *Server) materializeSourceIcon(ctx context.Context, sourceURL, sourcePas
 	return assetdata.URL(clientAssetURLPrefix, record.ID), record.ID, nil
 }
 
+// materializeSourceSiteIcon accepts only images embedded in the feed or served
+// from the feed's own origin. Invalid and untrusted icons use the built-in mark;
+// a transient fetch failure preserves the last verified local asset.
+func (s *Server) materializeSourceSiteIcon(ctx context.Context, source *ent.ClientSource, iconURL string) (string, int, error) {
+	iconURL = strings.TrimSpace(iconURL)
+	if iconURL == "" {
+		return "", 0, nil
+	}
+	if strings.HasPrefix(iconURL, "data:") {
+		payload, err := assetdata.ParseDataURL(iconURL, clientAssetMaxImageSize)
+		if err != nil {
+			return "", 0, nil
+		}
+		record, err := s.saveClientAsset(ctx, payload)
+		if err != nil {
+			return "", 0, err
+		}
+		return assetdata.URL(clientAssetURLPrefix, record.ID), record.ID, nil
+	}
+	icon, ok := sameOriginIconURL(source.URL, iconURL)
+	if !ok {
+		return "", 0, nil
+	}
+	iconCtx, cancel := context.WithTimeout(ctx, clientAssetFetchTimeout)
+	defer cancel()
+	s.ensureHTTPClients()
+	payload, err := fetchSourceIcon(iconCtx, noRedirectClient(s.httpClient), icon.String(), source.Password, clientAssetMaxImageSize)
+	if err != nil {
+		if ctx.Err() != nil {
+			return "", 0, ctx.Err()
+		}
+		if transientSourceIconError(err) {
+			return s.reusableClientSourceSiteIcon(ctx, source.IconURL)
+		}
+		return "", 0, nil
+	}
+	record, err := s.saveClientAsset(ctx, payload)
+	if err != nil {
+		return "", 0, err
+	}
+	return assetdata.URL(clientAssetURLPrefix, record.ID), record.ID, nil
+}
+
+func transientSourceIconError(err error) bool {
+	var httpErr sourceIconHTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.status == http.StatusTooManyRequests || httpErr.status >= http.StatusInternalServerError
+	}
+	var urlErr *url.Error
+	return errors.As(err, &urlErr) || errors.Is(err, context.DeadlineExceeded)
+}
+
+func (s *Server) reusableClientSourceSiteIcon(ctx context.Context, iconURL string) (string, int, error) {
+	assetID, ok := assetdata.AssetIDFromURL(clientAssetURLPrefix, iconURL)
+	if !ok {
+		return "", 0, nil
+	}
+	exists, err := s.db.ClientAsset.Query().Where(clientasset.IDEQ(assetID)).Exist(ctx)
+	if err != nil {
+		return "", 0, err
+	}
+	if !exists {
+		return "", 0, nil
+	}
+	return assetdata.URL(clientAssetURLPrefix, assetID), assetID, nil
+}
+
+func replaceClientSourceIconAssetLinks(ctx context.Context, client *ent.ClientAssetLinkClient, sourceID, assetID int) ([]int, error) {
+	links, err := client.Query().
+		Where(
+			clientassetlink.OwnerTypeEQ(clientAssetOwnerSource),
+			clientassetlink.OwnerIDEQ(sourceID),
+			clientassetlink.RoleEQ(clientAssetRoleIcon),
+		).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	oldAssetIDs := make([]int, 0, len(links))
+	for _, link := range links {
+		oldAssetIDs = append(oldAssetIDs, link.AssetID)
+	}
+	if _, err := client.Delete().
+		Where(
+			clientassetlink.OwnerTypeEQ(clientAssetOwnerSource),
+			clientassetlink.OwnerIDEQ(sourceID),
+			clientassetlink.RoleEQ(clientAssetRoleIcon),
+		).
+		Exec(ctx); err != nil {
+		return nil, err
+	}
+	if assetID > 0 {
+		if _, err := client.Create().
+			SetAssetID(assetID).
+			SetOwnerType(clientAssetOwnerSource).
+			SetOwnerID(sourceID).
+			SetRole(clientAssetRoleIcon).
+			Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return oldAssetIDs, nil
+}
+
 func (s *Server) saveClientAsset(ctx context.Context, payload assetdata.Payload) (*ent.ClientAsset, error) {
 	sum := sha256.Sum256(payload.Data)
 	sha := hex.EncodeToString(sum[:])
@@ -276,26 +390,34 @@ func (s *Server) linkClientAsset(ctx context.Context, ownerType string, ownerID 
 }
 
 func (s *Server) deleteClientAssetLinksForOwnerIDs(ctx context.Context, ownerType string, ownerIDs []int) error {
+	assetIDs, err := deleteClientAssetLinksForOwnerIDsWithClient(ctx, s.db.ClientAssetLink, ownerType, ownerIDs)
+	if err != nil {
+		return err
+	}
+	return s.cleanupClientAssetIDs(ctx, assetIDs...)
+}
+
+func deleteClientAssetLinksForOwnerIDsWithClient(ctx context.Context, client *ent.ClientAssetLinkClient, ownerType string, ownerIDs []int) ([]int, error) {
 	ownerIDs = uniqueClientPositiveInts(ownerIDs)
 	if len(ownerIDs) == 0 {
-		return nil
+		return nil, nil
 	}
-	links, err := s.db.ClientAssetLink.Query().
+	links, err := client.Query().
 		Where(clientassetlink.OwnerTypeEQ(ownerType), clientassetlink.OwnerIDIn(ownerIDs...)).
 		All(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	assetIDs := make([]int, 0, len(links))
 	for _, link := range links {
 		assetIDs = append(assetIDs, link.AssetID)
 	}
-	if _, err := s.db.ClientAssetLink.Delete().
+	if _, err := client.Delete().
 		Where(clientassetlink.OwnerTypeEQ(ownerType), clientassetlink.OwnerIDIn(ownerIDs...)).
 		Exec(ctx); err != nil {
-		return err
+		return nil, err
 	}
-	return s.cleanupClientAssetIDs(ctx, assetIDs...)
+	return assetIDs, nil
 }
 
 func (s *Server) cleanupClientAssetIDs(ctx context.Context, ids ...int) error {
@@ -312,6 +434,18 @@ func (s *Server) cleanupClientAssetIDs(ctx context.Context, ids ...int) error {
 		}
 	}
 	return nil
+}
+
+func (s *Server) cleanupUnlinkedClientAssets(ctx context.Context) error {
+	records, err := s.db.ClientAsset.Query().Select(clientasset.FieldID).All(ctx)
+	if err != nil {
+		return err
+	}
+	ids := make([]int, 0, len(records))
+	for _, record := range records {
+		ids = append(ids, record.ID)
+	}
+	return s.cleanupClientAssetIDs(ctx, ids...)
 }
 
 func sameOriginIconURL(sourceURL, iconURL string) (*url.URL, bool) {
@@ -344,7 +478,7 @@ func fetchSourceIcon(ctx context.Context, client *http.Client, iconURL, sourcePa
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return assetdata.Payload{}, fmt.Errorf("source icon returned HTTP %d", resp.StatusCode)
+		return assetdata.Payload{}, sourceIconHTTPError{status: resp.StatusCode}
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes+1))
 	if err != nil {
