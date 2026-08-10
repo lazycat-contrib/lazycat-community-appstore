@@ -1714,11 +1714,11 @@ export function App() {
               setInstallPasswordRequest(null);
               if (installDialogActivity?.status !== 'running') setInstallActivity(null);
             }}
-			onSubmit={async (options) => {
+            onSubmit={async (options) => {
               const target = installPasswordRequest.app;
               const targetVersion = installPasswordRequest.version;
-			  await installApp(target, { ...options, version: targetVersion, confirmed: true });
-			  if (!('sourceName' in target)) setInstallPasswordRequest(null);
+              setInstallPasswordRequest(null);
+              await installApp(target, { ...options, version: targetVersion, confirmed: true });
             }}
             onRetry={installDialogActivity && installDialogActivity.status !== 'running' && lastInstallRequestRef.current
               ? () => {

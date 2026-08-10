@@ -185,7 +185,9 @@
   gap: 8px;
   margin: 2px 0;
   padding: 0;
+  cursor: default;
   list-style: none;
+  user-select: none;
 }
 
 .install-timeline li {
@@ -520,6 +522,15 @@
 
   .install-timeline {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .install-panel-actions {
+    justify-content: center;
+  }
+
+  .install-panel-actions > .astryx-button {
+    flex: 1 1 104px;
+    justify-content: center;
   }
 
   .source-detail-actions {

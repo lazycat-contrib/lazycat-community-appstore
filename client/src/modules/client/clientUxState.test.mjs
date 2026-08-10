@@ -155,6 +155,27 @@ test('install timeline exposes the system step without inventing determinate pro
   );
 });
 
+test('embedded install progress keeps one dialog surface and a non-interactive timeline cursor', async () => {
+  const [clientStyles, applePolish] = await Promise.all([
+    source('../../styles/client.css'),
+    source('../../styles/apple-polish.css'),
+  ]);
+
+  assert.equal((applePolish.match(/\.install-panel:not\(\.install-panel-embedded\)/g) || []).length, 2);
+  assert.equal((applePolish.match(/\.install-panel(?=[,)])/g) || []).length, 0);
+  assert.match(clientStyles, /\.install-timeline\s*\{[^}]*cursor:\s*default;[^}]*user-select:\s*none;/s);
+  assert.match(clientStyles, /@media \(max-width:\s*640px\)[\s\S]*\.install-timeline\s*\{[^}]*grid-template-columns:\s*1fr 1fr;[^}]*\}[\s\S]*\.install-panel-actions\s*\{[^}]*justify-content:\s*center;[^}]*\}[\s\S]*\.install-panel-actions > \.astryx-button\s*\{[^}]*flex:\s*1 1 104px;[^}]*justify-content:\s*center;/s);
+});
+
+test('client and server installs share the non-blocking activity panel after confirmation', async () => {
+  const app = await source('../../App.tsx');
+  const submitHandler = app.match(/onSubmit=\{async \(options\) => \{([\s\S]*?)\n\s*\}\}\n\s*onRetry=/)?.[1] || '';
+
+  assert.notEqual(submitHandler, '');
+  assert.ok(submitHandler.indexOf('setInstallPasswordRequest(null);') < submitHandler.indexOf('await installApp(target,'));
+  assert.doesNotMatch(submitHandler, /sourceName/);
+});
+
 test('LazyCat task status maps only SDK terminal states to terminal UI states', () => {
   assert.deepEqual(installTaskState({ taskId: 'task-1', status: 'DOWNLOADING' }), {
     status: 'running', stageKey: 'installActivity.stageSystem', isTerminal: false,

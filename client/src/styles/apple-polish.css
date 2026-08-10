@@ -194,7 +194,7 @@
   backdrop-filter: blur(28px) saturate(165%);
 }
 
-.app-shell :is(.toast-host .astryx-toast, .install-panel, .source-detail-actions, .client-settings-save-bar, .admin-save-bar) {
+.app-shell :is(.toast-host .astryx-toast, .install-panel:not(.install-panel-embedded), .source-detail-actions, .client-settings-save-bar, .admin-save-bar) {
   border-radius: var(--radius-container);
   background: var(--material-regular);
   box-shadow:
@@ -304,7 +304,7 @@
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .app-shell :is(.topbar, .login-topbar, .app-side-nav, .modal-panel, .install-password-dialog, .drawer, .toast-host .astryx-toast, .install-panel, .source-detail-actions, .client-settings-save-bar, .admin-save-bar, .hero-stack div, .setup-steps div) {
+  .app-shell :is(.topbar, .login-topbar, .app-side-nav, .modal-panel, .install-password-dialog, .drawer, .toast-host .astryx-toast, .install-panel:not(.install-panel-embedded), .source-detail-actions, .client-settings-save-bar, .admin-save-bar, .hero-stack div, .setup-steps div) {
     background: var(--surface);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
