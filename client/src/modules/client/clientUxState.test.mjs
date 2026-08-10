@@ -4,6 +4,7 @@ import test from 'node:test';
 import { softwareUpdatedAt } from '../../shared/catalogUpdate.ts';
 import {
   autoUpdatePolicyPresentation,
+	autoUpdateSchedulePresentation,
   buildUpdateCandidateSnapshot,
   buildInstallTimeline,
   buildUpdateConfirmation,
@@ -13,6 +14,7 @@ import {
   installTaskState,
 	installedRuntimeStatusPresentation,
 	inspectionPresentation,
+  isUpdateQueueActive,
   normalizeEditableClientSettings,
   normalizeAutomationSettings,
   orderClientUpdateRowsLast,
@@ -131,6 +133,38 @@ test('client catalog browsing state survives opening and closing app details', a
 test('installed app automatic update policy defaults to enabled', () => {
   assert.deepEqual(autoUpdatePolicyPresentation(undefined), { enabled: true, state: 'automatic' });
   assert.deepEqual(autoUpdatePolicyPresentation(false), { enabled: false, state: 'manualOnly' });
+});
+
+test('automatic update schedule exposes the next check without promising a stale time', () => {
+  const now = new Date('2026-08-10T08:30:00Z');
+  assert.deepEqual(autoUpdateSchedulePresentation({ enabled: false, intervalMinutes: 60, lastRunAt: '2026-08-10T08:00:00Z' }, now), { state: 'paused' });
+  assert.deepEqual(autoUpdateSchedulePresentation({ enabled: true, intervalMinutes: 60 }, now), { state: 'due' });
+  assert.deepEqual(autoUpdateSchedulePresentation({ enabled: true, intervalMinutes: 60, lastRunAt: 'invalid' }, now), { state: 'due' });
+  assert.deepEqual(autoUpdateSchedulePresentation({ enabled: true, intervalMinutes: 60, lastRunAt: '2026-08-10T08:00:00Z' }, now), {
+    state: 'scheduled',
+    nextRunAt: '2026-08-10T09:00:00.000Z',
+  });
+  assert.deepEqual(autoUpdateSchedulePresentation({ enabled: true, intervalMinutes: 5, lastRunAt: '2026-08-10T08:00:00Z' }, now), { state: 'due' });
+  assert.deepEqual(autoUpdateSchedulePresentation({
+    enabled: false,
+    intervalMinutes: 5,
+    scheduleState: 'scheduled',
+    nextRunAt: '2026-08-10T09:15:00Z',
+  }, now), { state: 'scheduled', nextRunAt: '2026-08-10T09:15:00.000Z' });
+  assert.deepEqual(autoUpdateSchedulePresentation({
+    enabled: true,
+    intervalMinutes: 60,
+    scheduleState: 'scheduled',
+    nextRunAt: '2026-08-10T08:15:00Z',
+  }, now), { state: 'due' });
+});
+
+test('update dialog activity follows queue status instead of surrounding refresh work', () => {
+  assert.equal(isUpdateQueueActive('running'), true);
+  assert.equal(isUpdateQueueActive('cancelling'), true);
+  assert.equal(isUpdateQueueActive('already_running'), true);
+  assert.equal(isUpdateQueueActive('success'), false);
+  assert.equal(isUpdateQueueActive('failed'), false);
 });
 
 test('installed app runtime status hides LazyCat SDK enum formatting', () => {

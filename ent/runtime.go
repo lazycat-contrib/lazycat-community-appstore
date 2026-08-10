@@ -1444,22 +1444,26 @@ func init() {
 	wishDescClientUserID := wishFields[7].Descriptor()
 	// wish.ClientUserIDValidator is a validator for the "client_user_id" field. It is called by the builders before save.
 	wish.ClientUserIDValidator = wishDescClientUserID.Validators[0].(func(string) error)
+	// wishDescOwnerID is the schema descriptor for owner_id field.
+	wishDescOwnerID := wishFields[8].Descriptor()
+	// wish.DefaultOwnerID holds the default value on creation for the owner_id field.
+	wish.DefaultOwnerID = wishDescOwnerID.Default.(string)
 	// wishDescAuthorName is the schema descriptor for author_name field.
-	wishDescAuthorName := wishFields[8].Descriptor()
+	wishDescAuthorName := wishFields[9].Descriptor()
 	// wish.DefaultAuthorName holds the default value on creation for the author_name field.
 	wish.DefaultAuthorName = wishDescAuthorName.Default.(string)
 	// wishDescCreatedAt is the schema descriptor for created_at field.
-	wishDescCreatedAt := wishFields[9].Descriptor()
+	wishDescCreatedAt := wishFields[10].Descriptor()
 	// wish.DefaultCreatedAt holds the default value on creation for the created_at field.
 	wish.DefaultCreatedAt = wishDescCreatedAt.Default.(func() time.Time)
 	// wishDescUpdatedAt is the schema descriptor for updated_at field.
-	wishDescUpdatedAt := wishFields[10].Descriptor()
+	wishDescUpdatedAt := wishFields[11].Descriptor()
 	// wish.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	wish.DefaultUpdatedAt = wishDescUpdatedAt.Default.(func() time.Time)
 	// wish.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	wish.UpdateDefaultUpdatedAt = wishDescUpdatedAt.UpdateDefault.(func() time.Time)
 	// wishDescLastActivityAt is the schema descriptor for last_activity_at field.
-	wishDescLastActivityAt := wishFields[11].Descriptor()
+	wishDescLastActivityAt := wishFields[12].Descriptor()
 	// wish.DefaultLastActivityAt holds the default value on creation for the last_activity_at field.
 	wish.DefaultLastActivityAt = wishDescLastActivityAt.Default.(func() time.Time)
 	wishreplyFields := schema.WishReply{}.Fields()

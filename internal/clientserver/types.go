@@ -298,6 +298,8 @@ type ClientSettingsDTO struct {
 	LastAutoUpdateAt             *time.Time `json:"lastAutoUpdateAt,omitempty"`
 	LastAutoUpdateStatus         string     `json:"lastAutoUpdateStatus,omitempty"`
 	LastAutoUpdateError          string     `json:"lastAutoUpdateError,omitempty"`
+	AutoUpdateScheduleState      string     `json:"autoUpdateScheduleState"`
+	NextAutoUpdateAt             *time.Time `json:"nextAutoUpdateAt,omitempty"`
 }
 
 type ClientSettingsUpdateDTO struct {

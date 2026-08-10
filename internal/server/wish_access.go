@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"strings"
 
@@ -9,12 +11,14 @@ import (
 
 type wishActor struct {
 	ClientUserID string
+	OwnerID      string
 	DisplayName  string
 }
 
 type wishViewer struct {
 	User         *ent.User
 	ClientUserID string
+	OwnerID      string
 }
 
 func (v wishViewer) isAdmin() bool { return v.User != nil && isAdmin(v.User) }
@@ -26,7 +30,8 @@ func (s *Server) resolveWishClientActor(r *http.Request) (wishActor, int, string
 	if !s.cfg.TrustLazyCatClientComments || r.Header.Get("X-LazyCat-Client-Proxy") != "lazycat-appstore-client" {
 		return wishActor{}, http.StatusForbidden, "LAZYCAT_CLIENT_REQUIRED", "Wishes require the MiaoMiao client"
 	}
-	if sanitizeIdentity(r.Header.Get("X-LazyCat-Client-Device-ID")) == "" {
+	deviceID := sanitizeIdentity(r.Header.Get("X-LazyCat-Client-Device-ID"))
+	if deviceID == "" {
 		return wishActor{}, http.StatusForbidden, "LAZYCAT_CLIENT_REQUIRED", "Wishes require an identified LazyCat device"
 	}
 	clientUserID := sanitizeIdentity(r.Header.Get("X-LazyCat-Client-User-ID"))
@@ -40,7 +45,7 @@ func (s *Server) resolveWishClientActor(r *http.Request) (wishActor, int, string
 	if displayName == "" {
 		displayName = "MiaoMiao " + trimRunes(clientUserID, 12)
 	}
-	return wishActor{ClientUserID: clientUserID, DisplayName: displayName}, 0, "", ""
+	return wishActor{ClientUserID: clientUserID, OwnerID: scopedWishOwnerID(clientUserID, deviceID), DisplayName: displayName}, 0, "", ""
 }
 
 func (s *Server) wishViewerForRequest(r *http.Request) wishViewer {
@@ -53,8 +58,14 @@ func (s *Server) wishViewerForRequest(r *http.Request) wishViewer {
 		s.sourcePasswordAllowsClientComment(r) {
 		clientUserID := sanitizeIdentity(r.Header.Get("X-LazyCat-Client-User-ID"))
 		if strings.HasPrefix(clientUserID, "lc_") {
-			return wishViewer{ClientUserID: clientUserID}
+			deviceID := sanitizeIdentity(r.Header.Get("X-LazyCat-Client-Device-ID"))
+			return wishViewer{ClientUserID: clientUserID, OwnerID: scopedWishOwnerID(clientUserID, deviceID)}
 		}
 	}
 	return wishViewer{}
+}
+
+func scopedWishOwnerID(clientUserID, deviceID string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(clientUserID) + "\x00" + strings.TrimSpace(deviceID)))
+	return "lcw_" + hex.EncodeToString(sum[:])[:24]
 }

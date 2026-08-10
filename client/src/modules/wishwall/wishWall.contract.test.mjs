@@ -23,6 +23,11 @@ test('client wish wall supports create, edit, delete, and source selection', () 
   assert.match(wallSource, /!clientEditing && <>/);
 });
 
+test('client wish management actions require the server ownership capability', () => {
+  assert.match(wallSource, /item\.canManage === true/);
+  assert.doesNotMatch(wallSource, /Boolean\(item\.clientUserId\)/);
+});
+
 test('server wish details open from floating card actions in responsive dialogs', () => {
   const styles = readFileSync(new URL('../../styles/components.css', import.meta.url), 'utf8');
   assert.match(wallSource, /type WishDialogView = 'activity' \| 'manage'/);

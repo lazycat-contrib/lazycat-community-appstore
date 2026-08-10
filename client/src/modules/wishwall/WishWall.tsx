@@ -355,7 +355,7 @@ export function WishWall({
             <div className={mode === 'client' ? 'wish-maintenance-list' : 'wish-board'} aria-busy={loading || loadingMore}>
               {mode === 'server' && <div className="wish-board-seam" aria-hidden="true" />}
               {items.map((item, index) => {
-                const ownClientWish = mode === 'client' && Boolean(item.clientUserId);
+                const ownClientWish = mode === 'client' && item.canManage === true;
                 const KindIcon = kindIcons[item.kind];
                 const StatusIcon = statusIcons[item.status];
                 return (

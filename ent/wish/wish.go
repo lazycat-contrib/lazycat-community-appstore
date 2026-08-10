@@ -30,6 +30,8 @@ const (
 	FieldContactOther = "contact_other"
 	// FieldClientUserID holds the string denoting the client_user_id field in the database.
 	FieldClientUserID = "client_user_id"
+	// FieldOwnerID holds the string denoting the owner_id field in the database.
+	FieldOwnerID = "owner_id"
 	// FieldAuthorName holds the string denoting the author_name field in the database.
 	FieldAuthorName = "author_name"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -53,6 +55,7 @@ var Columns = []string{
 	FieldContactEmail,
 	FieldContactOther,
 	FieldClientUserID,
+	FieldOwnerID,
 	FieldAuthorName,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -82,6 +85,8 @@ var (
 	DefaultContactOther string
 	// ClientUserIDValidator is a validator for the "client_user_id" field. It is called by the builders before save.
 	ClientUserIDValidator func(string) error
+	// DefaultOwnerID holds the default value on creation for the "owner_id" field.
+	DefaultOwnerID string
 	// DefaultAuthorName holds the default value on creation for the "author_name" field.
 	DefaultAuthorName string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -193,6 +198,11 @@ func ByContactOther(opts ...sql.OrderTermOption) OrderOption {
 // ByClientUserID orders the results by the client_user_id field.
 func ByClientUserID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldClientUserID, opts...).ToFunc()
+}
+
+// ByOwnerID orders the results by the owner_id field.
+func ByOwnerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerID, opts...).ToFunc()
 }
 
 // ByAuthorName orders the results by the author_name field.

@@ -14,7 +14,7 @@ import (
 	"lazycat.community/appstore/ent/wishstatusevent"
 )
 
-func wishClientRequest(t *testing.T, app *testApp, method, path string, body any, clientUserID string) *httptest.ResponseRecorder {
+func wishClientRequestOnDevice(t *testing.T, app *testApp, method, path string, body any, clientUserID, deviceID string) *httptest.ResponseRecorder {
 	t.Helper()
 	var raw []byte
 	if body != nil {
@@ -29,12 +29,17 @@ func wishClientRequest(t *testing.T, app *testApp, method, path string, body any
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("X-LazyCat-Client-Proxy", "lazycat-appstore-client")
-	req.Header.Set("X-LazyCat-Client-Device-ID", "device-1")
+	req.Header.Set("X-LazyCat-Client-Device-ID", deviceID)
 	req.Header.Set("X-LazyCat-Client-User-ID", clientUserID)
 	req.Header.Set("X-LazyCat-Client-Display-Name", "LazyCat User")
 	rec := httptest.NewRecorder()
 	app.handler.ServeHTTP(rec, req)
 	return rec
+}
+
+func wishClientRequest(t *testing.T, app *testApp, method, path string, body any, clientUserID string) *httptest.ResponseRecorder {
+	t.Helper()
+	return wishClientRequestOnDevice(t, app, method, path, body, clientUserID, "device-1")
 }
 
 func createWishForTest(t *testing.T, app *testApp, kind, clientUserID string, extra map[string]any) int {
@@ -72,6 +77,10 @@ func TestWishCreateRequiresStatusTextAndCreatesHistory(t *testing.T) {
 	}
 
 	id := createWishForTest(t, app, "APP_REQUEST", "lc_client_a", nil)
+	created := app.server.db.Wish.GetX(t.Context(), id)
+	if created.ClientUserID != "lc_client_a" || created.OwnerID != scopedWishOwnerID("lc_client_a", "device-1") {
+		t.Fatalf("wish identities moderation=%q owner=%q", created.ClientUserID, created.OwnerID)
+	}
 	record := app.server.db.Wish.GetX(t.Context(), id)
 	events := app.server.db.WishStatusEvent.Query().AllX(t.Context())
 	if record.Status != wish.StatusOPEN || len(events) != 1 || events[0].ToStatus != wishstatusevent.ToStatusOPEN || strings.TrimSpace(events[0].Text) == "" {
@@ -95,11 +104,11 @@ func TestWishVisibilityPrivacyAndOwnManagement(t *testing.T) {
 
 	rec := app.do(http.MethodGet, "/api/v1/wishes?pageSize=100", nil)
 	body := rec.Body.String()
-	if rec.Code != http.StatusOK || strings.Contains(body, `"kind":"SUGGESTION"`) || strings.Contains(body, "owner@example.com") || strings.Contains(body, "lc_client_a") {
+	if rec.Code != http.StatusOK || strings.Contains(body, `"kind":"SUGGESTION"`) || strings.Contains(body, "owner@example.com") || strings.Contains(body, "lc_client_a") || strings.Contains(body, `"canManage":true`) {
 		t.Fatalf("public privacy response status=%d body=%s", rec.Code, body)
 	}
 	rec = wishClientRequest(t, app, http.MethodGet, "/api/v1/wishes?pageSize=100", nil, "lc_client_a")
-	if rec.Code != http.StatusOK || strings.Count(rec.Body.String(), `"kind":"SUGGESTION"`) != 1 || !strings.Contains(rec.Body.String(), "owner@example.com") {
+	if rec.Code != http.StatusOK || strings.Count(rec.Body.String(), `"kind":"SUGGESTION"`) != 1 || !strings.Contains(rec.Body.String(), "owner@example.com") || !strings.Contains(rec.Body.String(), `"canManage":true`) {
 		t.Fatalf("owner list status=%d body=%s", rec.Code, rec.Body.String())
 	}
 
@@ -116,6 +125,79 @@ func TestWishVisibilityPrivacyAndOwnManagement(t *testing.T) {
 	rec = wishClientRequest(t, app, http.MethodDelete, "/api/v1/wishes/"+strconv.Itoa(suggestionID), nil, "lc_client_a")
 	if rec.Code != http.StatusOK || app.server.db.WishStatusEvent.Query().Where(wishstatusevent.WishIDEQ(suggestionID)).CountX(t.Context()) != 0 {
 		t.Fatalf("owner delete status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestWishOwnershipIsDeviceScopedButBlockingIsUserScoped(t *testing.T) {
+	app := newTestApp(t)
+	app.server.cfg.TrustLazyCatClientComments = true
+	id := createWishForTest(t, app, "APP_REQUEST", "lc_client_a", nil)
+	created := app.server.db.Wish.GetX(t.Context(), id)
+
+	rec := wishClientRequestOnDevice(t, app, http.MethodGet, "/api/v1/wishes?pageSize=100", nil, "lc_client_a", "device-2")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"canManage":false`) {
+		t.Fatalf("other device list status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	rec = wishClientRequestOnDevice(t, app, http.MethodPatch, "/api/v1/wishes/"+strconv.Itoa(id), map[string]any{
+		"title": "Cross-device update", "body": "Must not be accepted",
+	}, "lc_client_a", "device-2")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("other device update status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	record := app.server.db.DownstreamClientUser.Query().OnlyX(t.Context())
+	if record.ClientUserID != created.ClientUserID {
+		t.Fatalf("moderation identity=%q wish identity=%q", record.ClientUserID, created.ClientUserID)
+	}
+	app.server.db.DownstreamClientUser.UpdateOne(record).SetBlocked(true).SaveX(t.Context())
+	rec = wishClientRequestOnDevice(t, app, http.MethodGet, "/api/v1/wishes?pageSize=100", nil, "lc_client_a", "device-2")
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "CLIENT_BLOCKED") {
+		t.Fatalf("blocked other device status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestLegacyWishKeepsModerationIdentityWithoutGrantingDeviceOwnership(t *testing.T) {
+	app := newTestApp(t)
+	app.server.cfg.TrustLazyCatClientComments = true
+	now := app.server.currentTime().UTC()
+	legacy := app.server.db.Wish.Create().
+		SetKind(wish.KindSUGGESTION).
+		SetTitle("Legacy private wish").
+		SetBody("Created before device ownership was recorded").
+		SetClientUserID("lc_client_a").
+		SetAuthorName("Legacy user").
+		SetCreatedAt(now).
+		SetUpdatedAt(now).
+		SetLastActivityAt(now).
+		SaveX(t.Context())
+
+	rec := wishClientRequest(t, app, http.MethodGet, "/api/v1/wishes/"+strconv.Itoa(legacy.ID), nil, "lc_client_a")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"canManage":false`) || !strings.Contains(rec.Body.String(), `"clientUserId":"lc_client_a"`) {
+		t.Fatalf("legacy client view status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	rec = wishClientRequest(t, app, http.MethodGet, "/api/v1/wishes?pageSize=100", nil, "lc_client_a")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Legacy private wish") || !strings.Contains(rec.Body.String(), `"canManage":false`) {
+		t.Fatalf("legacy owner list status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	rec = wishClientRequest(t, app, http.MethodGet, "/api/v1/wishes/"+strconv.Itoa(legacy.ID), nil, "lc_client_b")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("legacy other-user view status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	app.login("admin", "changeme")
+	rec = app.do(http.MethodGet, "/api/v1/wishes/"+strconv.Itoa(legacy.ID), nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"clientUserId":"lc_client_a"`) {
+		t.Fatalf("legacy admin view status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestScopedWishOwnerID(t *testing.T) {
+	first := scopedWishOwnerID("lc_client_a", "device-1")
+	sameDevice := scopedWishOwnerID("lc_client_a", "device-1")
+	otherDevice := scopedWishOwnerID("lc_client_a", "device-2")
+	otherUser := scopedWishOwnerID("lc_client_b", "device-1")
+	if first == "" || first != sameDevice || first == otherDevice || first == otherUser {
+		t.Fatalf("owner identities first=%q same=%q otherDevice=%q otherUser=%q", first, sameDevice, otherDevice, otherUser)
 	}
 }
 

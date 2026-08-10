@@ -195,6 +195,7 @@ export type Wish = {
   contactEmail?: string;
   contactOther?: string;
   clientUserId?: string;
+  canManage?: boolean;
   authorName: string;
   replies: WishReply[];
   statusHistory: WishStatusEvent[];
@@ -431,6 +432,8 @@ export type ClientSettings = {
   lastAutoUpdateAt?: string;
   lastAutoUpdateStatus?: string;
   lastAutoUpdateError?: string;
+  autoUpdateScheduleState?: 'paused' | 'due' | 'scheduled';
+  nextAutoUpdateAt?: string;
 };
 
 export type ClientIdentity = {

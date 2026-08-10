@@ -37,6 +37,7 @@ type wishDTO struct {
 	ContactEmail   string               `json:"contactEmail,omitempty"`
 	ContactOther   string               `json:"contactOther,omitempty"`
 	ClientUserID   string               `json:"clientUserId,omitempty"`
+	CanManage      bool                 `json:"canManage"`
 	AuthorName     string               `json:"authorName"`
 	Replies        []wishReplyDTO       `json:"replies"`
 	StatusHistory  []wishStatusEventDTO `json:"statusHistory"`
@@ -90,7 +91,7 @@ func (s *Server) handleCreateWish(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "WISH_CREATE_FAILED", "Could not create wish", nil)
 		return
 	}
-	dto, err := s.wishToDTO(r.Context(), record, wishViewer{ClientUserID: actor.ClientUserID})
+	dto, err := s.wishToDTO(r.Context(), record, wishViewer{ClientUserID: actor.ClientUserID, OwnerID: actor.OwnerID})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "WISH_LOAD_FAILED", "Could not load wish", nil)
 		return
@@ -154,7 +155,7 @@ func (s *Server) createWish(ctx context.Context, actor wishActor, input createWi
 	record, err := tx.Wish.Create().
 		SetKind(input.Kind).SetStatus(wish.StatusOPEN).SetTitle(input.Title).SetBody(input.Body).
 		SetReferenceURL(input.ReferenceURL).SetContactEmail(input.ContactEmail).SetContactOther(input.ContactOther).
-		SetClientUserID(actor.ClientUserID).SetAuthorName(actor.DisplayName).
+		SetClientUserID(actor.ClientUserID).SetOwnerID(actor.OwnerID).SetAuthorName(actor.DisplayName).
 		SetCreatedAt(now).SetUpdatedAt(now).SetLastActivityAt(now).Save(ctx)
 	if err != nil {
 		return nil, err
@@ -179,14 +180,21 @@ func (s *Server) handleListWishes(w http.ResponseWriter, r *http.Request) {
 	page := pagination.FromRequest(r, 24, 100)
 	query := s.db.Wish.Query()
 	if !viewer.isAdmin() {
-		query.Where(wish.Or(
-			wish.KindIn(wish.KindAPP_REQUEST, wish.KindCUSTOMIZATION),
-			wish.And(wish.KindEQ(wish.KindSUGGESTION), wish.ClientUserIDEQ(viewer.ClientUserID)),
-		))
+		if viewer.OwnerID == "" || viewer.ClientUserID == "" {
+			query.Where(wish.KindIn(wish.KindAPP_REQUEST, wish.KindCUSTOMIZATION))
+		} else {
+			query.Where(wish.Or(
+				wish.KindIn(wish.KindAPP_REQUEST, wish.KindCUSTOMIZATION),
+				wish.And(wish.KindEQ(wish.KindSUGGESTION), wish.Or(
+					wish.OwnerIDEQ(viewer.OwnerID),
+					wish.And(wish.OwnerIDEQ(""), wish.ClientUserIDEQ(viewer.ClientUserID)),
+				)),
+			))
+		}
 	}
 	if rawKind := strings.TrimSpace(r.URL.Query().Get("kind")); rawKind != "" {
 		kind := wish.Kind(rawKind)
-		if wish.KindValidator(kind) != nil || (kind == wish.KindSUGGESTION && !viewer.isAdmin() && viewer.ClientUserID == "") {
+		if wish.KindValidator(kind) != nil || (kind == wish.KindSUGGESTION && !viewer.isAdmin() && viewer.OwnerID == "") {
 			writeError(w, http.StatusBadRequest, "BAD_REQUEST", "Wish kind is invalid", nil)
 			return
 		}
@@ -247,7 +255,7 @@ func (s *Server) handleUpdateOwnWish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	record, err := s.db.Wish.Get(r.Context(), id)
-	if err != nil || record.ClientUserID != actor.ClientUserID {
+	if err != nil || record.OwnerID == "" || record.OwnerID != actor.OwnerID {
 		writeError(w, http.StatusNotFound, "WISH_NOT_FOUND", "Wish not found", nil)
 		return
 	}
@@ -276,7 +284,7 @@ func (s *Server) handleUpdateOwnWish(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "WISH_UPDATE_FAILED", "Could not update wish", nil)
 		return
 	}
-	dto, err := s.wishToDTO(r.Context(), record, wishViewer{ClientUserID: actor.ClientUserID})
+	dto, err := s.wishToDTO(r.Context(), record, wishViewer{ClientUserID: actor.ClientUserID, OwnerID: actor.OwnerID})
 	if err != nil {
 		writeError(w, 500, "WISH_LOAD_FAILED", "Could not load wish", nil)
 		return
@@ -299,7 +307,7 @@ func (s *Server) handleDeleteOwnWish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	record, err := s.db.Wish.Get(r.Context(), id)
-	if err != nil || record.ClientUserID != actor.ClientUserID {
+	if err != nil || record.OwnerID == "" || record.OwnerID != actor.OwnerID {
 		writeError(w, http.StatusNotFound, "WISH_NOT_FOUND", "Wish not found", nil)
 		return
 	}
@@ -337,7 +345,7 @@ func (s *Server) handleGetWish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	record, err := s.db.Wish.Get(r.Context(), id)
-	if err != nil || (record.Kind == wish.KindSUGGESTION && !viewer.isAdmin() && record.ClientUserID != viewer.ClientUserID) {
+	if err != nil || (record.Kind == wish.KindSUGGESTION && !viewerCanReadSuggestion(record, viewer)) {
 		writeError(w, http.StatusNotFound, "WISH_NOT_FOUND", "Wish not found", nil)
 		return
 	}
@@ -347,6 +355,22 @@ func (s *Server) handleGetWish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"wish": dto})
+}
+
+func viewerCanReadSuggestion(record *entgo.Wish, viewer wishViewer) bool {
+	if viewer.isAdmin() {
+		return true
+	}
+	if viewer.OwnerID == "" || viewer.ClientUserID == "" {
+		return false
+	}
+	if record.OwnerID != "" {
+		return record.OwnerID == viewer.OwnerID
+	}
+	// Historical wishes predate device-scoped ownership. Keep them visible to
+	// the original account, but read-only because the creating device cannot be
+	// reconstructed safely.
+	return record.ClientUserID == viewer.ClientUserID
 }
 
 func (s *Server) wishToDTO(ctx context.Context, record *entgo.Wish, viewer wishViewer) (wishDTO, error) {
@@ -360,11 +384,13 @@ func (s *Server) wishToDTO(ctx context.Context, record *entgo.Wish, viewer wishV
 	if err != nil {
 		return wishDTO{}, err
 	}
+	canManage := viewer.OwnerID != "" && record.OwnerID != "" && viewer.OwnerID == record.OwnerID
 	dto := wishDTO{ID: record.ID, Kind: record.Kind, Status: record.Status, Title: record.Title, Body: record.Body,
 		ReferenceURL: record.ReferenceURL, AuthorName: record.AuthorName,
 		Replies: make([]wishReplyDTO, 0, len(replies)), StatusHistory: make([]wishStatusEventDTO, 0, len(events)),
-		CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, LastActivityAt: record.LastActivityAt}
-	private := viewer.isAdmin() || (viewer.ClientUserID != "" && viewer.ClientUserID == record.ClientUserID)
+		CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt, LastActivityAt: record.LastActivityAt, CanManage: canManage}
+	legacyOwner := record.OwnerID == "" && viewer.ClientUserID != "" && viewer.ClientUserID == record.ClientUserID
+	private := viewer.isAdmin() || canManage || legacyOwner
 	if private {
 		dto.ClientUserID, dto.ContactEmail, dto.ContactOther = record.ClientUserID, record.ContactEmail, record.ContactOther
 	}

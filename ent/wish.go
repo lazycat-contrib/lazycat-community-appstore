@@ -33,6 +33,8 @@ type Wish struct {
 	ContactOther string `json:"contact_other,omitempty"`
 	// ClientUserID holds the value of the "client_user_id" field.
 	ClientUserID string `json:"client_user_id,omitempty"`
+	// OwnerID holds the value of the "owner_id" field.
+	OwnerID string `json:"owner_id,omitempty"`
 	// AuthorName holds the value of the "author_name" field.
 	AuthorName string `json:"author_name,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -51,7 +53,7 @@ func (*Wish) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case wish.FieldID:
 			values[i] = new(sql.NullInt64)
-		case wish.FieldKind, wish.FieldStatus, wish.FieldTitle, wish.FieldBody, wish.FieldReferenceURL, wish.FieldContactEmail, wish.FieldContactOther, wish.FieldClientUserID, wish.FieldAuthorName:
+		case wish.FieldKind, wish.FieldStatus, wish.FieldTitle, wish.FieldBody, wish.FieldReferenceURL, wish.FieldContactEmail, wish.FieldContactOther, wish.FieldClientUserID, wish.FieldOwnerID, wish.FieldAuthorName:
 			values[i] = new(sql.NullString)
 		case wish.FieldCreatedAt, wish.FieldUpdatedAt, wish.FieldLastActivityAt:
 			values[i] = new(sql.NullTime)
@@ -123,6 +125,12 @@ func (_m *Wish) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field client_user_id", values[i])
 			} else if value.Valid {
 				_m.ClientUserID = value.String
+			}
+		case wish.FieldOwnerID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field owner_id", values[i])
+			} else if value.Valid {
+				_m.OwnerID = value.String
 			}
 		case wish.FieldAuthorName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -207,6 +215,9 @@ func (_m *Wish) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("client_user_id=")
 	builder.WriteString(_m.ClientUserID)
+	builder.WriteString(", ")
+	builder.WriteString("owner_id=")
+	builder.WriteString(_m.OwnerID)
 	builder.WriteString(", ")
 	builder.WriteString("author_name=")
 	builder.WriteString(_m.AuthorName)

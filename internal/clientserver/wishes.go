@@ -109,9 +109,13 @@ func (s *Server) proxySourceWish(w http.ResponseWriter, r *http.Request, method,
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	deviceID := strings.TrimSpace(r.Header.Get("x-hc-device-id"))
+	// Keep moderation identity stable across a user's devices. The source
+	// server combines this identity with the forwarded device ID when it
+	// determines whether a client owns a wish.
 	req.Header.Set("X-LazyCat-Client-User-ID", pseudonymousClientUserID(source.URL, currentUserID(r)))
 	req.Header.Set("X-LazyCat-Client-Display-Name", s.clientCommentDisplayName(r))
-	req.Header.Set("X-LazyCat-Client-Device-ID", strings.TrimSpace(r.Header.Get("x-hc-device-id")))
+	req.Header.Set("X-LazyCat-Client-Device-ID", deviceID)
 	req.Header.Set("X-LazyCat-Client-Proxy", "lazycat-appstore-client")
 	if source.Password != "" {
 		req.Header.Set("X-Source-Password", source.Password)

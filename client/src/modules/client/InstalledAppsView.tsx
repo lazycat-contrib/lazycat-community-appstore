@@ -1,4 +1,4 @@
-import { AlertCircle, Download, RefreshCw } from 'lucide-react';
+import { AlertCircle, CalendarClock, CheckCircle2, Download, PackageOpen, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
@@ -10,9 +10,9 @@ import { AvatarIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { InstalledApplication, SourceApp, SourceSubscription, UpdateQueueRequest, UpdateQueueResult } from '../../shared/types';
-import { compareVersions, cx, sourceMirrorOptions } from '../../shared/utils';
-import { autoUpdatePolicyPresentation, buildUpdateCandidateSnapshot, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation, orderClientUpdateRowsLast } from './clientUxState';
+import type { ClientSettings, InstalledApplication, SourceApp, SourceSubscription, UpdateQueueRequest, UpdateQueueResult } from '../../shared/types';
+import { compareVersions, cx, formatDate, sourceMirrorOptions } from '../../shared/utils';
+import { autoUpdatePolicyPresentation, autoUpdateSchedulePresentation, buildUpdateCandidateSnapshot, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation, isUpdateQueueActive, orderClientUpdateRowsLast } from './clientUxState';
 
 type InstalledRow = { item: InstalledApplication; source?: SourceApp };
 type InstalledGroupKind = 'updates' | 'managed' | 'local';
@@ -21,6 +21,7 @@ export function InstalledAppsView({
   installedApps,
   sourceApps,
   sources,
+  autoUpdateSettings,
   installedState,
   installedError,
   installedReadinessBody,
@@ -34,6 +35,7 @@ export function InstalledAppsView({
   installedApps: InstalledApplication[];
   sourceApps: SourceApp[];
   sources: SourceSubscription[];
+  autoUpdateSettings?: Pick<ClientSettings, 'autoUpdateEnabled' | 'autoUpdateIntervalMinutes' | 'lastAutoUpdateAt' | 'autoUpdateScheduleState' | 'nextAutoUpdateAt'>;
   installedState: 'idle' | 'loading' | 'loaded' | 'error';
   installedError: string;
   installedReadinessBody: string;
@@ -87,6 +89,40 @@ export function InstalledAppsView({
   const currentItem = updateItems.find((item) => item.status === 'running');
   const completedCount = updateItems.filter((item) => ['success', 'failed', 'cancelled'].includes(item.status)).length;
   const currentNumber = currentItem ? Math.min(completedCount + 1, updateItems.length) : completedCount;
+  const queueStatus = updateQueueResult?.status || 'running';
+  const queueIsActive = isUpdateQueueActive(queueStatus);
+  const queueProgress = updateItems.length > 0 ? Math.round((completedCount / updateItems.length) * 100) : 0;
+  const queueTone = queueStatus === 'failed'
+    ? 'failed'
+    : queueStatus === 'partial' || queueStatus === 'cancelled' || queueStatus === 'requires_password'
+      ? 'stale'
+      : queueStatus === 'success' || queueStatus === 'no_updates'
+        ? 'synced'
+        : 'pending';
+  const updateSourceChoices = updateSources.map((source) => ({
+    source,
+    downloadOptions: sourceMirrorOptions(source, 'download', t('installOptions.direct')),
+    rawOptions: sourceMirrorOptions(source, 'raw', t('installOptions.direct')),
+  })).filter(({ downloadOptions, rawOptions }) => downloadOptions.length > 1 || rawOptions.length > 1);
+  const updateSourceCount = new Set(updateCandidates.map((candidate) => candidate.sourceId)).size;
+  const autoUpdateSchedule = autoUpdateSchedulePresentation({
+    enabled: autoUpdateSettings?.autoUpdateEnabled ?? false,
+    intervalMinutes: autoUpdateSettings?.autoUpdateIntervalMinutes ?? 60,
+    lastRunAt: autoUpdateSettings?.lastAutoUpdateAt,
+    scheduleState: autoUpdateSettings?.autoUpdateScheduleState,
+    nextRunAt: autoUpdateSettings?.nextAutoUpdateAt,
+  });
+  const nextAutoUpdateLabel = autoUpdateSchedule.state === 'scheduled'
+    ? formatDate(autoUpdateSchedule.nextRunAt)
+    : t(`clientSettings.autoUpdateSchedule.${autoUpdateSchedule.state}`);
+
+  function updateItemTone(status: string) {
+    if (status === 'success') return 'synced';
+    if (status === 'failed') return 'failed';
+    if (status === 'cancelled') return 'stale';
+    if (status === 'running') return 'pending';
+    return 'neutral';
+  }
 
   function InstalledGroup({
     title,
@@ -258,55 +294,106 @@ export function InstalledAppsView({
         </div>
       )}
       </section>
-	  {isConfirmOpen && (
-		<ModalLayer onClose={() => setIsConfirmOpen(false)} purpose="form" width="min(640px, calc(100vw - 36px))" maxHeight="min(88vh, 820px)">
-		  <section className="modal-panel update-confirm-dialog" aria-labelledby="update-confirm-title">
-			{!hasStarted ? <><div>
-			  <h2 id="update-confirm-title">{t('updateQueue.confirmTitle')}</h2>
-			  <p>{t('updateQueue.confirmBody', { count: updateConfirmation.eligible.length })}</p>
-			  {updateConfirmation.skipped.length > 0 && <small>{t('updateQueue.protectedSkipped', { count: updateConfirmation.skipped.length })}</small>}
-			</div>
-			<div className="update-mirror-groups">
-			  <strong>{t('updateQueue.mirrorTitle')}</strong>
-			  <small>{t('updateQueue.mirrorHelp')}</small>
-			  {updateSources.map((source) => {
-				const current = mirrorOverrides[String(source.id)] || { downloadMirrorId: source.defaultDownloadMirrorId || '', rawMirrorId: source.defaultRawMirrorId || '' };
-				const downloadOptions = sourceMirrorOptions(source, 'download', t('installOptions.direct'));
-				const rawOptions = sourceMirrorOptions(source, 'raw', t('installOptions.direct'));
-				return <div className="update-mirror-source" key={source.id}>
-				  <strong>{source.name}</strong>
-				  {downloadOptions.length > 1 && <XSelector label={t('updateQueue.downloadMirror')} value={current.downloadMirrorId} options={downloadOptions} onChange={(value) => setMirrorOverrides((old) => ({ ...old, [String(source.id)]: { ...current, downloadMirrorId: value } }))} />}
-				  {rawOptions.length > 1 && <XSelector label={t('updateQueue.rawMirror')} value={current.rawMirrorId} options={rawOptions} onChange={(value) => setMirrorOverrides((old) => ({ ...old, [String(source.id)]: { ...current, rawMirrorId: value } }))} />}
-				</div>;
-			  })}
-			</div>
-			<div className="update-app-preview">
-			  {installedGroups.updates.map(({ item, source }) => <div key={item.appid || source?.id}><strong>{item.title || source?.name || item.appid}{item.autoUpdateEnabled === false && <small className="manual-update-only">{t('updatePolicy.manualOnlyBadge')}</small>}</strong><span>{item.version || '-'} → {source?.latestVersion?.version || '-'}</span></div>)}
-			</div>
-			<div className="dialog-actions">
-			  <XButton type="button" variant="secondary" label={t('common.cancel')} onClick={() => setIsConfirmOpen(false)} />
-			  <XButton type="button" variant="primary" label={t('updateQueue.start')} icon={<RefreshCw size={17} />} onClick={() => {
-				setHasStarted(true);
-				void onRunUpdates?.({ candidates: updateCandidates, mirrorOverrides: updateSources.map((source) => {
-				  const value = mirrorOverrides[String(source.id)];
-				  return { sourceId: Number(source.id), downloadMirrorId: value?.downloadMirrorId ?? source.defaultDownloadMirrorId ?? '', rawMirrorId: value?.rawMirrorId ?? source.defaultRawMirrorId ?? '' };
-				}) });
-			  }} />
-			</div>
-			</> : <div className="update-progress-dialog">
-			  <div className="update-progress-head"><div><h2 id="update-confirm-title">{t(`updateQueue.result.${updateQueueResult?.status || 'running'}`)}</h2><p>{updateItems.length ? t('updateQueue.overallProgress', { current: currentNumber, total: updateItems.length }) : t('updateQueue.checkingSources')}</p></div>{updateItems.length > 0 && <strong>{currentNumber} / {updateItems.length}</strong>}</div>
-			  {currentItem ? <div className="update-current-app">
-				<strong>{currentItem.appName}</strong>
-				<span>{t('updateQueue.stageStableInstall')}</span>
-				<XProgressBar label={t('installActivity.progressLabel')} isLabelHidden value={0} isIndeterminate variant="accent" />
-				<ol className="update-stage-timeline"><li className="complete">{t('installActivity.steps.queued')}</li><li className="current">{t('updateQueue.stageProcessing')}</li><li>{t('installActivity.steps.result')}</li></ol>
-			  </div> : updateItems.length === 0 ? <XProgressBar label={t('installActivity.progressLabel')} isLabelHidden value={0} isIndeterminate variant="accent" /> : null}
-			  {updateItems.length > 0 && <small>{t('updateQueue.queueCounts', { success: updateSummary.success || 0, failed: updateSummary.failed || 0, queued: (updateSummary.queued || 0) + (updateSummary.running || 0) })}</small>}
-			  <div className="dialog-actions"><XButton type="button" variant="secondary" label={t('common.close')} onClick={() => setIsConfirmOpen(false)} /></div>
-			</div>}
-		  </section>
-		</ModalLayer>
-	  )}
+		  {isConfirmOpen && (
+			<ModalLayer onClose={() => setIsConfirmOpen(false)} purpose="form" width="min(680px, calc(100vw - 36px))" maxHeight="min(90vh, 860px)" className="update-dialog-layer">
+			  <section className="modal-panel update-confirm-dialog" aria-labelledby="update-confirm-title">
+				{!hasStarted ? <>
+                  <header className="update-dialog-hero">
+                    <div className="update-dialog-icon" aria-hidden="true"><RefreshCw size={22} /></div>
+                    <div>
+                      <span className="eyebrow subtle">{t('updateQueue.readyEyebrow')}</span>
+                      <h2 id="update-confirm-title">{t('updateQueue.confirmTitle')}</h2>
+                      <p>{t('updateQueue.confirmBody', { count: updateConfirmation.eligible.length })}</p>
+                    </div>
+                  </header>
+
+                  <div className="update-dialog-facts" aria-label={t('updateQueue.confirmSummary')}>
+                    <div><PackageOpen size={17} aria-hidden="true" /><span>{t('updateQueue.appsLabel')}</span><strong>{updateConfirmation.eligible.length}</strong></div>
+                    <div><ShieldCheck size={17} aria-hidden="true" /><span>{t('updateQueue.sourcesLabel')}</span><strong>{updateSourceCount}</strong></div>
+                    <div className="is-schedule"><CalendarClock size={17} aria-hidden="true" /><span>{t('updateQueue.nextAutoLabel')}</span><strong>{nextAutoUpdateLabel}</strong></div>
+                  </div>
+
+                  {updateConfirmation.skipped.length > 0 && (
+                    <p className="update-dialog-notice"><AlertCircle size={16} aria-hidden="true" /><span>{t('updateQueue.protectedSkipped', { count: updateConfirmation.skipped.length })}</span></p>
+                  )}
+
+                  {updateSourceChoices.length > 0 && <section className="update-mirror-groups">
+				    <div><strong>{t('updateQueue.mirrorTitle')}</strong><small>{t('updateQueue.mirrorHelp')}</small></div>
+				    {updateSourceChoices.map(({ source, downloadOptions, rawOptions }) => {
+					  const current = mirrorOverrides[String(source.id)] || { downloadMirrorId: source.defaultDownloadMirrorId || '', rawMirrorId: source.defaultRawMirrorId || '' };
+					  return <div className="update-mirror-source" key={source.id}>
+					    <strong>{source.name}</strong>
+					    {downloadOptions.length > 1 && <XSelector label={t('updateQueue.downloadMirror')} value={current.downloadMirrorId} options={downloadOptions} onChange={(value) => setMirrorOverrides((old) => ({ ...old, [String(source.id)]: { ...current, downloadMirrorId: value } }))} />}
+					    {rawOptions.length > 1 && <XSelector label={t('updateQueue.rawMirror')} value={current.rawMirrorId} options={rawOptions} onChange={(value) => setMirrorOverrides((old) => ({ ...old, [String(source.id)]: { ...current, rawMirrorId: value } }))} />}
+					  </div>;
+				    })}
+				  </section>}
+
+                  <section className="update-app-section" aria-labelledby="update-preview-title">
+                    <div className="update-app-section-head"><strong id="update-preview-title">{t('updateQueue.previewTitle')}</strong><small>{t('updateQueue.previewCount', { count: installedGroups.updates.length })}</small></div>
+				    <div className="update-app-preview">
+				      {installedGroups.updates.map(({ item, source }) => <div className={cx(source?.installProtected && 'is-skipped')} key={item.appid || source?.id}>
+                        <div><strong>{item.title || source?.name || item.appid}</strong><small>{item.appid}</small></div>
+                        <span>{item.version || '-'} <b aria-hidden="true">→</b> {source?.latestVersion?.version || '-'}</span>
+                        <div className="update-app-badges">
+                          {source?.installProtected && <small className="manual-update-only">{t('updateQueue.passwordBadge')}</small>}
+                          {item.autoUpdateEnabled === false && <small className="manual-update-only">{t('updatePolicy.manualOnlyBadge')}</small>}
+                        </div>
+                      </div>)}
+				    </div>
+                  </section>
+
+				  <footer className="dialog-actions update-dialog-actions">
+				    <XButton type="button" variant="secondary" label={t('common.cancel')} onClick={() => setIsConfirmOpen(false)} />
+				    <XButton type="button" variant="primary" label={t('updateQueue.start')} icon={<RefreshCw size={17} />} onClick={() => {
+					  setHasStarted(true);
+					  void onRunUpdates?.({ candidates: updateCandidates, mirrorOverrides: updateSources.map((source) => {
+					    const value = mirrorOverrides[String(source.id)];
+					    return { sourceId: Number(source.id), downloadMirrorId: value?.downloadMirrorId ?? source.defaultDownloadMirrorId ?? '', rawMirrorId: value?.rawMirrorId ?? source.defaultRawMirrorId ?? '' };
+					  }) });
+				    }} />
+				  </footer>
+				</> : <div className="update-progress-dialog" aria-live="polite">
+                  <header className={cx('update-dialog-hero', `is-${queueStatus}`)}>
+                    <div className="update-dialog-icon" aria-hidden="true">
+                      {queueStatus === 'failed' ? <XCircle size={22} /> : queueStatus === 'success' || queueStatus === 'no_updates' ? <CheckCircle2 size={22} /> : <RefreshCw size={22} className={queueIsActive ? 'spin' : undefined} />}
+                    </div>
+                    <div>
+                      <span className="eyebrow subtle">{t('updateQueue.progressEyebrow')}</span>
+                      <h2 id="update-confirm-title">{t(`updateQueue.result.${queueStatus}`)}</h2>
+                      <p>{updateItems.length
+                        ? t(queueIsActive ? 'updateQueue.overallProgress' : 'updateQueue.completedProgress', { current: currentNumber, total: updateItems.length })
+                        : updateQueueResult?.error || t('updateQueue.checkingSources')}</p>
+                    </div>
+                    <StatusBadge tone={queueTone} label={t(`updateQueue.result.${queueStatus}`)} />
+                  </header>
+
+                  <div className="update-overall-progress">
+                    <XProgressBar label={t('installActivity.progressLabel')} isLabelHidden value={queueProgress} isIndeterminate={queueIsActive && updateItems.length === 0} variant="accent" />
+                    {updateItems.length > 0 && <small>{t('updateQueue.queueCounts', { success: updateSummary.success || 0, failed: updateSummary.failed || 0, queued: (updateSummary.queued || 0) + (updateSummary.running || 0) })}</small>}
+                  </div>
+
+				  {currentItem && <div className="update-current-app">
+					<strong>{currentItem.appName}</strong>
+					<span>{t('updateQueue.stageStableInstall')}</span>
+					<ol className="update-stage-timeline"><li className="complete">{t('installActivity.steps.queued')}</li><li className="current">{t('updateQueue.stageProcessing')}</li><li>{t('installActivity.steps.result')}</li></ol>
+				  </div>}
+
+                  {updateQueueResult?.error && <p className="update-dialog-error" role="alert"><AlertCircle size={16} aria-hidden="true" /><span>{updateQueueResult.error}</span></p>}
+
+                  {updateItems.length > 0 && <div className="update-queue-items" aria-label={t('updateQueue.itemListLabel')}>
+                    {updateItems.map((item) => <div className={cx('update-queue-item', `is-${item.status}`)} key={`${item.sourceId}:${item.packageId}`}>
+                      <div><strong>{item.appName}</strong><small>{item.installedVersion || '-'} → {item.version || '-'}</small></div>
+                      <StatusBadge tone={updateItemTone(item.status)} label={t(`updateQueue.itemStates.${item.status}`)} />
+                      {item.detail && <p>{item.detail}</p>}
+                    </div>)}
+                  </div>}
+
+				  <footer className="dialog-actions update-dialog-actions is-single"><XButton type="button" variant="secondary" label={queueIsActive ? t('updateQueue.keepRunning') : t('common.close')} onClick={() => setIsConfirmOpen(false)} /></footer>
+				</div>}
+			  </section>
+			</ModalLayer>
+		  )}
 	</>
   );
 }

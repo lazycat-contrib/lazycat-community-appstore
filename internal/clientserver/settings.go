@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/clientsetting"
@@ -113,6 +114,7 @@ func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string
 		AutoUpdateIntervalMinutes:    defaultAutoSyncIntervalMinutes,
 		InstallSuccessDismissSeconds: sanitizeInstallSuccessDismissSeconds(installSuccessDismissSeconds),
 		AutoUpdateNotifyEnabled:      autoUpdateNotifyEnabled,
+		AutoUpdateScheduleState:      "paused",
 	}
 	if syncSetting == nil {
 		return dto
@@ -142,7 +144,22 @@ func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string
 	if syncSetting.LastAutoUpdateError != nil {
 		dto.LastAutoUpdateError = *syncSetting.LastAutoUpdateError
 	}
+	dto.AutoUpdateScheduleState, dto.NextAutoUpdateAt = autoUpdateSchedule(syncSetting, time.Now())
 	return dto
+}
+
+func autoUpdateSchedule(setting *ent.ClientSyncSetting, now time.Time) (string, *time.Time) {
+	if setting == nil || !setting.AutoUpdateEnabled {
+		return "paused", nil
+	}
+	if setting.LastAutoUpdateAt == nil {
+		return "due", nil
+	}
+	next := setting.LastAutoUpdateAt.Add(time.Duration(sanitizeAutoSyncInterval(setting.AutoUpdateIntervalMinutes)) * time.Minute).UTC()
+	if !next.After(now) {
+		return "due", nil
+	}
+	return "scheduled", &next
 }
 
 func (s *Server) clientAutoUpdateNotifyEnabled(ctx context.Context, userID string) (bool, error) {

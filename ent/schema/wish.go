@@ -19,7 +19,12 @@ func (Wish) Fields() []ent.Field {
 		field.String("reference_url").Default(""),
 		field.String("contact_email").Default(""),
 		field.String("contact_other").Default(""),
+		// ClientUserID is the stable, cross-device moderation identity.
 		field.String("client_user_id").NotEmpty(),
+		// OwnerID is scoped to the creating LazyCat device. Existing wishes
+		// intentionally default to no owner because their original device is
+		// not recoverable from historical data.
+		field.String("owner_id").Default(""),
 		field.String("author_name").Default(""),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
@@ -32,5 +37,6 @@ func (Wish) Indexes() []ent.Index {
 		index.Fields("kind", "status", "last_activity_at"),
 		index.Fields("status", "last_activity_at"),
 		index.Fields("client_user_id", "created_at"),
+		index.Fields("owner_id", "created_at"),
 	}
 }

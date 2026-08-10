@@ -1,4 +1,4 @@
-import { AlertCircle, Check, Clock3, Download, Info, RefreshCw, Save, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertCircle, CalendarClock, Check, Clock3, Download, History, Info, KeyRound, RefreshCw, Save, ShieldCheck, Sparkles } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
@@ -11,7 +11,7 @@ import { APP_VERSION } from '../../config';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { ClientSettings, ClientSourceStats, Toast } from '../../shared/types';
 import { cx, errorMessage, formatDate } from '../../shared/utils';
-import { normalizeAutomationSettings, normalizeEditableClientSettings, sameEditableClientSettings } from './clientUxState';
+import { autoUpdateSchedulePresentation, normalizeAutomationSettings, normalizeEditableClientSettings, sameEditableClientSettings } from './clientUxState';
 
 const syncIntervalOptions = [5, 15, 30, 60, 360, 720, 1440];
 const pageSizeOptions = [12, 24, 48, 96, 100];
@@ -113,6 +113,16 @@ export function ClientSettingsView({
           ? 'ready'
           : 'waiting';
   const autoUpdateStatusClass = autoUpdateState === 'failed' ? 'failed' : autoUpdateState === 'partial' ? 'stale' : autoUpdateState === 'off' ? 'unsynced' : 'synced';
+  const autoUpdateSchedule = autoUpdateSchedulePresentation({
+    enabled: settings.autoUpdateEnabled,
+    intervalMinutes: settings.autoUpdateIntervalMinutes,
+    lastRunAt: settings.lastAutoUpdateAt,
+    scheduleState: settings.autoUpdateScheduleState,
+    nextRunAt: settings.nextAutoUpdateAt,
+  });
+  const nextAutoUpdateLabel = autoUpdateSchedule.state === 'scheduled'
+    ? formatDate(autoUpdateSchedule.nextRunAt)
+    : t(`clientSettings.autoUpdateSchedule.${autoUpdateSchedule.state}`);
   const effectiveClientTitle = draft.clientTitle.trim() || t('appName');
   const settingsTabs = [
     { key: 'sync', label: t('clientSettings.tabs.sync'), icon: Clock3 },
@@ -236,42 +246,81 @@ export function ClientSettingsView({
             onChange={(checked) => updateDraft({ ...draft, syncOnStartup: checked })}
           />
 
-		  <div className="client-auto-update-control">
-			<div className="settings-card-head">
-			  <div>
-				<RefreshCw size={19} />
-				<h3>{t('clientSettings.autoUpdate')}</h3>
-			  </div>
-			  <StatusBadge tone={autoUpdateStatusClass} label={t(`clientSettings.syncStates.${autoUpdateState}`)} />
-			</div>
-			<p className="muted-text">{t('clientSettings.autoUpdateHelp')}</p>
-			<XSwitch
-			  label={t('clientSettings.autoUpdate')}
-			  labelTooltip={t('clientSettings.autoUpdatePasswordHint')}
-			  value={draft.autoUpdateEnabled}
-			  labelSpacing="spread"
-			  width="100%"
-			  onChange={(checked) => updateDraft(normalizeAutomationSettings({ ...draft, autoUpdateEnabled: checked }))}
-			/>
-			<XSelector
-			  label={t('clientSettings.autoUpdateInterval')}
-			  value={updateIntervalValue}
-			  options={syncIntervalOptions.map((value) => ({ value: String(value), label: t('clientSettings.intervalOption', { count: value }) }))}
-			  onChange={(value) => updateDraft(normalizeAutomationSettings({ ...draft, autoUpdateIntervalMinutes: Number(value) || 60 }))}
-			/>
-			<small>{settings.lastAutoUpdateAt ? t('clientSettings.autoUpdateLastRun', { time: formatDate(settings.lastAutoUpdateAt) }) : t('clientSettings.neverRun')}</small>
-			{settings.lastAutoUpdateError && <small className="client-auto-update-error">{settings.lastAutoUpdateError}</small>}
-			{onRunUpdates && (
-			  <XButton
-				type="button"
-				variant="secondary"
-				label={isUpdateQueueRunning ? t('updateQueue.running') : t('clientSettings.runUpdateNow')}
-				icon={<RefreshCw size={17} className={isUpdateQueueRunning ? 'spin' : undefined} />}
-				isDisabled={isUpdateQueueRunning}
-				onClick={() => void onRunUpdates()}
-			  />
-			)}
-		  </div>
+          <section className={cx('client-auto-update-control', `is-${autoUpdateState}`)} aria-labelledby="client-auto-update-title">
+            <header className="client-auto-update-head">
+              <div className="client-auto-update-icon" aria-hidden="true">
+                <RefreshCw size={20} />
+              </div>
+              <div>
+                <span className="eyebrow subtle">{t('clientSettings.automation')}</span>
+                <h3 id="client-auto-update-title">{t('clientSettings.autoUpdate')}</h3>
+                <p>{t('clientSettings.autoUpdateHelp')}</p>
+              </div>
+              <StatusBadge tone={autoUpdateStatusClass} label={t(`clientSettings.syncStates.${autoUpdateState}`)} />
+            </header>
+
+            <div className="client-auto-update-schedule" aria-label={t('clientSettings.autoUpdateScheduleLabel')}>
+              <div>
+                <CalendarClock size={18} aria-hidden="true" />
+                <span>{t('clientSettings.autoUpdateNext')}</span>
+                <strong>
+                  {autoUpdateSchedule.state === 'scheduled'
+                    ? <time dateTime={autoUpdateSchedule.nextRunAt}>{nextAutoUpdateLabel}</time>
+                    : nextAutoUpdateLabel}
+                </strong>
+              </div>
+              <div>
+                <History size={18} aria-hidden="true" />
+                <span>{t('clientSettings.autoUpdatePrevious')}</span>
+                <strong>
+                  {settings.lastAutoUpdateAt
+                    ? <time dateTime={settings.lastAutoUpdateAt}>{formatDate(settings.lastAutoUpdateAt)}</time>
+                    : t('clientSettings.neverRun')}
+                </strong>
+              </div>
+            </div>
+
+            <div className="client-auto-update-fields">
+              <XSwitch
+                label={t('clientSettings.autoUpdate')}
+                description={draft.autoUpdateEnabled ? t('clientSettings.autoUpdateOnHint') : t('clientSettings.autoUpdateOffHint')}
+                value={draft.autoUpdateEnabled}
+                labelSpacing="spread"
+                width="100%"
+                onChange={(checked) => updateDraft(normalizeAutomationSettings({ ...draft, autoUpdateEnabled: checked }))}
+              />
+              <XSelector
+                label={t('clientSettings.autoUpdateInterval')}
+                description={t('clientSettings.autoUpdateIntervalHelp')}
+                value={updateIntervalValue}
+                options={syncIntervalOptions.map((value) => ({ value: String(value), label: t('clientSettings.intervalOption', { count: value }) }))}
+                onChange={(value) => updateDraft(normalizeAutomationSettings({ ...draft, autoUpdateIntervalMinutes: Number(value) || 60 }))}
+              />
+            </div>
+
+            <p className="client-auto-update-note">
+              <KeyRound size={16} aria-hidden="true" />
+              <span>{t('clientSettings.autoUpdatePasswordHint')}</span>
+            </p>
+            {settings.lastAutoUpdateError && (
+              <p className="client-auto-update-error" role="alert">
+                <AlertCircle size={16} aria-hidden="true" />
+                <span>{settings.lastAutoUpdateError}</span>
+              </p>
+            )}
+            {onRunUpdates && (
+              <div className="client-auto-update-actions">
+                <XButton
+                  type="button"
+                  variant="secondary"
+                  label={isUpdateQueueRunning ? t('updateQueue.running') : t('clientSettings.runUpdateNow')}
+                  icon={<RefreshCw size={17} className={isUpdateQueueRunning ? 'spin' : undefined} />}
+                  isDisabled={isUpdateQueueRunning}
+                  onClick={() => void onRunUpdates()}
+                />
+              </div>
+            )}
+          </section>
         </section>
         )}
 

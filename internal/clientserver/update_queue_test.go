@@ -175,6 +175,21 @@ func TestAutoUpdateDueUsesLastRunAndInterval(t *testing.T) {
 	}
 }
 
+func TestAutoUpdateScheduleUsesPersistedServerState(t *testing.T) {
+	now := time.Date(2026, 8, 10, 8, 30, 0, 0, time.UTC)
+	lastRun := time.Date(2026, 8, 10, 8, 0, 0, 0, time.UTC)
+	state, next := autoUpdateSchedule(&ent.ClientSyncSetting{AutoUpdateEnabled: true, AutoUpdateIntervalMinutes: 60, LastAutoUpdateAt: &lastRun}, now)
+	if state != "scheduled" || next == nil || !next.Equal(time.Date(2026, 8, 10, 9, 0, 0, 0, time.UTC)) {
+		t.Fatalf("schedule state=%q next=%v", state, next)
+	}
+	if state, next = autoUpdateSchedule(&ent.ClientSyncSetting{AutoUpdateEnabled: true, AutoUpdateIntervalMinutes: 5, LastAutoUpdateAt: &lastRun}, now); state != "due" || next != nil {
+		t.Fatalf("due schedule state=%q next=%v", state, next)
+	}
+	if state, next = autoUpdateSchedule(&ent.ClientSyncSetting{}, now); state != "paused" || next != nil {
+		t.Fatalf("paused schedule state=%q next=%v", state, next)
+	}
+}
+
 func TestAutoUpdateSchedulerNormalizesSourceSyncDependency(t *testing.T) {
 	app := testServer(t)
 	setting := app.server.db.ClientSyncSetting.Create().

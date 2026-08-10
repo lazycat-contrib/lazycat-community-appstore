@@ -582,6 +582,26 @@ export function App() {
   }, [clientAuth.authenticated, clientAuth.oidcEnabled, clientAuthLoaded, sourceAppsLoaded, sourceAppsLoading, tab]);
 
   useEffect(() => {
+    if (HAS_API || !clientAuthLoaded || !clientSettings.autoUpdateEnabled) return;
+    if (clientAuth.oidcEnabled && !clientAuth.authenticated) return;
+    if (tab !== 'profile' && tab !== 'settings') return;
+    const refreshSchedule = () => {
+      void loadClientSettings().catch(() => {
+        // The existing settings stay visible through transient background refresh failures.
+      });
+    };
+    const timer = window.setInterval(refreshSchedule, 60_000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refreshSchedule();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [clientAuth.authenticated, clientAuth.oidcEnabled, clientAuthLoaded, clientSettings.autoUpdateEnabled, tab]);
+
+  useEffect(() => {
     if (!HAS_API || isLoginRoute) return;
     const verifyToken = verificationTokenFromURL();
     if (verifyToken && window.location.pathname.includes('verify')) {
@@ -1196,6 +1216,7 @@ export function App() {
 	try {
 	  const result = await clientApi<UpdateQueueResult>('/updates/run', { method: 'POST', body: JSON.stringify(options) });
 	  setUpdateQueueResult(result);
+	  setIsUpdateQueueRunning(false);
 	  const tone = result.status === 'success' ? 'success' : result.status === 'failed' ? 'error' : 'neutral';
 	  setToast({ tone, message: t(`updateQueue.result.${result.status}`) });
 	  await Promise.all([loadInstalledApps({ quiet: true }), loadClientApps(), loadClientSettings()]);
@@ -1622,6 +1643,7 @@ export function App() {
                 sourceApps={sourceApps}
                 sources={sources}
                 sourceStats={sourceStats}
+                clientSettings={clientSettings}
                 installedApps={installedApps}
                 installedState={installedState}
                 installedError={installedError}

@@ -1544,6 +1544,7 @@ var (
 		{Name: "contact_email", Type: field.TypeString, Default: ""},
 		{Name: "contact_other", Type: field.TypeString, Default: ""},
 		{Name: "client_user_id", Type: field.TypeString},
+		{Name: "owner_id", Type: field.TypeString, Default: ""},
 		{Name: "author_name", Type: field.TypeString, Default: ""},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -1558,17 +1559,22 @@ var (
 			{
 				Name:    "wish_kind_status_last_activity_at",
 				Unique:  false,
-				Columns: []*schema.Column{WishesColumns[1], WishesColumns[2], WishesColumns[12]},
+				Columns: []*schema.Column{WishesColumns[1], WishesColumns[2], WishesColumns[13]},
 			},
 			{
 				Name:    "wish_status_last_activity_at",
 				Unique:  false,
-				Columns: []*schema.Column{WishesColumns[2], WishesColumns[12]},
+				Columns: []*schema.Column{WishesColumns[2], WishesColumns[13]},
 			},
 			{
 				Name:    "wish_client_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{WishesColumns[8], WishesColumns[10]},
+				Columns: []*schema.Column{WishesColumns[8], WishesColumns[11]},
+			},
+			{
+				Name:    "wish_owner_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{WishesColumns[9], WishesColumns[11]},
 			},
 		},
 	}

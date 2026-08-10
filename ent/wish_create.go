@@ -100,6 +100,20 @@ func (_c *WishCreate) SetClientUserID(v string) *WishCreate {
 	return _c
 }
 
+// SetOwnerID sets the "owner_id" field.
+func (_c *WishCreate) SetOwnerID(v string) *WishCreate {
+	_c.mutation.SetOwnerID(v)
+	return _c
+}
+
+// SetNillableOwnerID sets the "owner_id" field if the given value is not nil.
+func (_c *WishCreate) SetNillableOwnerID(v *string) *WishCreate {
+	if v != nil {
+		_c.SetOwnerID(*v)
+	}
+	return _c
+}
+
 // SetAuthorName sets the "author_name" field.
 func (_c *WishCreate) SetAuthorName(v string) *WishCreate {
 	_c.mutation.SetAuthorName(v)
@@ -207,6 +221,10 @@ func (_c *WishCreate) defaults() {
 		v := wish.DefaultContactOther
 		_c.mutation.SetContactOther(v)
 	}
+	if _, ok := _c.mutation.OwnerID(); !ok {
+		v := wish.DefaultOwnerID
+		_c.mutation.SetOwnerID(v)
+	}
 	if _, ok := _c.mutation.AuthorName(); !ok {
 		v := wish.DefaultAuthorName
 		_c.mutation.SetAuthorName(v)
@@ -275,6 +293,9 @@ func (_c *WishCreate) check() error {
 		if err := wish.ClientUserIDValidator(v); err != nil {
 			return &ValidationError{Name: "client_user_id", err: fmt.Errorf(`ent: validator failed for field "Wish.client_user_id": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.OwnerID(); !ok {
+		return &ValidationError{Name: "owner_id", err: errors.New(`ent: missing required field "Wish.owner_id"`)}
 	}
 	if _, ok := _c.mutation.AuthorName(); !ok {
 		return &ValidationError{Name: "author_name", err: errors.New(`ent: missing required field "Wish.author_name"`)}
@@ -345,6 +366,10 @@ func (_c *WishCreate) createSpec() (*Wish, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ClientUserID(); ok {
 		_spec.SetField(wish.FieldClientUserID, field.TypeString, value)
 		_node.ClientUserID = value
+	}
+	if value, ok := _c.mutation.OwnerID(); ok {
+		_spec.SetField(wish.FieldOwnerID, field.TypeString, value)
+		_node.OwnerID = value
 	}
 	if value, ok := _c.mutation.AuthorName(); ok {
 		_spec.SetField(wish.FieldAuthorName, field.TypeString, value)

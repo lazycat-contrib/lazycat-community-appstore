@@ -140,6 +140,20 @@ func (_u *WishUpdate) SetNillableClientUserID(v *string) *WishUpdate {
 	return _u
 }
 
+// SetOwnerID sets the "owner_id" field.
+func (_u *WishUpdate) SetOwnerID(v string) *WishUpdate {
+	_u.mutation.SetOwnerID(v)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner_id" field if the given value is not nil.
+func (_u *WishUpdate) SetNillableOwnerID(v *string) *WishUpdate {
+	if v != nil {
+		_u.SetOwnerID(*v)
+	}
+	return _u
+}
+
 // SetAuthorName sets the "author_name" field.
 func (_u *WishUpdate) SetAuthorName(v string) *WishUpdate {
 	_u.mutation.SetAuthorName(v)
@@ -295,6 +309,9 @@ func (_u *WishUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.ClientUserID(); ok {
 		_spec.SetField(wish.FieldClientUserID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.OwnerID(); ok {
+		_spec.SetField(wish.FieldOwnerID, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.AuthorName(); ok {
 		_spec.SetField(wish.FieldAuthorName, field.TypeString, value)
 	}
@@ -435,6 +452,20 @@ func (_u *WishUpdateOne) SetClientUserID(v string) *WishUpdateOne {
 func (_u *WishUpdateOne) SetNillableClientUserID(v *string) *WishUpdateOne {
 	if v != nil {
 		_u.SetClientUserID(*v)
+	}
+	return _u
+}
+
+// SetOwnerID sets the "owner_id" field.
+func (_u *WishUpdateOne) SetOwnerID(v string) *WishUpdateOne {
+	_u.mutation.SetOwnerID(v)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner_id" field if the given value is not nil.
+func (_u *WishUpdateOne) SetNillableOwnerID(v *string) *WishUpdateOne {
+	if v != nil {
+		_u.SetOwnerID(*v)
 	}
 	return _u
 }
@@ -623,6 +654,9 @@ func (_u *WishUpdateOne) sqlSave(ctx context.Context) (_node *Wish, err error) {
 	}
 	if value, ok := _u.mutation.ClientUserID(); ok {
 		_spec.SetField(wish.FieldClientUserID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OwnerID(); ok {
+		_spec.SetField(wish.FieldOwnerID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.AuthorName(); ok {
 		_spec.SetField(wish.FieldAuthorName, field.TypeString, value)

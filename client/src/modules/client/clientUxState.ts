@@ -6,6 +6,42 @@ export function autoUpdatePolicyPresentation(value?: boolean) {
   return { enabled, state: enabled ? 'automatic' : 'manualOnly' } as const;
 }
 
+export type AutoUpdateScheduleState = 'paused' | 'due' | 'scheduled';
+
+export function autoUpdateSchedulePresentation({
+  enabled,
+  intervalMinutes,
+  lastRunAt,
+  scheduleState,
+  nextRunAt,
+}: {
+  enabled: boolean;
+  intervalMinutes: number;
+  lastRunAt?: string;
+  scheduleState?: AutoUpdateScheduleState;
+  nextRunAt?: string;
+}, now = new Date()) {
+  if (scheduleState === 'paused' || scheduleState === 'due') return { state: scheduleState } as const;
+  if (scheduleState === 'scheduled') {
+    const scheduled = nextRunAt ? new Date(nextRunAt) : null;
+    if (!scheduled || !Number.isFinite(scheduled.getTime()) || scheduled.getTime() <= now.getTime()) return { state: 'due' } as const;
+    return { state: 'scheduled', nextRunAt: scheduled.toISOString() } as const;
+  }
+  // Compatibility with client services released before the authoritative
+  // schedule fields were added.
+  if (!enabled) return { state: 'paused' } as const;
+  const lastRun = lastRunAt ? new Date(lastRunAt) : null;
+  if (!lastRun || !Number.isFinite(lastRun.getTime())) return { state: 'due' } as const;
+  const interval = Math.max(5, Number(intervalMinutes) || 60);
+  const nextRun = new Date(lastRun.getTime() + interval * 60_000);
+  if (nextRun.getTime() <= now.getTime()) return { state: 'due' } as const;
+  return { state: 'scheduled', nextRunAt: nextRun.toISOString() } as const;
+}
+
+export function isUpdateQueueActive(status?: string) {
+  return status === 'running' || status === 'cancelling' || status === 'already_running';
+}
+
 export function requiresInstallOptions({
   installProtected,
   installPassword,

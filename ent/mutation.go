@@ -38915,6 +38915,7 @@ type WishMutation struct {
 	contact_email    *string
 	contact_other    *string
 	client_user_id   *string
+	owner_id         *string
 	author_name      *string
 	created_at       *time.Time
 	updated_at       *time.Time
@@ -39311,6 +39312,42 @@ func (m *WishMutation) ResetClientUserID() {
 	m.client_user_id = nil
 }
 
+// SetOwnerID sets the "owner_id" field.
+func (m *WishMutation) SetOwnerID(s string) {
+	m.owner_id = &s
+}
+
+// OwnerID returns the value of the "owner_id" field in the mutation.
+func (m *WishMutation) OwnerID() (r string, exists bool) {
+	v := m.owner_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerID returns the old "owner_id" field's value of the Wish entity.
+// If the Wish object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *WishMutation) OldOwnerID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerID: %w", err)
+	}
+	return oldValue.OwnerID, nil
+}
+
+// ResetOwnerID resets all changes to the "owner_id" field.
+func (m *WishMutation) ResetOwnerID() {
+	m.owner_id = nil
+}
+
 // SetAuthorName sets the "author_name" field.
 func (m *WishMutation) SetAuthorName(s string) {
 	m.author_name = &s
@@ -39489,7 +39526,7 @@ func (m *WishMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *WishMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.kind != nil {
 		fields = append(fields, wish.FieldKind)
 	}
@@ -39513,6 +39550,9 @@ func (m *WishMutation) Fields() []string {
 	}
 	if m.client_user_id != nil {
 		fields = append(fields, wish.FieldClientUserID)
+	}
+	if m.owner_id != nil {
+		fields = append(fields, wish.FieldOwnerID)
 	}
 	if m.author_name != nil {
 		fields = append(fields, wish.FieldAuthorName)
@@ -39550,6 +39590,8 @@ func (m *WishMutation) Field(name string) (ent.Value, bool) {
 		return m.ContactOther()
 	case wish.FieldClientUserID:
 		return m.ClientUserID()
+	case wish.FieldOwnerID:
+		return m.OwnerID()
 	case wish.FieldAuthorName:
 		return m.AuthorName()
 	case wish.FieldCreatedAt:
@@ -39583,6 +39625,8 @@ func (m *WishMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldContactOther(ctx)
 	case wish.FieldClientUserID:
 		return m.OldClientUserID(ctx)
+	case wish.FieldOwnerID:
+		return m.OldOwnerID(ctx)
 	case wish.FieldAuthorName:
 		return m.OldAuthorName(ctx)
 	case wish.FieldCreatedAt:
@@ -39655,6 +39699,13 @@ func (m *WishMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetClientUserID(v)
+		return nil
+	case wish.FieldOwnerID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerID(v)
 		return nil
 	case wish.FieldAuthorName:
 		v, ok := value.(string)
@@ -39756,6 +39807,9 @@ func (m *WishMutation) ResetField(name string) error {
 		return nil
 	case wish.FieldClientUserID:
 		m.ResetClientUserID()
+		return nil
+	case wish.FieldOwnerID:
+		m.ResetOwnerID()
 		return nil
 	case wish.FieldAuthorName:
 		m.ResetAuthorName()

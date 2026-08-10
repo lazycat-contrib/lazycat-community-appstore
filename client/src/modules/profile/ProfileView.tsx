@@ -16,7 +16,7 @@ import { canUserManageApp, canUserUploadVersion, defaultUploadStorageKey, displa
 import { EmptyState, SectionTitle } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
-import type { Category, ClientSourceStats, CollaborationData, FavoriteData, InstalledApplication, LPKInspectionStatus, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, SourceSubscription, StorageOption, StoreApp, Toast, UpdateQueueRequest, UpdateQueueResult, User } from '../../shared/types';
+import type { Category, ClientSettings, ClientSourceStats, CollaborationData, FavoriteData, InstalledApplication, LPKInspectionStatus, PaginatedResponse, Pagination as PaginationMeta, SiteProfile, SourceApp, SourceSubscription, StorageOption, StoreApp, Toast, UpdateQueueRequest, UpdateQueueResult, User } from '../../shared/types';
 import { cx, formatDate, hasInstallableVersion, runAction, statusKey } from '../../shared/utils';
 import { InstalledAppsView } from '../client/InstalledAppsView';
 import type { AppDetailMode } from '../storefront/AppDrawer';
@@ -60,6 +60,7 @@ export function ProfileView({
   sourceApps,
   sources,
   sourceStats,
+  clientSettings,
   installedApps,
   installedState,
   installedError,
@@ -91,6 +92,7 @@ export function ProfileView({
   sourceApps: SourceApp[];
   sources: SourceSubscription[];
   sourceStats: ClientSourceStats;
+  clientSettings?: ClientSettings;
   installedApps: InstalledApplication[];
   installedState: 'idle' | 'loading' | 'loaded' | 'error';
   installedError: string;
@@ -629,6 +631,7 @@ export function ProfileView({
           installedApps={installedApps}
           sourceApps={sourceApps}
           sources={sources}
+          autoUpdateSettings={clientSettings}
           installedState={installedState}
           installedError={installedError}
           installedReadinessBody={installedReadinessBody}
