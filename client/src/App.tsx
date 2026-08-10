@@ -1212,22 +1212,24 @@ export function App() {
   if (HAS_API && setupRequired) {
     return (
       <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
-        <Suspense fallback={<AppRouteFallback />}>
-          <SetupWizard
-            onComplete={async (nextUser) => {
-              setUser(nextUser);
-              setSetupRequired(false);
-              navigateTo('profile');
-              await refreshAll();
-            }}
-            setToast={setToast}
-            themeMode={themeMode}
-            onThemeModeChange={setThemeMode}
-            astryxThemeName={astryxThemeName}
-            onAstryxThemeChange={setAstryxThemeName}
-          />
-        </Suspense>
-        <AppToast toast={toast} onDismiss={() => setToast(null)} />
+        <div className="app-shell app-shell-server">
+          <Suspense fallback={<AppRouteFallback />}>
+            <SetupWizard
+              onComplete={async (nextUser) => {
+                setUser(nextUser);
+                setSetupRequired(false);
+                navigateTo('profile');
+                await refreshAll();
+              }}
+              setToast={setToast}
+              themeMode={themeMode}
+              onThemeModeChange={setThemeMode}
+              astryxThemeName={astryxThemeName}
+              onAstryxThemeChange={setAstryxThemeName}
+            />
+          </Suspense>
+          <AppToast toast={toast} onDismiss={() => setToast(null)} />
+        </div>
       </Theme>
     );
   }
@@ -1235,37 +1237,39 @@ export function App() {
   if (HAS_API && isLoginRoute) {
     return (
       <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
-        <Suspense fallback={<AppRouteFallback />}>
-          <LoginPage
-            siteTitle={siteTitle}
-            siteProfile={siteProfile}
-            currentLanguage={currentLanguage}
-            themeMode={themeMode}
-            astryxThemeName={astryxThemeName}
-            onLanguageChange={(language) => void i18n.changeLanguage(language)}
-            onThemeModeChange={setThemeMode}
-            onAstryxThemeChange={setAstryxThemeName}
-            onBrowse={() => {
-              navigateRoute('/');
-              setTab('home');
-            }}
-            onAuthenticated={completeLogin}
-            setUser={setUser}
-            refreshAll={refreshAll}
-            setToast={setToast}
-          />
-        </Suspense>
-        <AppToast toast={toast} onDismiss={() => setToast(null)} />
+        <div className="app-shell app-shell-server">
+          <Suspense fallback={<AppRouteFallback />}>
+            <LoginPage
+              siteTitle={siteTitle}
+              siteProfile={siteProfile}
+              currentLanguage={currentLanguage}
+              themeMode={themeMode}
+              astryxThemeName={astryxThemeName}
+              onLanguageChange={(language) => void i18n.changeLanguage(language)}
+              onThemeModeChange={setThemeMode}
+              onAstryxThemeChange={setAstryxThemeName}
+              onBrowse={() => {
+                navigateRoute('/');
+                setTab('home');
+              }}
+              onAuthenticated={completeLogin}
+              setUser={setUser}
+              refreshAll={refreshAll}
+              setToast={setToast}
+            />
+          </Suspense>
+          <AppToast toast={toast} onDismiss={() => setToast(null)} />
+        </div>
       </Theme>
     );
   }
 
   return (
     <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
-      <>
+      <div className={`app-shell ${HAS_API ? 'app-shell-server' : 'app-shell-client'}`}>
         <a className="skip-link" href="#main-content">{t('common.skipToMain')}</a>
         <XAppShell
-          className="app-shell"
+          className="app-shell-frame"
           variant="section"
           height="fill"
           contentPadding={0}
@@ -1790,7 +1794,7 @@ export function App() {
       )}
 
       <AppToast toast={toast} onDismiss={() => setToast(null)} />
-      </>
+      </div>
     </Theme>
   );
 }

@@ -177,7 +177,7 @@ export function ClientCatalog({
           <XButton type="button" variant="secondary" label={t('search.noSyncedAppsAction')} icon={<Cloud size={18} />} onClick={onGoSources} />
         </div>
       </div>
-      <div className="client-summary-grid client-discovery-summary" aria-label={t('search.installReadiness')}>
+      <div className="client-summary-grid client-discovery-summary" role="group" aria-label={t('search.installReadiness')}>
         <div>
           <span>{t('search.sourcesTotal')}</span>
           <strong>{sourceStats.sourceCount}</strong>

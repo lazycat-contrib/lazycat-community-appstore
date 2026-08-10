@@ -1,0 +1,333 @@
+/* Shared Apple-inspired finish for the standalone client and server console.
+ * The layer is intentionally semantic: themes still own the palette while
+ * material, depth, type rhythm, hit targets, and motion stay consistent.
+ */
+
+.app-shell {
+  --radius-inner: 6px;
+  --radius-element: 10px;
+  --radius-container: 14px;
+  --radius-page: 20px;
+  --radius-chat: 22px;
+  --size-element-sm: 36px;
+  --size-element-md: 40px;
+  --size-element-lg: 44px;
+  --material-thin: color-mix(in srgb, var(--surface) 78%, transparent);
+  --material-regular: color-mix(in srgb, var(--surface) 88%, transparent);
+  --material-thick: color-mix(in srgb, var(--surface) 95%, transparent);
+  --material-edge: color-mix(in srgb, white 42%, var(--line));
+  --shadow-resting:
+    0 1px 1px color-mix(in srgb, var(--ink) 5%, transparent),
+    0 8px 28px color-mix(in srgb, var(--ink) 6%, transparent);
+  --shadow-floating:
+    0 2px 3px color-mix(in srgb, var(--ink) 8%, transparent),
+    0 22px 64px color-mix(in srgb, var(--ink) 16%, transparent);
+  --z-content: 1;
+  --z-sticky: 20;
+  --z-overlay: 30;
+  --z-toast: 40;
+  min-height: 100dvh;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.app-shell :is(h1, h2, h3, .astryx-heading) {
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+
+.app-shell .page-heading p {
+  color: color-mix(in srgb, var(--muted) 82%, var(--ink));
+}
+
+.app-shell :is(.metric-card strong, .admin-metric-card strong, .settings-signal-card strong, code) {
+  font-variant-numeric: tabular-nums;
+}
+
+.app-shell .main {
+  position: relative;
+  z-index: var(--z-content);
+}
+
+.app-shell .topbar {
+  position: sticky;
+  top: max(8px, env(safe-area-inset-top));
+  z-index: var(--z-sticky);
+  min-height: 56px;
+  border-color: color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: var(--radius-container);
+  background: var(--material-thin);
+  box-shadow:
+    inset 0 1px 0 var(--material-edge),
+    0 10px 34px color-mix(in srgb, var(--ink) 8%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  backdrop-filter: blur(22px) saturate(165%);
+}
+
+.app-shell .login-topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  border-color: color-mix(in srgb, var(--line) 72%, transparent);
+  background: var(--material-thin);
+  box-shadow: 0 10px 34px color-mix(in srgb, var(--ink) 7%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  backdrop-filter: blur(22px) saturate(165%);
+}
+
+.app-shell .app-side-nav {
+  border-color: color-mix(in srgb, var(--sidebar-line) 76%, transparent);
+  background: color-mix(in srgb, var(--sidebar-bg) 90%, transparent);
+  box-shadow: inset -1px 0 0 color-mix(in srgb, white 8%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+  backdrop-filter: blur(24px) saturate(145%);
+}
+
+.app-shell :is(.panel, .app-card, .source-app-card, .client-source-row, .settings-section, .admin-task-header, .admin-operation-result) {
+  border-color: color-mix(in srgb, var(--line) 84%, transparent);
+  border-radius: var(--radius-container);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 34%, transparent),
+    var(--shadow-resting);
+}
+
+.app-shell .auth-path-row {
+  border-radius: var(--radius-element);
+}
+
+.app-shell :is(.hero-band, .setup-copy, .client-source-onboarding) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--radius-page);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 20%, transparent),
+    0 18px 48px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.app-shell :is(.hero-band, .setup-copy)::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, white 13%, transparent), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, white 5%, transparent), transparent 32%);
+  content: "";
+  pointer-events: none;
+}
+
+.app-shell :is(.hero-stack div, .setup-steps div) {
+  border: 1px solid color-mix(in srgb, white 14%, var(--line));
+  border-radius: var(--radius-element);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 12%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(135%);
+  backdrop-filter: blur(12px) saturate(135%);
+}
+
+.app-shell :is(.astryx-button, .astryx-icon-button, button) {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell :is(.astryx-button, .astryx-icon-button) {
+  min-height: 40px;
+  border-radius: var(--radius-element);
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.app-shell :is(.astryx-button, .astryx-icon-button):active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 100ms;
+}
+
+.app-shell :is(.astryx-button, .astryx-icon-button):disabled {
+  cursor: not-allowed;
+  transform: none;
+}
+
+.app-shell :is(.astryx-field, .astryx-text-input, .astryx-textarea, .astryx-selector, .astryx-typeahead) {
+  border-radius: var(--radius-element);
+}
+
+.app-shell :is(input, textarea, select) {
+  caret-color: var(--green-strong);
+}
+
+.app-shell :is(.modal-panel, .install-password-dialog) {
+  border-color: color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: var(--radius-page);
+  background: var(--material-regular);
+  box-shadow:
+    inset 0 1px 0 var(--material-edge),
+    var(--shadow-floating);
+  -webkit-backdrop-filter: blur(28px) saturate(175%);
+  backdrop-filter: blur(28px) saturate(175%);
+  transition:
+    transform 220ms var(--ease-drawer),
+    opacity 180ms var(--ease-out),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+.app-shell .drawer {
+  border-radius: var(--radius-page) 0 0 var(--radius-page);
+  background: var(--material-regular);
+  box-shadow:
+    inset 1px 0 0 var(--material-edge),
+    -18px 0 60px color-mix(in srgb, var(--ink) 16%, transparent);
+  -webkit-backdrop-filter: blur(28px) saturate(165%);
+  backdrop-filter: blur(28px) saturate(165%);
+}
+
+.app-shell :is(.toast-host .astryx-toast, .install-panel, .source-detail-actions, .client-settings-save-bar, .admin-save-bar) {
+  border-radius: var(--radius-container);
+  background: var(--material-regular);
+  box-shadow:
+    inset 0 1px 0 var(--material-edge),
+    var(--shadow-floating);
+  -webkit-backdrop-filter: blur(20px) saturate(165%);
+  backdrop-filter: blur(20px) saturate(165%);
+}
+
+.app-shell .toast-host .astryx-toast {
+  background: color-mix(in srgb, #1b1b1b 92%, transparent);
+  color: #fafafa;
+}
+
+.app-shell .toast-host .toast-message {
+  color: #fafafa;
+}
+
+.app-shell-client :is(.client-source-row, .client-source-app-card, .installed-app-card) {
+  transition:
+    transform 160ms var(--ease-out),
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.app-shell-client .install-timeline li.current > span {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--green-strong) 18%, transparent);
+}
+
+.app-shell-server :is(.store-metrics .metric-card, .admin-metric-card) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 4%, transparent), transparent 52%),
+    var(--surface);
+}
+
+.app-shell-server :is(.admin-task-header, .section-toolbar, .settings-section-head) {
+  scroll-margin-top: 84px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-shell :is(.astryx-button, .astryx-icon-button):hover:not(:disabled) {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+
+  .app-shell :is(.panel, .app-card, .source-app-card, .client-source-row):hover {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, white 38%, transparent),
+      0 14px 38px color-mix(in srgb, var(--ink) 10%, transparent);
+  }
+}
+
+@media (pointer: coarse) {
+  .app-shell :is(.astryx-button, .astryx-icon-button, .topbar button, .row-actions > button, .app-side-nav button) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell .topbar {
+    top: max(6px, env(safe-area-inset-top));
+    border-radius: 16px;
+  }
+
+  .app-shell .drawer {
+    border-radius: var(--radius-page) var(--radius-page) 0 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-shell .topbar {
+    padding: 8px;
+    box-shadow:
+      inset 0 1px 0 var(--material-edge),
+      0 8px 26px color-mix(in srgb, var(--ink) 9%, transparent);
+  }
+
+  .app-shell :is(.hero-band, .setup-copy, .client-source-onboarding) {
+    border-radius: 16px;
+  }
+
+  .app-shell :is(.modal-panel, .install-password-dialog) {
+    border-radius: 18px;
+  }
+
+  .app-shell-client .catalog-search-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell-client .catalog-search-toolbar > * {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .app-shell-client .catalog-filter-search .astryx-tokenizer > div:last-child > span:first-child {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell :is(.astryx-button, .astryx-icon-button, .modal-panel, .install-password-dialog, .drawer) {
+    transform: none !important;
+    transition-property: opacity, color, background-color, border-color !important;
+    transition-duration: 120ms !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-shell :is(.topbar, .login-topbar, .app-side-nav, .modal-panel, .install-password-dialog, .drawer, .toast-host .astryx-toast, .install-panel, .source-detail-actions, .client-settings-save-bar, .admin-save-bar, .hero-stack div, .setup-steps div) {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .app-shell .toast-host .astryx-toast {
+    background: #1b1b1b;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .app-shell {
+    --material-thin: var(--surface);
+    --material-regular: var(--surface);
+    --material-thick: var(--surface);
+  }
+
+  .app-shell :is(.topbar, .panel, .app-card, .source-app-card, .client-source-row, .modal-panel, .install-password-dialog, .drawer) {
+    border-color: var(--ink);
+    box-shadow: none;
+  }
+
+  .app-shell :focus-visible {
+    outline-width: 4px;
+  }
+}
