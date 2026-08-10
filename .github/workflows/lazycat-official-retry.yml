@@ -1,0 +1,96 @@
+name: Retry LazyCat official publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing client release tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Client official store
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate release tag
+        id: release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${RELEASE_TAG}" =~ ^client-v([0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?)$ ]]; then
+            echo "Unsupported client release tag: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+          {
+            echo "tag=${RELEASE_TAG}"
+            echo "version=${BASH_REMATCH[1]}"
+          } >>"${GITHUB_OUTPUT}"
+
+      - name: Checkout tagged source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+
+      - name: Download and verify Release asset
+        id: artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          package_version="$(awk '/^version:/ { print $2; exit }' lazycat/client/package.yml)"
+          if [[ "${package_version}" != "${VERSION}" ]]; then
+            echo "Tag version ${VERSION} does not match client package version ${package_version}" >&2
+            exit 1
+          fi
+
+          package_id="$(awk '/^package:/ { print $2; exit }' lazycat/client/package.yml)"
+          if [[ ! "${package_id}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+            echo "Unsafe package ID: ${package_id}" >&2
+            exit 1
+          fi
+
+          asset_name="${package_id}-v${VERSION}.lpk"
+          artifact_dir="lazycat/client/dist/official-retry"
+          artifact_path="${artifact_dir}/${asset_name}"
+          mkdir -p -- "${artifact_dir}"
+          gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --pattern "${asset_name}" --dir "${artifact_dir}"
+
+          release_json="$(gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --json assets)"
+          release_digest="$(jq -r --arg asset "${asset_name}" '.assets[] | select(.name == $asset) | .digest' <<<"${release_json}")"
+          if [[ ! "${release_digest}" =~ ^sha256:([0-9a-f]{64})$ ]]; then
+            echo "Release asset ${asset_name} has no valid SHA256 digest" >&2
+            exit 1
+          fi
+
+          expected_sha256="${BASH_REMATCH[1]}"
+          actual_sha256="$(sha256sum "${artifact_path}" | cut -d' ' -f1)"
+          if [[ "${actual_sha256}" != "${expected_sha256}" ]]; then
+            echo "Downloaded Release asset SHA256 does not match GitHub" >&2
+            exit 1
+          fi
+
+          {
+            echo "lpk-path=${artifact_path}"
+            echo "sha256=${actual_sha256}"
+          } >>"${GITHUB_OUTPUT}"
+
+      - name: Publish client to LazyCat official store
+        uses: ca-x/lazycat-github-action@v1
+        env:
+          LZC_API_TOKEN: ${{ secrets.LZC_API_TOKEN }}
+        with:
+          operation: publish-official
+          config: .github/lazycat-client.yml
+          version: ${{ steps.release.outputs.version }}
+          changelog: Release client v${{ steps.release.outputs.version }}
+          lpk-path: ${{ steps.artifact.outputs.lpk-path }}
+          sha256: ${{ steps.artifact.outputs.sha256 }}
