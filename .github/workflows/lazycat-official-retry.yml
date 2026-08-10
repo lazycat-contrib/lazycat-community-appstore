@@ -59,8 +59,9 @@ jobs:
           fi
 
           asset_name="${package_id}-v${VERSION}.lpk"
+          artifact_relative="dist/official-retry/${asset_name}"
           artifact_dir="lazycat/client/dist/official-retry"
-          artifact_path="${artifact_dir}/${asset_name}"
+          artifact_path="lazycat/client/${artifact_relative}"
           mkdir -p -- "${artifact_dir}"
           gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --pattern "${asset_name}" --dir "${artifact_dir}"
 
@@ -79,7 +80,7 @@ jobs:
           fi
 
           {
-            echo "lpk-path=${artifact_path}"
+            echo "lpk-path=${artifact_relative}"
             echo "sha256=${actual_sha256}"
           } >>"${GITHUB_OUTPUT}"
 
