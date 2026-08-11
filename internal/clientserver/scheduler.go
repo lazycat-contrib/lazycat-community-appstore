@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/ent/clientsetting"
 	"lazycat.community/appstore/ent/clientsyncsetting"
 
 	"github.com/lib-x/timewheel"
@@ -45,7 +46,7 @@ func newSourceSyncSchedulerWithStartup(server *Server, startup func(context.Cont
 		sourceSyncScanInterval,
 		sourceSyncScanSlots,
 		nil,
-		timewheel.WithWorkerPool[string](1, 4, timewheel.Drop),
+		timewheel.WithWorkerPool[string](2, 4, timewheel.Drop),
 	)
 	if err != nil {
 		cancel()
@@ -73,6 +74,16 @@ func newSourceSyncSchedulerWithStartup(server *Server, startup func(context.Cont
 		sourceSyncScanInterval,
 		"client-source-sync-scan",
 		scheduler.runDueAutoSyncs,
+		timewheel.RepeatOptions{Mode: timewheel.SkipIfRunning},
+	); err != nil {
+		cancel()
+		_ = wheel.Close()
+		return nil, err
+	}
+	if _, err := wheel.AddRepeatingTimerWithContextJob(
+		sourceSyncScanInterval,
+		"client-mirror-benchmark-scan",
+		scheduler.runDueMirrorBenchmarks,
 		timewheel.RepeatOptions{Mode: timewheel.SkipIfRunning},
 	); err != nil {
 		cancel()
@@ -145,6 +156,32 @@ func (s *sourceSyncScheduler) runDueAutoSyncs(ctx context.Context, _ string) err
 		s.syncUser(ctx, setting.UserID)
 	}
 	return s.runDueAutoUpdates(ctx, "")
+}
+
+func (s *sourceSyncScheduler) runDueMirrorBenchmarks(ctx context.Context, _ string) error {
+	settings, err := s.server.db.ClientSetting.Query().
+		Where(
+			clientsetting.KeyEQ(settingMirrorBenchmarkEnabled),
+			clientsetting.ValueEQ("true"),
+		).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	for _, setting := range settings {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		enabled, interval, lastRun, _ := s.server.mirrorBenchmarkConfig(ctx, setting.UserID)
+		if !mirrorBenchmarkDue(enabled, interval, lastRun, now) {
+			continue
+		}
+		if _, err := s.server.runMirrorBenchmark(ctx, setting.UserID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *sourceSyncScheduler) normalizeAutoUpdateSyncDependencies(ctx context.Context) error {

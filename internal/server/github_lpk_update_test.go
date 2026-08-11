@@ -135,6 +135,9 @@ func TestGitHubLPKUpdatePolicyCascadesWithAppDeletion(t *testing.T) {
 
 func TestGitHubLPKAutoUpdateCreatesApprovedVersionFromAssetDigest(t *testing.T) {
 	store := newTestApp(t)
+	if err := store.server.githubLPKUpdateScheduler.CloseContext(t.Context()); err != nil {
+		t.Fatal(err)
+	}
 	record, current := createGitHubLPKUpdateFixture(t, store, true)
 	store.server.db.App.UpdateOneID(record.ID).SetVersionRetentionCount(1).SaveX(t.Context())
 	publishedAt := time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC)

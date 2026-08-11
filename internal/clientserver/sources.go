@@ -23,9 +23,12 @@ func (s *Server) handleListSources(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SOURCE_LIST_FAILED", "Could not list sources")
 		return
 	}
+	snapshot := s.loadMirrorBenchmarkSnapshot(r.Context(), currentUserID(r))
 	out := make([]SourceDTO, 0, len(items))
 	for _, item := range items {
-		out = append(out, sourceDTO(item))
+		dto := sourceDTO(item)
+		dto.GitHubMirrors = applyMirrorBenchmarkSnapshot(dto.GitHubMirrors, snapshot)
+		out = append(out, dto)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"sources": out})
 }

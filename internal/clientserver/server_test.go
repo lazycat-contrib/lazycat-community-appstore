@@ -203,11 +203,11 @@ func TestSyncRemovesInvalidGroupCodesAndKeepsSource(t *testing.T) {
 
 func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
 	app := testServer(t)
-	rec := app.request("PATCH", "/api/client/v1/settings", `{"clientTitle":"  Alice Store  ","commentDisplayName":"  Alice  Cat  ","autoSyncEnabled":true,"autoSyncIntervalMinutes":1,"syncOnStartup":true,"autoUpdateNotifyEnabled":false}`, "alice")
+	rec := app.request("PATCH", "/api/client/v1/settings", `{"clientTitle":"  Alice Store  ","commentDisplayName":"  Alice  Cat  ","autoSyncEnabled":true,"autoSyncIntervalMinutes":1,"syncOnStartup":true,"autoUpdateNotifyEnabled":false,"mirrorBenchmarkEnabled":true,"mirrorBenchmarkIntervalMinutes":1}`, "alice")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("settings save = %d %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), `"clientTitle":"Alice Store"`) || !strings.Contains(rec.Body.String(), `"commentDisplayName":"Alice Cat"`) || !strings.Contains(rec.Body.String(), `"defaultPageSize":24`) || !strings.Contains(rec.Body.String(), `"autoSyncIntervalMinutes":5`) || !strings.Contains(rec.Body.String(), `"installSuccessDismissSeconds":3`) || !strings.Contains(rec.Body.String(), `"autoUpdateNotifyEnabled":false`) {
+	if !strings.Contains(rec.Body.String(), `"clientTitle":"Alice Store"`) || !strings.Contains(rec.Body.String(), `"commentDisplayName":"Alice Cat"`) || !strings.Contains(rec.Body.String(), `"defaultPageSize":24`) || !strings.Contains(rec.Body.String(), `"autoSyncIntervalMinutes":5`) || !strings.Contains(rec.Body.String(), `"installSuccessDismissSeconds":3`) || !strings.Contains(rec.Body.String(), `"autoUpdateNotifyEnabled":false`) || !strings.Contains(rec.Body.String(), `"mirrorBenchmarkEnabled":true`) || !strings.Contains(rec.Body.String(), `"mirrorBenchmarkIntervalMinutes":30`) || !strings.Contains(rec.Body.String(), `"mirrorBenchmarkScheduleState":"due"`) {
 		t.Fatalf("settings response not normalized: %s", rec.Body.String())
 	}
 	setting, err := app.server.db.ClientSyncSetting.Query().
@@ -219,7 +219,7 @@ func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
 	if !setting.AutoSyncEnabled || !setting.SyncOnStartup || setting.AutoSyncIntervalMinutes != 5 {
 		t.Fatalf("bad sync setting: %#v", setting)
 	}
-	if count, err := app.server.db.ClientSetting.Query().Count(context.Background()); err != nil || count != 5 {
+	if count, err := app.server.db.ClientSetting.Query().Count(context.Background()); err != nil || count != 7 {
 		t.Fatalf("client_settings count = %d, err = %v", count, err)
 	}
 	rec = app.request("GET", "/api/client/v1/settings", ``, "alice")
@@ -233,6 +233,23 @@ func TestClientSettingsStoresSyncConfigInDedicatedTable(t *testing.T) {
 	rec = app.request("PATCH", "/api/client/v1/settings", `{"installSuccessDismissSeconds":0}`, "alice")
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"installSuccessDismissSeconds":0`) {
 		t.Fatalf("settings zero disable failed = %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestClientSettingsUpdatePreservesOmittedMirrorBenchmarkFields(t *testing.T) {
+	app := testServer(t)
+
+	rec := app.request(http.MethodPatch, "/api/client/v1/settings", `{"mirrorBenchmarkEnabled":true,"mirrorBenchmarkIntervalMinutes":30}`, "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("enable mirror benchmark = %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = app.request(http.MethodPatch, "/api/client/v1/settings", `{"clientTitle":"Legacy client"}`, "alice")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("legacy settings update = %d %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"mirrorBenchmarkEnabled":true`) || !strings.Contains(rec.Body.String(), `"mirrorBenchmarkIntervalMinutes":30`) {
+		t.Fatalf("legacy update reset mirror benchmark settings: %s", rec.Body.String())
 	}
 }
 
@@ -426,6 +443,23 @@ func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	wantURL := "https://ghproxy.example/https://github.com/org/notes/releases/download/a/notes.lpk"
 	if pm.req.DownloadURL != wantURL {
 		t.Fatalf("mirrored install URL = %q, want %q", pm.req.DownloadURL, wantURL)
+	}
+	backupURL := "https://backup.example/https://github.com"
+	backupID := mirror.ID(mirror.KindDownload, backupURL)
+	app.server.db.ClientSource.UpdateOneID(1).SetDefaultDownloadMirrorID(backupID).SaveX(t.Context())
+	app.server.mirrorProbe = func(_ context.Context, rawURL string) (int64, error) {
+		if strings.Contains(rawURL, "backup.example") {
+			return 9_000_000, nil
+		}
+		return 2_000_000, nil
+	}
+	install = app.request("POST", "/api/client/v1/install", `{"appId":1,"mirrorId":"`+mirror.PreferredSelection+`"}`, "alice")
+	if install.Code != http.StatusOK {
+		t.Fatalf("install with preferred mirror = %d %s", install.Code, install.Body.String())
+	}
+	wantURL = backupURL + "/org/notes/releases/download/a/notes.lpk"
+	if pm.req.DownloadURL != wantURL {
+		t.Fatalf("preferred install URL = %q, want %q", pm.req.DownloadURL, wantURL)
 	}
 }
 

@@ -101,8 +101,8 @@ export function InstalledAppsView({
         : 'pending';
   const updateSourceChoices = updateSources.map((source) => ({
     source,
-    downloadOptions: sourceMirrorOptions(source, 'download', t('installOptions.direct')),
-    rawOptions: sourceMirrorOptions(source, 'raw', t('installOptions.direct')),
+    downloadOptions: sourceMirrorOptions(source, 'download', t('installOptions.direct'), t('installOptions.autoMirror')),
+    rawOptions: sourceMirrorOptions(source, 'raw', t('installOptions.direct'), t('installOptions.autoMirror')),
   })).filter(({ downloadOptions, rawOptions }) => downloadOptions.length > 1 || rawOptions.length > 1);
   const updateSourceCount = new Set(updateCandidates.map((candidate) => candidate.sourceId)).size;
   const autoUpdateSchedule = autoUpdateSchedulePresentation({

@@ -1,4 +1,4 @@
-import { AlertCircle, CalendarClock, Check, Clock3, Download, History, Info, KeyRound, RefreshCw, Save, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertCircle, CalendarClock, Check, Clock3, Download, Gauge, History, Info, KeyRound, RefreshCw, Save, ShieldCheck, Sparkles } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
@@ -16,6 +16,7 @@ import { autoUpdateSchedulePresentation, normalizeAutomationSettings, normalizeE
 const syncIntervalOptions = [5, 15, 30, 60, 360, 720, 1440];
 const pageSizeOptions = [12, 24, 48, 96, 100];
 const installDismissOptions = [0, 3, 5, 10, 30];
+const mirrorBenchmarkIntervalOptions = [30, 60, 360, 720, 1440];
 type ClientSettingsTab = 'sync' | 'identity' | 'install' | 'about';
 type SaveResult = 'idle' | 'saving' | 'saved' | 'error';
 type SaveState = 'clean' | 'dirty' | Exclude<SaveResult, 'idle'>;
@@ -26,6 +27,7 @@ export function ClientSettingsView({
   sourceStats,
   onSave,
   onRunUpdates,
+  onRunMirrorBenchmark,
   isUpdateQueueRunning = false,
   setToast,
 }: {
@@ -33,6 +35,7 @@ export function ClientSettingsView({
   sourceStats: ClientSourceStats;
   onSave: (settings: ClientSettings) => Promise<void>;
   onRunUpdates?: () => Promise<void>;
+  onRunMirrorBenchmark?: () => Promise<void>;
   isUpdateQueueRunning?: boolean;
   setToast: (toast: Toast) => void;
 }) {
@@ -42,6 +45,7 @@ export function ClientSettingsView({
   const [activeTab, setActiveTab] = useState<ClientSettingsTab>('sync');
   const [saveResult, setSaveResult] = useState<SaveResult>('idle');
   const [saveError, setSaveError] = useState('');
+  const [isBenchmarkRunning, setIsBenchmarkRunning] = useState(false);
   const editRevisionRef = useRef(0);
   const saveInFlightRef = useRef(false);
   const pendingSaveRef = useRef<PendingSave | null>(null);
@@ -89,6 +93,10 @@ export function ClientSettingsView({
 	settings.lastAutoUpdateAt,
 	settings.lastAutoUpdateError,
 	settings.lastAutoUpdateStatus,
+    settings.lastMirrorBenchmarkAt,
+    settings.lastMirrorBenchmarkStatus,
+    settings.mirrorBenchmarkEnabled,
+    settings.mirrorBenchmarkIntervalMinutes,
     settings.syncOnStartup,
   ]);
 
@@ -123,6 +131,25 @@ export function ClientSettingsView({
   const nextAutoUpdateLabel = autoUpdateSchedule.state === 'scheduled'
     ? formatDate(autoUpdateSchedule.nextRunAt)
     : t(`clientSettings.autoUpdateSchedule.${autoUpdateSchedule.state}`);
+  const mirrorBenchmarkState = !draft.mirrorBenchmarkEnabled
+    ? 'off'
+    : settings.lastMirrorBenchmarkStatus === 'failed'
+      ? 'failed'
+      : settings.lastMirrorBenchmarkStatus === 'partial'
+        ? 'partial'
+        : settings.lastMirrorBenchmarkAt
+          ? 'ready'
+          : 'waiting';
+  const mirrorBenchmarkSchedule = autoUpdateSchedulePresentation({
+    enabled: settings.mirrorBenchmarkEnabled,
+    intervalMinutes: settings.mirrorBenchmarkIntervalMinutes,
+    lastRunAt: settings.lastMirrorBenchmarkAt,
+    scheduleState: settings.mirrorBenchmarkScheduleState,
+    nextRunAt: settings.nextMirrorBenchmarkAt,
+  });
+  const nextMirrorBenchmarkLabel = mirrorBenchmarkSchedule.state === 'scheduled'
+    ? formatDate(mirrorBenchmarkSchedule.nextRunAt)
+    : t(`clientSettings.autoUpdateSchedule.${mirrorBenchmarkSchedule.state}`);
   const effectiveClientTitle = draft.clientTitle.trim() || t('appName');
   const settingsTabs = [
     { key: 'sync', label: t('clientSettings.tabs.sync'), icon: Clock3 },
@@ -156,6 +183,18 @@ export function ClientSettingsView({
       setSaveResult('error');
     } finally {
       saveInFlightRef.current = false;
+    }
+  }
+
+  async function runMirrorBenchmarkNow() {
+    if (!onRunMirrorBenchmark || isBenchmarkRunning) return;
+    setIsBenchmarkRunning(true);
+    try {
+      await onRunMirrorBenchmark();
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('clientSettings.mirrorBenchmarkFailed')) });
+    } finally {
+      setIsBenchmarkRunning(false);
     }
   }
 
@@ -374,6 +413,71 @@ export function ClientSettingsView({
             value={draft.autoUpdateNotifyEnabled}
             onChange={(checked) => updateDraft({ ...draft, autoUpdateNotifyEnabled: checked })}
           />
+          <section className={cx('client-auto-update-control client-mirror-benchmark-control', `is-${mirrorBenchmarkState}`)} aria-labelledby="client-mirror-benchmark-title">
+            <header className="client-auto-update-head">
+              <div className="client-auto-update-icon" aria-hidden="true">
+                <Gauge size={20} />
+              </div>
+              <div>
+                <span className="eyebrow subtle">{t('clientSettings.localEvaluation')}</span>
+                <h3 id="client-mirror-benchmark-title">{t('clientSettings.mirrorBenchmark')}</h3>
+                <p>{t('clientSettings.mirrorBenchmarkHelp')}</p>
+              </div>
+              <StatusBadge
+                tone={mirrorBenchmarkState === 'failed' ? 'failed' : mirrorBenchmarkState === 'partial' ? 'stale' : mirrorBenchmarkState === 'off' ? 'unsynced' : 'synced'}
+                label={t(`clientSettings.mirrorBenchmarkStates.${mirrorBenchmarkState}`)}
+              />
+            </header>
+            <div className="client-auto-update-schedule" aria-label={t('clientSettings.mirrorBenchmarkScheduleLabel')}>
+              <div>
+                <CalendarClock size={18} aria-hidden="true" />
+                <span>{t('clientSettings.mirrorBenchmarkNext')}</span>
+                <strong>{mirrorBenchmarkSchedule.state === 'scheduled'
+                  ? <time dateTime={mirrorBenchmarkSchedule.nextRunAt}>{nextMirrorBenchmarkLabel}</time>
+                  : nextMirrorBenchmarkLabel}</strong>
+              </div>
+              <div>
+                <History size={18} aria-hidden="true" />
+                <span>{t('clientSettings.mirrorBenchmarkPrevious')}</span>
+                <strong>{settings.lastMirrorBenchmarkAt
+                  ? <time dateTime={settings.lastMirrorBenchmarkAt}>{formatDate(settings.lastMirrorBenchmarkAt)}</time>
+                  : t('clientSettings.neverRun')}</strong>
+              </div>
+            </div>
+            <div className="client-auto-update-fields">
+              <XSwitch
+                label={t('clientSettings.mirrorBenchmarkEnabled')}
+                description={draft.mirrorBenchmarkEnabled ? t('clientSettings.mirrorBenchmarkOnHint') : t('clientSettings.mirrorBenchmarkOffHint')}
+                value={draft.mirrorBenchmarkEnabled}
+                labelSpacing="spread"
+                width="100%"
+                onChange={(checked) => updateDraft({ ...draft, mirrorBenchmarkEnabled: checked })}
+              />
+              <XSelector
+                label={t('clientSettings.mirrorBenchmarkInterval')}
+                description={t('clientSettings.mirrorBenchmarkIntervalHelp')}
+                value={String(draft.mirrorBenchmarkIntervalMinutes || 360)}
+                options={mirrorBenchmarkIntervalOptions.map((value) => ({ value: String(value), label: t('clientSettings.intervalOption', { count: value }) }))}
+                onChange={(value) => updateDraft({ ...draft, mirrorBenchmarkIntervalMinutes: Number(value) || 360 })}
+              />
+            </div>
+            <p className="client-auto-update-note">
+              <ShieldCheck size={16} aria-hidden="true" />
+              <span>{t('clientSettings.mirrorBenchmarkTrafficHint')}</span>
+            </p>
+            {onRunMirrorBenchmark && (
+              <div className="client-auto-update-actions">
+                <XButton
+                  type="button"
+                  variant="secondary"
+                  label={isBenchmarkRunning ? t('clientSettings.mirrorBenchmarkRunning') : t('clientSettings.runMirrorBenchmarkNow')}
+                  icon={<Gauge size={17} className={isBenchmarkRunning ? 'spin' : undefined} />}
+                  isDisabled={isBenchmarkRunning}
+                  onClick={() => void runMirrorBenchmarkNow()}
+                />
+              </div>
+            )}
+          </section>
           <XSelector
             label={t('clientSettings.installSuccessDismiss')}
             description={t('clientSettings.installSuccessDismissHelp')}

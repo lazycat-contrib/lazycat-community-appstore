@@ -210,6 +210,9 @@ func UnsafeIP(ip net.IP) bool {
 		return true
 	}
 	if ip4 := ip.To4(); ip4 != nil {
+		if ip4[0] == 100 && ip4[1] >= 64 && ip4[1] <= 127 {
+			return true
+		}
 		ip = ip4
 	}
 	return ip.IsLoopback() ||

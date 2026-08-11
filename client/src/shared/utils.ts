@@ -2,8 +2,10 @@ import i18n from '../i18n';
 import { API_BASE } from '../config';
 import { ApiRequestError } from './api';
 import { SOURCE_STALE_MS } from './constants';
+import { orderGitHubMirrors, PREFERRED_MIRROR_SELECTION } from './mirrorPreferences';
 import type {
   GitHubMirror,
+  GitHubMirrorOption,
   InstallMirrorConfig,
   InstalledApplication,
   SiteProfile,
@@ -265,7 +267,8 @@ export function applicableMirrorsForVersion(mirrorConfig: InstallMirrorConfig | 
   if (!mirrorConfig || !version) return [];
   const kind = githubMirrorKindForURL(version.upstreamDownloadUrl || version.downloadUrl);
   if (!kind) return [];
-  return arrayOrEmpty(mirrorConfig.githubMirrors).filter((entry) => entry.kind === kind);
+  const defaultID = kind === 'raw' ? mirrorConfig.defaultRawMirrorId || '' : mirrorConfig.defaultDownloadMirrorId || '';
+  return orderGitHubMirrors(arrayOrEmpty(mirrorConfig.githubMirrors).filter((entry) => entry.kind === kind), defaultID);
 }
 
 export function defaultMirrorIDForVersion(mirrorConfig: InstallMirrorConfig | undefined, version?: Pick<SourceVersion, 'downloadUrl' | 'upstreamDownloadUrl'>) {
@@ -274,11 +277,34 @@ export function defaultMirrorIDForVersion(mirrorConfig: InstallMirrorConfig | un
   return kind === 'raw' ? mirrorConfig.defaultRawMirrorId || '' : mirrorConfig.defaultDownloadMirrorId || '';
 }
 
-export function sourceMirrorOptions(source: SourceSubscription | null | undefined, kind: GitHubMirror['kind'], directLabel: string) {
+export function sourceMirrorOptions(
+  source: SourceSubscription | null | undefined,
+  kind: GitHubMirror['kind'],
+  directLabel: string,
+  preferredLabel = '',
+) {
+  const defaultID = kind === 'raw' ? source?.defaultRawMirrorId || '' : source?.defaultDownloadMirrorId || '';
+  const mirrors = orderGitHubMirrors(arrayOrEmpty(source?.githubMirrors).filter((entry) => entry.kind === kind), defaultID);
   return [
+    ...(preferredLabel && mirrors.length > 0 ? [{ value: PREFERRED_MIRROR_SELECTION, label: preferredLabel }] : []),
     { value: '', label: directLabel },
-    ...arrayOrEmpty(source?.githubMirrors).filter((entry) => entry.kind === kind).map((entry) => ({ value: entry.id, label: entry.name })),
+    ...mirrors.map((entry) => ({ value: entry.id, label: githubMirrorLabel(entry) })),
   ];
+}
+
+export function githubMirrorLabel(entry: GitHubMirrorOption) {
+  if (entry.benchmarkStatus === 'unavailable') {
+    return i18n.t('installOptions.mirrorUnavailable', {
+      name: entry.name,
+      stability: entry.stabilityPercent || 0,
+    });
+  }
+  if (!entry.speedBytesPerSecond) return entry.name;
+  return i18n.t('installOptions.mirrorMeasured', {
+    name: entry.name,
+    speed: `${formatBytes(entry.speedBytesPerSecond)}/s`,
+    stability: entry.stabilityPercent || 0,
+  });
 }
 
 export function sourceMirrorSummary(source: SourceSubscription, kind: GitHubMirror['kind'], fallback: string) {

@@ -1,6 +1,7 @@
 package clientserver
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -69,7 +70,13 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnprocessableEntity, "NO_INSTALLABLE_VERSION", "App has no installable version")
 		return
 	}
-	downloadURL, err := s.installDownloadURL(app, selected, input)
+	operation, started := s.installCoordinator.begin(currentUserID(r), installOperationManual)
+	if !started {
+		writeError(w, http.StatusConflict, "INSTALL_IN_PROGRESS", "An installation is already running")
+		return
+	}
+	defer s.installCoordinator.release(currentUserID(r), operation)
+	downloadURL, err := s.installDownloadURL(r.Context(), currentUserID(r), app, selected, input)
 	if err != nil {
 		_ = s.recordInstallHistory(r.Context(), currentUserID(r), app, dto, selected, clientinstallhistory.ResultFAILED, err.Error())
 		writeError(w, http.StatusUnprocessableEntity, "MIRROR_NOT_AVAILABLE", err.Error())
@@ -83,12 +90,6 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		DownloadURL: withInstallPassword(downloadURL, input.InstallPassword),
 		SHA256:      selected.SHA256,
 	}
-	operation, started := s.installCoordinator.begin(currentUserID(r), installOperationManual)
-	if !started {
-		writeError(w, http.StatusConflict, "INSTALL_IN_PROGRESS", "An installation is already running")
-		return
-	}
-	defer s.installCoordinator.release(currentUserID(r), operation)
 	result, err := s.pkg.InstallLPK(r.Context(), currentUserID(r), installReq)
 	if err != nil {
 		_ = s.recordInstallHistory(r.Context(), currentUserID(r), app, dto, selected, clientinstallhistory.ResultFAILED, err.Error())
@@ -130,7 +131,7 @@ func (s *Server) handleCancelInstallTask(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, map[string]any{"taskId": taskID, "status": "CANCELLED"})
 }
 
-func (s *Server) installDownloadURL(app *ent.ClientSourceApp, version *VersionDTO, input InstallRequestDTO) (string, error) {
+func (s *Server) installDownloadURL(ctx context.Context, userID string, app *ent.ClientSourceApp, version *VersionDTO, input InstallRequestDTO) (string, error) {
 	source, err := app.Edges.SourceOrErr()
 	if err != nil {
 		return "", errors.New("source was not loaded")
@@ -146,11 +147,22 @@ func (s *Server) installDownloadURL(app *ent.ClientSourceApp, version *VersionDT
 	if !mirror.IsGitHubURL(upstream) {
 		return "", errors.New("selected mirror can only be used with GitHub downloads")
 	}
-	entry, ok := mirror.FindApplicable(sourceMirrors(source), mirrorID, upstream)
+	if mirrorID == mirror.PreferredSelection {
+		preferredID := source.DefaultDownloadMirrorID
+		if mirror.KindForURL(upstream) == mirror.KindRaw {
+			preferredID = source.DefaultRawMirrorID
+		}
+		entry, found := s.preferredMirrorForURL(ctx, userID, sourceMirrors(source), upstream, preferredID)
+		if !found {
+			return withGroupCodes(upstream, decodeStringSlice(source.GroupCodesJSON)), nil
+		}
+		return withGroupCodes(mirror.RewriteGitHub(upstream, entry), decodeStringSlice(source.GroupCodesJSON)), nil
+	}
+	downloadURL, ok := mirror.ResolveSelection(sourceMirrors(source), upstream, mirrorID, "")
 	if !ok {
 		return "", errors.New("selected mirror is not available for this download")
 	}
-	return withGroupCodes(mirror.RewriteGitHub(upstream, entry), decodeStringSlice(source.GroupCodesJSON)), nil
+	return withGroupCodes(downloadURL, decodeStringSlice(source.GroupCodesJSON)), nil
 }
 
 func selectInstallVersion(app SourceAppDTO, wanted string) (*VersionDTO, error) {

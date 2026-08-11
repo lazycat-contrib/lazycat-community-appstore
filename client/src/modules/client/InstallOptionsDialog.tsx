@@ -9,8 +9,9 @@ import { Text as XText } from '@astryxdesign/core/Text';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { useTranslation } from 'react-i18next';
 import { ModalLayer } from '../../shared/components/ModalLayer';
+import { PREFERRED_MIRROR_SELECTION } from '../../shared/mirrorPreferences';
 import type { InstallActivity, InstallMirrorConfig, SourceApp, SourceVersion, StoreApp, Version } from '../../shared/types';
-import { applicableMirrorsForVersion, defaultMirrorIDForVersion, githubMirrorKindForURL, localizedAppName } from '../../shared/utils';
+import { applicableMirrorsForVersion, defaultMirrorIDForVersion, githubMirrorKindForURL, githubMirrorLabel, localizedAppName } from '../../shared/utils';
 import { InstallActivityPanel } from './InstallActivityPanel';
 
 export function InstallOptionsDialog({
@@ -42,6 +43,12 @@ export function InstallOptionsDialog({
   const dialogBodyId = `install-password-body-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
   const requiresPassword = app.installProtected;
   const mirrorOptions = applicableMirrorsForVersion(mirrorConfig, version);
+  const preferredCandidate = mirrorOptions[0];
+  const preferredMirrorName = preferredCandidate?.benchmarkStatus === 'unavailable'
+    ? t('installOptions.directFallback')
+    : preferredCandidate?.speedBytesPerSecond
+      ? preferredCandidate.name
+      : t('installOptions.benchmarkBeforeInstall');
   const titleKey = requiresPassword && mirrorOptions.length === 0 ? 'installPassword.title' : 'installOptions.title';
   const mirrorKind = githubMirrorKindForURL(version && 'upstreamDownloadUrl' in version ? version.upstreamDownloadUrl || version.downloadUrl : version?.downloadUrl);
   const appName = localizedAppName(app);
@@ -135,11 +142,12 @@ export function InstallOptionsDialog({
           {mirrorOptions.length > 0 && (
             <XSelector
               label={t('installOptions.mirror')}
-              description={t(mirrorKind === 'raw' ? 'installOptions.rawMirrorHelp' : 'installOptions.downloadMirrorHelp')}
+              description={`${t(mirrorKind === 'raw' ? 'installOptions.rawMirrorHelp' : 'installOptions.downloadMirrorHelp')} ${t('installOptions.autoMirrorHelp')}`}
               value={mirrorId}
               options={[
+                { value: PREFERRED_MIRROR_SELECTION, label: t('installOptions.autoMirrorWithName', { name: preferredMirrorName }) },
                 { value: '', label: t('installOptions.direct') },
-                ...mirrorOptions.map((entry) => ({ value: entry.id, label: entry.name })),
+                ...mirrorOptions.map((entry) => ({ value: entry.id, label: githubMirrorLabel(entry) })),
               ]}
               onChange={setMirrorId}
             />

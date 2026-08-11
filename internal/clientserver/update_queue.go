@@ -448,7 +448,7 @@ func (s *Server) installUpdateCandidate(ctx context.Context, userID string, oper
 			mirrorID = strings.TrimSpace(override.DownloadMirrorID)
 		}
 	}
-	downloadURL, err := s.installDownloadURL(candidate.App, &candidate.Version, InstallRequestDTO{MirrorID: mirrorID})
+	downloadURL, err := s.installDownloadURL(ctx, userID, candidate.App, &candidate.Version, InstallRequestDTO{MirrorID: mirrorID})
 	if err != nil {
 		return s.recordUpdateFailure(ctx, userID, candidate, dto, err)
 	}

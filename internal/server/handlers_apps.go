@@ -1305,6 +1305,10 @@ func (s *Server) handleDownloadVersion(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, "MIRROR_NOT_APPLICABLE", "Mirror can only be used with GitHub downloads", nil)
 			return
 		}
+		if mirrorID == mirror.PreferredSelection {
+			writeError(w, http.StatusUnprocessableEntity, "PREFERRED_MIRROR_UNAVAILABLE", "Preferred mirror selection is only available for trusted device installs", nil)
+			return
+		}
 		entry, ok := mirror.FindApplicable(s.effectiveGitHubMirrors(r.Context()), mirrorID, downloadURL)
 		if !ok {
 			writeError(w, http.StatusUnprocessableEntity, "MIRROR_NOT_FOUND", "Mirror not found", nil)

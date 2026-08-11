@@ -225,6 +225,8 @@ type sourceFeedFetch struct {
 	notModified       bool
 }
 
+const maxSourceFeedMirrors = 16
+
 const sourceAppInsertBatchSize = 50
 
 func (s *Server) syncSource(ctx context.Context, sourceID int, userID string) (SourceDTO, error) {
@@ -685,6 +687,9 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 func normalizeFeedMirrors(input []mirror.Entry) ([]mirror.Entry, error) {
 	if len(input) == 0 {
 		return nil, nil
+	}
+	if len(input) > maxSourceFeedMirrors {
+		return nil, fmt.Errorf("source feed cannot define more than %d GitHub mirrors", maxSourceFeedMirrors)
 	}
 	linesByKind := map[string][]string{}
 	for _, entry := range input {

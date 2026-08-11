@@ -6,18 +6,25 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const (
-	KindDownload = "download"
-	KindRaw      = "raw"
+	KindDownload       = "download"
+	KindRaw            = "raw"
+	PreferredSelection = "__preferred__"
 )
 
 type Entry struct {
-	ID   string `json:"id"`
-	Kind string `json:"kind"`
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	ID                  string     `json:"id"`
+	Kind                string     `json:"kind"`
+	Name                string     `json:"name"`
+	URL                 string     `json:"url"`
+	BenchmarkStatus     string     `json:"benchmarkStatus,omitempty"`
+	SpeedBytesPerSecond int64      `json:"speedBytesPerSecond,omitempty"`
+	StabilityPercent    int        `json:"stabilityPercent,omitempty"`
+	BenchmarkScore      int64      `json:"benchmarkScore,omitempty"`
+	LastBenchmarkAt     *time.Time `json:"lastBenchmarkAt,omitempty"`
 }
 
 func Parse(value string, kind string) ([]Entry, error) {
@@ -117,6 +124,58 @@ func FindApplicable(entries []Entry, id string, rawURL string) (Entry, bool) {
 		return Entry{}, false
 	}
 	return entry, true
+}
+
+// OrderedForURL returns mirrors applicable to rawURL in their configured
+// order, with a valid preferred mirror pinned to the front. The input slice is
+// never mutated, so callers can safely reuse the feed/configuration order.
+func OrderedForURL(entries []Entry, rawURL, preferredID string) []Entry {
+	kind := KindForURL(rawURL)
+	if kind == "" {
+		return nil
+	}
+	ordered := make([]Entry, 0, len(entries))
+	preferredIndex := -1
+	for _, entry := range entries {
+		if entry.Kind != kind {
+			continue
+		}
+		if entry.ID == strings.TrimSpace(preferredID) {
+			preferredIndex = len(ordered)
+		}
+		ordered = append(ordered, entry)
+	}
+	if preferredIndex > 0 {
+		preferred := ordered[preferredIndex]
+		copy(ordered[1:preferredIndex+1], ordered[:preferredIndex])
+		ordered[0] = preferred
+	}
+	return ordered
+}
+
+// ResolveSelection resolves either a concrete mirror ID or the stable
+// preferred selection. Preferred selection falls back to the upstream URL
+// when no applicable mirror is configured.
+func ResolveSelection(entries []Entry, rawURL, selectionID, preferredID string) (string, bool) {
+	selectionID = strings.TrimSpace(selectionID)
+	if selectionID == "" {
+		return rawURL, true
+	}
+	if KindForURL(rawURL) == "" {
+		return "", false
+	}
+	if selectionID == PreferredSelection {
+		ordered := OrderedForURL(entries, rawURL, preferredID)
+		if len(ordered) == 0 {
+			return rawURL, true
+		}
+		return RewriteGitHub(rawURL, ordered[0]), true
+	}
+	entry, ok := FindApplicable(entries, selectionID, rawURL)
+	if !ok {
+		return "", false
+	}
+	return RewriteGitHub(rawURL, entry), true
 }
 
 func RewriteGitHub(rawURL string, entry Entry) string {

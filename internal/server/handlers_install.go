@@ -13,6 +13,7 @@ import (
 	"lazycat.community/appstore/internal/catalogmeta"
 	"lazycat.community/appstore/internal/lazycatpkg"
 	"lazycat.community/appstore/internal/mirror"
+	"lazycat.community/appstore/internal/mirrorprobe"
 )
 
 type lazycatInstaller interface {
@@ -34,6 +35,18 @@ type runtimeMirrorOption struct {
 	ID   string `json:"id"`
 	Kind string `json:"kind"`
 	Name string `json:"name"`
+}
+
+func (s *Server) resolveRuntimeMirror(ctx context.Context, rawURL, selectionID string) (string, bool) {
+	entries := s.effectiveGitHubMirrors(ctx)
+	if selectionID == mirror.PreferredSelection {
+		measurements := mirrorprobe.Measure(ctx, entries, rawURL, s.mirrorProbe)
+		if fastest, ok := mirrorprobe.Fastest(measurements); ok {
+			return mirror.RewriteGitHub(rawURL, fastest), true
+		}
+		return rawURL, true
+	}
+	return mirror.ResolveSelection(entries, rawURL, selectionID, "")
 }
 
 const maxLazyCatIdentityHeaderBytes = 256
@@ -110,24 +123,24 @@ func (s *Server) handleInstallVersion(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "INSTALL_PASSWORD_REQUIRED", "A valid install password is required", nil)
 		return
 	}
+	if !s.beginLazyCatInstall() {
+		writeError(w, http.StatusConflict, "INSTALL_IN_PROGRESS", "Another application installation is already running", nil)
+		return
+	}
+	defer s.endLazyCatInstall()
 	downloadURL := s.absoluteURL(r.Context(), versionRecord.DownloadURL)
 	if mirrorID := strings.TrimSpace(input.MirrorID); mirrorID != "" {
 		if !mirror.IsGitHubURL(downloadURL) {
 			writeError(w, http.StatusUnprocessableEntity, "MIRROR_NOT_APPLICABLE", "The selected mirror does not apply to this download", nil)
 			return
 		}
-		entry, found := mirror.FindApplicable(s.effectiveGitHubMirrors(r.Context()), mirrorID, downloadURL)
+		resolved, found := s.resolveRuntimeMirror(r.Context(), downloadURL, mirrorID)
 		if !found {
 			writeError(w, http.StatusUnprocessableEntity, "MIRROR_NOT_FOUND", "The selected mirror is unavailable", nil)
 			return
 		}
-		downloadURL = mirror.RewriteGitHub(downloadURL, entry)
+		downloadURL = resolved
 	}
-	if !s.beginLazyCatInstall() {
-		writeError(w, http.StatusConflict, "INSTALL_IN_PROGRESS", "Another application installation is already running", nil)
-		return
-	}
-	defer s.endLazyCatInstall()
 	result, err := s.lazycatInstaller.InstallLPK(r.Context(), identity, lazycatpkg.InstallRequest{
 		DownloadURL: downloadURL,
 		SHA256:      strings.TrimSpace(versionRecord.Sha256),

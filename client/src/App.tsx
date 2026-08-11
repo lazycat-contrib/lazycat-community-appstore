@@ -140,6 +140,8 @@ function defaultClientSettings(): ClientSettings {
   autoUpdateEnabled: false,
   autoUpdateIntervalMinutes: 60,
   autoUpdateNotifyEnabled: true,
+  mirrorBenchmarkEnabled: false,
+  mirrorBenchmarkIntervalMinutes: 360,
 };
 }
 
@@ -1200,6 +1202,12 @@ export function App() {
     setClientSettings(data.settings || nextSettings);
   }
 
+  async function runMirrorBenchmark() {
+    await clientApi('/mirrors/benchmark', { method: 'POST' });
+    await Promise.all([loadClientSources(), loadClientSettings()]);
+    setToast({ tone: 'success', message: t('clientSettings.mirrorBenchmarkCompleted') });
+  }
+
   async function pollAvailableUpdates(token: number) {
 	while (updateQueuePollRef.current === token) {
 	  try {
@@ -1689,6 +1697,7 @@ export function App() {
                 settings={clientSettings}
                 sourceStats={sourceStats}
                 onSave={saveClientSettings}
+                onRunMirrorBenchmark={runMirrorBenchmark}
 				onRunUpdates={runAvailableUpdates}
 				isUpdateQueueRunning={isUpdateQueueRunning}
                 setToast={setToast}

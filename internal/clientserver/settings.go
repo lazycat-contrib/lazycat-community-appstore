@@ -81,12 +81,27 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
 	}
+	if input.MirrorBenchmarkEnabled != nil {
+		if err := s.setClientSetting(r, settingMirrorBenchmarkEnabled, strconv.FormatBool(*input.MirrorBenchmarkEnabled)); err != nil {
+			writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
+			return
+		}
+	}
+	if input.MirrorBenchmarkIntervalMinutes != nil {
+		benchmarkInterval := sanitizeMirrorBenchmarkInterval(*input.MirrorBenchmarkIntervalMinutes)
+		if err := s.setClientSetting(r, settingMirrorBenchmarkIntervalMinutes, strconv.Itoa(benchmarkInterval)); err != nil {
+			writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
+			return
+		}
+	}
 	syncSetting, err := s.setClientSyncSetting(r.Context(), userID, input)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"settings": s.clientSettingsDTO(clientTitle, displayName, defaultPageSize, installSuccessDismissSeconds, autoUpdateNotifyEnabled, syncSetting)})
+	settings := s.clientSettingsDTO(clientTitle, displayName, defaultPageSize, installSuccessDismissSeconds, autoUpdateNotifyEnabled, syncSetting)
+	s.applyMirrorBenchmarkSettings(r.Context(), userID, &settings)
+	writeJSON(w, http.StatusOK, map[string]any{"settings": settings})
 }
 
 func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSettingsDTO, error) {
@@ -102,7 +117,21 @@ func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSetti
 	if err != nil {
 		return ClientSettingsDTO{}, err
 	}
-	return s.clientSettingsDTO(clientTitle, commentDisplayName, defaultPageSize, installSuccessDismissSeconds, autoUpdateNotifyEnabled, syncSetting), nil
+	dto := s.clientSettingsDTO(clientTitle, commentDisplayName, defaultPageSize, installSuccessDismissSeconds, autoUpdateNotifyEnabled, syncSetting)
+	s.applyMirrorBenchmarkSettings(ctx, userID, &dto)
+	return dto, nil
+}
+
+func (s *Server) applyMirrorBenchmarkSettings(ctx context.Context, userID string, dto *ClientSettingsDTO) {
+	if dto == nil {
+		return
+	}
+	enabled, interval, lastRun, status := s.mirrorBenchmarkConfig(ctx, userID)
+	dto.MirrorBenchmarkEnabled = enabled
+	dto.MirrorBenchmarkIntervalMinutes = interval
+	dto.LastMirrorBenchmarkAt = lastRun
+	dto.LastMirrorBenchmarkStatus = status
+	dto.MirrorBenchmarkScheduleState, dto.NextMirrorBenchmarkAt = mirrorBenchmarkSchedule(enabled, interval, lastRun, time.Now())
 }
 
 func (s *Server) clientSettingsDTO(clientTitle string, commentDisplayName string, defaultPageSize int, installSuccessDismissSeconds int, autoUpdateNotifyEnabled bool, syncSetting *ent.ClientSyncSetting) ClientSettingsDTO {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	entgo "lazycat.community/appstore/ent"
@@ -194,6 +195,54 @@ func TestLazyCatInstallUsesSelectedMirror(t *testing.T) {
 	}
 }
 
+func TestLazyCatInstallUsesFastestPreferredMirror(t *testing.T) {
+	store := newTestApp(t)
+	store.server.cfg.TrustLazyCatClientInstall = true
+	firstURL := "https://first.example/https://github.com"
+	secondURL := "https://second.example/https://github.com"
+	store.server.cfg.GitHubDownloadMirrors = "First=>" + firstURL + "\nSecond=>" + secondURL
+	store.server.mirrorProbe = func(_ context.Context, rawURL string) (int64, error) {
+		if strings.Contains(rawURL, "second.example") {
+			return 12_000_000, nil
+		}
+		return 3_000_000, nil
+	}
+	installer := &captureLazyCatInstaller{result: lazycatpkg.InstallResult{Mode: "lazycat-go-sdk"}}
+	store.server.lazycatInstaller = installer
+	record, version := createLazyCatInstallFixture(t, store, "")
+	version = version.Update().SetDownloadURL("https://github.com/acme/app/releases/download/v1/app.lpk").SaveX(t.Context())
+
+	rec := lazyCatInstallRequestWithMirror(store, record.ID, version.ID, "", mirror.PreferredSelection, "alice", "pc-1")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("preferred install status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	want := "https://second.example/https://github.com/acme/app/releases/download/v1/app.lpk"
+	if installer.request.DownloadURL != want {
+		t.Fatalf("preferred URL = %q, want %q", installer.request.DownloadURL, want)
+	}
+}
+
+func TestLazyCatInstallPreferredFallsBackToGitHubWhenEveryMirrorFails(t *testing.T) {
+	store := newTestApp(t)
+	store.server.cfg.TrustLazyCatClientInstall = true
+	store.server.cfg.GitHubDownloadMirrors = "Unavailable=>https://unavailable.example/https://github.com"
+	store.server.mirrorProbe = func(context.Context, string) (int64, error) {
+		return 0, errors.New("mirror unavailable")
+	}
+	installer := &captureLazyCatInstaller{result: lazycatpkg.InstallResult{Mode: "lazycat-go-sdk"}}
+	store.server.lazycatInstaller = installer
+	record, version := createLazyCatInstallFixture(t, store, "")
+	version = version.Update().SetDownloadURL("https://github.com/acme/app/releases/download/v1/app.lpk").SaveX(t.Context())
+
+	rec := lazyCatInstallRequestWithMirror(store, record.ID, version.ID, "", mirror.PreferredSelection, "alice", "pc-1")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("preferred direct fallback status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if installer.request.DownloadURL != version.DownloadURL {
+		t.Fatalf("preferred fallback URL = %q, want upstream %q", installer.request.DownloadURL, version.DownloadURL)
+	}
+}
+
 func TestLazyCatInstallRejectsInvalidMirror(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -259,18 +308,28 @@ func TestLazyCatInstallRejectsClientMirrorURL(t *testing.T) {
 func TestLazyCatInstallRejectsConcurrentRequest(t *testing.T) {
 	store := newTestApp(t)
 	store.server.cfg.TrustLazyCatClientInstall = true
+	store.server.cfg.GitHubDownloadMirrors = "Mirror=>https://mirror.example/https://github.com"
+	var probes atomic.Int32
+	store.server.mirrorProbe = func(context.Context, string) (int64, error) {
+		probes.Add(1)
+		return 10_000_000, nil
+	}
 	installer := &captureLazyCatInstaller{}
 	store.server.lazycatInstaller = installer
 	record, version := createLazyCatInstallFixture(t, store, "")
+	version = version.Update().SetDownloadURL("https://github.com/acme/app/releases/download/v1/app.lpk").SaveX(t.Context())
 	store.server.lazycatInstallSlots <- struct{}{}
 	defer func() { <-store.server.lazycatInstallSlots }()
 
-	rec := lazyCatInstallRequest(store, record.ID, version.ID, "", "alice", "pc-1")
+	rec := lazyCatInstallRequestWithMirror(store, record.ID, version.ID, "", mirror.PreferredSelection, "alice", "pc-1")
 	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "INSTALL_IN_PROGRESS") {
 		t.Fatalf("concurrent status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	if installer.request.DownloadURL != "" {
 		t.Fatal("installer was called while another installation was active")
+	}
+	if got := probes.Load(); got != 0 {
+		t.Fatalf("concurrent request ran %d mirror probes", got)
 	}
 }
 

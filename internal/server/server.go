@@ -25,6 +25,7 @@ import (
 	"lazycat.community/appstore/internal/buildinfo"
 	"lazycat.community/appstore/internal/config"
 	"lazycat.community/appstore/internal/dbpool"
+	"lazycat.community/appstore/internal/mirrorprobe"
 	"lazycat.community/appstore/internal/storage"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -43,6 +44,7 @@ type Server struct {
 	storage                  storage.Backend
 	mailer                   Mailer
 	lazycatInstaller         lazycatInstaller
+	mirrorProbe              mirrorprobe.ProbeFunc
 	lazycatInstallSlots      chan struct{}
 	mux                      *http.ServeMux
 	web                      http.Handler

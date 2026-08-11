@@ -374,9 +374,17 @@ export type GitHubMirror = {
   kind: 'download' | 'raw';
   name: string;
   url: string;
+  benchmarkStatus?: 'healthy' | 'unstable' | 'unavailable';
+  speedBytesPerSecond?: number;
+  stabilityPercent?: number;
+  benchmarkScore?: number;
+  lastBenchmarkAt?: string;
 };
 
-export type GitHubMirrorOption = Pick<GitHubMirror, 'id' | 'kind' | 'name'>;
+export type GitHubMirrorOption = Pick<
+  GitHubMirror,
+  'id' | 'kind' | 'name' | 'benchmarkStatus' | 'speedBytesPerSecond' | 'stabilityPercent' | 'benchmarkScore' | 'lastBenchmarkAt'
+>;
 
 export type InstallMirrorConfig = {
   githubMirrors: GitHubMirrorOption[];
@@ -435,6 +443,12 @@ export type ClientSettings = {
   lastAutoUpdateError?: string;
   autoUpdateScheduleState?: 'paused' | 'due' | 'scheduled';
   nextAutoUpdateAt?: string;
+  mirrorBenchmarkEnabled: boolean;
+  mirrorBenchmarkIntervalMinutes: number;
+  lastMirrorBenchmarkAt?: string;
+  lastMirrorBenchmarkStatus?: 'success' | 'partial' | 'failed';
+  mirrorBenchmarkScheduleState?: 'paused' | 'due' | 'scheduled';
+  nextMirrorBenchmarkAt?: string;
 };
 
 export type ClientIdentity = {

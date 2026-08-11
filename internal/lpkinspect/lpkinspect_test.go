@@ -9,12 +9,23 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 	"time"
 
 	"lazycat.community/appstore/internal/mirror"
 )
+
+func TestValidateURLHostRejectsCarrierGradeNAT(t *testing.T) {
+	parsed, err := url.Parse("https://100.64.0.1/app.lpk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateURLHost(t.Context(), parsed, false); err == nil {
+		t.Fatal("ValidateURLHost accepted an RFC6598 carrier-grade NAT address")
+	}
+}
 
 func TestFetchURLsUsesMirrorsBeforeOriginalURL(t *testing.T) {
 	mirrors := []mirror.Entry{

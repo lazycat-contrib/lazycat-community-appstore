@@ -13,29 +13,33 @@ import (
 
 	"lazycat.community/appstore/clientembed"
 	"lazycat.community/appstore/ent"
+	"lazycat.community/appstore/internal/mirrorprobe"
 )
 
 type Server struct {
-	cfg                Config
-	db                 *ent.Client
-	sqlDB              *sql.DB
-	pkg                PackageManager
-	notifier           SystemNotifier
-	installCoordinator *installCoordinator
-	sourceCoordinator  *sourceOperationCoordinator
-	mux                *http.ServeMux
-	syncScheduler      *sourceSyncScheduler
-	auth               *clientAuth
-	httpClient         *http.Client
-	streamClient       *http.Client
-	httpClientsMu      sync.Mutex
-	sourcePolicy       sourceURLPolicy
-	stopOnce           sync.Once
-	stopDone           chan struct{}
-	stopErr            error
-	closeOnce          sync.Once
-	closeDone          chan struct{}
-	closeErr           error
+	cfg                    Config
+	db                     *ent.Client
+	sqlDB                  *sql.DB
+	pkg                    PackageManager
+	notifier               SystemNotifier
+	installCoordinator     *installCoordinator
+	sourceCoordinator      *sourceOperationCoordinator
+	mux                    *http.ServeMux
+	syncScheduler          *sourceSyncScheduler
+	auth                   *clientAuth
+	httpClient             *http.Client
+	streamClient           *http.Client
+	httpClientsMu          sync.Mutex
+	mirrorProbe            mirrorprobe.ProbeFunc
+	mirrorBenchmarkLocksMu sync.Mutex
+	mirrorBenchmarkLocks   map[string]*sync.Mutex
+	sourcePolicy           sourceURLPolicy
+	stopOnce               sync.Once
+	stopDone               chan struct{}
+	stopErr                error
+	closeOnce              sync.Once
+	closeDone              chan struct{}
+	closeErr               error
 }
 
 func New(cfg Config) (*Server, error) {
@@ -77,6 +81,22 @@ func New(cfg Config) (*Server, error) {
 	}
 	s.syncScheduler = syncScheduler
 	return s, nil
+}
+
+func (s *Server) lockMirrorBenchmark(userID string) func() {
+	s.mirrorBenchmarkLocksMu.Lock()
+	if s.mirrorBenchmarkLocks == nil {
+		s.mirrorBenchmarkLocks = make(map[string]*sync.Mutex)
+	}
+	lock := s.mirrorBenchmarkLocks[userID]
+	if lock == nil {
+		lock = &sync.Mutex{}
+		s.mirrorBenchmarkLocks[userID] = lock
+	}
+	s.mirrorBenchmarkLocksMu.Unlock()
+
+	lock.Lock()
+	return lock.Unlock
 }
 
 func newTestServer(db *ent.Client) *Server {
@@ -203,6 +223,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/client/v1/sources/sync", s.clientAPI(s.handleSyncAllSources))
 	s.mux.HandleFunc("GET /api/client/v1/settings", s.clientAPI(s.handleGetSettings))
 	s.mux.HandleFunc("PATCH /api/client/v1/settings", s.clientAPI(s.handleUpdateSettings))
+	s.mux.HandleFunc("POST /api/client/v1/mirrors/benchmark", s.clientAPI(s.handleRunMirrorBenchmark))
 	s.mux.HandleFunc("POST /api/client/v1/updates/run", s.clientAPI(s.handleRunUpdateQueue))
 	s.mux.HandleFunc("GET /api/client/v1/updates/run", s.clientAPI(s.handleGetUpdateQueue))
 	s.mux.HandleFunc("DELETE /api/client/v1/updates/run", s.clientAPI(s.handleCancelUpdateQueue))

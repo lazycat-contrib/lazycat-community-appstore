@@ -254,6 +254,10 @@ export type EditableClientSettings = {
   lastAutoUpdateAt?: string;
   lastAutoUpdateStatus?: string;
   lastAutoUpdateError?: string;
+  mirrorBenchmarkEnabled: boolean;
+  mirrorBenchmarkIntervalMinutes: number;
+  lastMirrorBenchmarkAt?: string;
+  lastMirrorBenchmarkStatus?: 'success' | 'partial' | 'failed';
 };
 
 export function normalizeAutomationSettings<T extends {
@@ -287,6 +291,8 @@ export function normalizeEditableClientSettings(settings: EditableClientSettings
     autoUpdateEnabled: Boolean(settings.autoUpdateEnabled),
     autoUpdateIntervalMinutes: Number(settings.autoUpdateIntervalMinutes) || 60,
     autoUpdateNotifyEnabled: Boolean(settings.autoUpdateNotifyEnabled),
+    mirrorBenchmarkEnabled: Boolean(settings.mirrorBenchmarkEnabled),
+    mirrorBenchmarkIntervalMinutes: Number(settings.mirrorBenchmarkIntervalMinutes) || 360,
   });
 }
 

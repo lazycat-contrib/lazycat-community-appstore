@@ -3,6 +3,11 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { softwareUpdatedAt } from '../../shared/catalogUpdate.ts';
 import {
+  orderGitHubMirrors,
+  PREFERRED_MIRROR_SELECTION,
+  resolveMirrorSelection,
+} from '../../shared/mirrorPreferences.ts';
+import {
   autoUpdatePolicyPresentation,
 	autoUpdateSchedulePresentation,
   buildUpdateCandidateSnapshot,
@@ -33,7 +38,7 @@ test('install mirror helpers consume the shared mirror config contract', async (
     source('../../shared/utils.ts'),
   ]);
 
-  assert.match(types, /export type GitHubMirrorOption = Pick<GitHubMirror, 'id' \| 'kind' \| 'name'>/);
+  assert.match(types, /export type GitHubMirrorOption = Pick<[\s\S]*GitHubMirror,[\s\S]*'id' \| 'kind' \| 'name' \| 'benchmarkStatus' \| 'speedBytesPerSecond' \| 'stabilityPercent' \| 'benchmarkScore' \| 'lastBenchmarkAt'[\s\S]*>/);
   assert.match(types, /export type InstallMirrorConfig = \{[\s\S]*githubMirrors: GitHubMirrorOption\[\][\s\S]*defaultDownloadMirrorId: string[\s\S]*defaultRawMirrorId: string[\s\S]*\}/);
   assert.match(utils, /applicableMirrorsForVersion\(mirrorConfig: InstallMirrorConfig \| undefined/);
   assert.match(utils, /arrayOrEmpty\(mirrorConfig\.githubMirrors\)\.filter\(\(entry\) => entry\.kind === kind\)/);
@@ -50,7 +55,24 @@ test('install options dialog consumes a shared mirror config', async () => {
   assert.match(dialog, /mirrorConfig\?: InstallMirrorConfig/);
   assert.match(dialog, /applicableMirrorsForVersion\(mirrorConfig, version\)/);
   assert.match(dialog, /defaultMirrorIDForVersion\(mirrorConfig, version\)/);
+  assert.match(dialog, /value: PREFERRED_MIRROR_SELECTION, label: t\('installOptions\.autoMirrorWithName'/);
   assert.doesNotMatch(dialog, /source\?: SourceSubscription/);
+});
+
+test('GitHub mirror ordering puts the fastest available local result first and keeps deterministic fallbacks', () => {
+  const mirrors = [
+    { id: 'download-a', kind: 'download', name: 'A', benchmarkStatus: 'unstable', speedBytesPerSecond: 12_000_000, stabilityPercent: 70, benchmarkScore: 4_200_000 },
+    { id: 'download-b', kind: 'download', name: 'B', benchmarkStatus: 'healthy', speedBytesPerSecond: 8_000_000, stabilityPercent: 100, benchmarkScore: 8_000_000 },
+    { id: 'download-c', kind: 'download', name: 'C' },
+    { id: 'download-d', kind: 'download', name: 'D', benchmarkStatus: 'unavailable', speedBytesPerSecond: 20_000_000, stabilityPercent: 50 },
+  ];
+
+  const ordered = orderGitHubMirrors(mirrors, 'download-c');
+  assert.deepEqual(ordered.map((entry) => entry.id), ['download-a', 'download-b', 'download-c', 'download-d']);
+  assert.deepEqual(mirrors.map((entry) => entry.id), ['download-a', 'download-b', 'download-c', 'download-d']);
+  assert.equal(resolveMirrorSelection(PREFERRED_MIRROR_SELECTION, ordered), 'download-a');
+  assert.equal(resolveMirrorSelection('download-c', ordered), 'download-c');
+  assert.equal(resolveMirrorSelection(PREFERRED_MIRROR_SELECTION, []), '');
 });
 
 test('source rows prefer cached site artwork and recover to the default mark', async () => {
@@ -304,6 +326,8 @@ test('editable settings normalization trims strings and applies numeric defaults
       autoUpdateNotifyEnabled: true,
       autoUpdateEnabled: true,
       autoUpdateIntervalMinutes: 0,
+      mirrorBenchmarkEnabled: false,
+      mirrorBenchmarkIntervalMinutes: 0,
     }),
     {
       clientTitle: 'MiaoMiao',
@@ -316,6 +340,8 @@ test('editable settings normalization trims strings and applies numeric defaults
       autoUpdateNotifyEnabled: true,
       autoUpdateEnabled: true,
       autoUpdateIntervalMinutes: 60,
+      mirrorBenchmarkEnabled: false,
+      mirrorBenchmarkIntervalMinutes: 360,
     },
   );
 });

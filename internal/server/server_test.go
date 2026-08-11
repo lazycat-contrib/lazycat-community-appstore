@@ -1181,6 +1181,19 @@ func TestDownloadEndpointUsesGitHubMirror(t *testing.T) {
 	if location != want {
 		t.Fatalf("Location = %q, want %q", location, want)
 	}
+
+	var preferredProbes atomic.Int32
+	app.server.mirrorProbe = func(context.Context, string) (int64, error) {
+		preferredProbes.Add(1)
+		return 1, nil
+	}
+	rec = app.do(http.MethodGet, fmt.Sprintf("/api/v1/apps/%d/versions/%d/download?mirrorId=%s", record.ID, version.ID, mirror.PreferredSelection), nil)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "PREFERRED_MIRROR_UNAVAILABLE") {
+		t.Fatalf("public preferred download status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if got := preferredProbes.Load(); got != 0 {
+		t.Fatalf("public preferred download triggered %d probes, want 0", got)
+	}
 }
 
 func TestUserCanToggleSubmitterFavorite(t *testing.T) {
