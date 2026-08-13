@@ -720,36 +720,40 @@ func init() {
 	clientsourceDescMinClientVersionMessage := clientsourceFields[15].Descriptor()
 	// clientsource.DefaultMinClientVersionMessage holds the default value on creation for the min_client_version_message field.
 	clientsource.DefaultMinClientVersionMessage = clientsourceDescMinClientVersionMessage.Default.(string)
+	// clientsourceDescForceAdsDisplay is the schema descriptor for force_ads_display field.
+	clientsourceDescForceAdsDisplay := clientsourceFields[16].Descriptor()
+	// clientsource.DefaultForceAdsDisplay holds the default value on creation for the force_ads_display field.
+	clientsource.DefaultForceAdsDisplay = clientsourceDescForceAdsDisplay.Default.(bool)
 	// clientsourceDescChatAvailable is the schema descriptor for chat_available field.
-	clientsourceDescChatAvailable := clientsourceFields[16].Descriptor()
+	clientsourceDescChatAvailable := clientsourceFields[17].Descriptor()
 	// clientsource.DefaultChatAvailable holds the default value on creation for the chat_available field.
 	clientsource.DefaultChatAvailable = clientsourceDescChatAvailable.Default.(bool)
 	// clientsourceDescWishWallAvailable is the schema descriptor for wish_wall_available field.
-	clientsourceDescWishWallAvailable := clientsourceFields[17].Descriptor()
+	clientsourceDescWishWallAvailable := clientsourceFields[18].Descriptor()
 	// clientsource.DefaultWishWallAvailable holds the default value on creation for the wish_wall_available field.
 	clientsource.DefaultWishWallAvailable = clientsourceDescWishWallAvailable.Default.(bool)
 	// clientsourceDescChatEnabled is the schema descriptor for chat_enabled field.
-	clientsourceDescChatEnabled := clientsourceFields[18].Descriptor()
+	clientsourceDescChatEnabled := clientsourceFields[19].Descriptor()
 	// clientsource.DefaultChatEnabled holds the default value on creation for the chat_enabled field.
 	clientsource.DefaultChatEnabled = clientsourceDescChatEnabled.Default.(bool)
 	// clientsourceDescLastEtag is the schema descriptor for last_etag field.
-	clientsourceDescLastEtag := clientsourceFields[20].Descriptor()
+	clientsourceDescLastEtag := clientsourceFields[21].Descriptor()
 	// clientsource.DefaultLastEtag holds the default value on creation for the last_etag field.
 	clientsource.DefaultLastEtag = clientsourceDescLastEtag.Default.(string)
 	// clientsourceDescLastAppCount is the schema descriptor for last_app_count field.
-	clientsourceDescLastAppCount := clientsourceFields[24].Descriptor()
+	clientsourceDescLastAppCount := clientsourceFields[25].Descriptor()
 	// clientsource.DefaultLastAppCount holds the default value on creation for the last_app_count field.
 	clientsource.DefaultLastAppCount = clientsourceDescLastAppCount.Default.(int)
 	// clientsourceDescLastInstallableCount is the schema descriptor for last_installable_count field.
-	clientsourceDescLastInstallableCount := clientsourceFields[25].Descriptor()
+	clientsourceDescLastInstallableCount := clientsourceFields[26].Descriptor()
 	// clientsource.DefaultLastInstallableCount holds the default value on creation for the last_installable_count field.
 	clientsource.DefaultLastInstallableCount = clientsourceDescLastInstallableCount.Default.(int)
 	// clientsourceDescCreatedAt is the schema descriptor for created_at field.
-	clientsourceDescCreatedAt := clientsourceFields[26].Descriptor()
+	clientsourceDescCreatedAt := clientsourceFields[27].Descriptor()
 	// clientsource.DefaultCreatedAt holds the default value on creation for the created_at field.
 	clientsource.DefaultCreatedAt = clientsourceDescCreatedAt.Default.(func() time.Time)
 	// clientsourceDescUpdatedAt is the schema descriptor for updated_at field.
-	clientsourceDescUpdatedAt := clientsourceFields[27].Descriptor()
+	clientsourceDescUpdatedAt := clientsourceFields[28].Descriptor()
 	// clientsource.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	clientsource.DefaultUpdatedAt = clientsourceDescUpdatedAt.Default.(func() time.Time)
 	// clientsource.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -721,6 +721,7 @@ var (
 		{Name: "ads_json", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "min_client_version", Type: field.TypeString, Default: ""},
 		{Name: "min_client_version_message", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "force_ads_display", Type: field.TypeBool, Default: false},
 		{Name: "chat_available", Type: field.TypeBool, Default: false},
 		{Name: "wish_wall_available", Type: field.TypeBool, Default: false},
 		{Name: "chat_enabled", Type: field.TypeBool, Default: true},
@@ -748,7 +749,7 @@ var (
 			{
 				Name:    "clientsource_user_id_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[28]},
+				Columns: []*schema.Column{ClientSourcesColumns[1], ClientSourcesColumns[29]},
 			},
 		},
 	}

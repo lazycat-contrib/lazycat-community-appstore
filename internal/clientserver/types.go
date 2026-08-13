@@ -73,8 +73,9 @@ type SourceAdDTO struct {
 }
 
 type SourceClientPolicyDTO struct {
-	MinVersion string `json:"minVersion,omitempty"`
-	Message    string `json:"message,omitempty"`
+	MinVersion      string `json:"minVersion,omitempty"`
+	Message         string `json:"message,omitempty"`
+	ForceAdsDisplay bool   `json:"forceAdsDisplay,omitzero"`
 }
 
 type SourceInput struct {

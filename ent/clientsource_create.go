@@ -221,6 +221,20 @@ func (_c *ClientSourceCreate) SetNillableMinClientVersionMessage(v *string) *Cli
 	return _c
 }
 
+// SetForceAdsDisplay sets the "force_ads_display" field.
+func (_c *ClientSourceCreate) SetForceAdsDisplay(v bool) *ClientSourceCreate {
+	_c.mutation.SetForceAdsDisplay(v)
+	return _c
+}
+
+// SetNillableForceAdsDisplay sets the "force_ads_display" field if the given value is not nil.
+func (_c *ClientSourceCreate) SetNillableForceAdsDisplay(v *bool) *ClientSourceCreate {
+	if v != nil {
+		_c.SetForceAdsDisplay(*v)
+	}
+	return _c
+}
+
 // SetChatAvailable sets the "chat_available" field.
 func (_c *ClientSourceCreate) SetChatAvailable(v bool) *ClientSourceCreate {
 	_c.mutation.SetChatAvailable(v)
@@ -491,6 +505,10 @@ func (_c *ClientSourceCreate) defaults() {
 		v := clientsource.DefaultMinClientVersionMessage
 		_c.mutation.SetMinClientVersionMessage(v)
 	}
+	if _, ok := _c.mutation.ForceAdsDisplay(); !ok {
+		v := clientsource.DefaultForceAdsDisplay
+		_c.mutation.SetForceAdsDisplay(v)
+	}
 	if _, ok := _c.mutation.ChatAvailable(); !ok {
 		v := clientsource.DefaultChatAvailable
 		_c.mutation.SetChatAvailable(v)
@@ -593,6 +611,9 @@ func (_c *ClientSourceCreate) check() error {
 	}
 	if _, ok := _c.mutation.MinClientVersionMessage(); !ok {
 		return &ValidationError{Name: "min_client_version_message", err: errors.New(`ent: missing required field "ClientSource.min_client_version_message"`)}
+	}
+	if _, ok := _c.mutation.ForceAdsDisplay(); !ok {
+		return &ValidationError{Name: "force_ads_display", err: errors.New(`ent: missing required field "ClientSource.force_ads_display"`)}
 	}
 	if _, ok := _c.mutation.ChatAvailable(); !ok {
 		return &ValidationError{Name: "chat_available", err: errors.New(`ent: missing required field "ClientSource.chat_available"`)}
@@ -720,6 +741,10 @@ func (_c *ClientSourceCreate) createSpec() (*ClientSource, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.MinClientVersionMessage(); ok {
 		_spec.SetField(clientsource.FieldMinClientVersionMessage, field.TypeString, value)
 		_node.MinClientVersionMessage = value
+	}
+	if value, ok := _c.mutation.ForceAdsDisplay(); ok {
+		_spec.SetField(clientsource.FieldForceAdsDisplay, field.TypeBool, value)
+		_node.ForceAdsDisplay = value
 	}
 	if value, ok := _c.mutation.ChatAvailable(); ok {
 		_spec.SetField(clientsource.FieldChatAvailable, field.TypeBool, value)

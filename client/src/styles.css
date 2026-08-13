@@ -4889,6 +4889,7 @@ code {
   }
 
   .announcement-dialog .dialog-actions,
+  .source-add-dialog .dialog-actions,
   .user-dialog .dialog-actions,
   .invite-dialog .dialog-actions,
   .group-dialog .dialog-actions,

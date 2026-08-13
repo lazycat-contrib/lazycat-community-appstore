@@ -39,6 +39,7 @@ const (
 	settingDefaultStorageKey                 = "default_storage_key"
 	settingMinClientVersion                  = "min_client_version"
 	settingMinClientVersionMessage           = "min_client_version_message"
+	settingForceAdsDisplay                   = "force_ads_display"
 	settingAnnouncementEnabled               = "announcement_enabled"
 	settingAnnouncementLevel                 = "announcement_level"
 	settingAnnouncementTitle                 = "announcement_title"
@@ -317,8 +318,9 @@ func (s *Server) clientPolicy(ctx context.Context) siteClientPolicy {
 	version := strings.TrimSpace(s.setting(ctx, settingMinClientVersion, defaultMinClientVersion()))
 	message := strings.TrimSpace(s.setting(ctx, settingMinClientVersionMessage, ""))
 	return siteClientPolicy{
-		MinVersion: version,
-		Message:    message,
+		MinVersion:      version,
+		Message:         message,
+		ForceAdsDisplay: s.settingBool(ctx, settingForceAdsDisplay, false),
 	}
 }
 

@@ -135,8 +135,9 @@ func (s *Server) buildSourceFeed(ctx context.Context, version int, scope sourceF
 	}
 	if version >= 2 {
 		input.Site.ClientPolicy = feed.ClientPolicyMeta{
-			MinVersion: profile.ClientPolicy.MinVersion,
-			Message:    profile.ClientPolicy.Message,
+			MinVersion:      profile.ClientPolicy.MinVersion,
+			Message:         profile.ClientPolicy.Message,
+			ForceAdsDisplay: profile.ClientPolicy.ForceAdsDisplay,
 		}
 		input.Categories = sourceIndexCategoryInputs(preload.categories)
 		input.Announcements = siteAnnouncementsToFeed(profile.Announcements)

@@ -440,8 +440,10 @@ export function SourcesView({
             {(editingSource.ads || []).length > 0 && (
               <XSwitch
                 label={t('sources.adsEnabled')}
-                description={t('sources.adsEnabledHelp')}
-                value={editDraft.adsPreference === 'enabled'}
+                description={editingSource.clientPolicy?.forceAdsDisplay ? t('sources.adsForcedHelp') : t('sources.adsEnabledHelp')}
+                value={editingSource.clientPolicy?.forceAdsDisplay || editDraft.adsPreference === 'enabled'}
+                isDisabled={editingSource.clientPolicy?.forceAdsDisplay}
+                disabledMessage={t('sources.adsForcedHelp')}
                 labelSpacing="spread"
                 width="100%"
                 labelIcon={<Megaphone size={16} />}

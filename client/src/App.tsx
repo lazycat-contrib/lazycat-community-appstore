@@ -335,13 +335,17 @@ export function App() {
   const storefrontAds = useMemo<SiteAd[]>(() => {
     if (HAS_API) return siteProfile.ads || [];
     return sources.flatMap((source) => {
-      if (source.adsPreference !== 'enabled') return [];
+      if (!source.clientPolicy?.forceAdsDisplay && source.adsPreference !== 'enabled') return [];
       return (source.ads || []).map((ad) => ({ ...ad, sourceName: source.name }));
     });
   }, [siteProfile.ads, sources]);
   const pendingAdPreferenceSource = useMemo(() => {
     if (HAS_API) return null;
-    return sources.find((source) => (source.ads || []).length > 0 && (source.adsPreference || 'unset') === 'unset') || null;
+    return sources.find((source) => (
+      (source.ads || []).length > 0
+      && !source.clientPolicy?.forceAdsDisplay
+      && (source.adsPreference || 'unset') === 'unset'
+    )) || null;
   }, [sources]);
   const announcementKey = visibleAnnouncements.map(announcementStorageKey).join('|');
   const showAnnouncement = visibleAnnouncements.length > 0 && announcementKey !== dismissedAnnouncement;

@@ -47,6 +47,8 @@ const (
 	FieldMinClientVersion = "min_client_version"
 	// FieldMinClientVersionMessage holds the string denoting the min_client_version_message field in the database.
 	FieldMinClientVersionMessage = "min_client_version_message"
+	// FieldForceAdsDisplay holds the string denoting the force_ads_display field in the database.
+	FieldForceAdsDisplay = "force_ads_display"
 	// FieldChatAvailable holds the string denoting the chat_available field in the database.
 	FieldChatAvailable = "chat_available"
 	// FieldWishWallAvailable holds the string denoting the wish_wall_available field in the database.
@@ -103,6 +105,7 @@ var Columns = []string{
 	FieldAdsJSON,
 	FieldMinClientVersion,
 	FieldMinClientVersionMessage,
+	FieldForceAdsDisplay,
 	FieldChatAvailable,
 	FieldWishWallAvailable,
 	FieldChatEnabled,
@@ -160,6 +163,8 @@ var (
 	DefaultMinClientVersion string
 	// DefaultMinClientVersionMessage holds the default value on creation for the "min_client_version_message" field.
 	DefaultMinClientVersionMessage string
+	// DefaultForceAdsDisplay holds the default value on creation for the "force_ads_display" field.
+	DefaultForceAdsDisplay bool
 	// DefaultChatAvailable holds the default value on creation for the "chat_available" field.
 	DefaultChatAvailable bool
 	// DefaultWishWallAvailable holds the default value on creation for the "wish_wall_available" field.
@@ -319,6 +324,11 @@ func ByMinClientVersion(opts ...sql.OrderTermOption) OrderOption {
 // ByMinClientVersionMessage orders the results by the min_client_version_message field.
 func ByMinClientVersionMessage(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMinClientVersionMessage, opts...).ToFunc()
+}
+
+// ByForceAdsDisplay orders the results by the force_ads_display field.
+func ByForceAdsDisplay(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldForceAdsDisplay, opts...).ToFunc()
 }
 
 // ByChatAvailable orders the results by the chat_available field.

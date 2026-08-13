@@ -49,6 +49,8 @@ type ClientSource struct {
 	MinClientVersion string `json:"min_client_version,omitempty"`
 	// MinClientVersionMessage holds the value of the "min_client_version_message" field.
 	MinClientVersionMessage string `json:"min_client_version_message,omitempty"`
+	// ForceAdsDisplay holds the value of the "force_ads_display" field.
+	ForceAdsDisplay bool `json:"force_ads_display,omitempty"`
 	// ChatAvailable holds the value of the "chat_available" field.
 	ChatAvailable bool `json:"chat_available,omitempty"`
 	// WishWallAvailable holds the value of the "wish_wall_available" field.
@@ -102,7 +104,7 @@ func (*ClientSource) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case clientsource.FieldChatAvailable, clientsource.FieldWishWallAvailable, clientsource.FieldChatEnabled:
+		case clientsource.FieldForceAdsDisplay, clientsource.FieldChatAvailable, clientsource.FieldWishWallAvailable, clientsource.FieldChatEnabled:
 			values[i] = new(sql.NullBool)
 		case clientsource.FieldID, clientsource.FieldLastAppCount, clientsource.FieldLastInstallableCount:
 			values[i] = new(sql.NullInt64)
@@ -226,6 +228,12 @@ func (_m *ClientSource) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field min_client_version_message", values[i])
 			} else if value.Valid {
 				_m.MinClientVersionMessage = value.String
+			}
+		case clientsource.FieldForceAdsDisplay:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field force_ads_display", values[i])
+			} else if value.Valid {
+				_m.ForceAdsDisplay = value.Bool
 			}
 		case clientsource.FieldChatAvailable:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -390,6 +398,9 @@ func (_m *ClientSource) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("min_client_version_message=")
 	builder.WriteString(_m.MinClientVersionMessage)
+	builder.WriteString(", ")
+	builder.WriteString("force_ads_display=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ForceAdsDisplay))
 	builder.WriteString(", ")
 	builder.WriteString("chat_available=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ChatAvailable))

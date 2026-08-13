@@ -331,6 +331,48 @@ func TestSourceAppUpdatedAt(t *testing.T) {
 	}
 }
 
+func TestClientSourceSyncPersistsForceAdsDisplayPolicy(t *testing.T) {
+	var forceAdsDisplay atomic.Bool
+	forceAdsDisplay.Store(true)
+	feed := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"schema": "lazycat.appstore.source.v2",
+			"site": map[string]any{
+				"clientPolicy": map[string]any{"forceAdsDisplay": forceAdsDisplay.Load()},
+			},
+			"apps": []map[string]any{},
+		})
+	}))
+	defer feed.Close()
+
+	app := testServer(t)
+	create := app.request(http.MethodPost, "/api/client/v1/sources", `{"name":"Feed","url":"`+feed.URL+`"}`, "alice")
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create = %d %s", create.Code, create.Body.String())
+	}
+	sync := app.request(http.MethodPost, "/api/client/v1/sources/1/sync", ``, "alice")
+	if sync.Code != http.StatusOK {
+		t.Fatalf("sync = %d %s", sync.Code, sync.Body.String())
+	}
+	if !strings.Contains(sync.Body.String(), `"clientPolicy":{"forceAdsDisplay":true}`) {
+		t.Fatalf("sync response missing forced ads policy: %s", sync.Body.String())
+	}
+
+	list := app.request(http.MethodGet, "/api/client/v1/sources", ``, "alice")
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"clientPolicy":{"forceAdsDisplay":true}`) {
+		t.Fatalf("persisted source policy missing: status=%d body=%s", list.Code, list.Body.String())
+	}
+
+	forceAdsDisplay.Store(false)
+	sync = app.request(http.MethodPost, "/api/client/v1/sources/1/sync", ``, "alice")
+	if sync.Code != http.StatusOK {
+		t.Fatalf("sync after policy disabled = %d %s", sync.Code, sync.Body.String())
+	}
+	if strings.Contains(sync.Body.String(), `"forceAdsDisplay":true`) {
+		t.Fatalf("disabled forced ads policy remained active: %s", sync.Body.String())
+	}
+}
+
 func TestSyncSourceCachesAppsAndUpdatesSource(t *testing.T) {
 	var feed *httptest.Server
 	feed = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

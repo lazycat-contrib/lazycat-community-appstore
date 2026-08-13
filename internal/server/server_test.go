@@ -2692,6 +2692,40 @@ func TestAdminSettingCanDisableSourceV1CompatibilityFeed(t *testing.T) {
 	}
 }
 
+func TestAdminSettingPublishesForceAdsDisplayPolicy(t *testing.T) {
+	app := newTestApp(t)
+	app.login("admin", "changeme")
+
+	rec := app.do(http.MethodGet, "/api/v1/admin/settings", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("settings status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"force_ads_display":"false"`) {
+		t.Fatalf("settings missing default force_ads_display=false: %s", rec.Body.String())
+	}
+
+	rec = app.do(http.MethodPatch, "/api/v1/admin/settings", map[string]string{"force_ads_display": "true"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("settings update status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = app.do(http.MethodGet, "/source/v2/index.json", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("v2 source status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var source struct {
+		Site struct {
+			ClientPolicy siteClientPolicy `json:"clientPolicy"`
+		} `json:"site"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &source); err != nil {
+		t.Fatalf("decode v2 source: %v", err)
+	}
+	if !source.Site.ClientPolicy.ForceAdsDisplay {
+		t.Fatalf("force ads display policy = false, want true; body = %s", rec.Body.String())
+	}
+}
+
 func TestAdminSettingsRejectInvalidValues(t *testing.T) {
 	app := newTestApp(t)
 	app.login("admin", "changeme")
@@ -2708,6 +2742,7 @@ func TestAdminSettingsRejectInvalidValues(t *testing.T) {
 		{"announcement_level": "danger"},
 		{"announcement_enabled": "yes"},
 		{"source_v1_enabled": "maybe"},
+		{"force_ads_display": "sometimes"},
 		{"registration_mode": "members-only"},
 	}
 	for _, body := range tests {

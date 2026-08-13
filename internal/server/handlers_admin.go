@@ -550,6 +550,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingSiteTimeZone:                      s.siteTimeZone(r.Context()),
 		settingMinClientVersion:                  defaultMinClientVersion(),
 		settingMinClientVersionMessage:           "",
+		settingForceAdsDisplay:                   "false",
 		settingAnnouncementEnabled:               "false",
 		settingAnnouncementLevel:                 "info",
 		settingAnnouncementTitle:                 "",
@@ -775,7 +776,7 @@ func validateSetting(key, value string) error {
 		if key == settingAutomaticLPKInspectionWaitSeconds && parsed > 30 {
 			return fmt.Errorf("%s must be at most 30", key)
 		}
-	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingChatEnabled, settingTwoFactorAuthEnabled, settingAllowManualOutdatedClear, settingSourceV1Enabled:
+	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingChatEnabled, settingTwoFactorAuthEnabled, settingAllowManualOutdatedClear, settingSourceV1Enabled, settingForceAdsDisplay:
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("%s must be a boolean", key)
 		}
@@ -880,6 +881,7 @@ func isPublicSetting(key string) bool {
 		settingSiteTimeZone,
 		settingMinClientVersion,
 		settingMinClientVersionMessage,
+		settingForceAdsDisplay,
 		settingAnnouncementEnabled,
 		settingAnnouncementLevel,
 		settingAnnouncementTitle,

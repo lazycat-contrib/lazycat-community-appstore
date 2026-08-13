@@ -96,11 +96,15 @@ function scheduleState(item: SiteAd) {
 
 export function AdminAdsPanel({
   ads,
+  forceAdsDisplay,
+  onForceAdsDisplayChange,
   onReload,
   onSiteProfileSaved,
   setToast,
 }: {
   ads: SiteAd[];
+  forceAdsDisplay: boolean;
+  onForceAdsDisplayChange: (forceAdsDisplay: boolean) => Promise<void>;
   onReload: () => Promise<void>;
   onSiteProfileSaved: (site?: SiteProfile) => Promise<void>;
   setToast: (toast: Toast) => void;
@@ -111,6 +115,20 @@ export function AdminAdsPanel({
   const [deleteTarget, setDeleteTarget] = useState<SiteAd | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [busyAdID, setBusyAdID] = useState<number | null>(null);
+  const [isPolicySaving, setIsPolicySaving] = useState(false);
+
+  async function updateForceAdsDisplay(checked: boolean) {
+    if (isPolicySaving) return;
+    setIsPolicySaving(true);
+    try {
+      await onForceAdsDisplayChange(checked);
+      setToast({ tone: 'success', message: t('admin.settingsSaved') });
+    } catch (error) {
+      setToast({ tone: 'error', message: errorMessage(error, t('admin.settingsSaveFailed')) });
+    } finally {
+      setIsPolicySaving(false);
+    }
+  }
 
   function openCreate() {
     setEditing({ enabled: true });
@@ -191,6 +209,16 @@ export function AdminAdsPanel({
         </div>
         <XButton type="button" variant="primary" size="sm" label={t('admin.createAd')} icon={<Plus size={17} />} onClick={openCreate} />
       </div>
+
+      <XSwitch
+        label={t('admin.settings.forceAdsDisplay')}
+        description={t('admin.settingsHelp.forceAdsDisplay')}
+        value={forceAdsDisplay}
+        isDisabled={isPolicySaving}
+        labelSpacing="spread"
+        width="100%"
+        onChange={(checked) => void updateForceAdsDisplay(checked)}
+      />
 
       {ads.length === 0 ? (
         <EmptyState icon={Megaphone} title={t('admin.noAds')} body={t('admin.noAdsBody')} action={{ label: t('admin.createAd'), icon: Plus, onClick: openCreate }} />

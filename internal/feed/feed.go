@@ -32,8 +32,9 @@ type SiteMeta struct {
 }
 
 type ClientPolicyMeta struct {
-	MinVersion string `json:"minVersion,omitempty"`
-	Message    string `json:"message,omitempty"`
+	MinVersion      string `json:"minVersion,omitempty"`
+	Message         string `json:"message,omitempty"`
+	ForceAdsDisplay bool   `json:"forceAdsDisplay"`
 }
 
 type ChatMeta struct {

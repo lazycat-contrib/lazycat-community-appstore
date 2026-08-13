@@ -16823,6 +16823,7 @@ type ClientSourceMutation struct {
 	ads_json                      *string
 	min_client_version            *string
 	min_client_version_message    *string
+	force_ads_display             *bool
 	chat_available                *bool
 	wish_wall_available           *bool
 	chat_enabled                  *bool
@@ -17520,6 +17521,42 @@ func (m *ClientSourceMutation) ResetMinClientVersionMessage() {
 	m.min_client_version_message = nil
 }
 
+// SetForceAdsDisplay sets the "force_ads_display" field.
+func (m *ClientSourceMutation) SetForceAdsDisplay(b bool) {
+	m.force_ads_display = &b
+}
+
+// ForceAdsDisplay returns the value of the "force_ads_display" field in the mutation.
+func (m *ClientSourceMutation) ForceAdsDisplay() (r bool, exists bool) {
+	v := m.force_ads_display
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldForceAdsDisplay returns the old "force_ads_display" field's value of the ClientSource entity.
+// If the ClientSource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ClientSourceMutation) OldForceAdsDisplay(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldForceAdsDisplay is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldForceAdsDisplay requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldForceAdsDisplay: %w", err)
+	}
+	return oldValue.ForceAdsDisplay, nil
+}
+
+// ResetForceAdsDisplay resets all changes to the "force_ads_display" field.
+func (m *ClientSourceMutation) ResetForceAdsDisplay() {
+	m.force_ads_display = nil
+}
+
 // SetChatAvailable sets the "chat_available" field.
 func (m *ClientSourceMutation) SetChatAvailable(b bool) {
 	m.chat_available = &b
@@ -18119,7 +18156,7 @@ func (m *ClientSourceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ClientSourceMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 29)
 	if m.user_id != nil {
 		fields = append(fields, clientsource.FieldUserID)
 	}
@@ -18167,6 +18204,9 @@ func (m *ClientSourceMutation) Fields() []string {
 	}
 	if m.min_client_version_message != nil {
 		fields = append(fields, clientsource.FieldMinClientVersionMessage)
+	}
+	if m.force_ads_display != nil {
+		fields = append(fields, clientsource.FieldForceAdsDisplay)
 	}
 	if m.chat_available != nil {
 		fields = append(fields, clientsource.FieldChatAvailable)
@@ -18244,6 +18284,8 @@ func (m *ClientSourceMutation) Field(name string) (ent.Value, bool) {
 		return m.MinClientVersion()
 	case clientsource.FieldMinClientVersionMessage:
 		return m.MinClientVersionMessage()
+	case clientsource.FieldForceAdsDisplay:
+		return m.ForceAdsDisplay()
 	case clientsource.FieldChatAvailable:
 		return m.ChatAvailable()
 	case clientsource.FieldWishWallAvailable:
@@ -18309,6 +18351,8 @@ func (m *ClientSourceMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldMinClientVersion(ctx)
 	case clientsource.FieldMinClientVersionMessage:
 		return m.OldMinClientVersionMessage(ctx)
+	case clientsource.FieldForceAdsDisplay:
+		return m.OldForceAdsDisplay(ctx)
 	case clientsource.FieldChatAvailable:
 		return m.OldChatAvailable(ctx)
 	case clientsource.FieldWishWallAvailable:
@@ -18453,6 +18497,13 @@ func (m *ClientSourceMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetMinClientVersionMessage(v)
+		return nil
+	case clientsource.FieldForceAdsDisplay:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetForceAdsDisplay(v)
 		return nil
 	case clientsource.FieldChatAvailable:
 		v, ok := value.(bool)
@@ -18682,6 +18733,9 @@ func (m *ClientSourceMutation) ResetField(name string) error {
 		return nil
 	case clientsource.FieldMinClientVersionMessage:
 		m.ResetMinClientVersionMessage()
+		return nil
+	case clientsource.FieldForceAdsDisplay:
+		m.ResetForceAdsDisplay()
 		return nil
 	case clientsource.FieldChatAvailable:
 		m.ResetChatAvailable()

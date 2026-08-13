@@ -562,6 +562,7 @@ export type SiteAd = {
 export type ClientPolicy = {
   minVersion?: string;
   message?: string;
+  forceAdsDisplay?: boolean;
 };
 
 export type RegistrationMode = 'open' | 'invite' | 'closed';

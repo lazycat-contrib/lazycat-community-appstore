@@ -135,6 +135,11 @@ func MinClientVersionMessage(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldMinClientVersionMessage, v))
 }
 
+// ForceAdsDisplay applies equality check predicate on the "force_ads_display" field. It's identical to ForceAdsDisplayEQ.
+func ForceAdsDisplay(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldForceAdsDisplay, v))
+}
+
 // ChatAvailable applies equality check predicate on the "chat_available" field. It's identical to ChatAvailableEQ.
 func ChatAvailable(v bool) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldEQ(FieldChatAvailable, v))
@@ -1223,6 +1228,16 @@ func MinClientVersionMessageEqualFold(v string) predicate.ClientSource {
 // MinClientVersionMessageContainsFold applies the ContainsFold predicate on the "min_client_version_message" field.
 func MinClientVersionMessageContainsFold(v string) predicate.ClientSource {
 	return predicate.ClientSource(sql.FieldContainsFold(FieldMinClientVersionMessage, v))
+}
+
+// ForceAdsDisplayEQ applies the EQ predicate on the "force_ads_display" field.
+func ForceAdsDisplayEQ(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldEQ(FieldForceAdsDisplay, v))
+}
+
+// ForceAdsDisplayNEQ applies the NEQ predicate on the "force_ads_display" field.
+func ForceAdsDisplayNEQ(v bool) predicate.ClientSource {
+	return predicate.ClientSource(sql.FieldNEQ(FieldForceAdsDisplay, v))
 }
 
 // ChatAvailableEQ applies the EQ predicate on the "chat_available" field.

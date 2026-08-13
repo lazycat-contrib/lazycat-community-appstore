@@ -31,6 +31,7 @@ func (ClientSource) Fields() []ent.Field {
 		field.Text("ads_json").Default(""),
 		field.String("min_client_version").Default(""),
 		field.Text("min_client_version_message").Default(""),
+		field.Bool("force_ads_display").Default(false),
 		field.Bool("chat_available").Default(false),
 		field.Bool("wish_wall_available").Default(false),
 		field.Bool("chat_enabled").Default(true),

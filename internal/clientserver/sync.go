@@ -403,6 +403,7 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 		SetAdsJSON(encodeSourceAds(ads)).
 		SetMinClientVersion(clientPolicy.MinVersion).
 		SetMinClientVersionMessage(clientPolicy.Message).
+		SetForceAdsDisplay(clientPolicy.ForceAdsDisplay).
 		SetChatAvailable(chatAvailable).
 		SetWishWallAvailable(wishWallAvailable).
 		SetDefaultDownloadMirrorID(defaultDownloadMirrorID).

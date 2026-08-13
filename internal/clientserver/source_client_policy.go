@@ -4,8 +4,9 @@ import "strings"
 
 func normalizeSourceClientPolicy(input SourceClientPolicyDTO) SourceClientPolicyDTO {
 	out := SourceClientPolicyDTO{
-		MinVersion: strings.TrimSpace(input.MinVersion),
-		Message:    strings.TrimSpace(input.Message),
+		MinVersion:      strings.TrimSpace(input.MinVersion),
+		Message:         strings.TrimSpace(input.Message),
+		ForceAdsDisplay: input.ForceAdsDisplay,
 	}
 	if len([]rune(out.MinVersion)) > 40 {
 		out.MinVersion = string([]rune(out.MinVersion)[:40])

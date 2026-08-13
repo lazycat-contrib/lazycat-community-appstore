@@ -530,6 +530,21 @@ export function AdminPanel({
     }
   }
 
+  async function updateForceAdsDisplay(forceAdsDisplay: boolean) {
+    const value = forceAdsDisplay ? 'true' : 'false';
+    await api('/api/v1/admin/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ force_ads_display: value }),
+    });
+    const nextSettings = { ...settingsRef.current, force_ads_display: value };
+    const nextSavedSettings = { ...savedSettingsRef.current, force_ads_display: value };
+    settingsRef.current = nextSettings;
+    savedSettingsRef.current = nextSavedSettings;
+    setSettings(nextSettings);
+    setSavedSettings(nextSavedSettings);
+    await onSiteProfileSaved();
+  }
+
   async function sendTestEmail() {
     await runAction(setToast, t('admin.testEmailFailed'), async () => {
       await api('/api/v1/admin/settings/test-email', {
@@ -1628,6 +1643,8 @@ export function AdminPanel({
               <div className="settings-tab-panel">
                 <AdminAdsPanel
                   ads={ads}
+                  forceAdsDisplay={settings.force_ads_display === 'true'}
+                  onForceAdsDisplayChange={updateForceAdsDisplay}
                   onReload={reload}
                   onSiteProfileSaved={onSiteProfileSaved}
                   setToast={setToast}
