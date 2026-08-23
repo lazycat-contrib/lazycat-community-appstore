@@ -4,6 +4,10 @@ export type ParsedSourceConfig = {
   groupCodes: string[];
 };
 
+// Keep aligned with internal/server/maxSourceGroupCodes: source feeds reject
+// requests containing more codes than this.
+export const MAX_SOURCE_GROUP_CODES = 64;
+
 export function normalizeGroupCode(value: string): string {
   const code = value.trim().toUpperCase();
   return /^[A-Z0-9]{6}$/.test(code) ? code : '';
@@ -19,6 +23,52 @@ export function normalizeGroupCodes(values: string[]): string[] {
     out.push(code);
   });
   return out;
+}
+
+export type GroupCodeBatchResult = {
+  codes: string[];
+  pending: string[];
+  addedCount: number;
+  duplicateCount: number;
+  invalidCount: number;
+  overflowCount: number;
+};
+
+export function addGroupCodeBatch(raw: string, current: string[], maxEntries = MAX_SOURCE_GROUP_CODES): GroupCodeBatchResult {
+  const codes = normalizeGroupCodes(current);
+  const seen = new Set(codes);
+  const pending: string[] = [];
+  let addedCount = 0;
+  let duplicateCount = 0;
+  let invalidCount = 0;
+  let overflowCount = 0;
+
+  raw
+    .split(/[\s,;，；]+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      const code = normalizeGroupCode(value);
+      if (!code) {
+        invalidCount += 1;
+        pending.push(value);
+        return;
+      }
+      if (seen.has(code)) {
+        duplicateCount += 1;
+        return;
+      }
+      if (codes.length >= maxEntries) {
+        overflowCount += 1;
+        pending.push(code);
+        return;
+      }
+      seen.add(code);
+      codes.push(code);
+      addedCount += 1;
+    });
+
+  return { codes, pending, addedCount, duplicateCount, invalidCount, overflowCount };
 }
 
 export function parseSourceConfigInput(raw: string, defaultSourceUrl: string): ParsedSourceConfig | null {

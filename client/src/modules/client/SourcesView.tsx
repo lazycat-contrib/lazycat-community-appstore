@@ -42,7 +42,8 @@ import {
   isSourceStale,
   sourceMirrorOptions,
 } from '../../shared/utils';
-import { normalizeGroupCodes, normalizeSourceURL, parseSourceConfigInput } from './sourceConfig';
+import { MAX_SOURCE_GROUP_CODES, normalizeGroupCodes, normalizeSourceURL, parseSourceConfigInput } from './sourceConfig';
+import { GroupCodeInput } from './GroupCodeInput';
 import { SourceOnboarding } from './SourceOnboarding';
 import { SourceStatusRow } from './SourceStatusRow';
 
@@ -104,17 +105,33 @@ export function SourcesView({
 
   const parsedDraftConfig = parseSourceConfigInput(draft.url, DEFAULT_SOURCE_URL);
   const normalizedDraftURL = parsedDraftConfig?.url || '';
-  const draftGroupCodes = parsedDraftConfig?.groupCodes || [];
+  const draftGroupCodes = normalizeGroupCodes(draft.groupCodes || []);
   const sourceNameReady = Boolean(draft.name.trim());
   const sourceURLReady = Boolean(normalizedDraftURL);
   const sourcePasswordReady = Boolean(draft.password.trim());
-  const canAddSource = sourceNameReady && sourceURLReady;
+  const draftGroupCodesReady = draftGroupCodes.length <= MAX_SOURCE_GROUP_CODES;
+  const canAddSource = sourceNameReady && sourceURLReady && draftGroupCodesReady;
 
   function openAddSource() {
     if (sourceActionRef.current) return;
     setFormError('');
     setDraft(emptySourceDraft);
     setIsAddSourceOpen(true);
+  }
+
+  function updateDraftURL(value: string) {
+    const parsed = parseSourceConfigInput(value, DEFAULT_SOURCE_URL);
+    if (parsed && parsed.kind !== 'url') {
+      const mergedGroupCodes = normalizeGroupCodes([...(draft.groupCodes || []), ...parsed.groupCodes]);
+      setDraft({
+        ...draft,
+        url: parsed.url,
+        groupCodes: mergedGroupCodes,
+      });
+      setFormError(mergedGroupCodes.length > MAX_SOURCE_GROUP_CODES ? t('sources.groupCodeLimit', { count: MAX_SOURCE_GROUP_CODES }) : '');
+      return;
+    }
+    setDraft((current) => ({ ...current, url: value }));
   }
 
   function startSourceAction(action: SourceAction) {
@@ -141,6 +158,10 @@ export function SourcesView({
       setFormError(t('sources.invalid'));
       return;
     }
+    if (!draftGroupCodesReady) {
+      setFormError(t('sources.groupCodeLimit', { count: MAX_SOURCE_GROUP_CODES }));
+      return;
+    }
     if (!startSourceAction('add')) return;
     setSavingSource(true);
     setFormError('');
@@ -151,9 +172,14 @@ export function SourcesView({
           setFormError(t('sources.duplicate'));
           return;
         }
+        const mergedGroupCodes = normalizeGroupCodes([...(existingSource.groupCodes || []), ...draftGroupCodes]);
+        if (mergedGroupCodes.length > MAX_SOURCE_GROUP_CODES) {
+          setFormError(t('sources.groupCodeLimit', { count: MAX_SOURCE_GROUP_CODES }));
+          return;
+        }
         await onUpdateSource({
           ...existingSource,
-          groupCodes: normalizeGroupCodes([...(existingSource.groupCodes || []), ...draftGroupCodes]),
+          groupCodes: mergedGroupCodes,
         });
         setToast({ tone: 'success', message: t('sources.groupCodesMerged') });
       } else {
@@ -209,6 +235,10 @@ export function SourcesView({
     }
     if (!url) {
       setFormError(t('sources.invalid'));
+      return;
+    }
+    if (normalizeGroupCodes(editDraft.groupCodes || []).length > MAX_SOURCE_GROUP_CODES) {
+      setFormError(t('sources.groupCodeLimit', { count: MAX_SOURCE_GROUP_CODES }));
       return;
     }
     if (!startSourceAction('edit')) return;
@@ -389,13 +419,15 @@ export function SourcesView({
               </div>
             </div>
             <XTextInput label={t('common.name')} value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
-            <XTextInput label={t('sources.urlOrConfig')} value={draft.url} onChange={(value) => setDraft({ ...draft, url: value })} />
-            {draftGroupCodes.length > 0 && (
-              <div className="source-group-preview" aria-label={t('sources.groupCodesDetected')}>
-                <StatusBadge tone="synced" label={t('sources.groupCodesDetected')} />
-                <span>{t('sources.groupCodesDetectedCount', { count: draftGroupCodes.length })}</span>
-              </div>
-            )}
+            <XTextInput label={t('sources.urlOrConfig')} value={draft.url} onChange={updateDraftURL} />
+            <GroupCodeInput
+              value={draftGroupCodes}
+              isDisabled={savingSource}
+              onChange={(groupCodes) => {
+                setDraft((current) => ({ ...current, groupCodes }));
+                setFormError(groupCodes.length > MAX_SOURCE_GROUP_CODES ? t('sources.groupCodeLimit', { count: MAX_SOURCE_GROUP_CODES }) : '');
+              }}
+            />
             <XTextInput type="password" label={t('sources.password')} value={draft.password} onChange={(value) => setDraft({ ...draft, password: value })} />
             {!canAddSource && <p className="field-help">{t('sources.addBlocked')}</p>}
             {formError && <p className="inline-alert" role="alert"><AlertCircle size={15} /><span>{formError}</span></p>}
@@ -420,10 +452,13 @@ export function SourcesView({
             <SectionTitle icon={Pencil} title={t('sources.editTitle')} />
             <XTextInput label={t('common.name')} value={editDraft.name} onChange={(value) => setEditDraft({ ...editDraft, name: value })} />
             <XTextInput label={t('sources.url')} value={editDraft.url} onChange={(value) => setEditDraft({ ...editDraft, url: value })} />
-            <XTextInput
-              label={t('sources.groupCodes')}
-              value={(editDraft.groupCodes || []).join(', ')}
-              onChange={(value) => setEditDraft({ ...editDraft, groupCodes: value.split(/[,\s;]+/) })}
+            <GroupCodeInput
+              value={normalizeGroupCodes(editDraft.groupCodes || [])}
+              isDisabled={savingSource}
+              onChange={(groupCodes) => {
+                setEditDraft((current) => ({ ...current, groupCodes }));
+                setFormError(groupCodes.length > MAX_SOURCE_GROUP_CODES ? t('sources.groupCodeLimit', { count: MAX_SOURCE_GROUP_CODES }) : '');
+              }}
             />
             <XTextInput type="password" label={t('sources.password')} value={editDraft.password} onChange={(value) => setEditDraft({ ...editDraft, password: value })} />
             <XSwitch
