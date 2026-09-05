@@ -106,6 +106,7 @@ export function AppDrawer({
   categories,
   tagOptions,
   storageOptions,
+  allowPackageUpload,
   chatEnabled,
   lazycatInstall,
   onClose,
@@ -123,6 +124,7 @@ export function AppDrawer({
   categories: Category[];
   tagOptions: string[];
   storageOptions: StorageOption[];
+  allowPackageUpload: boolean;
   chatEnabled: boolean;
   lazycatInstall: boolean;
   onClose: () => void;
@@ -142,7 +144,8 @@ export function AppDrawer({
   const [screenshotCaptionDrafts, setScreenshotCaptionDrafts] = useState<Record<number, string>>({});
   const preferredScreenshotDevice = usePreferredScreenshotDevice();
   const [versionForm, setVersionForm] = useState({ version: '', sourceType: 'GITHUB', downloadUrl: '', sha256: '', useMirrorDownload: true, changelog: '' });
-  const [versionArtifactMode, setVersionArtifactMode] = useState<'local' | 'external'>('local');
+  const [preferredVersionArtifactMode, setVersionArtifactMode] = useState<'local' | 'external'>('local');
+  const versionArtifactMode = allowPackageUpload ? preferredVersionArtifactMode : 'external';
   const [versionFile, setVersionFile] = useState<File | null>(null);
   const [isSubmittingVersion, setIsSubmittingVersion] = useState(false);
   const [versionProgress, setVersionProgress] = useState<SubmissionProgress | null>(null);
@@ -259,6 +262,13 @@ export function AppDrawer({
     setScreenshotCaptionDrafts(Object.fromEntries((app.screenshots || []).map((shot) => [shot.id, shot.caption || ''])));
     if (versionFileInputRef.current) versionFileInputRef.current.value = '';
   }, [app]);
+
+  useEffect(() => {
+    if (allowPackageUpload) return;
+    setVersionArtifactMode('external');
+    setVersionFile(null);
+    if (versionFileInputRef.current) versionFileInputRef.current.value = '';
+  }, [allowPackageUpload]);
 
   useEffect(() => {
     const fallback = defaultUploadStorageKey(storageOptions);
@@ -1005,7 +1015,7 @@ export function AppDrawer({
                 value={versionForm.version}
                 onChange={(version) => setVersionForm((current) => ({ ...current, version }))}
               />
-              <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
+              {allowPackageUpload ? <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
                 <ArtifactModeOption
                   icon={<Upload size={17} />}
                   title={t('submitApp.localArtifact')}
@@ -1020,7 +1030,7 @@ export function AppDrawer({
                   isSelected={versionArtifactMode === 'external'}
                   onSelect={() => selectVersionArtifactMode('external')}
                 />
-              </div>
+              </div> : <p className="inline-note">{t('submitApp.urlOnly')}</p>}
               {versionArtifactMode === 'local' ? (
                 <>
                   {storageChoices.length > 0 && (

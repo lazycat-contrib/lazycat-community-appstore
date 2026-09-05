@@ -347,7 +347,8 @@ func (u *updateAppJSON) UnmarshalJSON(data []byte) error {
 }
 
 func (s *Server) handleCreateApp(w http.ResponseWriter, r *http.Request, u *entgo.User) {
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+	contentType, _, _ := strings.Cut(r.Header.Get("Content-Type"), ";")
+	if strings.EqualFold(strings.TrimSpace(contentType), "multipart/form-data") {
 		s.createAppMultipart(w, r, u)
 		return
 	}
@@ -357,6 +358,10 @@ func (s *Server) handleCreateApp(w http.ResponseWriter, r *http.Request, u *entg
 		return
 	}
 	input.DownloadURL = normalizeGitHubRawURL(input.DownloadURL)
+	if input.DownloadURL == "" && !s.packageUploadAllowed(r.Context()) {
+		writeError(w, http.StatusForbidden, "PACKAGE_UPLOAD_DISABLED", "Package file uploads are disabled; provide a downloadUrl", nil)
+		return
+	}
 	var inspected lpkInspection
 	automaticLPKInspection := apiTokenAuthenticatedRequest(r) && input.DownloadURL != ""
 	if input.DownloadURL != "" && appInputNeedsLPKInspection(input) && !automaticLPKInspection {
@@ -396,6 +401,10 @@ func (s *Server) handleCreateApp(w http.ResponseWriter, r *http.Request, u *entg
 }
 
 func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *entgo.User) {
+	if !s.packageUploadAllowed(r.Context()) {
+		writeError(w, http.StatusForbidden, "PACKAGE_UPLOAD_DISABLED", "Package file uploads are disabled; provide a downloadUrl", nil)
+		return
+	}
 	maxLPKSize := s.effectiveMaxLPKSize(r.Context())
 	if err := r.ParseMultipartForm(maxLPKSize + 32<<20); err != nil {
 		badRequest(w, err)
@@ -739,7 +748,12 @@ func (s *Server) handleCreateVersion(w http.ResponseWriter, r *http.Request, u *
 		return
 	}
 
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+	contentType, _, _ := strings.Cut(r.Header.Get("Content-Type"), ";")
+	if strings.EqualFold(strings.TrimSpace(contentType), "multipart/form-data") {
+		if !s.packageUploadAllowed(r.Context()) {
+			writeError(w, http.StatusForbidden, "PACKAGE_UPLOAD_DISABLED", "Package file uploads are disabled; provide a downloadUrl", nil)
+			return
+		}
 		maxLPKSize := s.effectiveMaxLPKSize(r.Context())
 		if err := r.ParseMultipartForm(maxLPKSize + 32<<20); err != nil {
 			badRequest(w, err)

@@ -16,6 +16,7 @@ import (
 
 const (
 	settingMaxLPKSize                        = "max_lpk_size"
+	settingAllowPackageUpload                = "allow_package_upload"
 	settingAutomaticLPKInspectionWaitSeconds = "automatic_lpk_inspection_wait_seconds"
 	settingMaxVersions                       = "max_versions"
 	settingDefaultPageSize                   = "default_page_size"
@@ -205,6 +206,10 @@ func (s *Server) effectiveMaxLPKSize(ctx context.Context) int64 {
 	return value
 }
 
+func (s *Server) packageUploadAllowed(ctx context.Context) bool {
+	return s.settingBool(ctx, settingAllowPackageUpload, true)
+}
+
 func (s *Server) automaticLPKInspectionWait(ctx context.Context) time.Duration {
 	seconds := s.settingInt(ctx, settingAutomaticLPKInspectionWaitSeconds, 30)
 	if seconds < 0 {
@@ -299,6 +304,7 @@ func (s *Server) siteProfileAt(ctx context.Context, now time.Time) siteProfile {
 		ClientPolicy:    s.clientPolicy(ctx),
 		Chat:            siteChat{Enabled: s.chatEnabled(ctx), RetentionDays: s.chatRetentionDays(ctx)},
 		Security:        siteSecurity{TwoFactorAuthEnabled: s.twoFactorAuthEnabled(ctx)},
+		PackageUpload:   sitePackageUpload{Allowed: s.packageUploadAllowed(ctx)},
 	}
 }
 

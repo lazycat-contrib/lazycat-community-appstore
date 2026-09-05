@@ -1542,6 +1542,7 @@ export function App() {
                 tagOptions={tagOptions}
                 storageOptions={storageOptions}
                 chatEnabled={serverChatVisible}
+                allowPackageUpload={siteProfile.packageUpload?.allowed !== false}
                 lazycatInstall={runtimeCapabilities.lazycatInstall}
                 onClose={() => {
                   setSelectedApp(null);

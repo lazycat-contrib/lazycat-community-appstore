@@ -147,7 +147,9 @@ export function ProfileView({
   const [recentSubmission, setRecentSubmission] = useState<{ name: string; status: string } | null>(null);
   const [isSubmittingApp, setIsSubmittingApp] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState<SubmissionProgress | null>(null);
-  const [artifactMode, setArtifactMode] = useState<SubmissionArtifactMode>('local');
+  const allowPackageUpload = siteProfile.packageUpload?.allowed !== false;
+  const [preferredArtifactMode, setArtifactMode] = useState<SubmissionArtifactMode>('local');
+  const artifactMode = allowPackageUpload ? preferredArtifactMode : 'external';
   const [uploadStorageKey, setUploadStorageKey] = useState(defaultUploadStorageKey(storageOptions));
   const [file, setFile] = useState<File | null>(null);
   const [desktopScreenshotFiles, setDesktopScreenshotFiles] = useState<File[]>([]);
@@ -363,6 +365,13 @@ export function ProfileView({
           ? installedError || t('profile.clientInstalledError')
           : t('profile.clientInstalledIdle');
   const storageChoices = storageSelectOptions(storageOptions);
+
+  useEffect(() => {
+    if (allowPackageUpload) return;
+    setArtifactMode('external');
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [allowPackageUpload]);
 
   useEffect(() => {
     const fallback = defaultUploadStorageKey(storageOptions);
@@ -881,6 +890,7 @@ export function ProfileView({
           storageKey={uploadStorageKey}
           onStorageKeyChange={setUploadStorageKey}
           artifactMode={artifactMode}
+          allowPackageUpload={allowPackageUpload}
           onArtifactModeChange={selectArtifactMode}
           file={file}
           onFileChange={setFile}
@@ -1009,7 +1019,7 @@ export function ProfileView({
         <MCPWorkspace user={user} siteSourceUrl={siteProfile.sourceUrl} setToast={setToast} />
       )}
       {workspaceTab === 'tokens' && (
-        <APITokenWorkspace user={user} setToast={setToast} />
+        <APITokenWorkspace key={user.id} user={user} setToast={setToast} />
       )}
 
       {workspaceTab === 'favorites' && (

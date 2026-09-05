@@ -529,6 +529,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 	}
 	values := map[string]string{
 		settingMaxLPKSize:                        strconv.FormatInt(s.cfg.MaxLPKSize, 10),
+		settingAllowPackageUpload:                "true",
 		settingAutomaticLPKInspectionWaitSeconds: "30",
 		settingMaxVersions:                       strconv.Itoa(s.cfg.MaxVersions),
 		settingDefaultPageSize:                   strconv.Itoa(pagination.DefaultPageSize),
@@ -776,7 +777,7 @@ func validateSetting(key, value string) error {
 		if key == settingAutomaticLPKInspectionWaitSeconds && parsed > 30 {
 			return fmt.Errorf("%s must be at most 30", key)
 		}
-	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingChatEnabled, settingTwoFactorAuthEnabled, settingAllowManualOutdatedClear, settingSourceV1Enabled, settingForceAdsDisplay:
+	case settingRequireEmailVerify, settingAnnouncementEnabled, settingCommentsEnabled, settingChatEnabled, settingTwoFactorAuthEnabled, settingAllowManualOutdatedClear, settingAllowPackageUpload, settingSourceV1Enabled, settingForceAdsDisplay:
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("%s must be a boolean", key)
 		}
@@ -860,6 +861,7 @@ func validateSetting(key, value string) error {
 func isPublicSetting(key string) bool {
 	switch key {
 	case settingMaxLPKSize,
+		settingAllowPackageUpload,
 		settingAutomaticLPKInspectionWaitSeconds,
 		settingMaxVersions,
 		settingDefaultPageSize,

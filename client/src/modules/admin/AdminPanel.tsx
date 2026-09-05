@@ -257,6 +257,7 @@ export function AdminPanel({
     },
   ];
   const policySettingFields = [
+    { key: 'allow_package_upload', label: t('admin.settings.allowPackageUpload'), help: t('admin.settingsHelp.allowPackageUpload'), type: 'boolean' },
     { key: 'max_lpk_size', label: t('admin.settings.maxLPKSize'), help: t('admin.settingsHelp.maxLPKSize'), inputMode: 'numeric' },
     { key: 'max_versions', label: t('admin.settings.maxVersions'), help: t('admin.settingsHelp.maxVersions'), inputMode: 'numeric' },
     { key: 'default_page_size', label: t('admin.settings.defaultPageSize'), help: t('admin.settingsHelp.defaultPageSize'), inputMode: 'numeric' },

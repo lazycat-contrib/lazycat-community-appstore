@@ -64,6 +64,11 @@ type siteProfile struct {
 	ClientPolicy    siteClientPolicy   `json:"clientPolicy,omitempty"`
 	Chat            siteChat           `json:"chat"`
 	Security        siteSecurity       `json:"security"`
+	PackageUpload   sitePackageUpload  `json:"packageUpload"`
+}
+
+type sitePackageUpload struct {
+	Allowed bool `json:"allowed"`
 }
 
 func appVersion() string {

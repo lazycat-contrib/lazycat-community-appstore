@@ -397,6 +397,7 @@ paths:
     post:
       tags: [Apps]
       summary: Submit an app with either an uploaded LPK or an external LPK URL
+      description: When site.packageUpload.allowed is false, submit JSON with a non-empty downloadUrl. Multipart submissions and JSON without a downloadUrl return 403 PACKAGE_UPLOAD_DISABLED. This policy applies to all users, including administrators and API tokens; multipart bodies are rejected before parsing.
       requestBody:
         required: true
         content:
@@ -417,7 +418,11 @@ paths:
                   app:
                     $ref: "#/components/schemas/AppSummary"
         "403":
-          $ref: "#/components/responses/Error"
+          description: Access denied, or PACKAGE_UPLOAD_DISABLED when package uploads are disabled and the request is multipart or lacks downloadUrl.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "422":
           $ref: "#/components/responses/Error"
 
@@ -586,6 +591,7 @@ paths:
     post:
       tags: [Versions]
       summary: Upload or link a new app version
+      description: When site.packageUpload.allowed is false, publish using JSON with an external downloadUrl. Multipart package uploads return 403 PACKAGE_UPLOAD_DISABLED before the body is parsed, including for administrators and API tokens.
       parameters:
         - $ref: "#/components/parameters/ID"
       requestBody:
@@ -608,7 +614,11 @@ paths:
                   version:
                     $ref: "#/components/schemas/Version"
         "403":
-          $ref: "#/components/responses/Error"
+          description: Access denied, or PACKAGE_UPLOAD_DISABLED when multipart package uploads are disabled by the site administrator.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "422":
           $ref: "#/components/responses/Error"
 
@@ -1332,6 +1342,7 @@ paths:
     patch:
       tags: [Admin]
       summary: Site admin update settings
+      description: Setting values are strings. Set allow_package_upload to "false" to require URL-based package submissions or "true" to allow package file uploads. The default is "true". Screenshot uploads, avatars, and existing downloads are unaffected.
       requestBody:
         required: true
         content:
@@ -2164,7 +2175,7 @@ components:
 
     SiteProfile:
       type: object
-      required: [title, publicUrl, sourceUrl, announcement, registration]
+      required: [title, publicUrl, sourceUrl, announcement, registration, packageUpload]
       properties:
         title:
           type: string
@@ -2181,12 +2192,28 @@ components:
           $ref: "#/components/schemas/SiteAnnouncement"
         registration:
           $ref: "#/components/schemas/SiteRegistration"
+        packageUpload:
+          $ref: "#/components/schemas/SitePackageUpload"
+
+    SitePackageUpload:
+      type: object
+      required: [allowed]
+      properties:
+        allowed:
+          type: boolean
+          default: true
+          description: Whether app creation and version publication accept package file uploads. When false, use an external downloadUrl. Screenshots, avatars, and existing downloads remain available.
 
     SiteSettings:
       type: object
       additionalProperties:
         type: string
-      description: Site admin settings keyed by server setting names such as site_title, site_public_url, registration_mode, comments_enabled, allow_manual_outdated_clear, source_password, github_download_mirrors, github_raw_mirrors, announcement_enabled, and max_lpk_size.
+      properties:
+        allow_package_upload:
+          type: string
+          default: "true"
+          description: Boolean string controlling package file uploads for all users and API tokens. False requires JSON with downloadUrl for app creation and version publication; screenshots, avatars, and existing downloads are unaffected.
+      description: Site admin settings keyed by server setting names such as site_title, site_public_url, registration_mode, comments_enabled, allow_manual_outdated_clear, allow_package_upload, source_password, github_download_mirrors, github_raw_mirrors, announcement_enabled, and max_lpk_size.
 
     CreateRegistrationInviteRequest:
       type: object
@@ -3109,7 +3136,7 @@ components:
 
     CreateAppRequest:
       type: object
-      description: Submit app metadata and optionally create the first version from an external LPK URL. For reachable V2 LPK URLs, the server can read package.yml and fill missing packageId, name, summary, description, version, file size, and sha256. Explicit JSON fields override LPK metadata.
+      description: Submit app metadata and optionally create the first version from an external LPK URL. A non-empty downloadUrl is required when site.packageUpload.allowed is false. For reachable V2 LPK URLs, the server can read package.yml and fill missing packageId, name, summary, description, version, file size, and sha256. Explicit JSON fields override LPK metadata.
       properties:
         packageId:
           type: string
@@ -3147,7 +3174,7 @@ components:
         downloadUrl:
           type: string
           format: uri
-          description: External LPK URL. When metadata fields are missing, the server fetches this URL to parse a V2 LPK and compute SHA256.
+          description: External LPK URL, required when package uploads are disabled. When metadata fields are missing, the server fetches this URL to parse a V2 LPK and compute SHA256.
         sha256:
           type: string
           pattern: "^[0-9a-f]{64}$"

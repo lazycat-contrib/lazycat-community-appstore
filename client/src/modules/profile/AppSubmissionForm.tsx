@@ -46,6 +46,7 @@ export function AppSubmissionForm({
   storageKey,
   onStorageKeyChange,
   artifactMode,
+  allowPackageUpload,
   onArtifactModeChange,
   file,
   onFileChange,
@@ -74,6 +75,7 @@ export function AppSubmissionForm({
   storageKey: string;
   onStorageKeyChange: (key: string) => void;
   artifactMode: SubmissionArtifactMode;
+  allowPackageUpload: boolean;
   onArtifactModeChange: (mode: SubmissionArtifactMode) => void;
   file: File | null;
   onFileChange: (file: File | null) => void;
@@ -218,7 +220,7 @@ export function AppSubmissionForm({
             <strong>{t('submitApp.artifactMode')}</strong>
             <span>{artifactMode === 'local' ? t('submitApp.localArtifactHint') : t('submitApp.externalArtifactHint')}</span>
           </div>
-          <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
+          {allowPackageUpload ? <div className="artifact-mode" aria-label={t('submitApp.artifactMode')}>
             <ArtifactModeOption
               icon={<Upload size={17} />}
               title={t('submitApp.localArtifact')}
@@ -233,11 +235,11 @@ export function AppSubmissionForm({
               isSelected={artifactMode === 'external'}
               onSelect={() => onArtifactModeChange('external')}
             />
-          </div>
+          </div> : <p className="inline-note">{t('submitApp.urlOnly')}</p>}
           {storageOptions.length > 0 && (
             <XSelector
               label={t('common.storage')}
-              description={t('submitApp.storageHelp')}
+              description={t(artifactMode === 'local' ? 'submitApp.storageHelp' : 'submitApp.screenshotStorageHelp')}
               value={storageKey}
               options={storageOptions}
               onChange={onStorageKeyChange}
