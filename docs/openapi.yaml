@@ -2177,6 +2177,8 @@ components:
       type: object
       required: [title, publicUrl, sourceUrl, announcement, registration, packageUpload]
       properties:
+        clientPolicy:
+          $ref: "#/components/schemas/CFClientPolicy"
         title:
           type: string
         iconUrl:
@@ -2204,11 +2206,26 @@ components:
           default: true
           description: Whether app creation and version publication accept package file uploads. When false, use an external downloadUrl. Screenshots, avatars, and existing downloads remain available.
 
+    CFClientPolicy:
+      type: object
+      properties:
+        cfPreferredEndpoints:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+          example: [saas.sin.fan]
+          description: Optional generic Cloudflare edge IP/domain suggestions. Never enables routing or overrides downstream user settings.
+
     SiteSettings:
       type: object
       additionalProperties:
         type: string
       properties:
+        cf_preferred_endpoints:
+          type: string
+          default: "saas.sin.fan"
+          description: Public preferred IPs or domains separated by newlines or commas, at most 32 unique values. Empty disables publishing suggestions. URLs and ports are rejected.
         allow_package_upload:
           type: string
           default: "true"
@@ -2342,6 +2359,8 @@ components:
       type: object
       required: [title, publicUrl, sourceUrl]
       properties:
+        clientPolicy:
+          $ref: "#/components/schemas/CFClientPolicy"
         title:
           type: string
         iconUrl:

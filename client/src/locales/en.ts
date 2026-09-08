@@ -544,6 +544,22 @@ const en = {
         addedNext: 'Source added. The client automatically syncs site details and the app cache.',
         addedSyncFailed: 'Source added, but the first sync failed. Check its status and try again.',
       },
+      cfNetwork: {
+        "title": "Network acceleration",
+        "body": "Optional Cloudflare routing for source sync, comments, wishes, and chat APIs. For HTTPS sources served by Cloudflare.",
+        "enabled": "Use preferred connections",
+        "enabledHelp": "Off by default. Takes effect after saving; failed connections fall back to a direct connection.",
+        "preset": "Preferred address",
+        "builtin": "Built-in default",
+        "custom": "Custom IP or domain",
+        "endpoint": "IP or domain",
+        "endpointHelp": "For example, 1.1.1.1 or saas.sin.fan. No https://, port, or path.",
+        "invalid": "Enter a valid IP or domain without a scheme, port, or path.",
+        "hint": "Domains are resolved when opening a new connection. Performance depends on your network. Server preset updates never change your selection.",
+        "adminTitle": "Cloudflare preferred address presets",
+        "adminHelp": "One public IP or domain per line, without a scheme, port, or path. Default: saas.sin.fan. DNS can update the IPs automatically. These are optional suggestions for downstream clients and never enable or overwrite their settings. Leave empty to stop publishing presets.",
+        "optional": "Optional"
+},
       clientSettings: {
         title: 'Client settings',
         subtitle: 'Manage this client device title, sync policy, and comment display identity. Source lists stay focused on subscriptions and sync state.',

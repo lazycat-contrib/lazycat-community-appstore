@@ -73,9 +73,10 @@ type SourceAdDTO struct {
 }
 
 type SourceClientPolicyDTO struct {
-	MinVersion      string `json:"minVersion,omitempty"`
-	Message         string `json:"message,omitempty"`
-	ForceAdsDisplay bool   `json:"forceAdsDisplay,omitzero"`
+	CFPreferredEndpoints []string `json:"cfPreferredEndpoints,omitempty"`
+	MinVersion           string   `json:"minVersion,omitempty"`
+	Message              string   `json:"message,omitempty"`
+	ForceAdsDisplay      bool     `json:"forceAdsDisplay,omitzero"`
 }
 
 type SourceInput struct {
@@ -284,43 +285,48 @@ type CommentInput struct {
 }
 
 type ClientSettingsDTO struct {
-	ClientTitle                    string     `json:"clientTitle"`
-	CommentDisplayName             string     `json:"commentDisplayName"`
-	DefaultPageSize                int        `json:"defaultPageSize"`
-	AutoSyncEnabled                bool       `json:"autoSyncEnabled"`
-	AutoSyncIntervalMinutes        int        `json:"autoSyncIntervalMinutes"`
-	SyncOnStartup                  bool       `json:"syncOnStartup"`
-	InstallSuccessDismissSeconds   int        `json:"installSuccessDismissSeconds"`
-	LastAutoSyncAt                 *time.Time `json:"lastAutoSyncAt,omitempty"`
-	LastAutoSyncStatus             string     `json:"lastAutoSyncStatus,omitempty"`
-	LastAutoSyncError              string     `json:"lastAutoSyncError,omitempty"`
-	AutoUpdateEnabled              bool       `json:"autoUpdateEnabled"`
-	AutoUpdateIntervalMinutes      int        `json:"autoUpdateIntervalMinutes"`
-	AutoUpdateNotifyEnabled        bool       `json:"autoUpdateNotifyEnabled"`
-	LastAutoUpdateAt               *time.Time `json:"lastAutoUpdateAt,omitempty"`
-	LastAutoUpdateStatus           string     `json:"lastAutoUpdateStatus,omitempty"`
-	LastAutoUpdateError            string     `json:"lastAutoUpdateError,omitempty"`
-	AutoUpdateScheduleState        string     `json:"autoUpdateScheduleState"`
-	NextAutoUpdateAt               *time.Time `json:"nextAutoUpdateAt,omitempty"`
-	MirrorBenchmarkEnabled         bool       `json:"mirrorBenchmarkEnabled"`
-	MirrorBenchmarkIntervalMinutes int        `json:"mirrorBenchmarkIntervalMinutes"`
-	LastMirrorBenchmarkAt          *time.Time `json:"lastMirrorBenchmarkAt,omitempty"`
-	LastMirrorBenchmarkStatus      string     `json:"lastMirrorBenchmarkStatus,omitempty"`
-	MirrorBenchmarkScheduleState   string     `json:"mirrorBenchmarkScheduleState"`
-	NextMirrorBenchmarkAt          *time.Time `json:"nextMirrorBenchmarkAt,omitempty"`
+	CFEnabled                      bool          `json:"cfEnabled"`
+	CFEndpoint                     string        `json:"cfEndpoint"`
+	CFPresets                      []CFPresetDTO `json:"cfPresets"`
+	ClientTitle                    string        `json:"clientTitle"`
+	CommentDisplayName             string        `json:"commentDisplayName"`
+	DefaultPageSize                int           `json:"defaultPageSize"`
+	AutoSyncEnabled                bool          `json:"autoSyncEnabled"`
+	AutoSyncIntervalMinutes        int           `json:"autoSyncIntervalMinutes"`
+	SyncOnStartup                  bool          `json:"syncOnStartup"`
+	InstallSuccessDismissSeconds   int           `json:"installSuccessDismissSeconds"`
+	LastAutoSyncAt                 *time.Time    `json:"lastAutoSyncAt,omitempty"`
+	LastAutoSyncStatus             string        `json:"lastAutoSyncStatus,omitempty"`
+	LastAutoSyncError              string        `json:"lastAutoSyncError,omitempty"`
+	AutoUpdateEnabled              bool          `json:"autoUpdateEnabled"`
+	AutoUpdateIntervalMinutes      int           `json:"autoUpdateIntervalMinutes"`
+	AutoUpdateNotifyEnabled        bool          `json:"autoUpdateNotifyEnabled"`
+	LastAutoUpdateAt               *time.Time    `json:"lastAutoUpdateAt,omitempty"`
+	LastAutoUpdateStatus           string        `json:"lastAutoUpdateStatus,omitempty"`
+	LastAutoUpdateError            string        `json:"lastAutoUpdateError,omitempty"`
+	AutoUpdateScheduleState        string        `json:"autoUpdateScheduleState"`
+	NextAutoUpdateAt               *time.Time    `json:"nextAutoUpdateAt,omitempty"`
+	MirrorBenchmarkEnabled         bool          `json:"mirrorBenchmarkEnabled"`
+	MirrorBenchmarkIntervalMinutes int           `json:"mirrorBenchmarkIntervalMinutes"`
+	LastMirrorBenchmarkAt          *time.Time    `json:"lastMirrorBenchmarkAt,omitempty"`
+	LastMirrorBenchmarkStatus      string        `json:"lastMirrorBenchmarkStatus,omitempty"`
+	MirrorBenchmarkScheduleState   string        `json:"mirrorBenchmarkScheduleState"`
+	NextMirrorBenchmarkAt          *time.Time    `json:"nextMirrorBenchmarkAt,omitempty"`
 }
 
 type ClientSettingsUpdateDTO struct {
-	ClientTitle                    string `json:"clientTitle"`
-	CommentDisplayName             string `json:"commentDisplayName"`
-	DefaultPageSize                int    `json:"defaultPageSize"`
-	AutoSyncEnabled                bool   `json:"autoSyncEnabled"`
-	AutoSyncIntervalMinutes        int    `json:"autoSyncIntervalMinutes"`
-	SyncOnStartup                  bool   `json:"syncOnStartup"`
-	InstallSuccessDismissSeconds   *int   `json:"installSuccessDismissSeconds"`
-	AutoUpdateEnabled              bool   `json:"autoUpdateEnabled"`
-	AutoUpdateIntervalMinutes      int    `json:"autoUpdateIntervalMinutes"`
-	AutoUpdateNotifyEnabled        *bool  `json:"autoUpdateNotifyEnabled"`
-	MirrorBenchmarkEnabled         *bool  `json:"mirrorBenchmarkEnabled"`
-	MirrorBenchmarkIntervalMinutes *int   `json:"mirrorBenchmarkIntervalMinutes"`
+	CFEnabled                      *bool   `json:"cfEnabled"`
+	CFEndpoint                     *string `json:"cfEndpoint"`
+	ClientTitle                    string  `json:"clientTitle"`
+	CommentDisplayName             string  `json:"commentDisplayName"`
+	DefaultPageSize                int     `json:"defaultPageSize"`
+	AutoSyncEnabled                bool    `json:"autoSyncEnabled"`
+	AutoSyncIntervalMinutes        int     `json:"autoSyncIntervalMinutes"`
+	SyncOnStartup                  bool    `json:"syncOnStartup"`
+	InstallSuccessDismissSeconds   *int    `json:"installSuccessDismissSeconds"`
+	AutoUpdateEnabled              bool    `json:"autoUpdateEnabled"`
+	AutoUpdateIntervalMinutes      int     `json:"autoUpdateIntervalMinutes"`
+	AutoUpdateNotifyEnabled        *bool   `json:"autoUpdateNotifyEnabled"`
+	MirrorBenchmarkEnabled         *bool   `json:"mirrorBenchmarkEnabled"`
+	MirrorBenchmarkIntervalMinutes *int    `json:"mirrorBenchmarkIntervalMinutes"`
 }

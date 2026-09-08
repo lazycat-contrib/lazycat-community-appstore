@@ -152,7 +152,7 @@ func (s *Server) handleChatEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	applySourceProxyHeaders(req, r, source, s.clientCommentDisplayName(r))
-	resp, err := s.streamClient.Do(req)
+	resp, err := s.sourceHTTPClient(req.Context(), source, s.streamClient).Do(req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "SOURCE_CHAT_FAILED", "Could not reach source chat")
 		return
@@ -290,7 +290,7 @@ func (s *Server) proxySourceChatRequest(w http.ResponseWriter, r *http.Request, 
 		req.Header.Set("Content-Type", "application/json")
 	}
 	applySourceProxyHeaders(req, r, source, s.clientCommentDisplayName(r))
-	resp, err := s.httpClient.Do(req)
+	resp, err := s.sourceHTTPClient(req.Context(), source, s.httpClient).Do(req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "SOURCE_CHAT_FAILED", "Could not reach source chat")
 		return

@@ -426,6 +426,9 @@ export type SourceInput = Pick<
 >;
 
 export type ClientSettings = {
+  cfEnabled?: boolean;
+  cfEndpoint?: string;
+  cfPresets?: Array<{ endpoint: string; sourceName: string }>;
   clientTitle: string;
   commentDisplayName: string;
   defaultPageSize: number;

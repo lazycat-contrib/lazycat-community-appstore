@@ -413,6 +413,10 @@ func (s *Server) saveSourceApps(ctx context.Context, source *ent.ClientSource, a
 		_ = tx.Rollback()
 		return SourceDTO{}, err
 	}
+	if err := saveCFPresets(ctx, tx, source, clientPolicy.CFPreferredEndpoints); err != nil {
+		_ = tx.Rollback()
+		return SourceDTO{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return SourceDTO{}, err
 	}
@@ -587,7 +591,7 @@ func (s *Server) fetchSourceApps(ctx context.Context, source *ent.ClientSource) 
 			conditionalRequest = true
 		}
 	}
-	resp, err := s.httpClient.Do(req)
+	resp, err := s.sourceHTTPClient(req.Context(), source, s.httpClient).Do(req)
 	if err != nil {
 		return sourceFeedFetch{}, sourceSyncError{code: "network", status: http.StatusBadGateway, message: "Could not reach source"}
 	}

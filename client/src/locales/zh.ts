@@ -544,6 +544,22 @@ const zh = {
         addedNext: '软件源已添加，客户端会自动同步站点信息和应用缓存。',
         addedSyncFailed: '软件源已添加，但首次同步失败。请检查软件源状态后重试。',
       },
+      cfNetwork: {
+        "title": "网络加速",
+        "body": "可选的 Cloudflare 优选连接，用于软件源同步及评论、心愿、聊天接口。仅适用于已接入 Cloudflare 的 HTTPS 软件源。",
+        "enabled": "启用优选连接",
+        "enabledHelp": "默认关闭，由你决定是否启用。保存后生效；连接失败时自动尝试直连。",
+        "preset": "优选地址",
+        "builtin": "内置默认",
+        "custom": "自定义 IP 或域名",
+        "endpoint": "IP 或域名",
+        "endpointHelp": "例如 1.1.1.1 或 saas.sin.fan，不需要 https://、端口或路径。",
+        "invalid": "请输入有效的 IP 或域名，不要包含协议、端口或路径。",
+        "hint": "优选域名会在建立新连接时解析。实际效果取决于当前网络；服务端更新预设不会更改你的选择。",
+        "adminTitle": "Cloudflare 优选地址预设",
+        "adminHelp": "每行填写一个公网 IP 或优选域名，不含协议、端口或路径。默认 saas.sin.fan，域名可通过 DNS 自动更新 IP。仅向下游提供可选配置，不启用或覆盖客户端设置；留空停止下发。",
+        "optional": "可选"
+},
       clientSettings: {
         title: '客户端设置',
         subtitle: '管理本机客户端的软件标题、同步策略和评论显示身份。软件源列表只负责订阅和同步，隐私与自动化放在这里单独维护。',

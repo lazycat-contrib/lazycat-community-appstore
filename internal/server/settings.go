@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"lazycat.community/appstore/internal/cfnetwork"
 	"net/url"
 	"strconv"
 	"strings"
@@ -31,6 +32,7 @@ const (
 	settingTwoFactorAuthEnabled              = "two_factor_auth_enabled"
 	settingAllowManualOutdatedClear          = "allow_manual_outdated_clear"
 	settingGitHubDownloadMirrors             = "github_download_mirrors"
+	settingCFPreferredEndpoints              = "cf_preferred_endpoints"
 	settingGitHubRawMirrors                  = "github_raw_mirrors"
 	settingSiteTitle                         = "site_title"
 	settingSiteSubtitle                      = "site_subtitle"
@@ -323,10 +325,12 @@ func (s *Server) siteLocation(ctx context.Context) *time.Location {
 func (s *Server) clientPolicy(ctx context.Context) siteClientPolicy {
 	version := strings.TrimSpace(s.setting(ctx, settingMinClientVersion, defaultMinClientVersion()))
 	message := strings.TrimSpace(s.setting(ctx, settingMinClientVersionMessage, ""))
+	endpoints, _ := cfnetwork.ParseList(s.setting(ctx, settingCFPreferredEndpoints, cfnetwork.DefaultEndpoint))
 	return siteClientPolicy{
-		MinVersion:      version,
-		Message:         message,
-		ForceAdsDisplay: s.settingBool(ctx, settingForceAdsDisplay, false),
+		CFPreferredEndpoints: endpoints,
+		MinVersion:           version,
+		Message:              message,
+		ForceAdsDisplay:      s.settingBool(ctx, settingForceAdsDisplay, false),
 	}
 }
 

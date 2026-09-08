@@ -7,6 +7,7 @@ import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { Tab as XTab, TabList as XTabList } from '@astryxdesign/core/TabList';
 import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
+import { CFNetworkSettings } from './CFNetworkSettings';
 import { APP_VERSION } from '../../config';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { ClientSettings, ClientSourceStats, Toast } from '../../shared/types';
@@ -17,7 +18,7 @@ const syncIntervalOptions = [5, 15, 30, 60, 360, 720, 1440];
 const pageSizeOptions = [12, 24, 48, 96, 100];
 const installDismissOptions = [0, 3, 5, 10, 30];
 const mirrorBenchmarkIntervalOptions = [30, 60, 360, 720, 1440];
-type ClientSettingsTab = 'sync' | 'identity' | 'install' | 'about';
+type ClientSettingsTab = 'sync' | 'identity' | 'install' | 'network' | 'about';
 type SaveResult = 'idle' | 'saving' | 'saved' | 'error';
 type SaveState = 'clean' | 'dirty' | Exclude<SaveResult, 'idle'>;
 type PendingSave = { settings: ClientSettings; revision: number };
@@ -45,6 +46,7 @@ export function ClientSettingsView({
   const [activeTab, setActiveTab] = useState<ClientSettingsTab>('sync');
   const [saveResult, setSaveResult] = useState<SaveResult>('idle');
   const [saveError, setSaveError] = useState('');
+  const [cfError, setCFError] = useState('');
   const [isBenchmarkRunning, setIsBenchmarkRunning] = useState(false);
   const editRevisionRef = useRef(0);
   const saveInFlightRef = useRef(false);
@@ -60,6 +62,7 @@ export function ClientSettingsView({
     editRevisionRef.current += 1;
     setDraft(next);
     setSaveError('');
+    setCFError('');
     setSaveResult((current) => current === 'saving' ? 'saving' : 'idle');
   }
 
@@ -79,8 +82,11 @@ export function ClientSettingsView({
     setBaseline(next);
     setDraft(next);
     setSaveError('');
+    setCFError('');
     setSaveResult('idle');
   }, [
+    settings.cfEnabled,
+    settings.cfEndpoint,
     settings.autoSyncEnabled,
     settings.autoSyncIntervalMinutes,
 	settings.autoUpdateEnabled,
@@ -155,6 +161,7 @@ export function ClientSettingsView({
     { key: 'sync', label: t('clientSettings.tabs.sync'), icon: Clock3 },
     { key: 'identity', label: t('clientSettings.tabs.identity'), icon: ShieldCheck },
     { key: 'install', label: t('clientSettings.tabs.install'), icon: Download },
+    { key: 'network', label: t('cfNetwork.title'), icon: Gauge },
     { key: 'about', label: t('clientSettings.tabs.about'), icon: Info },
   ] satisfies Array<{ key: ClientSettingsTab; label: string; icon: typeof Clock3 }>;
 
@@ -179,6 +186,10 @@ export function ClientSettingsView({
       setToast({ tone: 'success', message: t('clientSettings.saved') });
     } catch (error) {
       if (pendingSaveRef.current === submission) pendingSaveRef.current = null;
+      if (error instanceof Error && 'code' in error && error.code === 'INVALID_CF_ENDPOINT') {
+        setActiveTab('network');
+        setCFError(error.message);
+      }
       setSaveError(errorMessage(error, t('clientSettings.saveFailed')));
       setSaveResult('error');
     } finally {
@@ -491,7 +502,11 @@ export function ClientSettingsView({
         </section>
         )}
 
-        {activeTab === 'about' && (
+        {activeTab === 'network' && (
+        <CFNetworkSettings settings={{ ...draft, cfPresets: settings.cfPresets }} error={cfError} onChange={updateDraft} />
+      )}
+
+      {activeTab === 'about' && (
         <section className="panel settings-card-panel settings-tab-panel client-settings-panel client-about-panel">
           <div className="settings-card-head">
             <div>

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"lazycat.community/appstore/internal/cfnetwork"
 	"log/slog"
 	"net/http"
 	"net/mail"
@@ -544,6 +545,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request, u *en
 		settingAllowManualOutdatedClear:          "false",
 		settingGitHubDownloadMirrors:             s.cfg.GitHubDownloadMirrors,
 		settingGitHubRawMirrors:                  s.cfg.GitHubRawMirrors,
+		settingCFPreferredEndpoints:              cfnetwork.DefaultEndpoint,
 		settingSiteTitle:                         s.siteProfile(r.Context()).Title,
 		settingSiteSubtitle:                      s.siteProfile(r.Context()).Subtitle,
 		settingSiteIconURL:                       "",
@@ -758,6 +760,9 @@ func validateSetting(key, value string) error {
 		return fmt.Errorf("unknown setting %q", key)
 	}
 	switch key {
+	case settingCFPreferredEndpoints:
+		_, err := cfnetwork.ParseList(value)
+		return err
 	case settingMaxLPKSize:
 		parsed, err := strconv.ParseInt(value, 10, 64)
 		if err != nil || parsed <= 0 {
@@ -876,6 +881,7 @@ func isPublicSetting(key string) bool {
 		settingAllowManualOutdatedClear,
 		settingGitHubDownloadMirrors,
 		settingGitHubRawMirrors,
+		settingCFPreferredEndpoints,
 		settingSiteTitle,
 		settingSiteSubtitle,
 		settingSiteIconURL,
@@ -906,6 +912,11 @@ func isPublicSetting(key string) bool {
 
 func normalizeSettingValue(key, value string) string {
 	switch key {
+	case settingCFPreferredEndpoints:
+		if endpoints, err := cfnetwork.ParseList(value); err == nil {
+			return strings.Join(endpoints, "\n")
+		}
+		return value
 	case settingGitHubDownloadMirrors, settingGitHubRawMirrors:
 		normalized, err := mirror.Normalize(value, settingMirrorKind(key))
 		if err != nil {

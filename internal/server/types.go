@@ -83,9 +83,10 @@ type siteRegistration struct {
 }
 
 type siteClientPolicy struct {
-	MinVersion      string `json:"minVersion,omitempty"`
-	Message         string `json:"message,omitempty"`
-	ForceAdsDisplay bool   `json:"forceAdsDisplay"`
+	CFPreferredEndpoints []string `json:"cfPreferredEndpoints,omitempty"`
+	MinVersion           string   `json:"minVersion,omitempty"`
+	Message              string   `json:"message,omitempty"`
+	ForceAdsDisplay      bool     `json:"forceAdsDisplay"`
 }
 
 type siteChat struct {

@@ -1,6 +1,9 @@
 package clientserver
 
-import "strings"
+import (
+	"lazycat.community/appstore/internal/cfnetwork"
+	"strings"
+)
 
 func normalizeSourceClientPolicy(input SourceClientPolicyDTO) SourceClientPolicyDTO {
 	out := SourceClientPolicyDTO{
@@ -13,6 +16,9 @@ func normalizeSourceClientPolicy(input SourceClientPolicyDTO) SourceClientPolicy
 	}
 	if len([]rune(out.Message)) > 300 {
 		out.Message = string([]rune(out.Message)[:300])
+	}
+	if endpoints, err := cfnetwork.ParseList(strings.Join(input.CFPreferredEndpoints, "\n")); err == nil {
+		out.CFPreferredEndpoints = endpoints
 	}
 	return out
 }

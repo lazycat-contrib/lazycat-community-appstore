@@ -271,6 +271,7 @@ export function AdminPanel({
     { key: 'source_password', label: t('admin.settings.sourcePassword'), help: t('admin.settingsHelp.sourcePassword'), type: 'password' },
     { key: 'source_password_rotation', label: t('admin.settings.sourcePasswordRotation'), help: t('admin.settingsHelp.sourcePasswordRotation'), inputMode: 'numeric' },
     { key: 'source_v1_enabled', label: t('admin.settings.sourceV1Enabled'), help: t('admin.settingsHelp.sourceV1Enabled'), type: 'boolean' },
+    { key: 'cf_preferred_endpoints', label: t('cfNetwork.adminTitle'), help: t('cfNetwork.adminHelp'), type: 'textarea' },
     { key: 'github_download_mirrors', label: t('admin.settings.githubDownloadMirrors'), help: t('admin.settingsHelp.githubDownloadMirrors'), type: 'textarea' },
     { key: 'github_raw_mirrors', label: t('admin.settings.githubRawMirrors'), help: t('admin.settingsHelp.githubRawMirrors'), type: 'textarea' },
     { key: 'require_email_verify', label: t('admin.settings.requireEmailVerify'), help: t('admin.settingsHelp.requireEmailVerify'), type: 'boolean' },
@@ -803,6 +804,7 @@ export function AdminPanel({
 
   function recommendedMirrorsForSetting(key: string) {
     if (key === 'github_download_mirrors') return mirrorPresetText(RECOMMENDED_DOWNLOAD_MIRRORS);
+    if (key === 'cf_preferred_endpoints') return 'saas.sin.fan';
     if (key === 'github_raw_mirrors') return mirrorPresetText(RECOMMENDED_RAW_MIRRORS);
     return '';
   }

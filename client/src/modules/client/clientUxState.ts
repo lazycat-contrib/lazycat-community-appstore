@@ -238,6 +238,8 @@ export function buildUpdateCandidateSnapshot<T extends {
 }
 
 export type EditableClientSettings = {
+  cfEnabled?: boolean;
+  cfEndpoint?: string;
   clientTitle: string;
   commentDisplayName: string;
   defaultPageSize: number;
@@ -279,6 +281,8 @@ export function normalizeAutomationSettings<T extends {
 
 export function normalizeEditableClientSettings(settings: EditableClientSettings): EditableClientSettings {
   return normalizeAutomationSettings({
+    cfEnabled: Boolean(settings.cfEnabled),
+    cfEndpoint: (settings.cfEndpoint ?? 'saas.sin.fan').trim().toLowerCase().replace(/\.$/, ''),
     clientTitle: settings.clientTitle.trim(),
     commentDisplayName: settings.commentDisplayName.trim(),
     defaultPageSize: Number(settings.defaultPageSize) || 24,

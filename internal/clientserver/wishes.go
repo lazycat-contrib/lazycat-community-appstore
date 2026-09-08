@@ -120,7 +120,7 @@ func (s *Server) proxySourceWish(w http.ResponseWriter, r *http.Request, method,
 	if source.Password != "" {
 		req.Header.Set("X-Source-Password", source.Password)
 	}
-	resp, err := s.httpClient.Do(req)
+	resp, err := s.sourceHTTPClient(req.Context(), source, s.httpClient).Do(req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "SOURCE_WISH_FAILED", "Could not reach source wish wall")
 		return

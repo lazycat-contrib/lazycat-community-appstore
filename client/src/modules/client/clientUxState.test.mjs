@@ -330,6 +330,8 @@ test('editable settings normalization trims strings and applies numeric defaults
       mirrorBenchmarkIntervalMinutes: 0,
     }),
     {
+      cfEnabled: false,
+      cfEndpoint: 'saas.sin.fan',
       clientTitle: 'MiaoMiao',
       commentDisplayName: 'Cat',
       defaultPageSize: 24,

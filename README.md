@@ -123,6 +123,10 @@ lzc-cli project release -o ../../dist/lazycat-community-appstore-client.lpk
 - Download endpoint with download-count tracking.
 - SMTP email delivery for email verification when `SMTP_HOST` and `SMTP_FROM` are configured.
 
+## Optional Cloudflare routing
+
+Server administrators can publish preferred IP/domain suggestions (default `saas.sin.fan`). Standalone clients choose whether to enable them under Settings → Network acceleration; routing is off by default and server suggestions never override user choices. See [configuration and reproducible measurements](docs/cf-network.md).
+
 ## Verification
 
 ```bash

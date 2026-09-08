@@ -207,7 +207,7 @@ func (s *Server) proxySourceCommentRequest(w http.ResponseWriter, r *http.Reques
 	if source.Password != "" {
 		req.Header.Set("X-Source-Password", source.Password)
 	}
-	resp, err := s.httpClient.Do(req)
+	resp, err := s.sourceHTTPClient(req.Context(), source, s.httpClient).Do(req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "SOURCE_COMMENT_FAILED", "Could not reach source comments")
 		return

@@ -2,6 +2,7 @@ package clientserver
 
 import (
 	"context"
+	"lazycat.community/appstore/internal/cfnetwork"
 	"net/http"
 	"strconv"
 	"strings"
@@ -44,6 +45,14 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	if err := decodeJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON request body")
 		return
+	}
+	if input.CFEndpoint != nil {
+		endpoint, err := cfnetwork.Normalize(*input.CFEndpoint)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "INVALID_CF_ENDPOINT", err.Error())
+			return
+		}
+		input.CFEndpoint = &endpoint
 	}
 	clientTitle := sanitizeClientSetting(input.ClientTitle, 80)
 	displayName := sanitizeClientSetting(input.CommentDisplayName, 40)
@@ -94,6 +103,10 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if err := s.saveCFSettings(r, input); err != nil {
+		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save network settings")
+		return
+	}
 	syncSetting, err := s.setClientSyncSetting(r.Context(), userID, input)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
@@ -101,6 +114,7 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	settings := s.clientSettingsDTO(clientTitle, displayName, defaultPageSize, installSuccessDismissSeconds, autoUpdateNotifyEnabled, syncSetting)
 	s.applyMirrorBenchmarkSettings(r.Context(), userID, &settings)
+	s.applyCFSettings(r.Context(), userID, &settings)
 	writeJSON(w, http.StatusOK, map[string]any{"settings": settings})
 }
 
@@ -119,6 +133,7 @@ func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSetti
 	}
 	dto := s.clientSettingsDTO(clientTitle, commentDisplayName, defaultPageSize, installSuccessDismissSeconds, autoUpdateNotifyEnabled, syncSetting)
 	s.applyMirrorBenchmarkSettings(ctx, userID, &dto)
+	s.applyCFSettings(ctx, userID, &dto)
 	return dto, nil
 }
 

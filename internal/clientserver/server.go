@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"io/fs"
+	"lazycat.community/appstore/internal/cfnetwork"
 	"net/http"
 	"path"
 	"strings"
@@ -30,6 +31,7 @@ type Server struct {
 	httpClient             *http.Client
 	streamClient           *http.Client
 	httpClientsMu          sync.Mutex
+	cfTransports           cfnetwork.Pool
 	mirrorProbe            mirrorprobe.ProbeFunc
 	mirrorBenchmarkLocksMu sync.Mutex
 	mirrorBenchmarkLocks   map[string]*sync.Mutex
@@ -191,6 +193,7 @@ func (s *Server) startClose() {
 			stopErr := s.Stop(context.Background())
 			var dbErr error
 			if s.db != nil {
+				s.cfTransports.CloseIdleConnections()
 				dbErr = s.db.Close()
 			}
 			s.closeErr = errors.Join(stopErr, dbErr)

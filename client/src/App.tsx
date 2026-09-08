@@ -130,6 +130,9 @@ const DEFAULT_CLIENT_AUTH: ClientAuthStatus = { authenticated: false, oidcEnable
 
 function defaultClientSettings(): ClientSettings {
   return {
+  cfEnabled: false,
+  cfEndpoint: 'saas.sin.fan',
+  cfPresets: [{ endpoint: 'saas.sin.fan', sourceName: '' }],
     clientTitle: '',
     commentDisplayName: '',
     defaultPageSize: DEFAULT_CLIENT_PAGE_SIZE,
@@ -1162,7 +1165,7 @@ export function App() {
     } catch {
       synced = false;
     }
-    await loadClientSources();
+    await Promise.all([loadClientSources(), loadClientSettings()]);
     return { synced };
   }
 
