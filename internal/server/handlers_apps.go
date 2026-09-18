@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -463,20 +464,25 @@ func (s *Server) createAppMultipart(w http.ResponseWriter, r *http.Request, u *e
 }
 
 func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createAppJSON) (*entgo.App, error) {
-	if err := s.materializeAppIconURL(r.Context(), &input); err != nil {
-		return nil, err
-	}
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
 		return nil, errors.New("app name is required")
 	}
-	slug := strings.TrimSpace(input.Slug)
-	if slug == "" {
-		slug = slugify(name)
-	}
 	packageID := strings.TrimSpace(input.PackageID)
 	if packageID == "" {
 		return nil, errors.New("packageId is required")
+	}
+	automaticSlug := strings.TrimSpace(input.Slug) == ""
+	slugCandidates := []string{strings.TrimSpace(input.Slug)}
+	if automaticSlug {
+		slugCandidates = appSlugCandidates(name, packageID)
+	}
+	slug, err := s.availableAppSlug(r.Context(), slugCandidates)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.materializeAppIconURL(r.Context(), &input); err != nil {
+		return nil, err
 	}
 	status := app.StatusPENDING
 	if isAdmin(u) {
@@ -490,36 +496,56 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 	if input.EmailNotificationsEnabled != nil {
 		emailNotificationsEnabled = *input.EmailNotificationsEnabled
 	}
-	create := s.db.App.Create().
-		SetOwnerID(u.ID).
-		SetPackageID(packageID).
-		SetName(name).
-		SetNameI18nJSON(catalogmeta.EncodeLocalizedText(input.NameI18n)).
-		SetSlug(slug).
-		SetSummary(input.Summary).
-		SetSummaryI18nJSON(catalogmeta.EncodeLocalizedText(input.SummaryI18n)).
-		SetDescription(input.Description).
-		SetDescriptionI18nJSON(catalogmeta.EncodeLocalizedText(input.DescriptionI18n)).
-		SetAuthor(input.Author).
-		SetHomepage(input.Homepage).
-		SetLicense(input.License).
-		SetMinOsVersion(input.MinOSVersion).
-		SetStatus(status).
-		SetAllowUnreviewedUpdates(input.AllowUnreviewedUpdates).
-		SetCommentsEnabled(commentsEnabled).
-		SetEmailNotificationsEnabled(emailNotificationsEnabled)
-	if iconURL := strings.TrimSpace(input.IconURL); iconURL != "" {
-		create.SetIconURL(iconURL)
-	}
-	if hash, err := hashInstallPassword(input.InstallPassword); err != nil {
+	installPasswordHash, err := hashInstallPassword(input.InstallPassword)
+	if err != nil {
 		return nil, err
-	} else if hash != "" {
-		create.SetInstallPasswordHash(hash)
 	}
-	if input.CategoryID != nil {
-		create.SetCategoryID(*input.CategoryID)
+	newCreate := func(slug string) *entgo.AppCreate {
+		create := s.db.App.Create().
+			SetOwnerID(u.ID).
+			SetPackageID(packageID).
+			SetName(name).
+			SetNameI18nJSON(catalogmeta.EncodeLocalizedText(input.NameI18n)).
+			SetSlug(slug).
+			SetSummary(input.Summary).
+			SetSummaryI18nJSON(catalogmeta.EncodeLocalizedText(input.SummaryI18n)).
+			SetDescription(input.Description).
+			SetDescriptionI18nJSON(catalogmeta.EncodeLocalizedText(input.DescriptionI18n)).
+			SetAuthor(input.Author).
+			SetHomepage(input.Homepage).
+			SetLicense(input.License).
+			SetMinOsVersion(input.MinOSVersion).
+			SetStatus(status).
+			SetAllowUnreviewedUpdates(input.AllowUnreviewedUpdates).
+			SetCommentsEnabled(commentsEnabled).
+			SetEmailNotificationsEnabled(emailNotificationsEnabled)
+		if iconURL := strings.TrimSpace(input.IconURL); iconURL != "" {
+			create.SetIconURL(iconURL)
+		}
+		if installPasswordHash != "" {
+			create.SetInstallPasswordHash(installPasswordHash)
+		}
+		if input.CategoryID != nil {
+			create.SetCategoryID(*input.CategoryID)
+		}
+		return create
 	}
-	record, err := create.Save(r.Context())
+	var record *entgo.App
+	for range len(slugCandidates) {
+		record, err = newCreate(slug).Save(r.Context())
+		if err == nil || !automaticSlug || !entgo.IsConstraintError(err) {
+			break
+		}
+		nextSlug, slugErr := s.availableAppSlug(r.Context(), slugCandidates)
+		if slugErr != nil {
+			err = slugErr
+			break
+		}
+		if nextSlug == slug {
+			break
+		}
+		slug = nextSlug
+	}
 	if err != nil {
 		if input.iconAssetID > 0 {
 			_ = s.cleanupAssetIDs(r.Context(), input.iconAssetID)
@@ -545,6 +571,35 @@ func (s *Server) createAppRecord(r *http.Request, u *entgo.User, input createApp
 			Save(r.Context())
 	}
 	return record, nil
+}
+
+func appSlugCandidates(name, packageID string) []string {
+	base := asciiSlug(name)
+	if base == "" {
+		base = asciiSlug(packageID)
+	}
+	if base == "" {
+		base = "app"
+	}
+	digest := sha256.Sum256([]byte(packageID))
+	return []string{
+		base,
+		fmt.Sprintf("%s-%x", base, digest[:6]),
+		fmt.Sprintf("%s-%x", base, digest[:]),
+	}
+}
+
+func (s *Server) availableAppSlug(ctx context.Context, candidates []string) (string, error) {
+	for _, candidate := range candidates {
+		exists, err := s.db.App.Query().Where(app.SlugEQ(candidate)).Exist(ctx)
+		if err != nil {
+			return "", fmt.Errorf("check app slug availability: %w", err)
+		}
+		if !exists {
+			return candidate, nil
+		}
+	}
+	return "", errors.New("could not generate an available app slug")
 }
 
 func (s *Server) handleUpdateApp(w http.ResponseWriter, r *http.Request, u *entgo.User) {

@@ -228,6 +228,14 @@ func (s *Server) emailVerificationRequiredForUser(ctx context.Context, u *ent.Us
 }
 
 func slugify(value string) string {
+	result := asciiSlug(value)
+	if result == "" {
+		return fmt.Sprintf("app-%d", time.Now().Unix())
+	}
+	return result
+}
+
+func asciiSlug(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	var b strings.Builder
 	lastDash := false
@@ -242,9 +250,5 @@ func slugify(value string) string {
 			lastDash = true
 		}
 	}
-	result := strings.Trim(b.String(), "-")
-	if result == "" {
-		return fmt.Sprintf("app-%d", time.Now().Unix())
-	}
-	return result
+	return strings.Trim(b.String(), "-")
 }
