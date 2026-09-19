@@ -71,11 +71,12 @@ func TestGitHubReleaseVersionNormalizesTagForStorage(t *testing.T) {
 		"release-2.0.3-rc.1": "2.0.3-rc.1",
 		"server-v0.1.38":     "0.1.38",
 		"refs/tags/v3.4.5":   "3.4.5",
+		"v2026.09.18.1622":   "2026.09.18.1622",
 		"not-a-version":      "",
-		"v01.2.3":            "",
+		"v01.2.3":            "01.2.3",
 		"release-2.0.3foo":   "",
 		"release-2.0":        "",
-		"release-2.0.3.4":    "",
+		"release-2.0.3.4":    "2.0.3.4",
 		"v2.0.3+build.7":     "2.0.3+build.7",
 	}
 	for input, want := range tests {
@@ -83,6 +84,39 @@ func TestGitHubReleaseVersionNormalizesTagForStorage(t *testing.T) {
 			t.Fatalf("githubReleaseVersion(%q) = %q, want %q", input, got, want)
 		}
 	}
+}
+
+func TestCompareGitHubReleaseVersionsSupportsNumericDottedVersions(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		left       string
+		right      string
+		want       int
+		comparable bool
+	}{
+		{left: "2026.09.19.1", right: "2026.09.18.1622", want: 1, comparable: true},
+		{left: "2026.10.1", right: "2026.9.30.9", want: 1, comparable: true},
+		{left: "2026.09.18.1622", right: "2026.9.18.1622", want: 0, comparable: true},
+		{left: "2.0.3", right: "2.0.2", want: 1, comparable: true},
+		{left: "2.0.3-rc.1", right: "2.0.3", want: -1, comparable: true},
+		{left: "release-1", right: "2.0.3", comparable: false},
+	}
+	for _, test := range tests {
+		got, comparable := compareGitHubReleaseVersions(test.left, test.right)
+		if comparable != test.comparable || (comparable && sign(got) != test.want) {
+			t.Fatalf("compareGitHubReleaseVersions(%q, %q) = (%d, %v), want (%d, %v)", test.left, test.right, got, comparable, test.want, test.comparable)
+		}
+	}
+}
+
+func sign(value int) int {
+	if value < 0 {
+		return -1
+	}
+	if value > 0 {
+		return 1
+	}
+	return 0
 }
 
 func TestSelectGitHubLPKReleaseAssetUsesVersionedName(t *testing.T) {
@@ -299,11 +333,55 @@ func TestGitHubLPKAutoUpdateFailsClosedForInvalidCurrentVersion(t *testing.T) {
 		SetIntervalMinutes(defaultGitHubLPKUpdateIntervalMinutes).
 		SaveX(t.Context())
 
-	if _, err := store.server.runGitHubLPKUpdate(t.Context(), policy); err == nil || !strings.Contains(err.Error(), "valid SemVer") {
-		t.Fatalf("run update error = %v, want SemVer error", err)
+	if _, err := store.server.runGitHubLPKUpdate(t.Context(), policy); err == nil || !strings.Contains(err.Error(), "supported version") {
+		t.Fatalf("run update error = %v, want supported version error", err)
 	}
 	if fake.calls != 0 {
 		t.Fatalf("GitHub API calls = %d, want 0", fake.calls)
+	}
+}
+
+func TestGitHubLPKAutoUpdateSupportsNumericDottedVersions(t *testing.T) {
+	store := newTestApp(t)
+	record, current := createGitHubLPKUpdateFixture(t, store, true)
+	currentVersion := "2026.09.18.1622"
+	targetVersion := "2026.09.19.1015"
+	currentURL := "https://github.com/wtj-0527/lazycat-hermes-studio/releases/download/v" + currentVersion + "/community.lazycat.app.hermes-studio-v" + currentVersion + ".lpk"
+	targetURL := "https://github.com/wtj-0527/lazycat-hermes-studio/releases/download/v" + targetVersion + "/community.lazycat.app.hermes-studio-v" + targetVersion + ".lpk"
+	store.server.db.AppVersion.UpdateOneID(current.ID).
+		SetVersion(currentVersion).
+		SetDownloadURL(currentURL).
+		SaveX(t.Context())
+	digest := strings.Repeat("9", 64)
+	store.server.githubReleases = &fakeGitHubLatestReleaseClient{release: &github.RepositoryRelease{
+		TagName: "v" + targetVersion,
+		Body:    github.Ptr("Time-based community release"),
+		Assets: []*github.ReleaseAsset{{
+			Name:               github.Ptr("community.lazycat.app.hermes-studio-v" + targetVersion + ".lpk"),
+			State:              github.Ptr("uploaded"),
+			Size:               github.Ptr(654321),
+			Digest:             github.Ptr("sha256:" + digest),
+			BrowserDownloadURL: github.Ptr(targetURL),
+		}},
+	}}
+	policy := store.server.db.GitHubLPKUpdatePolicy.Create().
+		SetAppID(record.ID).
+		SetEnabled(true).
+		SetIntervalMinutes(defaultGitHubLPKUpdateIntervalMinutes).
+		SaveX(t.Context())
+
+	version, err := store.server.runGitHubLPKUpdate(t.Context(), policy)
+	if err != nil {
+		t.Fatalf("run numeric dotted update: %v", err)
+	}
+	if version != targetVersion {
+		t.Fatalf("updated version = %q, want %q", version, targetVersion)
+	}
+	created := store.server.db.AppVersion.Query().
+		Where(appversion.AppIDEQ(record.ID), appversion.VersionEQ(targetVersion)).
+		OnlyX(t.Context())
+	if created.Status != appversion.StatusAPPROVED || created.DownloadURL != targetURL || created.Sha256 != digest || created.FileSize != 654321 {
+		t.Fatalf("created numeric dotted version = %+v", created)
 	}
 }
 
@@ -593,6 +671,23 @@ func TestGitHubLPKUpdatePolicyAPIValidatesSupportAndInterval(t *testing.T) {
 	}
 }
 
+func TestGitHubLPKUpdatePolicyAcceptsNumericDottedVersion(t *testing.T) {
+	store := newTestApp(t)
+	record, current := createGitHubLPKUpdateFixture(t, store, true)
+	store.server.db.AppVersion.UpdateOneID(current.ID).
+		SetVersion("2026.09.18.1622").
+		SetDownloadURL("https://github.com/wtj-0527/lazycat-hermes-studio/releases/download/v2026.09.18.1622/community.lazycat.app.hermes-studio-v2026.09.18.1622.lpk").
+		SaveX(t.Context())
+	store.login("admin", "changeme")
+
+	rec := store.do(http.MethodPatch, fmt.Sprintf("/api/v1/apps/%d/github-lpk-update-policy", record.ID), map[string]any{
+		"enabled": true,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("enable numeric dotted version status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestGitHubLPKUpdatePolicyDoesNotInvalidateSourceFeed(t *testing.T) {
 	t.Parallel()
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/apps/1/github-lpk-update-policy", nil)
@@ -601,9 +696,14 @@ func TestGitHubLPKUpdatePolicyDoesNotInvalidateSourceFeed(t *testing.T) {
 	}
 }
 
-func TestGitHubLPKUpdatePolicyIsHiddenForNonGitHubLatestVersion(t *testing.T) {
+func TestGitHubLPKUpdatePolicyIsVisibleToAdminForUnsupportedApp(t *testing.T) {
 	store := newTestApp(t)
-	record, current := createGitHubLPKUpdateFixture(t, store, true)
+	owner := store.server.db.User.Create().
+		SetUsername("github-policy-owner").
+		SetPasswordHash("x").
+		SetRole(user.RoleUSER).
+		SaveX(t.Context())
+	record, current := createGitHubLPKUpdateFixtureForOwner(t, store, owner, true)
 	store.server.db.AppVersion.UpdateOneID(current.ID).
 		SetDownloadURL("https://downloads.example.com/com.lxy.app.clash-v2.0.2.lpk").
 		SaveX(t.Context())
@@ -613,8 +713,8 @@ func TestGitHubLPKUpdatePolicyIsHiddenForNonGitHubLatestVersion(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("app detail status = %d, body = %s", rec.Code, rec.Body.String())
 	}
-	if strings.Contains(rec.Body.String(), `"githubLPKUpdatePolicy"`) {
-		t.Fatalf("non-GitHub app detail exposed automatic update policy: %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), `"canManageApp":true`) || !strings.Contains(rec.Body.String(), `"githubLPKUpdatePolicy"`) {
+		t.Fatalf("admin app detail omitted automatic update policy: %s", rec.Body.String())
 	}
 	rec = store.do(http.MethodPatch, fmt.Sprintf("/api/v1/apps/%d/github-lpk-update-policy", record.ID), map[string]any{
 		"enabled":         true,

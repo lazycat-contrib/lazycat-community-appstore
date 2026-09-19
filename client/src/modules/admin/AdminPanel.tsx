@@ -1916,6 +1916,8 @@ export function AdminPanel({
                   title: t('admin.collectionApps'),
                   selectedCount: t('admin.selectedAppsCount', { count: collectionForm.appIds.length }),
                   empty: t('admin.noApprovedAppsForCollection'),
+                  searchPlaceholder: t('admin.collectionAppSearchPlaceholder'),
+                  noResults: t('admin.collectionAppSearchEmpty'),
                 }}
                 onChange={(appIds) => setCollectionForm({ ...collectionForm, appIds })}
               />
@@ -1965,6 +1967,8 @@ export function AdminPanel({
                       title: t('admin.collectionAppsFor', { name: item.name }),
                       selectedCount: t('admin.selectedAppsCount', { count: draft.appIds.length }),
                       empty: t('admin.noApprovedAppsForCollection'),
+                      searchPlaceholder: t('admin.collectionAppSearchPlaceholder'),
+                      noResults: t('admin.collectionAppSearchEmpty'),
                     }}
                     onChange={(appIds) => setCollectionDrafts((current) => ({ ...current, [item.id]: { ...draft, appIds } }))}
                   />

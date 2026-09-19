@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
+import { TextInput as XTextInput } from '@astryxdesign/core/TextInput';
 import { localizedText } from '../../shared/utils';
+import { filterCollectionApps } from './collectionAppPickerState';
 
 type CollectionAppOption = {
   id: number;
@@ -13,6 +16,8 @@ type CollectionAppPickerLabels = {
   title: string;
   selectedCount: string;
   empty: string;
+  searchPlaceholder: string;
+  noResults: string;
 };
 
 function toggleAppSelection(appIds: number[], appID: number, checked: boolean) {
@@ -31,6 +36,9 @@ export function CollectionAppPicker({
   labels: CollectionAppPickerLabels;
   onChange: (appIds: number[]) => void;
 }) {
+  const [query, setQuery] = useState('');
+  const filteredApps = filterCollectionApps(apps, query);
+
   return (
     <div className="collection-picker" role="group" aria-label={labels.title}>
       <div className="collection-picker-head">
@@ -40,17 +48,32 @@ export function CollectionAppPicker({
       {apps.length === 0 ? (
         <p className="field-help">{labels.empty}</p>
       ) : (
-        <div className="collection-app-options">
-          {apps.map((app) => (
-            <XCheckboxInput
-              key={app.id}
-              label={localizedText(app.nameI18n, app.name)}
-              description={app.packageId || app.slug}
-              value={appIds.includes(app.id)}
-              onChange={(checked) => onChange(toggleAppSelection(appIds, app.id, checked))}
+        <>
+          <div className="collection-picker-search">
+            <XTextInput
+              label={labels.searchPlaceholder}
+              isLabelHidden
+              placeholder={labels.searchPlaceholder}
+              value={query}
+              onChange={setQuery}
             />
-          ))}
-        </div>
+          </div>
+          {filteredApps.length === 0 ? (
+            <p className="field-help collection-picker-empty">{labels.noResults}</p>
+          ) : (
+            <div className="collection-app-options">
+              {filteredApps.map((app) => (
+                <XCheckboxInput
+                  key={app.id}
+                  label={localizedText(app.nameI18n, app.name)}
+                  description={app.packageId || app.slug}
+                  value={appIds.includes(app.id)}
+                  onChange={(checked) => onChange(toggleAppSelection(appIds, app.id, checked))}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

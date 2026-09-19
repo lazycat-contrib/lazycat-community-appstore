@@ -4,6 +4,7 @@ import { Button as XButton } from '@astryxdesign/core/Button';
 import { CheckboxInput as XCheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
 import { List as XList, ListItem as XListItem } from '@astryxdesign/core/List';
+import { NumberInput as XNumberInput } from '@astryxdesign/core/NumberInput';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
@@ -128,6 +129,10 @@ export function ProfileView({
   const [bulkRefreshSkipped, setBulkRefreshSkipped] = useState(0);
   const bulkRefreshRunRef = useRef(0);
   const [managedSubmitter, setManagedSubmitter] = useState('all');
+  const [selectedManagedAppIDs, setSelectedManagedAppIDs] = useState<Set<number>>(() => new Set());
+  const [isBulkGitHubUpdateConfirmOpen, setIsBulkGitHubUpdateConfirmOpen] = useState(false);
+  const [isBulkEnablingGitHubUpdates, setIsBulkEnablingGitHubUpdates] = useState(false);
+  const [bulkGitHubUpdateIntervalHours, setBulkGitHubUpdateIntervalHours] = useState(24);
   const [verifyToken, setVerifyToken] = useState(verificationTokenFromURL);
   const [uploadForm, setUploadForm] = useState({
     name: '',
@@ -202,6 +207,10 @@ export function ProfileView({
       : managedApps.filter((app) => String(app.ownerId) === managedSubmitter);
     return [...filtered].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
   }, [managedApps, managedSubmitter]);
+  const selectedManagedApps = useMemo(
+    () => managedApps.filter((app) => selectedManagedAppIDs.has(app.id)),
+    [managedApps, selectedManagedAppIDs],
+  );
   const publishSummary = useMemo(() => {
     return {
       total: ownedApps.length,
@@ -214,6 +223,7 @@ export function ProfileView({
   const bulkRefreshFailed = bulkRefreshItems.filter((item) => ['FAILED', 'TIMED_OUT', 'CANCELLED'].includes(item.inspection.state)).length;
   const bulkRefreshProgress = bulkRefreshItems.length > 0 ? Math.round((bulkRefreshCompleted / bulkRefreshItems.length) * 100) : 0;
   const allOwnedAppsSelected = ownedApps.length > 0 && selectedOwnedAppIDs.size === ownedApps.length;
+  const allManageableAppsSelected = manageableApps.length > 0 && manageableApps.every((app) => selectedManagedAppIDs.has(app.id));
 
   async function refreshOwnedLPKMetadata() {
     if (bulkRefreshPhase !== 'idle' || selectedOwnedAppIDs.size === 0) return;
@@ -311,6 +321,14 @@ export function ProfileView({
     });
   }, [ownedApps]);
 
+  useEffect(() => {
+    const managedIDs = new Set(managedApps.map((app) => app.id));
+    setSelectedManagedAppIDs((current) => {
+      const next = new Set(Array.from(current).filter((id) => managedIDs.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [managedApps]);
+
   function toggleOwnedAppSelection(appID: number, selected: boolean) {
     if (bulkRefreshPhase !== 'idle') return;
     setSelectedOwnedAppIDs((current) => {
@@ -324,6 +342,52 @@ export function ProfileView({
   function toggleAllOwnedApps() {
     if (bulkRefreshPhase !== 'idle' || isBulkDeleting) return;
     setSelectedOwnedAppIDs(allOwnedAppsSelected ? new Set() : new Set(ownedApps.map((app) => app.id)));
+  }
+
+  function toggleManagedAppSelection(appID: number, selected: boolean) {
+    if (isBulkEnablingGitHubUpdates) return;
+    setSelectedManagedAppIDs((current) => {
+      const next = new Set(current);
+      if (selected) next.add(appID);
+      else next.delete(appID);
+      return next;
+    });
+  }
+
+  function toggleAllManageableApps() {
+    if (isBulkEnablingGitHubUpdates) return;
+    setSelectedManagedAppIDs(allManageableAppsSelected ? new Set() : new Set(manageableApps.map((app) => app.id)));
+  }
+
+  async function bulkEnableGitHubUpdates() {
+    if (isBulkEnablingGitHubUpdates || selectedManagedAppIDs.size === 0) return;
+    setIsBulkEnablingGitHubUpdates(true);
+    let succeeded = 0;
+    let failed = 0;
+    try {
+      for (const appID of selectedManagedAppIDs) {
+        try {
+          await api(`/api/v1/apps/${appID}/github-lpk-update-policy`, {
+            method: 'PATCH',
+            body: JSON.stringify({ enabled: true, intervalMinutes: bulkGitHubUpdateIntervalHours * 60 }),
+          });
+          succeeded += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      await refreshAll({ silent: true });
+      setSelectedManagedAppIDs(new Set());
+      setIsBulkGitHubUpdateConfirmOpen(false);
+      setToast({
+        tone: failed > 0 ? 'neutral' : 'success',
+        message: t(failed > 0 ? 'profile.bulkGitHubUpdateCompletedWithFailures' : 'profile.bulkGitHubUpdateCompleted', { count: succeeded, failed }),
+      });
+    } catch {
+      setToast({ tone: 'error', message: t('profile.bulkGitHubUpdateFailed') });
+    } finally {
+      setIsBulkEnablingGitHubUpdates(false);
+    }
   }
   const sourceCacheReady = sourceStats.syncedSourceCount > 0;
   const installCatalogReady = sourceStats.installableSourceAppCount > 0;
@@ -978,13 +1042,39 @@ export function ProfileView({
             </div>
             <XButton type="button" variant="secondary" size="sm" label={t('common.refresh')} icon={<RefreshCw size={17} />} onClick={() => void refreshAll({ silent: true })} />
           </div>
-          <div className="toolbar-row">
+          <div className="section-toolbar">
             <XSelector
               label={t('profile.maintainerFilter')}
               value={managedSubmitter}
               options={managedSubmitterOptions}
-              onChange={setManagedSubmitter}
+              onChange={(value) => {
+                setManagedSubmitter(value);
+                setSelectedManagedAppIDs(new Set());
+              }}
             />
+            {selectedManagedAppIDs.size > 0 && (
+              <div className="row-actions">
+                <XIconButton
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  label={t(allManageableAppsSelected ? 'profile.clearAllSelection' : 'profile.selectAllApps')}
+                  tooltip={t(allManageableAppsSelected ? 'profile.clearAllSelection' : 'profile.selectAllApps')}
+                  icon={<ListChecks size={17} />}
+                  isDisabled={isBulkEnablingGitHubUpdates}
+                  onClick={toggleAllManageableApps}
+                />
+                <XButton
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  label={t('profile.bulkGitHubUpdateSelected', { count: selectedManagedAppIDs.size })}
+                  icon={<RefreshCw size={17} />}
+                  isDisabled={isBulkEnablingGitHubUpdates}
+                  onClick={() => setIsBulkGitHubUpdateConfirmOpen(true)}
+                />
+              </div>
+            )}
           </div>
           {manageableApps.length === 0 ? (
             <EmptyState icon={Settings} title={t('profile.appManagementEmpty')} body={t('profile.appManagementEmptyBody')} />
@@ -994,6 +1084,16 @@ export function ProfileView({
                 <XListItem
                   className="management-app-row"
                   key={item.id}
+                  isSelected={selectedManagedAppIDs.has(item.id)}
+                  startContent={(
+                    <XCheckboxInput
+                      label={t('profile.selectForBulkAction', { name: item.name })}
+                      isLabelHidden
+                      value={selectedManagedAppIDs.has(item.id)}
+                      isDisabled={isBulkEnablingGitHubUpdates}
+                      onChange={(selected) => toggleManagedAppSelection(item.id, selected)}
+                    />
+                  )}
                   label={item.name}
                   description={(
                     <span className="action-list-description">
@@ -1014,6 +1114,42 @@ export function ProfileView({
           )}
         </section>
       </section>
+      )}
+      {workspaceTab === 'manage' && isBulkGitHubUpdateConfirmOpen && (
+        <ModalLayer onClose={() => { if (!isBulkEnablingGitHubUpdates) setIsBulkGitHubUpdateConfirmOpen(false); }} purpose="required" width="min(480px, calc(100vw - 32px))">
+          <section className="modal-panel bulk-action-confirmation" aria-labelledby="bulk-github-update-confirmation-title">
+            <div className="section-title">
+              <RefreshCw size={19} />
+              <h2 id="bulk-github-update-confirmation-title">{t('profile.bulkGitHubUpdateConfirmTitle')}</h2>
+            </div>
+            <p>{t('profile.bulkGitHubUpdateConfirmBody', { count: selectedManagedAppIDs.size })}</p>
+            <XNumberInput
+              label={t('drawer.githubLPKUpdateIntervalHours')}
+              description={t('drawer.githubLPKUpdateIntervalHelp')}
+              value={bulkGitHubUpdateIntervalHours}
+              min={1}
+              max={720}
+              step={1}
+              isIntegerOnly
+              isDisabled={isBulkEnablingGitHubUpdates}
+              onChange={(value) => setBulkGitHubUpdateIntervalHours(Math.min(720, Math.max(1, value)))}
+            />
+            <div className="bulk-action-selection" role="list" aria-label={t('profile.selectedApps')}>
+              {selectedManagedApps.map((app) => <span role="listitem" key={app.id}>{app.name}</span>)}
+            </div>
+            <div className="dialog-actions">
+              <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} isDisabled={isBulkEnablingGitHubUpdates} onClick={() => setIsBulkGitHubUpdateConfirmOpen(false)} />
+              <XButton
+                type="button"
+                variant="primary"
+                label={t(isBulkEnablingGitHubUpdates ? 'profile.bulkGitHubUpdateEnabling' : 'profile.bulkGitHubUpdateConfirmAction')}
+                icon={<RefreshCw size={17} className={isBulkEnablingGitHubUpdates ? 'spin' : undefined} />}
+                isDisabled={isBulkEnablingGitHubUpdates}
+                onClick={() => void bulkEnableGitHubUpdates()}
+              />
+            </div>
+          </section>
+        </ModalLayer>
       )}
       {workspaceTab === 'mcp' && (
         <MCPWorkspace user={user} siteSourceUrl={siteProfile.sourceUrl} setToast={setToast} />

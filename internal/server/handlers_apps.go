@@ -230,7 +230,7 @@ func (s *Server) handleGetApp(w http.ResponseWriter, r *http.Request) {
 		detail.OutdatedMarked, _ = s.db.OutdatedMark.Query().Where(outdatedpkg.AppIDEQ(record.ID), outdatedpkg.UserIDEQ(u.ID)).Exist(r.Context())
 	}
 	if detail.CanManageApp {
-		detail.GitHubLPKUpdatePolicy = s.githubLPKUpdatePolicyForApp(r.Context(), record.ID, detail.LatestVersion)
+		detail.GitHubLPKUpdatePolicy = s.githubLPKUpdatePolicyForApp(r.Context(), record.ID)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"app": detail})
 }

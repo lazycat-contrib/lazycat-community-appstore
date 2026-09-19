@@ -6,7 +6,7 @@
 
 成功标准：
 
-- `https://github.com/{owner}/{repo}/releases/download/{tag}/{asset}.lpk` 可启用自动检查，其他地址不显示该选项且后端拒绝启用。
+- `https://github.com/{owner}/{repo}/releases/download/{tag}/{asset}.lpk` 可启用自动检查；版本支持严格 SemVer，也支持 `2026.09.18.1622` 这类至少三段的纯数字点分版本。其他地址仍向应用所有者和管理员显示策略入口，但后端拒绝启用并返回具体原因。
 - 策略存储在独立表中，与应用一对一关联，并由数据库外键在删除应用时级联删除。
 - 关闭自动检查时，界面的间隔输入保持可见但禁用，后台不再调度。
 - 默认间隔为 24 小时，允许 1 小时到 30 天。
@@ -90,11 +90,13 @@ func parseGitHubReleaseLPKURL(rawURL string) (githubReleaseLPK, error) {
 ## Testing Strategy
 
 - 单元测试 GitHub Release URL 解析、Release tag 版本提取、SHA256 digest 解析和多附件匹配。
+- 单元测试严格 SemVer 与纯数字点分版本的提取和比较，覆盖前导零、不同段数和四段时间版本。
 - 使用可注入的 `go-github` Release 客户端验证最新 Release 请求、成功更新、缺少 digest、重复附件、API 错误和无降级行为。
 - 调度器测试启用后立即到期、禁用不运行、成功/失败更新时间、关闭服务器可取消后台任务。
 - API 测试权限、间隔边界、非 GitHub 地址拒绝和 DTO 状态。
+- API 测试管理员可查看并配置其他用户应用的策略，协作者仍不能修改自动发布策略。
 - 数据库测试直接删除应用后策略记录由外键级联删除。
-- 前端以 TypeScript 构建覆盖字段、条件显示和禁用态；最终运行完整 Go/React/配置验证。
+- 前端契约测试覆盖管理员单应用入口、管理列表多选、批量启用和部分失败汇总；最终运行完整 Go/React/配置验证。
 
 ## Boundaries
 
@@ -143,8 +145,8 @@ https://github.com/{owner}/{repo}/releases/download/{tag}/{asset}.lpk
 
 ### Version update
 
-- 版本号从 Release tag 中提取 SemVer 主体（例如 `v2.0.3`、`release-2.0.3`、`server-v0.1.38`），通过 SemVer canonicalization 规范化后，以不带前导 `v` 的形式入库；无法得到合法版本时不更新。
-- 若目标版本低于当前已发布版本，视为无更新，不降级。
+- 版本号从 Release tag 末尾提取。严格 SemVer（例如 `v2.0.3`、`release-2.0.3`、`server-v0.1.38`）继续通过 SemVer canonicalization 比较；至少三段的纯数字点分版本（例如 `v2026.09.18.1622`）保留点分文本并按每段数值比较，缺失段按零处理。无法归入任一体系时不更新。
+- 若目标版本低于当前已发布版本，视为无更新，不降级。带 prerelease/build 后缀的版本只走 SemVer 比较；纯数字点分版本只与纯数字点分版本比较。
 - 若目标版本相同且 URL、digest、大小和 changelog 均相同，只更新策略成功状态。
 - 若目标版本相同但附件发生变化：仅管理员/免审应用可更新现有记录；其他应用记录错误并要求人工处理，避免把当前已发布版本降为待审核。
 - GitHub 发布时间写入 `upstream_published_at`；`published_at` 表示版本在商店中的实际发布时间，避免较早的上游时间导致新 SemVer 被排序为旧版本或被版本保留误删。
@@ -156,11 +158,13 @@ https://github.com/{owner}/{repo}/releases/download/{tag}/{asset}.lpk
 
 ### API and UI
 
-- 应用详情仅向有管理权限的用户返回 `githubLPKUpdatePolicy`，且当前最新版本 URL 支持时才返回。
+- 应用详情向应用所有者、软件管理员和站点管理员始终返回 `githubLPKUpdatePolicy`，不再用字段缺失表示“不支持”。当前最新版本不符合条件时，设置入口仍可见，启用请求由后端返回明确错误。
 - 新增策略更新接口，只有应用所有者或管理员可调用；后端再次验证 URL 和间隔。
 - 首次启用时安排检查并唤醒调度器；重新启用时遵守最近检查时间和配置间隔，禁用时清空 `nextCheckAt`。
 - 管理页显示开关、以小时为单位的间隔输入、最近检查/成功时间、下次检查和最近错误。
-- 非 GitHub Release LPK 地址完全不渲染该操作卡；关闭开关时区间输入禁用。
+- 非 GitHub Release LPK 地址不再隐藏操作卡；关闭开关时区间输入禁用，尝试启用会显示后端的资格校验错误。
+- 软件管理员和站点管理员可在应用管理列表多选应用并一次批量启用。确认弹窗要求选择统一的检查间隔（1 到 720 小时，默认 24 小时）；客户端复用现有逐应用策略接口写入 `enabled: true` 和该间隔。单个失败不阻断后续应用，结束后汇总成功和失败数量。
+- 协作者的权限不因本次变更扩大；协作者仍可发布版本，但不能查看或修改自动发布策略。
 
 ## Success Criteria
 

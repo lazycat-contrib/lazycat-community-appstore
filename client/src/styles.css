@@ -3981,6 +3981,14 @@ body,
   font-size: 12px;
 }
 
+.collection-picker-search {
+  margin-bottom: 8px;
+}
+
+.collection-picker-empty {
+  margin: 10px 0 2px;
+}
+
 .collection-app-options {
   display: grid;
   gap: 6px;

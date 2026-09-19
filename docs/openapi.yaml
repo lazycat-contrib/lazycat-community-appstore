@@ -558,7 +558,7 @@ paths:
     patch:
       tags: [Versions]
       summary: Configure automatic GitHub Release LPK checks
-      description: Only the app owner or an administrator may configure this policy. The latest approved version must use a standard GitHub Release LPK URL. The server uses the GitHub asset digest and never downloads the LPK for this workflow.
+      description: Only the app owner or an administrator may configure this policy. The latest approved version must use a standard GitHub Release LPK URL. Strict SemVer and numeric dotted versions such as 2026.09.18.1622 are supported. The server uses the GitHub asset digest and never downloads the LPK for this workflow.
       parameters:
         - $ref: "#/components/parameters/ID"
       requestBody:

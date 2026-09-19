@@ -283,8 +283,8 @@ func (s *Server) handleUpdateGitHubLPKUpdatePolicy(w http.ResponseWriter, r *htt
 			writeError(w, http.StatusUnprocessableEntity, "GITHUB_LPK_UPDATE_UNSUPPORTED", parseErr.Error(), nil)
 			return
 		}
-		if canonicalGitHubVersion(latest.Version) == "" {
-			writeError(w, http.StatusUnprocessableEntity, "GITHUB_LPK_UPDATE_UNSUPPORTED", "The current published version must be valid SemVer", nil)
+		if !isSupportedGitHubReleaseVersion(latest.Version) {
+			writeError(w, http.StatusUnprocessableEntity, "GITHUB_LPK_UPDATE_UNSUPPORTED", "The current published version is not supported", nil)
 			return
 		}
 	}
@@ -328,16 +328,7 @@ func (s *Server) handleUpdateGitHubLPKUpdatePolicy(w http.ResponseWriter, r *htt
 	writeJSON(w, http.StatusOK, map[string]any{"policy": toGitHubLPKUpdatePolicyDTO(saved)})
 }
 
-func (s *Server) githubLPKUpdatePolicyForApp(ctx context.Context, appID int, latest *version) *githubLPKUpdatePolicyDTO {
-	if latest == nil {
-		return nil
-	}
-	if _, err := parseGitHubReleaseLPKURL(latest.DownloadURL); err != nil {
-		return nil
-	}
-	if canonicalGitHubVersion(latest.Version) == "" {
-		return nil
-	}
+func (s *Server) githubLPKUpdatePolicyForApp(ctx context.Context, appID int) *githubLPKUpdatePolicyDTO {
 	policy, err := s.db.GitHubLPKUpdatePolicy.Query().
 		Where(githublpkupdatepolicy.AppIDEQ(appID)).
 		Only(ctx)
@@ -400,8 +391,8 @@ func (s *Server) runGitHubLPKUpdate(ctx context.Context, policy *entgo.GitHubLPK
 	if err != nil {
 		return "", errGitHubLPKUpdateUnsupported
 	}
-	if canonicalGitHubVersion(current.Version) == "" {
-		return "", errors.New("the current published version is not valid SemVer")
+	if !isSupportedGitHubReleaseVersion(current.Version) {
+		return "", errors.New("the current published version is not a supported version")
 	}
 	upstream, err := parseGitHubReleaseLPKURL(current.DownloadURL)
 	if err != nil {
@@ -445,7 +436,7 @@ func (s *Server) runGitHubLPKUpdate(ctx context.Context, policy *entgo.GitHubLPK
 	}
 	comparison, comparable := compareGitHubReleaseVersions(targetVersion, current.Version)
 	if !comparable {
-		return "", errors.New("the current published version is not valid SemVer")
+		return "", errors.New("the current published version is not comparable with the GitHub release version")
 	}
 	if comparison < 0 {
 		return current.Version, nil
@@ -780,19 +771,90 @@ func githubReleaseVersion(tag string) string {
 		return ""
 	}
 	canonical := canonicalGitHubVersion(match[1])
-	if canonical == "" {
-		return ""
+	if canonical != "" {
+		return strings.TrimPrefix(canonical, "v")
 	}
-	return strings.TrimPrefix(canonical, "v")
+	if _, ok := numericDottedVersion(match[1]); ok {
+		return match[1]
+	}
+	return ""
 }
 
 func compareGitHubReleaseVersions(left, right string) (int, bool) {
 	leftCanonical := canonicalGitHubVersion(left)
 	rightCanonical := canonicalGitHubVersion(right)
-	if leftCanonical == "" || rightCanonical == "" {
+	if leftCanonical != "" && rightCanonical != "" {
+		return semver.Compare(leftCanonical, rightCanonical), true
+	}
+	leftParts, leftOK := numericDottedVersion(left)
+	rightParts, rightOK := numericDottedVersion(right)
+	if !leftOK || !rightOK {
 		return 0, false
 	}
-	return semver.Compare(leftCanonical, rightCanonical), true
+	for i := range max(len(leftParts), len(rightParts)) {
+		leftPart := "0"
+		if i < len(leftParts) {
+			leftPart = normalizedNumericVersionPart(leftParts[i])
+		}
+		rightPart := "0"
+		if i < len(rightParts) {
+			rightPart = normalizedNumericVersionPart(rightParts[i])
+		}
+		if len(leftPart) != len(rightPart) {
+			if len(leftPart) < len(rightPart) {
+				return -1, true
+			}
+			return 1, true
+		}
+		if leftPart < rightPart {
+			return -1, true
+		}
+		if leftPart > rightPart {
+			return 1, true
+		}
+	}
+	return 0, true
+}
+
+func isSupportedGitHubReleaseVersion(value string) bool {
+	if canonicalGitHubVersion(value) != "" {
+		return true
+	}
+	_, ok := numericDottedVersion(value)
+	return ok
+}
+
+func numericDottedVersion(value string) ([]string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, false
+	}
+	if value[0] == 'v' || value[0] == 'V' {
+		value = value[1:]
+	}
+	parts := strings.Split(value, ".")
+	if len(parts) < 3 {
+		return nil, false
+	}
+	for _, part := range parts {
+		if part == "" {
+			return nil, false
+		}
+		for _, r := range part {
+			if r < '0' || r > '9' {
+				return nil, false
+			}
+		}
+	}
+	return parts, true
+}
+
+func normalizedNumericVersionPart(value string) string {
+	value = strings.TrimLeft(value, "0")
+	if value == "" {
+		return "0"
+	}
+	return value
 }
 
 func canonicalGitHubVersion(value string) string {
