@@ -97,7 +97,7 @@ test('app card layout keeps storefront specificity over global catalog rules', a
   const styles = await source('../../styles/storefront.css');
   const expectedRules = new Map([
     [':is(.storefront-page, .storefront-search-page) .app-grid', [
-      /grid-template-columns:\s*repeat\(auto-fill, minmax\(min\(100%, 240px\), var\(--catalog-card-max-width\)\)\)/,
+      /grid-template-columns:\s*repeat\(auto-fill, minmax\(min\(100%, 260px\), 1fr\)\)/,
       /gap:\s*14px/,
     ]],
     [':is(.storefront-page, .storefront-search-page) .app-card', [

@@ -2,6 +2,7 @@ import { Avatar as HumationAvatar } from '@humation/react';
 import { humation1 } from '@humation/assets-humation-1';
 import { useEffect, useState } from 'react';
 import type { User } from '../shared/types';
+import { Package } from 'lucide-react';
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
@@ -41,10 +42,15 @@ export function AppIcon({ src, seed, title, size = 46, className }: { src?: stri
     );
   }
 
-  return <AvatarIcon seed={seed} title={title} size={size} className={className} />;
+  const initial = (title || seed).trim().charAt(0).toLocaleUpperCase();
+  return <span className={cx('app-artwork app-icon-fallback', className)} aria-hidden="true" style={{ width: size, height: size }}>
+    {initial ? <span>{initial}</span> : <Package size={Math.round(size * .45)} />}
+  </span>;
 }
 
 export function UserAvatar({ user, size = 40, className, decorative = true }: { user: User; size?: number; className?: string; decorative?: boolean }) {
   const displayName = user.nickname || user.username;
-  return <AppIcon src={user.avatarUrl} seed={user.email || user.username} title={decorative ? undefined : displayName} size={size} className={className} />;
+  return user.avatarUrl
+    ? <AppIcon src={user.avatarUrl} seed={user.email || user.username} title={decorative ? undefined : displayName} size={size} className={className} />
+    : <AvatarIcon seed={user.email || user.username} title={decorative ? undefined : displayName} size={size} className={className} />;
 }

@@ -106,7 +106,7 @@ export function SourceAppGrid({
             )}
             <XButton
               type="button"
-              variant="primary"
+              variant={isUpdateAvailable ? 'primary' : 'secondary'}
               label={isPending ? t('installActivity.status.running') : actionLabel}
               icon={isPending ? <RefreshCw size={17} className="spin" /> : isUpdateAvailable ? <RefreshCw size={17} /> : <Download size={17} />}
               isDisabled={!installable || Boolean(pendingAppKey) || Boolean(activeInstallKey)}

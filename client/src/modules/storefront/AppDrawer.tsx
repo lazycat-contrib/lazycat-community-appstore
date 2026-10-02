@@ -1255,8 +1255,7 @@ export function AppDrawer({
               )}
             </div>
           </div>
-        </div>
-        <div className="detail-actions storefront-detail-actions">
+                <div className="detail-actions storefront-detail-actions">
           {isManageMode ? (
             <>
               <XButton type="button" variant="secondary" label={t('drawer.backToDetail')} icon={<ArrowLeft size={18} />} onClick={() => onModeChange('detail')} />
@@ -1321,7 +1320,9 @@ export function AppDrawer({
             </>
           )}
         </div>
-        {!isManageMode && (
+        </div>
+
+        {!isManageMode && (app.screenshots || []).length > 0 && (
           <section className="storefront-detail-section storefront-screenshot-section">
             <h3>{t('drawer.screenshots')}</h3>
             {renderScreenshotGallery(false)}

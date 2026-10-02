@@ -1,8 +1,18 @@
 /* Standalone-client-specific styles live here as pages are split out of App.tsx. */
 
-.client-summary-grid.client-discovery-summary {
-  grid-template-columns: repeat(3, minmax(0, 180px));
+.catalog-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  color: var(--muted);
+  font-size: 13px;
 }
+.catalog-status-line strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.catalog-update-count { color: var(--amber); }
+.source-advanced-options { display: grid; gap: 12px; }
+.source-advanced-options summary { cursor: pointer; padding: 12px 0; color: var(--muted); font-size: 14px; }
+.source-advanced-options[open] > :not(summary) { margin-top: 12px; }
 
 .source-app-card.client-source-app-card {
   min-height: 220px;
@@ -175,7 +185,7 @@
   border-radius: 8px;
 }
 
-.client-source-error span {
+.client-source-error > span {
   min-width: 0;
   flex: 1;
   overflow-wrap: anywhere;
@@ -1311,4 +1321,20 @@
   .spin {
     animation-duration: 1.4s !important;
   }
+}
+.app-shell-client .install-center-panel .install-center-metrics { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.app-shell-client .install-center-panel .install-center-metrics > div { display: flex; align-items: baseline; gap: 8px; min-height: 0; padding: 0; border: 0; background: transparent; }
+.app-shell-client .install-center-metrics strong { font-size: 16px; }
+
+.app-shell-client .install-center-head { display: flex; align-items: center; justify-content: flex-end; }
+.app-shell-client .install-center-actions { width: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+.app-shell-client .installed-group-updates .installed-app-card { background: var(--surface); }
+
+.client-source-row-main { grid-column: 1; grid-row: 1; }
+.client-source-row-actions { grid-column: 2; grid-row: 1; }
+.client-source-error { grid-row: 2; }
+@media (max-width: 640px) {
+  .client-source-row-main { grid-column: 1; grid-row: 1; }
+  .client-source-row-actions { grid-column: 1; grid-row: 2; }
+  .client-source-error { grid-row: 3; }
 }

@@ -220,14 +220,14 @@
 }
 
 :is(.storefront-page, .storefront-search-page) .app-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), var(--catalog-card-max-width)));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   justify-content: start;
   gap: 14px;
 }
 
 :is(.storefront-page, .storefront-search-page) .app-card {
   min-height: 230px;
-  max-width: var(--catalog-card-max-width);
+  max-width: none;
   max-height: none;
   grid-template-rows: auto minmax(0, 1fr) auto;
   background: var(--surface);
@@ -561,4 +561,53 @@
     :where(button, [role='button'], .app-card):active {
     transform: none !important;
   }
+}
+
+/* Discovery leads; subscription and operational summaries remain secondary. */
+.app-shell-server .storefront-page > .panel,
+.app-shell-server .storefront-search-page > .panel {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+.app-shell-server .hero-band.storefront-hero {
+  min-height: 0;
+  padding: 24px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+.app-shell-server .storefront-hero h1 { font-size: clamp(26px, 3vw, 36px); line-height: 1.2; }
+.app-shell-server .storefront-hero-copy p { max-width: 64ch; }
+.app-shell-server .storefront-page .store-metrics { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.app-shell-server .storefront-page .metric-card {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.app-shell-server .storefront-page .metric-card strong { font-size: 16px; }
+.app-shell-server .storefront-page .metric-card small { display: none; }
+.app-shell-server .storefront-subscribe-panel { padding-top: 24px !important; border-top: 1px solid var(--line) !important; }
+.source-feed-url { display: block; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; overflow-wrap: anywhere; background: var(--field); }
+.app-shell-server :is(.storefront-page, .storefront-search-page) .app-meta span { border: 0; padding: 0; background: transparent; }
+.app-shell-server :is(.storefront-page, .storefront-search-page) .app-meta { gap: 8px 14px; }
+.app-shell-server .storefront-page .category-rail-panel .section-title { display: none; }
+.app-shell-server .storefront-page .category-rail-panel { margin-top: -8px; }
+.storefront-navigation { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 16px; padding-bottom: 4px; }
+.storefront-navigation > button { flex: 0 0 auto; }
+.storefront-navigation > button[aria-current='page'] { background: var(--subtle-surface); font-weight: 650; }
+.app-shell-storefront .main { max-width: 1320px; margin-inline: auto; width: 100%; }
+@media (max-width: 520px) {
+  .app-shell-server .hero-band.storefront-hero { padding: 8px 0 12px; }
+  .app-shell-server .storefront-page { gap: 20px; }
+  .app-shell-server .storefront-hero h1 { font-size: 26px; }
+  .app-shell-server .hero-actions { margin-top: 12px; }
+  .storefront-navigation { margin-bottom: 8px; }
 }

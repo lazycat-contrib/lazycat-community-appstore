@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { UnsavedChangesProvider } from './shared/UnsavedChanges';
 import './i18n';
 import '@astryxdesign/core/reset.css';
 import '@astryxdesign/core/astryx.css';
@@ -15,6 +16,6 @@ import './styles.css';
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <UnsavedChangesProvider><App /></UnsavedChangesProvider>
   </React.StrictMode>,
 );

@@ -1629,14 +1629,14 @@ body,
 
 .app-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), var(--catalog-card-max-width)));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   justify-content: start;
   gap: 12px;
 }
 
 .source-app-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), var(--catalog-card-max-width)));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   justify-content: start;
   gap: 12px;
 }
@@ -1650,8 +1650,8 @@ body,
   gap: 12px;
   min-width: 0;
   width: 100%;
-  max-width: var(--catalog-card-max-width);
-  min-height: 250px;
+  max-width: none;
+  min-height: 220px;
   max-height: var(--catalog-card-max-height);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   align-self: start;

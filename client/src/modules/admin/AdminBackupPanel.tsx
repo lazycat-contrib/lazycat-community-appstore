@@ -1,3 +1,4 @@
+import { useUnsavedChanges } from '../../shared/UnsavedChanges';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, CloudUpload, Database, HardDrive, Play, RefreshCw, Server, XCircle } from 'lucide-react';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
@@ -163,8 +164,19 @@ export function AdminBackupPanel({
     }));
   }
 
+  useUnsavedChanges(() => ({
+    isDirty: !areAdminDraftsEqual(draftRef.current, savedDraftRef.current),
+    save: () => saveSettings(),
+    discard: () => {
+      draftRef.current = savedDraftRef.current;
+      setDraft(savedDraftRef.current);
+      setSaveStatus('idle');
+    },
+  }));
+
   async function saveSettings() {
-    if (areAdminDraftsEqual(draftRef.current, savedDraftRef.current) || activeActionRef.current) return;
+    if (areAdminDraftsEqual(draftRef.current, savedDraftRef.current)) return true;
+    if (activeActionRef.current) return false;
     activeActionRef.current = 'save';
     const draftSnapshot = draftRef.current;
     const draftRevision = draftRevisionRef.current;
@@ -193,11 +205,13 @@ export function AdminBackupPanel({
       }
       setOperationResult({ variant: 'success', title: t('admin.backup.title'), message: t('admin.backup.saved'), occurredAt: new Date().toISOString() });
       setToast({ tone: 'success', message: t('admin.backup.saved') });
+      return draftRevision === draftRevisionRef.current;
     } catch (error) {
       const message = errorMessage(error, t('admin.backup.saveFailed'));
       setSaveStatus(draftRevision === draftRevisionRef.current ? 'error' : 'dirty');
       setOperationResult({ variant: 'error', title: t('admin.backup.title'), message, occurredAt: new Date().toISOString() });
       setToast({ tone: 'error', message });
+      return false;
     } finally {
       setIsSaving(false);
       activeActionRef.current = null;
@@ -242,6 +256,8 @@ export function AdminBackupPanel({
       activeActionRef.current = null;
     }
   }
+
+
 
   return (
     <div className="settings-section backup-manager">

@@ -134,12 +134,7 @@ export function StorefrontSearch({
     onViewStateChange((current) => (current.page === currentPage ? current : { ...current, page: currentPage }));
   }, [currentPage, onViewStateChange, page]);
 
-  useEffect(() => {
-    const nextPageSize = defaultPageSize || 24;
-    onViewStateChange((current) => (
-      current.pageSize === nextPageSize ? current : { ...current, page: 1, pageSize: nextPageSize }
-    ));
-  }, [defaultPageSize, onViewStateChange]);
+
 
   return (
     <section className="page-grid storefront-search-page">
@@ -148,7 +143,6 @@ export function StorefrontSearch({
         <p>{t('search.serverDescription')}</p>
       </div>
       <section className="panel storefront-search-panel">
-        <SectionTitle icon={Search} title={t('search.localStore')} />
         {categories.length > 0 && (
           <CategoryBrowser
             categories={categories}
@@ -165,7 +159,6 @@ export function StorefrontSearch({
             label={t('search.catalogSearchLabel')}
             placeholder={t('search.catalogSearchPlaceholder')}
             startIcon={<Search size={16} />}
-            resultCount={t('search.resultCount', { count: filteredApps.length })}
             popoverSaveButtonLabel={t('common.apply')}
             tokenOverflowBehavior="unfocusedInline"
             hasClear

@@ -589,3 +589,16 @@
     flex-direction: column;
   }
 }
+.admin-overview-details > summary { color: var(--muted); font-size: 14px; cursor: pointer; padding: 10px 0; }
+.admin-overview-details[open] > .panel { margin-top: 12px; }
+.app-shell-server .admin-shell > .page-heading { margin-bottom: 0; }
+.app-shell-server .admin-task-header { box-shadow: none; }
+.app-shell-server .admin-metric-grid.compact { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.app-shell-server .admin-metric-grid.compact .admin-metric-card { min-height: 0; padding: 12px; }
+.app-shell-server .admin-metric-grid.compact .admin-metric-card p,
+.app-shell-server .admin-metric-grid.compact .admin-metric-card .astryx-badge { display: none; }
+@media (max-width: 640px) {
+  .app-shell-server .admin-metric-grid.compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.admin-review-counts { display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--muted); font-size: 13px; padding-bottom: 16px; }
+.admin-review-counts strong { color: var(--ink); font-variant-numeric: tabular-nums; }

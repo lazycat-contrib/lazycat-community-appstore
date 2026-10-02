@@ -1,3 +1,4 @@
+import { useUnsavedChanges } from '../../shared/UnsavedChanges';
 import { AlertCircle, CalendarClock, Check, Clock3, Download, Gauge, History, Info, KeyRound, RefreshCw, Save, ShieldCheck, Sparkles } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +44,8 @@ export function ClientSettingsView({
   const { t } = useTranslation();
   const [baseline, setBaseline] = useState<ClientSettings>(settings);
   const [draft, setDraft] = useState<ClientSettings>(settings);
+  const draftRef = useRef(settings);
+  const baselineRef = useRef(settings);
   const [activeTab, setActiveTab] = useState<ClientSettingsTab>('sync');
   const [saveResult, setSaveResult] = useState<SaveResult>('idle');
   const [saveError, setSaveError] = useState('');
@@ -60,6 +63,7 @@ export function ClientSettingsView({
 
   function updateDraft(next: ClientSettings) {
     editRevisionRef.current += 1;
+    draftRef.current = next;
     setDraft(next);
     setSaveError('');
     setCFError('');
@@ -71,14 +75,17 @@ export function ClientSettingsView({
     const pending = pendingSaveRef.current;
     if (pending) {
       const hasNewerEdits = editRevisionRef.current !== pending.revision;
+      baselineRef.current = next;
       setBaseline(next);
-      if (!hasNewerEdits) setDraft(next);
+      if (!hasNewerEdits) { draftRef.current = next; setDraft(next); }
       setSaveError('');
       if (!saveInFlightRef.current) setSaveResult(hasNewerEdits ? 'idle' : 'saved');
       pendingSaveRef.current = null;
       return;
     }
     if (saveInFlightRef.current) return;
+    baselineRef.current = next;
+    draftRef.current = next;
     setBaseline(next);
     setDraft(next);
     setSaveError('');
@@ -116,7 +123,7 @@ export function ClientSettingsView({
 
   const intervalValue = String(draft.autoSyncIntervalMinutes || 60);
   const updateIntervalValue = String(draft.autoUpdateIntervalMinutes || 60);
-  const syncStatusClass = syncState === 'failed' ? 'failed' : syncState === 'partial' ? 'stale' : syncState === 'off' ? 'unsynced' : 'synced';
+  const syncStatusClass = syncState === 'failed' ? 'failed' : syncState === 'partial' ? 'stale' : syncState === 'off' ? 'neutral' : 'synced';
   const autoUpdateState = !draft.autoUpdateEnabled
     ? 'off'
     : settings.lastAutoUpdateStatus === 'failed'
@@ -126,7 +133,7 @@ export function ClientSettingsView({
         : settings.lastAutoUpdateAt
           ? 'ready'
           : 'waiting';
-  const autoUpdateStatusClass = autoUpdateState === 'failed' ? 'failed' : autoUpdateState === 'partial' ? 'stale' : autoUpdateState === 'off' ? 'unsynced' : 'synced';
+  const autoUpdateStatusClass = autoUpdateState === 'failed' ? 'failed' : autoUpdateState === 'partial' ? 'stale' : autoUpdateState === 'off' ? 'neutral' : 'synced';
   const autoUpdateSchedule = autoUpdateSchedulePresentation({
     enabled: settings.autoUpdateEnabled,
     intervalMinutes: settings.autoUpdateIntervalMinutes,
@@ -167,9 +174,11 @@ export function ClientSettingsView({
 
   async function saveSettings(event?: Pick<FormEvent, 'preventDefault'>) {
     event?.preventDefault();
-    if (!isDirty || saveInFlightRef.current) return;
-    const payload = normalizeEditableClientSettings(draft);
-    const submitted = { ...draft, ...payload };
+    if (sameEditableClientSettings(draftRef.current, baselineRef.current)) return true;
+    if (saveInFlightRef.current) return false;
+    const currentDraft = draftRef.current;
+    const payload = normalizeEditableClientSettings(currentDraft);
+    const submitted = { ...currentDraft, ...payload };
     const submission: PendingSave = { settings: submitted, revision: editRevisionRef.current };
     saveInFlightRef.current = true;
     pendingSaveRef.current = submission;
@@ -179,11 +188,13 @@ export function ClientSettingsView({
       await onSave(payload);
       const hasNewerEdits = editRevisionRef.current !== submission.revision;
       if (pendingSaveRef.current === submission) {
+        baselineRef.current = submitted;
         setBaseline(submitted);
-        if (!hasNewerEdits) setDraft(submitted);
+        if (!hasNewerEdits) { draftRef.current = submitted; setDraft(submitted); }
       }
       setSaveResult(hasNewerEdits ? 'idle' : 'saved');
       setToast({ tone: 'success', message: t('clientSettings.saved') });
+      return !hasNewerEdits;
     } catch (error) {
       if (pendingSaveRef.current === submission) pendingSaveRef.current = null;
       if (error instanceof Error && 'code' in error && error.code === 'INVALID_CF_ENDPOINT') {
@@ -192,10 +203,17 @@ export function ClientSettingsView({
       }
       setSaveError(errorMessage(error, t('clientSettings.saveFailed')));
       setSaveResult('error');
+      return false;
     } finally {
       saveInFlightRef.current = false;
     }
   }
+
+  useUnsavedChanges(() => ({
+    isDirty: !sameEditableClientSettings(draftRef.current, baselineRef.current),
+    save: () => saveSettings(),
+    discard: () => { draftRef.current = baselineRef.current; setDraft(baselineRef.current); setSaveResult('idle'); setSaveError(''); setCFError(''); },
+  }));
 
   async function runMirrorBenchmarkNow() {
     if (!onRunMirrorBenchmark || isBenchmarkRunning) return;
@@ -213,37 +231,9 @@ export function ClientSettingsView({
     <section className="page-grid client-settings-page">
       <div className="page-heading settings-hero">
         <div>
-          <span className="eyebrow subtle">{t('mode.standaloneClient')}</span>
           <h1>{t('clientSettings.title')}</h1>
           <p>{t('clientSettings.subtitle')}</p>
         </div>
-      </div>
-
-      <div className="settings-overview-grid" aria-label={t('clientSettings.overview')}>
-        <XCard className="settings-signal-card" padding={4}>
-          <span>
-            <Clock3 size={17} />
-            {t('clientSettings.autoSync')}
-          </span>
-          <strong>{draft.autoSyncEnabled ? t('common.on') : t('common.off')}</strong>
-          <small>{draft.autoSyncEnabled ? t('clientSettings.everyMinutes', { count: draft.autoSyncIntervalMinutes || 60 }) : t('clientSettings.autoSyncOffHint')}</small>
-        </XCard>
-        <XCard className="settings-signal-card" padding={4}>
-          <span>
-            <RefreshCw size={17} />
-            {t('clientSettings.lastRun')}
-          </span>
-          <strong>{settings.lastAutoSyncAt ? formatDate(settings.lastAutoSyncAt) : t('clientSettings.neverRun')}</strong>
-          <small>{settings.lastAutoSyncError || t(`clientSettings.syncStates.${syncState}`)}</small>
-        </XCard>
-        <XCard className="settings-signal-card" padding={4}>
-          <span>
-            <Sparkles size={17} />
-            {t('clientSettings.cachedApps')}
-          </span>
-          <strong>{sourceStats.installableSourceAppCount}</strong>
-          <small>{t('clientSettings.sourceSummary', { sources: sourceStats.sourceCount, synced: sourceStats.syncedSourceCount })}</small>
-        </XCard>
       </div>
 
       <form className="client-settings-layout" onSubmit={saveSettings}>
@@ -267,7 +257,7 @@ export function ClientSettingsView({
           </div>
           <p className="muted-text">{t('clientSettings.syncBody')}</p>
 
-          <XSwitch
+          <XSwitch labelPosition="start"
             label={t('clientSettings.autoSync')}
             labelTooltip={draft.autoUpdateEnabled ? t('clientSettings.autoSyncRequiredByUpdates') : t('clientSettings.autoSyncHelp')}
             value={draft.autoSyncEnabled}
@@ -287,7 +277,7 @@ export function ClientSettingsView({
             onChange={(value) => updateDraft({ ...draft, autoSyncIntervalMinutes: Number(value) || 60 })}
           />
 
-          <XSwitch
+          <XSwitch labelPosition="start"
             label={t('clientSettings.syncOnStartup')}
             description={t('clientSettings.syncOnStartupHelp')}
             value={draft.syncOnStartup}
@@ -331,7 +321,7 @@ export function ClientSettingsView({
             </div>
 
             <div className="client-auto-update-fields">
-              <XSwitch
+              <XSwitch labelPosition="start"
                 label={t('clientSettings.autoUpdate')}
                 description={draft.autoUpdateEnabled ? t('clientSettings.autoUpdateOnHint') : t('clientSettings.autoUpdateOffHint')}
                 value={draft.autoUpdateEnabled}
@@ -418,7 +408,7 @@ export function ClientSettingsView({
             <StatusBadge tone="synced" label={t('clientSettings.localOnly')} />
           </div>
           <p className="muted-text">{t('clientSettings.installBody')}</p>
-          <XSwitch
+          <XSwitch labelPosition="start"
             label={t('clientSettings.autoUpdateNotify')}
             description={t('clientSettings.autoUpdateNotifyHelp')}
             value={draft.autoUpdateNotifyEnabled}
@@ -435,7 +425,7 @@ export function ClientSettingsView({
                 <p>{t('clientSettings.mirrorBenchmarkHelp')}</p>
               </div>
               <StatusBadge
-                tone={mirrorBenchmarkState === 'failed' ? 'failed' : mirrorBenchmarkState === 'partial' ? 'stale' : mirrorBenchmarkState === 'off' ? 'unsynced' : 'synced'}
+                tone={mirrorBenchmarkState === 'failed' ? 'failed' : mirrorBenchmarkState === 'partial' ? 'stale' : mirrorBenchmarkState === 'off' ? 'neutral' : 'synced'}
                 label={t(`clientSettings.mirrorBenchmarkStates.${mirrorBenchmarkState}`)}
               />
             </header>
@@ -456,7 +446,7 @@ export function ClientSettingsView({
               </div>
             </div>
             <div className="client-auto-update-fields">
-              <XSwitch
+              <XSwitch labelPosition="start"
                 label={t('clientSettings.mirrorBenchmarkEnabled')}
                 description={draft.mirrorBenchmarkEnabled ? t('clientSettings.mirrorBenchmarkOnHint') : t('clientSettings.mirrorBenchmarkOffHint')}
                 value={draft.mirrorBenchmarkEnabled}

@@ -70,7 +70,7 @@ export function AppGrid({
             <XButton
               className="app-card-primary-action"
               type="button"
-              variant="primary"
+              variant="secondary"
               label={installable ? `${actionLabel} ${appName}` : t('app.installUnavailable', { name: appName })}
               icon={<ActionIcon size={17} />}
               isDisabled={!installable || pendingAppID !== null}

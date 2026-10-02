@@ -208,7 +208,6 @@ export function SourceAppDetailPage({
         <header className="detail-head">
           <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={appName} className="detail-avatar" />
           <div>
-            <span className="eyebrow subtle">{t('sourceDetail.eyebrow')}</span>
             <h2 id={detailTitleId}>{appName}</h2>
             <p>{appSummary}</p>
             <div className="app-meta">
@@ -226,25 +225,6 @@ export function SourceAppDetailPage({
                 <XBadge variant="warning" icon={<AlertCircle size={13} />} label={t('sourceDetail.outdatedBadge', { count: outdatedCount })} />
               )}
             </div>
-          </div>
-        </header>
-
-        <XCard className={cx('install-trust', trustState)} variant={trustCardVariant} padding={4} aria-label={t('drawer.installReadiness')}>
-          <div className="install-trust-lead">
-            <TrustIcon size={22} />
-            <div>
-              <strong>{trustTitle}</strong>
-              <span>{trustBody}</span>
-              {!installable && <small>{t('sourceDetail.installBlockedHint')}</small>}
-            </div>
-          </div>
-          <div className="trust-facts" role="list">
-            {trustFacts.map((fact) => (
-              <div role="listitem" key={fact.label}>
-                <span>{fact.label}</span>
-                <strong>{fact.value}</strong>
-              </div>
-            ))}
           </div>
           <div className="source-detail-actions">
             <XButton
@@ -276,6 +256,26 @@ export function SourceAppDetailPage({
               />
             )}
           </div>
+        </header>
+
+        <XCard className={cx('install-trust', trustState)} variant={trustCardVariant} padding={4} aria-label={t('drawer.installReadiness')}>
+          <div className="install-trust-lead">
+            <TrustIcon size={22} />
+            <div>
+              <strong>{trustTitle}</strong>
+              <span>{trustBody}</span>
+              {!installable && <small>{t('sourceDetail.installBlockedHint')}</small>}
+            </div>
+          </div>
+          <div className="trust-facts" role="list">
+            {trustFacts.map((fact) => (
+              <div role="listitem" key={fact.label}>
+                <span>{fact.label}</span>
+                <strong>{fact.value}</strong>
+              </div>
+            ))}
+          </div>
+
         </XCard>
 
         <XCard className={cx('install-trust', installedMatch ? 'ready' : 'caution')} variant={installedCardVariant} padding={4} aria-label={t('sourceDetail.installedTitle')}>
@@ -372,6 +372,7 @@ export function SourceAppDetailPage({
           </section>
         )}
 
+        {sourceScreenshots.length > 0 && (
         <section>
           <div className="section-title">
             <Archive size={19} />
@@ -393,6 +394,8 @@ export function SourceAppDetailPage({
             <EmptyState icon={Archive} title={t('drawer.noScreenshots')} />
           )}
         </section>
+
+        )}
 
         <section className="source-version-panel">
           <div className="section-title">

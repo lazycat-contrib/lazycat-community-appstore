@@ -5,6 +5,7 @@ const zh = {
         zh: '中文',
         en: 'English',
       },
+      appearance: { title: '外观与语言' },
       theme: {
         label: '主题',
         selector: '界面主题',
@@ -47,7 +48,10 @@ const zh = {
         enableSourceAds: '允许显示广告',
         disableSourceAds: '不显示广告',
       },
+      unsaved: { title: '有未保存的更改', body: '离开前保存更改，或放弃本次修改。', stay: '继续编辑', discard: '放弃更改', save: '保存并离开', saveFailed: '未能保存全部更改，请继续编辑并重试。' },
+      filePicker: { unsupported: '不支持文件「{{name}}」的格式。', limit: '最多选择 {{count}} 个文件。' },
       common: {
+        clearSelection: '清除已选文件',
         all: '全部',
         app: '应用',
         apps: '应用',
@@ -348,7 +352,7 @@ const zh = {
       search: {
         serverTitle: '商店探索',
         serverDescription: '组合关键词、维护者和标签，快速找到适合这台 NAS 的应用。',
-        clientTitle: '软件源安装器',
+        clientTitle: '应用',
         clientDescription: '从已同步的软件源筛选应用，并安装到当前设备。',
         sort: '排序',
         defaultOrder: '默认顺序',
@@ -415,6 +419,7 @@ const zh = {
         noFilterResultsBody: '当前筛选下没有应用，切回全部或先同步软件源再试。',
       },
       sources: {
+        advancedOptions: '密码与群组选项',
         title: '软件源',
         subtitle: '客户端只负责订阅、同步和安装。服务端不是必需项，任何兼容 /source/v2/index.json 的地址都可以添加。',
         onboardingTitle: '添加第一个软件源',

@@ -149,12 +149,7 @@ export function ClientCatalog({
     onViewStateChange((current) => (current.page === currentPage ? current : { ...current, page: currentPage }));
   }, [currentPage, onViewStateChange, page]);
 
-  useEffect(() => {
-    const nextPageSize = defaultPageSize || 24;
-    onViewStateChange((current) => (
-      current.pageSize === nextPageSize ? current : { ...current, page: 1, pageSize: nextPageSize }
-    ));
-  }, [defaultPageSize, onViewStateChange]);
+
 
   const sourceEmptyTitle = sourceApps.length === 0 ? t('search.noSyncedApps') : t('search.noResultsTitle');
   const sourceEmptyBody =
@@ -168,36 +163,19 @@ export function ClientCatalog({
     <section className="page-grid">
       <div className="page-heading with-action">
         <div>
-          <span className="eyebrow subtle">{t('search.sourceCount', { count: sourceStats.sourceCount })}</span>
           <h1>{t('search.clientTitle')}</h1>
-          <p>{t('search.clientDescription')}</p>
         </div>
         <div className="row-actions">
           <XButton type="button" variant="secondary" label={t('wishWall.title')} icon={<Lightbulb size={18} />} onClick={onGoWishWall} />
           <XButton type="button" variant="secondary" label={t('search.noSyncedAppsAction')} icon={<Cloud size={18} />} onClick={onGoSources} />
         </div>
       </div>
-      <div className="client-summary-grid client-discovery-summary" role="group" aria-label={t('search.installReadiness')}>
-        <div>
-          <span>{t('search.sourcesTotal')}</span>
-          <strong>{sourceStats.sourceCount}</strong>
-        </div>
-        <div>
-          <span>{t('search.syncedAppsTotal')}</span>
-          <strong>{sourceStats.sourceAppCount}</strong>
-        </div>
-        <div className={cx(updateSourceApps.length > 0 && 'warning')}>
-          <span>{t('search.updatesAvailable')}</span>
-          <strong>{updateSourceApps.length}</strong>
-        </div>
+      <div className="catalog-status-line" role="status">
+        <span>{t('search.sourceCount', { count: sourceStats.sourceCount })}</span>
+        <span>{t('search.syncedAppsTotal')} <strong>{sourceStats.sourceAppCount}</strong></span>
+        {updateSourceApps.length > 0 && <span className="catalog-update-count">{t('search.updatesAvailable')} <strong>{updateSourceApps.length}</strong></span>}
       </div>
       <section className="panel">
-        <div className="section-title">
-          <div>
-            <Download size={19} />
-            <h2>{t('search.subscribedApps')}</h2>
-          </div>
-        </div>
         <div className="catalog-search-toolbar">
           <PowerSearch
             className="catalog-filter-search"

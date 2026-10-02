@@ -1,3 +1,4 @@
+import { useNavigationGuard, useUnsavedChanges } from '../../shared/UnsavedChanges';
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Archive, Check, CloudUpload, Copy, DatabaseBackup, Download, Gauge, KeyRound, Layers3, Megaphone, MessageSquare, Pencil, Plus, Save, Server, Settings, ShieldCheck, Tag, Trash2, Upload, Users, X } from 'lucide-react';
 import { Badge as XBadge } from '@astryxdesign/core/Badge';
@@ -141,6 +142,7 @@ export function AdminPanel({
   setToast: (toast: Toast) => void;
 }) {
   const { t } = useTranslation();
+  const { requestNavigation } = useNavigationGuard();
   const [adminTab, setAdminTab] = useState<AdminTask>('reviews');
   const [users, setUsers] = useState<User[]>([]);
   const [userPagination, setUserPagination] = useState<PaginationMeta>(DEFAULT_LIST_PAGINATION);
@@ -492,7 +494,8 @@ export function AdminPanel({
 
   async function saveSettings(event?: FormEvent) {
     event?.preventDefault();
-    if (settingsSaveInFlightRef.current || areAdminDraftsEqual(settingsRef.current, savedSettingsRef.current)) return;
+    if (areAdminDraftsEqual(settingsRef.current, savedSettingsRef.current)) return true;
+    if (settingsSaveInFlightRef.current) return false;
     settingsSaveInFlightRef.current = true;
     const settingsSaveRequestID = ++settingsSaveRequestSequenceRef.current;
     ++settingsRequestSequenceRef.current;
@@ -502,7 +505,7 @@ export function AdminPanel({
     try {
       await api('/api/v1/admin/settings', { method: 'PATCH', body: JSON.stringify(settingsSnapshot) });
       const settingData = await api<{ settings: Record<string, string> }>('/api/v1/admin/settings', { method: 'GET' });
-      if (settingsSaveRequestID !== settingsSaveRequestSequenceRef.current) return;
+      if (settingsSaveRequestID !== settingsSaveRequestSequenceRef.current) return false;
       const normalizedSettings = settingData.settings || {};
       const draftUnchanged = settingsRevision === settingsRevisionRef.current;
       savedSettingsRef.current = normalizedSettings;
@@ -516,12 +519,13 @@ export function AdminPanel({
       }
       settingsSaveInFlightRef.current = false;
       setToast({ tone: 'success', message: t('admin.settingsSaved') });
+      if (!draftUnchanged) return false;
     } catch (error) {
-      if (settingsSaveRequestID !== settingsSaveRequestSequenceRef.current) return;
+      if (settingsSaveRequestID !== settingsSaveRequestSequenceRef.current) return false;
       settingsSaveInFlightRef.current = false;
       setSettingsSaveStatus('error');
       setToast({ tone: 'error', message: errorMessage(error, t('admin.settingsSaveFailed')) });
-      return;
+      return false;
     }
     try {
       await onSiteProfileSaved();
@@ -530,8 +534,8 @@ export function AdminPanel({
         setToast({ tone: 'neutral', message: `${t('admin.settingsSaved')} · ${errorMessage(error, t('admin.loadFailed'))}` });
       }
     }
+    return true;
   }
-
   async function updateForceAdsDisplay(forceAdsDisplay: boolean) {
     const value = forceAdsDisplay ? 'true' : 'false';
     await api('/api/v1/admin/settings', {
@@ -581,7 +585,8 @@ export function AdminPanel({
   }
 
   async function saveStorageSettings() {
-    if (!storageDirty || !startStorageAction('save')) return;
+    if (areAdminDraftsEqual(storageSettingsPayload(storageDraftRef.current), storageSettingsPayload(selectedStorageRecord))) return true;
+    if (!startStorageAction('save')) return false;
     const storageSnapshot = storageDraftRef.current;
     const storageRevision = storageRevisionRef.current;
     setStorageSaveStatus('saving');
@@ -602,11 +607,13 @@ export function AdminPanel({
       setStorageResult({ variant: 'success', title: t('admin.storageSettings'), message: t('admin.storageSaved'), occurredAt: new Date().toISOString(), target: saved.name || saved.key });
       setToast({ tone: 'success', message: t('admin.storageSaved') });
       await notifyStorageOptionsChanged(t('admin.storageSaved'));
+      return storageRevision === storageRevisionRef.current;
     } catch (error) {
       const message = errorMessage(error, t('admin.storageSaveFailed'));
       setStorageSaveStatus(storageRevision === storageRevisionRef.current ? 'error' : 'dirty');
       setStorageResult({ variant: 'error', title: t('admin.storageSettings'), message, occurredAt: new Date().toISOString(), target: storageSnapshot.name || storageSnapshot.key });
       setToast({ tone: 'error', message });
+      return false;
     } finally {
       finishStorageAction();
     }
@@ -1279,18 +1286,36 @@ export function AdminPanel({
     }
   }
 
+  useUnsavedChanges(() => ({
+    isDirty: !areAdminDraftsEqual(settingsRef.current, savedSettingsRef.current),
+    save: () => saveSettings(),
+    discard: () => {
+      settingsRef.current = savedSettingsRef.current;
+      setSettings(savedSettingsRef.current);
+      setSettingsSaveStatus('idle');
+    },
+  }));
+  useUnsavedChanges(() => ({
+    isDirty: !areAdminDraftsEqual(storageSettingsPayload(storageDraftRef.current), storageSettingsPayload(selectedStorageRecord)),
+    save: () => saveStorageSettings(),
+    discard: () => {
+      const original = storageRecords.find((record) => record.key === selectedStorageKey) || defaultStorageSettings;
+      storageDraftRef.current = original;
+      setStorageDraft(original);
+      setStorageSaveStatus('idle');
+    },
+  }));
+
   const taskHeader = activeTaskHeader();
   const activeDeleteCopy = deleteTarget ? deleteDialogCopy(deleteTarget) : null;
 
   return (
     <section className="page-grid admin-shell">
       <div className="page-heading">
-        <span className="eyebrow subtle">{t('admin.eyebrow')}</span>
-        <h1>{t('admin.title')}</h1>
-        <p>{t('admin.body')}</p>
+        <h1>{t('nav.admin')}</h1>
       </div>
       <div className="horizontal-control-scroll admin-primary-tabs">
-        <XTabList value={adminTab} onChange={(value) => setAdminTab(value as typeof adminTab)} hasDivider size="md">
+        <XTabList value={adminTab} onChange={(value) => { const change = () => setAdminTab(value as typeof adminTab); if (adminTab === 'backup') requestNavigation(change); else change(); }} hasDivider size="md">
           {adminTabs.map((item) => {
             const Icon = item.icon;
             return <XTab key={item.key} value={item.key} label={item.label} icon={<Icon size={17} />} />;
@@ -1300,6 +1325,8 @@ export function AdminPanel({
       <AdminTaskHeader {...taskHeader} />
       {adminTab === 'reviews' && (
       <>
+      <details className="admin-overview-details">
+        <summary>{t('admin.operationsOverview')}</summary>
       <section className="panel">
         <SectionTitle icon={Gauge} title={t('admin.operationsOverview')} />
         <div className="admin-metric-grid" aria-label={t('admin.operationsOverview')}>
@@ -1326,37 +1353,13 @@ export function AdminPanel({
           })}
         </div>
       </section>
+      </details>
       <section className="panel">
-        <SectionTitle icon={ShieldCheck} title={t('admin.reviewQueue')} />
-        <div className="admin-metric-grid compact" aria-label={t('admin.reviewSummary')}>
-          {renderAdminMetric({
-            label: t('admin.pendingTotal'),
-            value: reviewSummary.total,
-            body: t('admin.reviewSummaryPendingBody'),
-            status: reviewSummary.total > 0 ? t('admin.opsNeedsAction') : t('admin.opsReady'),
-            variant: reviewSummary.total > 0 ? 'warning' : 'success',
-          })}
-          {renderAdminMetric({
-            label: t('admin.appSubmissions'),
-            value: reviewSummary.appSubmissions,
-            body: t('admin.reviewSummaryAppBody'),
-            status: t('reviewKinds.appsubmission'),
-            variant: 'neutral',
-          })}
-          {renderAdminMetric({
-            label: t('admin.versionUploads'),
-            value: reviewSummary.versionUploads,
-            body: t('admin.reviewSummaryVersionBody'),
-            status: t('reviewKinds.versionupload'),
-            variant: 'neutral',
-          })}
-          {renderAdminMetric({
-            label: t('admin.infoUpdates'),
-            value: reviewSummary.infoUpdates,
-            body: t('admin.reviewSummaryInfoBody'),
-            status: t('reviewKinds.appinfoupdate'),
-            variant: 'neutral',
-          })}
+        <div className="admin-review-counts" role="status" aria-label={t('admin.reviewSummary')}>
+          <span>{t('admin.pendingTotal')} <strong>{reviewSummary.total}</strong></span>
+          <span>{t('admin.appSubmissions')} <strong>{reviewSummary.appSubmissions}</strong></span>
+          <span>{t('admin.versionUploads')} <strong>{reviewSummary.versionUploads}</strong></span>
+          <span>{t('admin.infoUpdates')} <strong>{reviewSummary.infoUpdates}</strong></span>
         </div>
         {reviews.length === 0 ? (
           <EmptyState icon={ShieldCheck} title={t('admin.noPendingReviews')} body={t('admin.noPendingReviewsBody')} />
@@ -1438,7 +1441,6 @@ export function AdminPanel({
       {isSiteAdmin && adminTab === 'site' && (
         <section className="settings-layout">
           <section className="panel form-panel site-settings-panel">
-            <SectionTitle icon={Settings} title={t('admin.siteSettings')} />
             <div className="horizontal-control-scroll">
               <XTabList value={siteSettingsTab} onChange={(value) => setSiteSettingsTab(value as typeof siteSettingsTab)} hasDivider size="sm">
                 {siteSettingsTabs.map((item) => {
@@ -1693,7 +1695,7 @@ export function AdminPanel({
             draft={storageDraft}
             createDraft={storageCreateDraft}
             isCreateOpen={isStorageCreateOpen}
-            onSelect={setSelectedStorageKey}
+            onSelect={(key) => { if (storageDirty) requestNavigation(() => setSelectedStorageKey(key)); else setSelectedStorageKey(key); }}
             onDraftChange={(nextDraft) => {
               storageDraftRef.current = nextDraft;
               storageRevisionRef.current += 1;
@@ -1704,7 +1706,7 @@ export function AdminPanel({
             onOpenCreate={() => setIsStorageCreateOpen(true)}
             onCloseCreate={() => setIsStorageCreateOpen(false)}
             onCreate={createStorage}
-            onSave={saveStorageSettings}
+            onSave={async () => { await saveStorageSettings(); }}
             onTestDraft={testStorageSettings}
             onTestSaved={testSavedStorage}
             onSetDefault={setDefaultStorage}

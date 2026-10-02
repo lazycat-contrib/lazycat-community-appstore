@@ -659,47 +659,14 @@ export function ProfileView({
       <section className="page-grid">
         <div className="page-heading with-action">
           <div>
-            <span className="eyebrow subtle">{t('mode.standaloneClient')}</span>
-            <h1>{t('profile.clientTitle')}</h1>
-            <p>{t('profile.clientBody')}</p>
+            <h1>{t('nav.installed')}</h1>
+            <p>{t('profile.installedState.' + installedState)}</p>
           </div>
           <div className="row-actions">
             <XButton type="button" variant="primary" label={t('profile.openSources')} icon={<Cloud size={18} />} onClick={() => onNavigate('sources')} />
             <XButton type="button" variant="secondary" label={t('profile.browseInstallable')} icon={<Search size={18} />} onClick={() => onNavigate('search')} />
           </div>
         </div>
-        <section className="panel">
-          <SectionTitle icon={Gauge} title={t('profile.clientReadiness')} />
-          <div className="source-readiness" aria-label={t('profile.clientReadiness')}>
-            <div className={cx('readiness-step', sourceCacheReady && 'ready')}>
-              <StatusBadge
-                tone={sourceCacheReady ? 'approved' : 'unlisted'}
-                icon={sourceCacheReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                label={sourceCacheReady ? t('sources.ready') : t('sources.needsValue')}
-              />
-              <strong>{t('profile.clientSourceTitle')}</strong>
-              <small>{sourceCacheBody}</small>
-            </div>
-            <div className={cx('readiness-step', installCatalogReady && 'ready')}>
-              <StatusBadge
-                tone={installCatalogReady ? 'approved' : 'unlisted'}
-                icon={installCatalogReady ? <Check size={14} /> : <AlertCircle size={14} />}
-                label={installCatalogReady ? t('sources.ready') : t('sources.needsValue')}
-              />
-              <strong>{t('profile.clientInstallTitle')}</strong>
-              <small>{installCatalogBody}</small>
-            </div>
-            <div className={cx('readiness-step', installedLookupReady && 'ready')}>
-              <StatusBadge
-                tone={installedState === 'error' ? 'failed' : installedState === 'loading' ? 'pending' : installedLookupReady ? 'synced' : 'unsynced'}
-                icon={installedState === 'error' ? <AlertCircle size={14} /> : installedLookupReady ? <Check size={14} /> : <Gauge size={14} />}
-                label={t(`profile.installedState.${installedState}`)}
-              />
-              <strong>{t('profile.clientInstalledTitle')}</strong>
-              <small>{installedReadinessBody}</small>
-            </div>
-          </div>
-        </section>
         <InstalledAppsView
           installedApps={installedApps}
           sourceApps={sourceApps}

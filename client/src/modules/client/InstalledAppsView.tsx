@@ -6,7 +6,7 @@ import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { Switch as XSwitch } from '@astryxdesign/core/Switch';
 import { Tooltip as XTooltip } from '@astryxdesign/core/Tooltip';
-import { AvatarIcon } from '../../components/AppIcon';
+import { AppIcon } from '../../components/AppIcon';
 import { EmptyState } from '../../shared/components/Feedback';
 import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
@@ -164,7 +164,7 @@ export function InstalledAppsView({
                 {item.icon ? (
                   <img className="installed-app-icon" src={item.icon} alt="" />
                 ) : (
-                  <AvatarIcon seed={item.appid || item.title || 'installed-app'} title={item.title || item.appid} size={42} />
+                  <AppIcon seed={item.appid || item.title || 'installed-app'} title={item.title || item.appid} size={42} />
                 )}
                 <div className="installed-app-identity">
                   <strong title={item.title || item.appid || undefined}>{item.title || item.appid || t('common.app')}</strong>
@@ -207,22 +207,10 @@ export function InstalledAppsView({
     <>
       <section className="panel install-center-panel">
       <div className="install-center-head">
-        <div className="install-center-title">
-          <AvatarIcon seed="lazycat-standalone-client" title={t('profile.clientTitle')} size={58} className="avatar-large" />
-          <div>
-            <span className="eyebrow subtle">{t('profile.clientDeviceOnly')}</span>
-            <h2>{t('profile.clientInstalledTitle')}</h2>
-            <p>{t('profile.clientInstalledHelp')}</p>
-          </div>
-        </div>
         <div className="install-center-actions">
-          <div className={cx('installed-state', installedState)}>
-            <StatusBadge tone={installedState === 'error' ? 'failed' : installedState === 'loaded' ? 'synced' : installedState === 'loading' ? 'pending' : 'unsynced'} label={t(`profile.installedState.${installedState}`)} />
-            <small>{installedReadinessBody}</small>
-          </div>
           <XButton
             type="button"
-            variant="primary"
+            variant="secondary"
             label={installedState === 'loading' ? t('profile.readingInstalled') : t('common.refresh')}
             icon={<RefreshCw size={18} className={installedState === 'loading' ? 'spin' : undefined} />}
             isDisabled={installedState === 'loading'}

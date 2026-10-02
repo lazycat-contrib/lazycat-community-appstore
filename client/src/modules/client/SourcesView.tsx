@@ -401,25 +401,11 @@ export function SourcesView({
           >
             <XIconButton type="button" label={t('common.close')} variant="ghost" icon={<X size={17} />} isDisabled={savingSource} onClick={() => setIsAddSourceOpen(false)} />
             <SectionTitle icon={Cloud} title={t('sources.addTitle')} />
-            <div className="source-readiness" aria-label={t('sources.addReadiness')}>
-              <div className={cx('readiness-step', sourceNameReady && 'ready')}>
-                <StatusBadge tone={sourceNameReady ? 'approved' : 'unlisted'} icon={sourceNameReady ? <Check size={14} /> : <AlertCircle size={14} />} label={sourceNameReady ? t('sources.ready') : t('sources.needsValue')} />
-                <strong>{t('sources.readinessName')}</strong>
-                <small>{sourceNameReady ? t('sources.readinessNameReady') : t('sources.readinessNameMissing')}</small>
-              </div>
-              <div className={cx('readiness-step', sourceURLReady && 'ready')}>
-                <StatusBadge tone={sourceURLReady ? 'approved' : 'unlisted'} icon={sourceURLReady ? <Check size={14} /> : <AlertCircle size={14} />} label={sourceURLReady ? t('sources.ready') : t('sources.needsValue')} />
-                <strong>{t('sources.readinessUrl')}</strong>
-                <small>{sourceURLReady ? t('sources.readinessUrlReady') : t('sources.readinessUrlMissing')}</small>
-              </div>
-              <div className={cx('readiness-step', sourcePasswordReady && 'ready')}>
-                <StatusBadge tone={sourcePasswordReady ? 'synced' : 'unsynced'} icon={<KeyRound size={14} />} label={sourcePasswordReady ? t('sources.filled') : t('sources.optional')} />
-                <strong>{t('sources.readinessPassword')}</strong>
-                <small>{sourcePasswordReady ? t('sources.readinessPasswordReady') : t('sources.readinessPasswordOptional')}</small>
-              </div>
-            </div>
-            <XTextInput label={t('common.name')} value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
+
+            <XTextInput hasAutoFocus label={t('common.name')} value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
             <XTextInput label={t('sources.urlOrConfig')} value={draft.url} onChange={updateDraftURL} />
+            <details className="source-advanced-options">
+              <summary>{t('sources.advancedOptions')}</summary>
             <GroupCodeInput
               value={draftGroupCodes}
               isDisabled={savingSource}
@@ -429,8 +415,10 @@ export function SourcesView({
               }}
             />
             <XTextInput type="password" label={t('sources.password')} value={draft.password} onChange={(value) => setDraft({ ...draft, password: value })} />
+            </details>
             {!canAddSource && <p className="field-help">{t('sources.addBlocked')}</p>}
             {formError && <p className="inline-alert" role="alert"><AlertCircle size={15} /><span>{formError}</span></p>}
+
             <div className="dialog-actions">
               <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={18} />} isDisabled={savingSource} onClick={() => setIsAddSourceOpen(false)} />
               <XButton type="submit" variant="primary" label={savingSource ? t('common.saving') : t('sources.add')} icon={savingSource ? <RefreshCw size={18} className="spin" /> : <Cloud size={18} />} isDisabled={!canAddSource || savingSource} />

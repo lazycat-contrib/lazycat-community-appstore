@@ -1,9 +1,8 @@
 import { Copy, ExternalLink, History, Layers3, Link, LogIn, PackagePlus, Search, Tag } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { Card as XCard } from '@astryxdesign/core/Card';
-import { CodeBlock as XCodeBlock } from '@astryxdesign/core/CodeBlock';
 import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { API_BASE } from '../../config';
 import { AdSpot, visibleSiteAds } from '../../components/AdSpot';
@@ -16,6 +15,7 @@ import { CategoryBrowser } from './CategoryBrowser';
 
 type SourceCopyStatus = 'idle' | 'copied' | 'failed' | 'unsupported';
 const PAGE_SIZE_OPTIONS = [12, 24, 48, 96, 100];
+export type StorefrontHomeViewState = { page: number; pageSize: number };
 
 export function StorefrontHome({
   apps,
@@ -32,6 +32,8 @@ export function StorefrontHome({
   onCategory,
   isAuthenticated,
   ads,
+  viewState,
+  onViewStateChange,
 }: {
   apps: StoreApp[];
   appCount?: number;
@@ -47,11 +49,15 @@ export function StorefrontHome({
   onCategory: (category: string) => void;
   isAuthenticated: boolean;
   ads?: SiteAd[];
+  viewState: StorefrontHomeViewState;
+  onViewStateChange: Dispatch<SetStateAction<StorefrontHomeViewState>>;
 }) {
   const { t } = useTranslation();
   const [sourceCopyStatus, setSourceCopyStatus] = useState<SourceCopyStatus>('idle');
-  const [latestPage, setLatestPage] = useState(1);
-  const [latestPageSize, setLatestPageSize] = useState(siteProfile.defaultPageSize || 24);
+  const latestPage = viewState.page;
+  const latestPageSize = viewState.pageSize;
+  const setLatestPage = (page: number) => onViewStateChange((current) => ({ ...current, page }));
+  const setLatestPageSize = (pageSize: number) => onViewStateChange((current) => ({ ...current, pageSize }));
   const latest = useMemo(() => [...apps].sort((a, b) => {
     const updateDelta = softwareUpdatedAtMillis(b) - softwareUpdatedAtMillis(a);
     return updateDelta !== 0 ? updateDelta : localizedAppName(a).localeCompare(localizedAppName(b));
@@ -99,7 +105,6 @@ export function StorefrontHome({
     <section className="page-grid storefront-page">
       <div className={`hero-band storefront-hero${visibleAds.length === 0 ? ' storefront-hero-without-ad' : ''}`}>
         <div className="storefront-hero-copy">
-          <span className="eyebrow">{t('home.eyebrow')}</span>
           <h1>{siteProfile.title || t('home.title')}</h1>
           <p>{siteProfile.subtitle || t('home.body')}</p>
           <div className="hero-actions">
@@ -109,45 +114,6 @@ export function StorefrontHome({
         </div>
         {visibleAds.length > 0 && <AdSpot ads={visibleAds} className="storefront-hero-ad" />}
       </div>
-
-      <section className="store-metrics" aria-label={t('nav.store')}>
-        <XCard className="metric-card" padding={4}>
-          <span>{t('common.apps')}</span>
-          <strong>{approvedCount}</strong>
-          <small>{t('home.approvedCount', { count: approvedCount })}</small>
-        </XCard>
-        <XCard className="metric-card" padding={4}>
-          <span>{t('common.category')}</span>
-          <strong>{categories.length}</strong>
-          <small>{t('home.categoryCount', { count: categories.length })}</small>
-        </XCard>
-      </section>
-
-      <section className="panel storefront-subscribe-panel" aria-labelledby="storefront-subscribe-title">
-        <div className="storefront-subscribe-copy">
-          <div className="section-title">
-            <Link size={19} />
-            <h2 id="storefront-subscribe-title">{t('home.openSourceFeed')}</h2>
-          </div>
-          <p>{t('sources.subtitle')}</p>
-          <div className="storefront-source-meta">
-            <span>{t('common.version')}</span>
-            <strong>v2</strong>
-          </div>
-        </div>
-        <div className="storefront-subscribe-command">
-          <XCodeBlock code={sourceFeedURL} language="plaintext" hasLanguageLabel={false} width="100%" size="sm" />
-          <div className="storefront-subscribe-actions">
-            <XButton type="button" variant="secondary" label={t('home.copySourceFeed')} icon={<Copy size={17} />} onClick={() => void copySourceFeed()} />
-            <XButton type="button" variant="secondary" label={t('home.openSourceFeed')} icon={<ExternalLink size={17} />} onClick={openSourceFeed} />
-          </div>
-          {sourceCopyMessage && (
-            <p className="storefront-copy-status" role="status" aria-live="polite" data-tone={sourceCopyStatus}>
-              {sourceCopyMessage}
-            </p>
-          )}
-        </div>
-      </section>
 
       {categories.length > 0 && (
         <section className="panel category-rail-panel">
@@ -193,6 +159,46 @@ export function StorefrontHome({
           <AppGrid apps={collection.apps || []} onOpen={onOpen} onInstall={onInstall} lazycatInstall={lazycatInstall} />
         </section>
       ))}
+      <section className="store-metrics" aria-label={t('nav.store')}>
+        <XCard className="metric-card" padding={4}>
+          <span>{t('common.apps')}</span>
+          <strong>{approvedCount}</strong>
+          <small>{t('home.approvedCount', { count: approvedCount })}</small>
+        </XCard>
+        <XCard className="metric-card" padding={4}>
+          <span>{t('common.category')}</span>
+          <strong>{categories.length}</strong>
+          <small>{t('home.categoryCount', { count: categories.length })}</small>
+        </XCard>
+      </section>
+
+      <section className="panel storefront-subscribe-panel" aria-labelledby="storefront-subscribe-title">
+        <div className="storefront-subscribe-copy">
+          <div className="section-title">
+            <Link size={19} />
+            <h2 id="storefront-subscribe-title">{t('home.openSourceFeed')}</h2>
+          </div>
+          <p>{t('sources.subtitle')}</p>
+          <div className="storefront-source-meta">
+            <span>{t('common.version')}</span>
+            <strong>v2</strong>
+          </div>
+        </div>
+        <div className="storefront-subscribe-command">
+          <code className="source-feed-url">{sourceFeedURL}</code>
+          <div className="storefront-subscribe-actions">
+            <XButton type="button" variant="secondary" label={t('home.copySourceFeed')} icon={<Copy size={17} />} onClick={() => void copySourceFeed()} />
+            <XButton type="button" variant="secondary" label={t('home.openSourceFeed')} icon={<ExternalLink size={17} />} onClick={openSourceFeed} />
+          </div>
+          {sourceCopyMessage && (
+            <p className="storefront-copy-status" role="status" aria-live="polite" data-tone={sourceCopyStatus}>
+              {sourceCopyMessage}
+            </p>
+          )}
+        </div>
+      </section>
+
+
     </section>
   );
 }

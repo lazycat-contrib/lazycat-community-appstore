@@ -92,6 +92,7 @@ import {
   withInstallPassword,
 } from './shared/utils';
 import { AnnouncementBanner } from './components/AnnouncementBanner';
+import { AppearanceMenu } from './components/AppearanceMenu';
 import { UserAvatar } from './components/AppIcon';
 import { EmptyState, SectionTitle } from './shared/components/Feedback';
 import { ModalLayer } from './shared/components/ModalLayer';
@@ -100,8 +101,10 @@ import type { ClientCatalogViewState } from './modules/client/ClientCatalog';
 import { requiresInstallOptions } from './modules/client/clientUxState';
 import type { AppDetailMode } from './modules/storefront/AppDrawer';
 import type { StorefrontSearchViewState } from './modules/storefront/StorefrontSearch';
-import { StorefrontHome } from './modules/storefront/StorefrontHome';
+import { StorefrontHome, type StorefrontHomeViewState } from './modules/storefront/StorefrontHome';
 import { buildNavItems, type TabKey } from './modules/shell/navigation';
+import { authenticationDestination, needsClientCatalog, readShellRoute, shellRouteURL } from './modules/shell/routes';
+import { useNavigationGuard } from './shared/UnsavedChanges';
 
 const AdminPanel = lazy(() => import('./modules/admin/AdminPanel').then((module) => ({ default: module.AdminPanel })));
 const LoginPage = lazy(() => import('./modules/auth/LoginPage').then((module) => ({ default: module.LoginPage })));
@@ -184,6 +187,16 @@ function currentRoute() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
 
+function shellScrollTop() {
+  return document.getElementById('astryx-app-shell-main')?.scrollTop ?? window.scrollY;
+}
+
+function restoreShellScroll(top: number) {
+  const scroller = document.getElementById('astryx-app-shell-main');
+  if (scroller) scroller.scrollTo({ top, behavior: 'instant' });
+  else window.scrollTo({ top, behavior: 'instant' });
+}
+
 function returnToFromURL() {
   const value = new URLSearchParams(window.location.search).get('returnTo') || '/';
   if (!value.startsWith('/') || value.startsWith('//') || value.startsWith('/login')) return '/';
@@ -219,10 +232,19 @@ function installKeyForApp(app: StoreApp | SourceApp) {
 export function App() {
   const { t } = useTranslation();
   const [routeLocation, setRouteLocation] = useState(currentRoute);
+  const { requestNavigation, hasUnsavedChanges, prompt: unsavedPrompt } = useNavigationGuard();
+  const routeRef = useRef(routeLocation);
+  const historyIndex = useRef<number>(window.history.state?.storeIndex || 0);
+  const restoringPop = useRef(false);
+  const approvedPop = useRef(false);
+  const scrollPositions = useRef(new Map<string, number>());
+  const catalogDefault = useRef<number | null>(null);
+  const restoreScroll = useRef<number | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readThemeMode);
   const [astryxThemeName, setAstryxThemeName] = useState(readAstryxThemeName);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(readSystemTheme);
-	const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() || collaborationInviteTokenFromURL() ? 'profile' : HAS_API ? 'home' : 'search'));
+	const [tab, setTab] = useState<TabKey>(() => (verificationTokenFromURL() || collaborationInviteTokenFromURL() ? 'profile' : readShellRoute(currentRoute(), HAS_API).tab));
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [storeAppTotal, setStoreAppTotal] = useState(0);
   const [storeAppsComplete, setStoreAppsComplete] = useState(false);
@@ -247,6 +269,7 @@ export function App() {
     page: 1,
     pageSize: DEFAULT_CLIENT_PAGE_SIZE,
   });
+  const [storefrontHomeState, setStorefrontHomeState] = useState<StorefrontHomeViewState>({ page: 1, pageSize: DEFAULT_CLIENT_PAGE_SIZE });
   const [selectedApp, setSelectedApp] = useState<StoreApp | null>(null);
   const [selectedAppMode, setSelectedAppMode] = useState<AppDetailMode>('detail');
   const [selectedSourceApp, setSelectedSourceApp] = useState<SourceApp | null>(null);
@@ -284,6 +307,8 @@ export function App() {
   const [dismissedClientPolicyKey, setDismissedClientPolicyKey] = useState('');
   const [toast, setToast] = useState<Toast | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const initialLoadDone = useRef(false);
   const [setupRequired, setSetupRequired] = useState(false);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isSecurityDialogOpen, setIsSecurityDialogOpen] = useState(false);
@@ -291,7 +316,7 @@ export function App() {
   const [wishPendingCount, setWishPendingCount] = useState(0);
 	const acceptedCollaborationInviteRef = useRef('');
 	const defaultSourceCheckedRef = useRef(false);
-	const clientLandingResolvedRef = useRef(false);
+	const clientLandingResolvedRef = useRef(new URLSearchParams(window.location.search).has('view') || new URLSearchParams(window.location.search).has('app'));
 	const installInFlightRef = useRef(false);
 	const updateQueuePollRef = useRef(0);
 	const lastInstallRequestRef = useRef<{ app: StoreApp | SourceApp; options: InstallOptions } | null>(null);
@@ -301,6 +326,7 @@ export function App() {
     defaultRawMirrorId: '',
   }), [runtimeCapabilities.githubMirrors]);
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
+  const isPublicStorefront = HAS_API && ['home', 'search', 'wishwall'].includes(tab);
   const serverChatVisible = HAS_API && Boolean(user && siteProfile.chat?.enabled);
   const clientChatVisible = !HAS_API && sources.some((source) => source.chatAvailable && source.chatEnabled !== false);
   const navItems = buildNavItems({
@@ -370,7 +396,7 @@ export function App() {
     sources,
     setToast,
     onLoginRequired: () => openLogin('/'),
-    onOpenChat: () => setTab('chat'),
+    onOpenChat: () => navigateTo('chat'),
     onCloseStoreDetail: () => {
       setSelectedApp(null);
       setSelectedAppMode('detail');
@@ -409,9 +435,28 @@ export function App() {
     return () => window.clearTimeout(timer);
   }, [clientSettings.installSuccessDismissSeconds, installActivity]);
 
-  function navigateRoute(path: string) {
-    window.history.pushState(null, '', path);
-    setRouteLocation(currentRoute());
+  function navigateRoute(path: string, replace = false) {
+    if (path === currentRoute()) return;
+    scrollPositions.current.set(routeRef.current, shellScrollTop());
+    const oldRoute = routeRef.current;
+    if (!replace) historyIndex.current += 1;
+    const state = { storeIndex: historyIndex.current, detailReturn: readShellRoute(path, HAS_API).appId ? replace ? window.history.state?.detailReturn : oldRoute : undefined };
+    window.history[replace ? 'replaceState' : 'pushState'](state, '', path);
+    routeRef.current = currentRoute();
+    restoreScroll.current = scrollPositions.current.get(routeRef.current) || 0;
+    setRouteLocation(routeRef.current);
+  }
+
+  function closeDetails() {
+    if (window.history.state?.detailReturn) {
+      requestNavigation(() => window.history.back());
+    } else {
+      requestNavigation(() => navigateRoute(shellRouteURL({ tab }), true));
+    }
+  }
+
+  function openSourceApp(app: SourceApp) {
+    requestNavigation(() => navigateRoute(shellRouteURL({ tab, appId: app.id, sourceId: app.sourceId ?? app.sourceName })));
   }
 
   function openLogin(returnTo = '/', options: { mode?: AuthMode; next?: 'submit' | 'admin' } = {}) {
@@ -421,7 +466,7 @@ export function App() {
     if (returnTo && returnTo !== '/' && !returnTo.startsWith('/login')) {
       params.set('returnTo', returnTo);
     }
-    navigateRoute(`/login${params.size ? `?${params.toString()}` : ''}`);
+    requestNavigation(() => navigateRoute(`/login${params.size ? `?${params.toString()}` : ''}`));
   }
 
   function startClientOIDCLogin() {
@@ -436,38 +481,25 @@ export function App() {
   }
 
   function completeLogin(nextUser: User) {
-    const params = new URLSearchParams(window.location.search);
-    const next = params.get('next');
-    const returnTo = returnToFromURL();
-    navigateRoute(returnTo);
+    const next = new URLSearchParams(window.location.search).get('next');
+    const destination = authenticationDestination(returnToFromURL(), next, nextUser.role === 'SOFTWARE_ADMIN' || nextUser.role === 'SITE_ADMIN');
+    navigateRoute(destination);
     setSelectedApp(null);
     setSelectedAppMode('detail');
     setSelectedSourceApp(null);
-    if (next === 'submit') {
-      setTab('profile');
-      setOpenSubmitSignal((signal) => signal + 1);
-      return;
-    }
-    if (next === 'admin' && (nextUser.role === 'SOFTWARE_ADMIN' || nextUser.role === 'SITE_ADMIN')) {
-      setTab('admin');
-      return;
-    }
-    if (returnTo.startsWith('/collaboration-invite')) {
-      setTab('profile');
-      return;
-    }
-    setTab(returnTo.startsWith('/profile') ? 'profile' : returnTo.startsWith('/admin') ? 'admin' : 'home');
+    setTab(destination.startsWith('/collaboration-invite') ? 'profile' : readShellRoute(destination, HAS_API).tab);
+    if (next === 'submit') setOpenSubmitSignal((signal) => signal + 1);
   }
 
-	function navigateTo(nextTab: TabKey) {
-    if (isLoginRoute) {
-      navigateRoute('/');
-    }
-    setSelectedApp(null);
-    setSelectedAppMode('detail');
-		setSelectedSourceApp(null);
-		if (!HAS_API) clientLandingResolvedRef.current = true;
-		setTab(nextTab);
+  function navigateTo(nextTab: TabKey) {
+    requestNavigation(() => {
+      if (!HAS_API) clientLandingResolvedRef.current = true;
+      navigateRoute(shellRouteURL({ tab: nextTab }));
+      setTab(nextTab);
+      setSelectedApp(null);
+      setSelectedAppMode('detail');
+      setSelectedSourceApp(null);
+    });
   }
 
   function openSubmitApp() {
@@ -495,19 +527,100 @@ export function App() {
   }, [sourceApps, sourceAppsLoaded, sources]);
 
   useEffect(() => {
-    const handlePopState = () => setRouteLocation(currentRoute());
+    window.history.replaceState({ ...window.history.state, storeIndex: historyIndex.current }, '', currentRoute());
+    const previousRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    const handlePopState = (event: PopStateEvent) => {
+      if (restoringPop.current) { restoringPop.current = false; return; }
+      const nextIndex = typeof event.state?.storeIndex === 'number' ? event.state.storeIndex : historyIndex.current;
+      const delta = nextIndex - historyIndex.current;
+      if (!approvedPop.current && hasUnsavedChanges() && delta !== 0) {
+        restoringPop.current = true;
+        window.history.go(-delta);
+        requestNavigation(() => { approvedPop.current = true; window.history.go(delta); });
+        return;
+      }
+      approvedPop.current = false;
+      scrollPositions.current.set(routeRef.current, shellScrollTop());
+      historyIndex.current = nextIndex;
+      routeRef.current = currentRoute();
+      restoreScroll.current = scrollPositions.current.get(routeRef.current) || 0;
+      setRouteLocation(routeRef.current);
+    };
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.history.scrollRestoration = previousRestoration;
+    };
+  }, [hasUnsavedChanges, requestNavigation]);
+
+  useEffect(() => {
+    if (loading || isLoginRoute || verificationTokenFromURL() || collaborationInviteTokenFromURL()) return;
+    const next = readShellRoute(routeLocation, HAS_API);
+    setTab(next.tab);
+    if (!next.appId) {
+      setSelectedApp(null);
+      setSelectedSourceApp(null);
+      setDetailLoading(false);
+      return;
+    }
+    if ((!HAS_API && clientAuth.oidcEnabled && !clientAuth.authenticated) || (HAS_API && setupRequired)) return;
+    setSelectedAppMode(next.mode);
+    if (HAS_API && selectedApp?.id === next.appId) { setDetailLoading(false); return; }
+    if (!HAS_API && selectedSourceApp?.id === next.appId && (!next.sourceId || String(selectedSourceApp.sourceId ?? selectedSourceApp.sourceName) === next.sourceId)) { setDetailLoading(false); return; }
+    let cancelled = false;
+    setDetailLoading(true);
+    const cached = !HAS_API ? sourceApps.find((app) => app.id === next.appId && (!next.sourceId || String(app.sourceId ?? app.sourceName) === next.sourceId)) : undefined;
+    const request = HAS_API
+      ? api<{ app: StoreApp }>(`/api/v1/apps/${next.appId}`)
+      : cached ? Promise.resolve({ app: cached }) : clientApi<{ app: SourceApp }>(`/apps/${next.appId}`);
+    void request.then(({ app }) => {
+      if (cancelled) return;
+      if (!HAS_API && next.sourceId && String((app as SourceApp).sourceId ?? (app as SourceApp).sourceName) !== next.sourceId) throw new Error(t('toast.loadAppDetailFailed'));
+      if (HAS_API) setSelectedApp(app as StoreApp);
+      else setSelectedSourceApp(app as SourceApp);
+    }).catch((error) => {
+      if (cancelled) return;
+      setToast({ tone: 'error', message: errorMessage(error, t('toast.loadAppDetailFailed')) });
+      navigateRoute(shellRouteURL({ tab: next.tab }), true);
+    }).finally(() => { if (!cancelled) setDetailLoading(false); });
+    return () => { cancelled = true; };
+  }, [routeLocation, loading, isLoginRoute, setupRequired, clientAuth.authenticated, clientAuth.oidcEnabled, selectedApp?.id, selectedSourceApp?.id, sourceApps, t]);
+
+  useEffect(() => {
+    if (loading || detailLoading || restoreScroll.current === null) return;
+    const frame = requestAnimationFrame(() => {
+      if (restoreScroll.current !== null) restoreShellScroll(restoreScroll.current);
+      restoreScroll.current = null;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [routeLocation, loading, detailLoading, selectedApp, selectedSourceApp]);
+
+  useEffect(() => {
+    if (loading || isLoginRoute || (HAS_API && !user && tab === 'profile')) return;
+    if (!navItems.some((item) => item.key === tab)) {
+      const fallback = navItems[0].key;
+      setTab(fallback);
+      navigateRoute(shellRouteURL({ tab: fallback }), true);
+    }
+  }, [navItems, tab, user, loading, isLoginRoute]);
+
+  useEffect(() => {
+    const keyboard = () => { document.documentElement.dataset.inputMethod = 'keyboard'; };
+    const pointer = () => { document.documentElement.dataset.inputMethod = 'pointer'; };
+    window.addEventListener('keydown', keyboard, true);
+    window.addEventListener('pointerdown', pointer, true);
+    return () => { window.removeEventListener('keydown', keyboard, true); window.removeEventListener('pointerdown', pointer, true); };
   }, []);
 
   useEffect(() => {
-    if (HAS_API && !user && tab === 'profile') {
-      return;
-    }
-    if (!navItems.some((item) => item.key === tab)) {
-      setTab(navItems[0].key);
-    }
-  }, [navItems, tab, user]);
+    const pageSize = (HAS_API ? siteProfile.defaultPageSize : clientSettings.defaultPageSize) || DEFAULT_CLIENT_PAGE_SIZE;
+    if (catalogDefault.current === pageSize) return;
+    catalogDefault.current = pageSize;
+    setClientCatalogState((current) => ({ ...current, page: 1, pageSize }));
+    setStorefrontSearchState((current) => ({ ...current, page: 1, pageSize }));
+    setStorefrontHomeState((current) => ({ ...current, page: 1, pageSize }));
+  }, [siteProfile.defaultPageSize, clientSettings.defaultPageSize]);
 
   useEffect(() => {
     document.getElementById('main-content')?.focus({ preventScroll: true });
@@ -586,7 +699,7 @@ export function App() {
     if (HAS_API || sourceAppsLoaded || sourceAppsLoading) return;
     if (!clientAuthLoaded) return;
     if (clientAuth.oidcEnabled && !clientAuth.authenticated) return;
-    if (tab !== 'sources' && tab !== 'search' && tab !== 'history') return;
+    if (!needsClientCatalog(tab)) return;
     void loadClientApps();
   }, [clientAuth.authenticated, clientAuth.oidcEnabled, clientAuthLoaded, sourceAppsLoaded, sourceAppsLoading, tab]);
 
@@ -643,7 +756,8 @@ export function App() {
       return;
     }
     storeAppsRequestRef.current += 1;
-    if (!options.silent) setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
+    else if (!options.silent) setRefreshing(true);
     try {
       const setup = await api<SetupStatus>('/api/v1/setup/status');
       setSetupRequired(setup.needsSetup);
@@ -710,7 +824,9 @@ export function App() {
         setCollaborationData({ owned: [], collaborating: [], outgoingRequests: [] });
       }
     } finally {
+      initialLoadDone.current = true;
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -821,7 +937,9 @@ export function App() {
   function resolveClientLanding(nextSources: SourceSubscription[]) {
 	if (HAS_API || clientLandingResolvedRef.current) return;
 	clientLandingResolvedRef.current = true;
-	setTab(nextSources.length > 0 ? 'search' : 'sources');
+	const nextTab = nextSources.length > 0 ? 'search' : 'sources';
+    setTab(nextTab);
+    navigateRoute(shellRouteURL({ tab: nextTab }), true);
   }
 
   async function loadClientSources() {
@@ -875,7 +993,8 @@ export function App() {
   }
 
   async function refreshClientData(options: { silent?: boolean } = {}) {
-    if (!options.silent) setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
+    else if (!options.silent) setRefreshing(true);
     setApps([]);
     setManagedApps([]);
     setCollaborationData({ owned: [], collaborating: [], outgoingRequests: [] });
@@ -903,7 +1022,9 @@ export function App() {
     } catch (error) {
       setToast({ tone: 'error', message: errorMessage(error, t('toast.clientDataLoadFailed')) });
     } finally {
+      initialLoadDone.current = true;
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -937,8 +1058,14 @@ export function App() {
   }, [storeApps]);
 
   async function openApp(app: StoreApp, mode: AppDetailMode = 'detail') {
+    const path = shellRouteURL({ tab, appId: app.id, mode });
+    if (currentRoute() !== path) {
+      requestNavigation(() => navigateRoute(path));
+      return;
+    }
     await runAction(setToast, t('toast.loadAppDetailFailed'), async () => {
       const data = await api<{ app: StoreApp }>(`/api/v1/apps/${app.id}`);
+      if (currentRoute() !== path) return;
       setSelectedAppMode(mode);
       setSelectedApp(data.app);
     });
@@ -1256,7 +1383,7 @@ export function App() {
     return (
       <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
         <div className="app-shell app-shell-server">
-          <Suspense fallback={<AppRouteFallback />}>
+          <Suspense fallback={<AppRouteFallback kind="form" />}>
             <SetupWizard
               onComplete={async (nextUser) => {
                 setUser(nextUser);
@@ -1281,7 +1408,7 @@ export function App() {
     return (
       <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
         <div className="app-shell app-shell-server">
-          <Suspense fallback={<AppRouteFallback />}>
+          <Suspense fallback={<AppRouteFallback kind="form" />}>
             <LoginPage
               siteTitle={siteTitle}
               siteProfile={siteProfile}
@@ -1309,7 +1436,7 @@ export function App() {
 
   return (
     <Theme theme={selectedAstryxTheme.theme} mode={themeMode}>
-      <div className={`app-shell ${HAS_API ? 'app-shell-server' : 'app-shell-client'}`}>
+      <div className={`app-shell ${HAS_API ? 'app-shell-server' : 'app-shell-client'}${isPublicStorefront ? ' app-shell-storefront' : ''}`}>
         <a className="skip-link" href="#main-content">{t('common.skipToMain')}</a>
         <XAppShell
           className="app-shell-frame"
@@ -1317,8 +1444,9 @@ export function App() {
           height="fill"
           contentPadding={0}
           mobileNav={{ breakpoint: 'md', hasToggle: false }}
-          sideNav={(
+          sideNav={isPublicStorefront ? undefined : (
             <XSideNav
+              aria-label={t('common.navigation')}
               className="app-side-nav"
               header={(
                 <XSideNavHeading
@@ -1360,17 +1488,16 @@ export function App() {
             <XTopNav
               className="topbar"
               label={t('common.navigation')}
-              heading={<XMobileNavToggle label={t('common.navigation')} />}
+              heading={<div className="topbar-brand">{isPublicStorefront ? siteProfile.iconUrl ? <img className="topbar-logo" src={siteProfile.iconUrl} alt="" /> : <Archive size={20} aria-hidden="true" /> : <XMobileNavToggle label={t('common.navigation')} />}<strong title={siteTitle}>{siteTitle}</strong></div>}
               endContent={(
                 <div className="top-actions">
-                  <LanguageSelector value={currentLanguage} onChange={(language) => void i18n.changeLanguage(language)} />
-                  <ThemeToggle mode={themeMode} onChange={setThemeMode} />
-                  <AstryxThemeSelector value={astryxThemeName} onChange={setAstryxThemeName} />
+                  <AppearanceMenu language={currentLanguage} themeMode={themeMode} themeName={astryxThemeName} onLanguageChange={(language) => void i18n.changeLanguage(language)} onThemeModeChange={setThemeMode} onThemeChange={setAstryxThemeName} />
                   <XIconButton
                     type="button"
                     variant="ghost"
                     label={HAS_API ? t('topbar.refreshStore') : t('topbar.syncAllSources')}
-                    icon={<RefreshCw size={18} />}
+                    icon={<RefreshCw size={18} className={refreshing ? 'spin' : undefined} />}
+                    isDisabled={refreshing}
 					onClick={() => void (HAS_API ? refreshAll() : syncAllSources().catch(() => undefined))}
                   />
                   {HAS_API && user ? (
@@ -1416,16 +1543,17 @@ export function App() {
                           {
                             label: t('auth.logout'),
                             icon: <LogOut size={16} />,
-                            onClick: () =>
+                            onClick: () => requestNavigation(() => {
                               void runAction(setToast, t('toast.logoutFailed'), async () => {
                                 await logoutCurrentUser();
-                              }),
+                              });
+                            }),
                           },
                         ]}
                       />
                     </div>
                   ) : HAS_API ? (
-                    <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => openLogin('/')} />
+                    <XButton type="button" variant="secondary" label={t('topbar.login')} icon={<LogIn size={16} />} onClick={() => openLogin(currentRoute())} />
                   ) : clientAccountUser ? (
                     <div className="account-menu">
                       <XDropdownMenu
@@ -1451,10 +1579,11 @@ export function App() {
                             ? [{
                                 label: t('auth.logout'),
                                 icon: <LogOut size={16} />,
-                                onClick: () =>
+                                onClick: () => requestNavigation(() => {
                                   void runAction(setToast, t('toast.logoutFailed'), async () => {
                                     await logoutClientIdentity();
-                                  }),
+                                  });
+                                }),
                               }]
                             : []),
                         ]}
@@ -1469,6 +1598,9 @@ export function App() {
           )}
         >
           <div className="main" id="main-content" tabIndex={-1}>
+        {isPublicStorefront && <nav className="storefront-navigation" aria-label={t('common.navigation')}>
+          {navItems.map((item) => <XButton key={item.key} variant="ghost" label={t(item.labelKey)} icon={<item.icon size={17} />} aria-current={tab === item.key ? 'page' : undefined} onClick={() => navigateTo(item.key)} />)}
+        </nav>}
 
         {HAS_API && user && isProfileDialogOpen && (
           <Suspense fallback={null}>
@@ -1502,13 +1634,7 @@ export function App() {
         )}
 
         {loading ? (
-          <div className="loading-state skeleton-state" aria-label={t('common.loading')} aria-live="polite">
-            <div className="skeleton-list" aria-hidden="true">
-              <XSkeleton height={74} radius={2} index={0} />
-              <XSkeleton height={74} radius={2} index={1} />
-              <XSkeleton height={74} radius={2} index={2} />
-            </div>
-          </div>
+          <AppRouteFallback kind={tab === 'settings' || tab === 'admin' ? 'form' : 'catalog'} />
         ) : (
           <Suspense fallback={<AppRouteFallback />}>
           <>
@@ -1534,11 +1660,13 @@ export function App() {
                   action={{ label: t('clientAuth.loginWithLazyCat'), icon: LogIn, onClick: startClientOIDCLogin }}
                 />
               </section>
+            ) : detailLoading ? (
+              <AppRouteFallback kind="detail" />
             ) : HAS_API && selectedApp ? (
               <AppDrawer
                 app={selectedApp}
                 mode={selectedAppMode}
-                onModeChange={setSelectedAppMode}
+                onModeChange={(mode) => { setSelectedAppMode(mode); navigateRoute(shellRouteURL({ tab, appId: selectedApp.id, mode }), true); }}
                 user={user}
                 groups={groups}
                 categories={categories}
@@ -1547,10 +1675,7 @@ export function App() {
                 chatEnabled={serverChatVisible}
                 allowPackageUpload={siteProfile.packageUpload?.allowed !== false}
                 lazycatInstall={runtimeCapabilities.lazycatInstall}
-                onClose={() => {
-                  setSelectedApp(null);
-                  setSelectedAppMode('detail');
-                }}
+                onClose={closeDetails}
                 onInstall={installApp}
                 onContactPublisher={contactStorePublisher}
                 onRefresh={async () => {
@@ -1566,7 +1691,7 @@ export function App() {
                 source={sourceForApp(selectedSourceApp, sources)}
                 installedMatch={findInstalledApplication(selectedSourceApp, installedApps)}
                 installedState={installedState}
-                onClose={() => setSelectedSourceApp(null)}
+                onClose={closeDetails}
                 onInstall={installApp}
                 onContactPublisher={contactSourcePublisher}
                 onLoadInstalled={loadInstalledApps}
@@ -1581,6 +1706,8 @@ export function App() {
             <>
             {tab === 'home' && (
               <StorefrontHome
+                viewState={storefrontHomeState}
+                onViewStateChange={setStorefrontHomeState}
                 apps={storeApps}
                 appCount={storeAppCount}
                 categories={categories}
@@ -1613,7 +1740,7 @@ export function App() {
                 sourceStats={sourceStats}
                 installedApps={HAS_API ? [] : installedApps}
                 onOpen={openApp}
-                onOpenSource={setSelectedSourceApp}
+                onOpenSource={openSourceApp}
                 onInstall={installApp}
                 onGoSources={() => navigateTo('sources')}
                 onGoWishWall={() => navigateTo('wishwall')}
@@ -1647,7 +1774,7 @@ export function App() {
                 onDeleteSource={deleteClientSource}
                 onSync={syncSource}
                 onSyncAll={syncAllSources}
-                onOpenSource={setSelectedSourceApp}
+                onOpenSource={openSourceApp}
                 onInstall={installApp}
                 installedApps={installedApps}
                 sourceStats={sourceStats}
@@ -1697,7 +1824,7 @@ export function App() {
                 sourceApps={sourceApps}
                 onRefresh={async () => { await loadInstallHistory(installHistoryPagination.page || 1, installHistoryPagination.pageSize); }}
                 onPageChange={async (page, pageSize) => { await loadInstallHistory(page, pageSize); }}
-                onOpenSource={setSelectedSourceApp}
+                onOpenSource={openSourceApp}
               />
             )}
             {tab === 'settings' && !HAS_API && (
@@ -1839,19 +1966,28 @@ export function App() {
         </Suspense>
       )}
 
+      {unsavedPrompt}
       <AppToast toast={toast} onDismiss={() => setToast(null)} />
       </div>
     </Theme>
   );
 }
 
-function AppRouteFallback() {
+function AppRouteFallback({ kind = 'catalog' }: { kind?: 'catalog' | 'detail' | 'form' }) {
+  const { t } = useTranslation();
   return (
-    <div className="loading-state skeleton-state" aria-live="polite">
-      <div className="skeleton-list" aria-hidden="true">
-        <XSkeleton height={74} radius={2} index={0} />
-        <XSkeleton height={74} radius={2} index={1} />
-        <XSkeleton height={74} radius={2} index={2} />
+    <div className={`loading-state skeleton-state route-skeleton route-skeleton-${kind}`} aria-label={t('common.loading')} aria-live="polite">
+      <div aria-hidden="true">
+        <XSkeleton height={32} width="min(280px, 60%)" radius={2} index={0} />
+        {kind === 'catalog' ? <>
+          <XSkeleton height={44} radius={2} index={1} />
+          <div className="catalog-skeleton-grid">
+            {[0, 1, 2, 3, 4, 5].map((index) => <div key={index} className="catalog-skeleton-card"><XSkeleton height={46} width={46} radius={2} index={index} /><XSkeleton height={18} radius={2} index={index + 1} /><XSkeleton height={14} width="75%" radius={2} index={index + 2} /><XSkeleton height={40} radius={2} index={index + 3} /></div>)}
+          </div>
+        </> : <>
+          <XSkeleton height={kind === 'detail' ? 112 : 44} radius={2} index={1} />
+          <XSkeleton height={kind === 'detail' ? 176 : 44} radius={2} index={2} />
+        </>}
       </div>
     </div>
   );

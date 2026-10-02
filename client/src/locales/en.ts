@@ -5,6 +5,7 @@ const en = {
         zh: '中文',
         en: 'English',
       },
+      appearance: { title: 'Appearance and language' },
       theme: {
         label: 'Theme',
         selector: 'Interface theme',
@@ -47,7 +48,10 @@ const en = {
         enableSourceAds: 'Allow ads',
         disableSourceAds: 'Do not show ads',
       },
+      unsaved: { title: 'Unsaved changes', body: 'Save your changes before leaving, or discard this edit.', stay: 'Keep editing', discard: 'Discard changes', save: 'Save and leave', saveFailed: 'Some changes could not be saved. Keep editing and try again.' },
+      filePicker: { unsupported: 'The format of \"{{name}}\" is not supported.', limit: 'Select at most {{count}} files.' },
       common: {
+        clearSelection: 'Clear selected files',
         all: 'All',
         app: 'App',
         apps: 'Apps',
@@ -348,7 +352,7 @@ const en = {
       search: {
         serverTitle: 'Store discovery',
         serverDescription: 'Combine keywords, maintainers, and tags to find apps for this NAS.',
-        clientTitle: 'Source installer',
+        clientTitle: 'Apps',
         clientDescription: 'Filter apps from synced sources and install them on this device.',
         sort: 'Sort',
         defaultOrder: 'Default order',
@@ -415,6 +419,7 @@ const en = {
         noFilterResultsBody: 'No apps match this filter. Switch back to all apps or sync sources first.',
       },
       sources: {
+        advancedOptions: 'Password and group options',
         title: 'Software sources',
         subtitle: 'The client only subscribes, syncs, and installs. A server is optional, and any compatible /source/v2/index.json URL can be added.',
         onboardingTitle: 'Add your first software source',

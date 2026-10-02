@@ -45,6 +45,9 @@ jobs:
       - name: Audit
         working-directory: client
         run: npm audit --audit-level=high --registry=https://registry.npmjs.org
+      - name: Test
+        working-directory: client
+        run: npm test
       - name: Build
         working-directory: client
         run: npm run build

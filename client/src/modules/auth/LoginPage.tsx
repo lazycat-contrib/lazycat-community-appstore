@@ -1,3 +1,4 @@
+import { AppearanceMenu } from '../../components/AppearanceMenu';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Archive, Check, Home, KeyRound, LogIn, PackagePlus, Plus, Search, ShieldCheck, Users } from 'lucide-react';
 import { ClawCaptcha } from 'playcaptcha';
@@ -69,9 +70,7 @@ export function LoginPage({
           <strong>{siteTitle}</strong>
         </XButton>
         <div className="top-actions">
-          <LanguageSelector value={currentLanguage} onChange={onLanguageChange} />
-          <ThemeToggle mode={themeMode} onChange={onThemeModeChange} />
-          <AstryxThemeSelector value={astryxThemeName} onChange={onAstryxThemeChange} />
+          <AppearanceMenu language={currentLanguage} themeMode={themeMode} themeName={astryxThemeName} onLanguageChange={onLanguageChange} onThemeModeChange={onThemeModeChange} onThemeChange={onAstryxThemeChange} />
         </div>
       </header>
       <main className="login-main" id="main-content" tabIndex={-1}>
@@ -317,8 +316,9 @@ function AuthGateway({
           {mode !== 'reset' && <XButton type="submit" variant="primary" label={authSubmitLabel} icon={<AuthSubmitIcon size={18} />} isDisabled={mode === 'login' && captchaRequired && !captchaVerified} />}
         </form>
 
+        <details className="auth-path-options">
+          <summary>{t('auth.entryPaths')}</summary>
         <section className="panel auth-path-panel">
-          <SectionTitle icon={Users} title={t('auth.entryPaths')} />
           <div className="auth-path-list">
             <div className="auth-path-row">
               <Search size={19} />
@@ -348,6 +348,7 @@ function AuthGateway({
             </div>
           </div>
         </section>
+        </details>
       </div>
       {forgotOpen && <ForgotPasswordDialog onClose={() => setForgotOpen(false)} setToast={setToast} />}
     </section>
