@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { authenticationDestination, needsClientCatalog, readShellRoute, shellRouteURL } from './routes.ts';
+import { authenticationDestination, needsClientCatalog, shellNavigationLayout, readShellRoute, shellRouteURL } from './routes.ts';
 
 test('server and client landing pages have distinct defaults', () => {
   assert.equal(readShellRoute('/', true).tab, 'home');
@@ -41,4 +41,11 @@ test('direct installed-app visits load source metadata for update matching', () 
   assert.equal(needsClientCatalog('history'), true);
   assert.equal(needsClientCatalog('search'), true);
   assert.equal(needsClientCatalog('settings'), false);
+});
+
+test('server navigation layout does not depend on which destination is open', () => {
+  for (const tab of ['home','search','wishwall','profile','admin','chat']) {
+    assert.equal(shellNavigationLayout(true), 'top', tab);
+  }
+  assert.equal(shellNavigationLayout(false), 'side');
 });

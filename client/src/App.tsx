@@ -103,7 +103,7 @@ import type { AppDetailMode } from './modules/storefront/AppDrawer';
 import type { StorefrontSearchViewState } from './modules/storefront/StorefrontSearch';
 import { StorefrontHome, type StorefrontHomeViewState } from './modules/storefront/StorefrontHome';
 import { buildNavItems, type TabKey } from './modules/shell/navigation';
-import { authenticationDestination, needsClientCatalog, readShellRoute, shellRouteURL } from './modules/shell/routes';
+import { authenticationDestination, needsClientCatalog, shellNavigationLayout, readShellRoute, shellRouteURL } from './modules/shell/routes';
 import { useNavigationGuard } from './shared/UnsavedChanges';
 
 const AdminPanel = lazy(() => import('./modules/admin/AdminPanel').then((module) => ({ default: module.AdminPanel })));
@@ -327,6 +327,7 @@ export function App() {
   }), [runtimeCapabilities.githubMirrors]);
   const canReview = user?.role === 'SOFTWARE_ADMIN' || user?.role === 'SITE_ADMIN';
   const isPublicStorefront = HAS_API && ['home', 'search', 'wishwall'].includes(tab);
+  const usesTopNavigation = shellNavigationLayout(HAS_API) === 'top';
   const serverChatVisible = HAS_API && Boolean(user && siteProfile.chat?.enabled);
   const clientChatVisible = !HAS_API && sources.some((source) => source.chatAvailable && source.chatEnabled !== false);
   const navItems = buildNavItems({
@@ -1444,7 +1445,7 @@ export function App() {
           height="fill"
           contentPadding={0}
           mobileNav={{ breakpoint: 'md', hasToggle: false }}
-          sideNav={isPublicStorefront ? undefined : (
+          sideNav={usesTopNavigation ? undefined : (
             <XSideNav
               aria-label={t('common.navigation')}
               className="app-side-nav"
@@ -1488,7 +1489,7 @@ export function App() {
             <XTopNav
               className="topbar"
               label={t('common.navigation')}
-              heading={<div className="topbar-brand">{isPublicStorefront ? siteProfile.iconUrl ? <img className="topbar-logo" src={siteProfile.iconUrl} alt="" /> : <Archive size={20} aria-hidden="true" /> : <XMobileNavToggle label={t('common.navigation')} />}<strong title={siteTitle}>{siteTitle}</strong></div>}
+              heading={<div className="topbar-brand">{usesTopNavigation ? siteProfile.iconUrl ? <img className="topbar-logo" src={siteProfile.iconUrl} alt="" /> : <Archive size={20} aria-hidden="true" /> : <XMobileNavToggle label={t('common.navigation')} />}<strong title={siteTitle}>{siteTitle}</strong></div>}
               endContent={(
                 <div className="top-actions">
                   <AppearanceMenu language={currentLanguage} themeMode={themeMode} themeName={astryxThemeName} onLanguageChange={(language) => void i18n.changeLanguage(language)} onThemeModeChange={setThemeMode} onThemeChange={setAstryxThemeName} />
@@ -1598,7 +1599,7 @@ export function App() {
           )}
         >
           <div className="main" id="main-content" tabIndex={-1}>
-        {isPublicStorefront && <nav className="storefront-navigation" aria-label={t('common.navigation')}>
+        {usesTopNavigation && <nav className="storefront-navigation" aria-label={t('common.navigation')}>
           {navItems.map((item) => <XButton key={item.key} variant="ghost" label={t(item.labelKey)} icon={<item.icon size={17} />} aria-current={tab === item.key ? 'page' : undefined} onClick={() => navigateTo(item.key)} />)}
         </nav>}
 

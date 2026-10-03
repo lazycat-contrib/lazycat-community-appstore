@@ -251,3 +251,8 @@ test('storefront motion is pointer-aware, brief, and reduced-motion safe', async
     assert.doesNotMatch(declarations, /max-height\s*:/, 'the complete ad card must remain content-sized');
   }
 });
+
+test('source subscription actions remain ahead of the catalog on the homepage', async () => {
+  const home = await source('./StorefrontHome.tsx');
+  assert.ok(home.indexOf('storefront-subscribe-panel') < home.indexOf('apps={pagedLatest}'), 'subscription URL and actions must be discoverable before browsing apps');
+});

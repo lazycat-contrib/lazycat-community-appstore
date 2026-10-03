@@ -323,6 +323,7 @@ const en = {
         browserVerifyUnavailable: 'This browser cannot verify the LPK. Install inside the app store client or check source CORS settings.',
       },
       home: {
+        sourceFeedHint: 'Add this URL to your client’s software sources to sync and install apps.',
         eyebrow: 'Private NAS App Store',
         title: 'A storefront for private NAS apps',
         body: 'Browse reviewed LPK apps, categories, and curated collections. Admin tools stay out of the way until you submit, review, or maintain apps.',

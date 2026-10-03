@@ -115,6 +115,33 @@ export function StorefrontHome({
         {visibleAds.length > 0 && <AdSpot ads={visibleAds} className="storefront-hero-ad" />}
       </div>
 
+      <section className="panel storefront-subscribe-panel" aria-labelledby="storefront-subscribe-title">
+        <div className="storefront-subscribe-copy">
+          <div className="section-title">
+            <Link size={19} />
+            <h2 id="storefront-subscribe-title">{t('home.openSourceFeed')}</h2>
+          <div className="storefront-source-meta">
+            <span>{t('common.version')}</span>
+            <strong>v2</strong>
+          </div>
+          </div>
+          <p>{t('home.sourceFeedHint')}</p>
+
+        </div>
+        <div className="storefront-subscribe-command">
+          <code className="source-feed-url">{sourceFeedURL}</code>
+          <div className="storefront-subscribe-actions">
+            <XButton type="button" variant="secondary" label={t('home.copySourceFeed')} icon={<Copy size={17} />} onClick={() => void copySourceFeed()} />
+            <XButton type="button" variant="secondary" label={t('home.openSourceFeed')} icon={<ExternalLink size={17} />} onClick={openSourceFeed} />
+          </div>
+          {sourceCopyMessage && (
+            <p className="storefront-copy-status" role="status" aria-live="polite" data-tone={sourceCopyStatus}>
+              {sourceCopyMessage}
+            </p>
+          )}
+        </div>
+      </section>
+
       {categories.length > 0 && (
         <section className="panel category-rail-panel">
           <SectionTitle icon={Tag} title={t('home.categories')} />
@@ -172,31 +199,7 @@ export function StorefrontHome({
         </XCard>
       </section>
 
-      <section className="panel storefront-subscribe-panel" aria-labelledby="storefront-subscribe-title">
-        <div className="storefront-subscribe-copy">
-          <div className="section-title">
-            <Link size={19} />
-            <h2 id="storefront-subscribe-title">{t('home.openSourceFeed')}</h2>
-          </div>
-          <p>{t('sources.subtitle')}</p>
-          <div className="storefront-source-meta">
-            <span>{t('common.version')}</span>
-            <strong>v2</strong>
-          </div>
-        </div>
-        <div className="storefront-subscribe-command">
-          <code className="source-feed-url">{sourceFeedURL}</code>
-          <div className="storefront-subscribe-actions">
-            <XButton type="button" variant="secondary" label={t('home.copySourceFeed')} icon={<Copy size={17} />} onClick={() => void copySourceFeed()} />
-            <XButton type="button" variant="secondary" label={t('home.openSourceFeed')} icon={<ExternalLink size={17} />} onClick={openSourceFeed} />
-          </div>
-          {sourceCopyMessage && (
-            <p className="storefront-copy-status" role="status" aria-live="polite" data-tone={sourceCopyStatus}>
-              {sourceCopyMessage}
-            </p>
-          )}
-        </div>
-      </section>
+
 
 
     </section>

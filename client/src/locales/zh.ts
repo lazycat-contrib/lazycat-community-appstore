@@ -323,6 +323,7 @@ const zh = {
         browserVerifyUnavailable: '当前浏览器无法校验该 LPK，请在客户端内安装或检查源站 CORS 配置',
       },
       home: {
+        sourceFeedHint: '把此地址添加到客户端的软件源，即可同步和安装应用。',
         eyebrow: 'Private NAS App Store',
         title: '面向私有 NAS 的应用商店前台',
         body: '浏览已审核的 LPK 应用、查看分类和精选集合。后台能力只在需要提交、审核或维护应用时出现。',

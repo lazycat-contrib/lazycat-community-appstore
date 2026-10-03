@@ -49,3 +49,7 @@ export function authenticationDestination(returnTo: string, next: string | null,
 export function needsClientCatalog(tab: TabKey) {
   return ['sources', 'search', 'history', 'profile'].includes(tab);
 }
+
+export function shellNavigationLayout(hasAPI: boolean) {
+  return hasAPI ? 'top' : 'side';
+}

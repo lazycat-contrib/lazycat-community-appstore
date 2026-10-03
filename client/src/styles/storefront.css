@@ -563,7 +563,7 @@
   }
 }
 
-/* Discovery leads; subscription and operational summaries remain secondary. */
+/* Discovery and source subscription remain visible entry points. */
 .app-shell-server .storefront-page > .panel,
 .app-shell-server .storefront-search-page > .panel {
   border: 0;
@@ -594,13 +594,25 @@
 }
 .app-shell-server .storefront-page .metric-card strong { font-size: 16px; }
 .app-shell-server .storefront-page .metric-card small { display: none; }
-.app-shell-server .storefront-subscribe-panel { padding-top: 24px !important; border-top: 1px solid var(--line) !important; }
+.app-shell-server .storefront-page > .storefront-subscribe-panel {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  gap: 12px 18px;
+}
+.storefront-subscribe-panel .section-title { margin: 0; gap: 8px; }
+.storefront-subscribe-panel .section-title h2 { font-size: 17px; }
+.storefront-subscribe-panel .storefront-source-meta { padding: 2px 7px; gap: 5px; }
+.storefront-subscribe-copy, .storefront-subscribe-command { gap: 8px; }
+.storefront-subscribe-copy p { font-size: 13px; }
+.app-shell-server .main { max-width: 1440px; margin-inline: auto; width: 100%; }
 .source-feed-url { display: block; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; overflow-wrap: anywhere; background: var(--field); }
 .app-shell-server :is(.storefront-page, .storefront-search-page) .app-meta span { border: 0; padding: 0; background: transparent; }
 .app-shell-server :is(.storefront-page, .storefront-search-page) .app-meta { gap: 8px 14px; }
 .app-shell-server .storefront-page .category-rail-panel .section-title { display: none; }
 .app-shell-server .storefront-page .category-rail-panel { margin-top: -8px; }
-.storefront-navigation { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 16px; padding-bottom: 4px; }
+.storefront-navigation { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 16px; padding-bottom: 4px; position: sticky; top: 0; z-index: 10; background: var(--app-bg); }
 .storefront-navigation > button { flex: 0 0 auto; }
 .storefront-navigation > button[aria-current='page'] { background: var(--subtle-surface); font-weight: 650; }
 .app-shell-storefront .main { max-width: 1320px; margin-inline: auto; width: 100%; }
@@ -610,4 +622,5 @@
   .app-shell-server .storefront-hero h1 { font-size: 26px; }
   .app-shell-server .hero-actions { margin-top: 12px; }
   .storefront-navigation { margin-bottom: 8px; }
+  .storefront-subscribe-copy p { display: none; }
 }
