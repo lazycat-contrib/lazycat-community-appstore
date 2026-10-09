@@ -567,6 +567,17 @@ const zh = {
         "optional": "可选"
 },
       clientSettings: {
+        historyRetention: '安装日志保留',
+        historyRetentionHelp: '默认保留最近 500 条、90 天内的记录。数量和时间限制同时生效，超出任一限制的记录会在读取或写入日志时清理；0 表示不限制。立即清理使用已保存的规则，请先保存设置。',
+        historyMaxEntries: '最多保留数量',
+        historyRetentionDays: '保留时间',
+        historyUnlimited: '不限制',
+        historyEntries: '{{count}} 条',
+        historyDays: '{{count}} 天',
+        pruneHistory: '按已保存规则立即清理',
+        historyPruned: '已清理 {{count}} 条安装日志',
+        historyPruneFailed: '安装日志清理失败',
+
         title: '客户端设置',
         subtitle: '管理本机客户端的软件标题、同步策略和评论显示身份。软件源列表只负责订阅和同步，隐私与自动化放在这里单独维护。',
         overview: '客户端设置概览',
@@ -993,6 +1004,7 @@ const zh = {
         confirm: '继续安装',
       },
       installOptions: {
+        noMirrors: '当前安装包没有可用的下载镜像，将直连软件源提供的地址。',
         title: '安装选项',
         body: '选择 {{name}} 本次安装使用的下载路径。',
         mirror: '下载镜像',
@@ -2216,6 +2228,8 @@ const zh = {
         deleteComment: '删除评论',
       },
       sourceDetail: {
+        softwareRepository: '软件上游仓库',
+        lpkRepository: 'LPK 仓库',
         eyebrow: '软件源应用',
         source: '软件源',
         trustReadyTitle: '安装信息完整',

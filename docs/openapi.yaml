@@ -1716,6 +1716,7 @@ paths:
     get:
       tags: [Client]
       summary: List install attempts recorded by the standalone client
+      description: Applies per-user history retention before reading. Client settings historyMaxEntries (0-10000, default 500) and historyRetentionDays (0-3650, default 90) control count and age; 0 disables a limit. Both limits apply. Retention also runs after recording install attempts.
       security: []
       parameters:
         - name: limit
@@ -1740,6 +1741,26 @@ paths:
                     items:
                       $ref: "#/components/schemas/InstallHistoryEntry"
         "400":
+          $ref: "#/components/responses/Error"
+
+  /api/client/v1/history/prune:
+    post:
+      tags: [Client]
+      summary: Clean the current user's install history using saved retention rules
+      security: []
+      responses:
+        "200":
+          description: Number of removed history entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted:
+                    type: integer
+                    minimum: 0
+        "500":
           $ref: "#/components/responses/Error"
 
   /source/v1/index.json:

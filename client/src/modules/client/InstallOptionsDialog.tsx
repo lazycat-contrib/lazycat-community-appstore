@@ -35,21 +35,21 @@ export function InstallOptionsDialog({
 }) {
   const { t } = useTranslation();
   const [password, setPassword] = useState('');
-  const defaultMirrorId = defaultMirrorIDForVersion(mirrorConfig, version) || '';
+  const mirrorOptions = applicableMirrorsForVersion(mirrorConfig, version);
+  const defaultMirrorId = mirrorOptions.length > 0 ? defaultMirrorIDForVersion(mirrorConfig, version) || '' : '';
   const [mirrorId, setMirrorId] = useState(defaultMirrorId);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const dialogTitleId = `install-password-title-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
   const dialogBodyId = `install-password-body-${'sourceName' in app ? 'source' : 'store'}-${app.id}`;
   const requiresPassword = app.installProtected;
-  const mirrorOptions = applicableMirrorsForVersion(mirrorConfig, version);
   const preferredCandidate = mirrorOptions[0];
   const preferredMirrorName = preferredCandidate?.benchmarkStatus === 'unavailable'
     ? t('installOptions.directFallback')
     : preferredCandidate?.speedBytesPerSecond
       ? preferredCandidate.name
       : t('installOptions.benchmarkBeforeInstall');
-  const titleKey = requiresPassword && mirrorOptions.length === 0 ? 'installPassword.title' : 'installOptions.title';
+  const titleKey = 'installOptions.title';
   const mirrorKind = githubMirrorKindForURL(version && 'upstreamDownloadUrl' in version ? version.upstreamDownloadUrl || version.downloadUrl : version?.downloadUrl);
   const appName = localizedAppName(app);
 
@@ -139,19 +139,19 @@ export function InstallOptionsDialog({
               }}
             />
           )}
-          {mirrorOptions.length > 0 && (
-            <XSelector
+          <XSelector
               label={t('installOptions.mirror')}
-              description={`${t(mirrorKind === 'raw' ? 'installOptions.rawMirrorHelp' : 'installOptions.downloadMirrorHelp')} ${t('installOptions.autoMirrorHelp')}`}
+              description={mirrorOptions.length > 0
+                ? `${t(mirrorKind === 'raw' ? 'installOptions.rawMirrorHelp' : 'installOptions.downloadMirrorHelp')} ${t('installOptions.autoMirrorHelp')}`
+                : t('installOptions.noMirrors')}
               value={mirrorId}
               options={[
-                { value: PREFERRED_MIRROR_SELECTION, label: t('installOptions.autoMirrorWithName', { name: preferredMirrorName }) },
+                ...(mirrorOptions.length > 0 ? [{ value: PREFERRED_MIRROR_SELECTION, label: t('installOptions.autoMirrorWithName', { name: preferredMirrorName }) }] : []),
                 { value: '', label: t('installOptions.direct') },
                 ...mirrorOptions.map((entry) => ({ value: entry.id, label: githubMirrorLabel(entry) })),
               ]}
               onChange={setMirrorId}
             />
-          )}
         </XFormLayout>
         <div className="dialog-actions">
           <XButton type="button" variant="secondary" label={t('common.cancel')} icon={<X size={17} />} isDisabled={submitting} onClick={onCancel} />

@@ -30,6 +30,7 @@ export function ClientSettingsView({
   onSave,
   onRunUpdates,
   onRunMirrorBenchmark,
+  onPruneHistory,
   isUpdateQueueRunning = false,
   setToast,
 }: {
@@ -38,6 +39,7 @@ export function ClientSettingsView({
   onSave: (settings: ClientSettings) => Promise<void>;
   onRunUpdates?: () => Promise<void>;
   onRunMirrorBenchmark?: () => Promise<void>;
+  onPruneHistory: () => Promise<number>;
   isUpdateQueueRunning?: boolean;
   setToast: (toast: Toast) => void;
 }) {
@@ -51,6 +53,7 @@ export function ClientSettingsView({
   const [saveError, setSaveError] = useState('');
   const [cfError, setCFError] = useState('');
   const [isBenchmarkRunning, setIsBenchmarkRunning] = useState(false);
+  const [isPruningHistory, setIsPruningHistory] = useState(false);
   const editRevisionRef = useRef(0);
   const saveInFlightRef = useRef(false);
   const pendingSaveRef = useRef<PendingSave | null>(null);
@@ -103,6 +106,8 @@ export function ClientSettingsView({
     settings.commentDisplayName,
     settings.defaultPageSize,
     settings.installSuccessDismissSeconds,
+    settings.historyMaxEntries,
+    settings.historyRetentionDays,
 	settings.lastAutoUpdateAt,
 	settings.lastAutoUpdateError,
 	settings.lastAutoUpdateStatus,
@@ -489,6 +494,29 @@ export function ClientSettingsView({
             }))}
             onChange={(value) => updateDraft({ ...draft, installSuccessDismissSeconds: Number(value) })}
           />
+          <section className="client-auto-update-section">
+            <h3>{t('clientSettings.historyRetention')}</h3>
+            <p className="muted-text">{t('clientSettings.historyRetentionHelp')}</p>
+            <XSelector
+              label={t('clientSettings.historyMaxEntries')}
+              value={String(draft.historyMaxEntries ?? 500)}
+              options={[...new Set([0, 100, 500, 1000, 5000, draft.historyMaxEntries ?? 500])].map(value => ({ value: String(value), label: value === 0 ? t('clientSettings.historyUnlimited') : t('clientSettings.historyEntries', { count: value }) }))}
+              onChange={value => updateDraft({ ...draft, historyMaxEntries: Number(value) })}
+            />
+            <XSelector
+              label={t('clientSettings.historyRetentionDays')}
+              value={String(draft.historyRetentionDays ?? 90)}
+              options={[...new Set([0, 7, 30, 90, 180, 365, draft.historyRetentionDays ?? 90])].map(value => ({ value: String(value), label: value === 0 ? t('clientSettings.historyUnlimited') : t('clientSettings.historyDays', { count: value }) }))}
+              onChange={value => updateDraft({ ...draft, historyRetentionDays: Number(value) })}
+            />
+            <XButton type="button" variant="secondary" label={t('clientSettings.pruneHistory')} isDisabled={isDirty || isPruningHistory || saveInFlightRef.current} onClick={() => {
+              setIsPruningHistory(true);
+              void onPruneHistory()
+                .then(deleted => setToast({ tone: 'success', message: t('clientSettings.historyPruned', { count: deleted }) }))
+                .catch(error => setToast({ tone: 'error', message: errorMessage(error, t('clientSettings.historyPruneFailed')) }))
+                .finally(() => setIsPruningHistory(false));
+            }} />
+          </section>
         </section>
         )}
 

@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { AppIcon } from '../../components/AppIcon';
 import { CommentList } from '../../components/CommentList';
 import { clientApi } from '../../shared/api';
+import { sourceLinks } from '../../shared/sourceLinks';
 import { EmptyState } from '../../shared/components/Feedback';
 import { VersionHistoryTable } from '../../shared/components/VersionHistoryTable';
 import { orderedScreenshots, screenshotDeviceLabel, usePreferredScreenshotDevice } from '../../shared/screenshotHelpers';
@@ -80,6 +81,7 @@ export function SourceAppDetailPage({
   const sourceScreenshots = orderedScreenshots(app.screenshots, preferredScreenshotDevice);
   const appName = localizedAppName(app);
   const homepageURL = safeExternalURL(app.homepage);
+  const { softwareRepository, lpkRepository } = sourceLinks(app);
   const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
   const installable = hasInstallableVersion(app);
   const installAction = sourceInstallAction(app, installedMatch);
@@ -353,6 +355,16 @@ export function SourceAppDetailPage({
             {homepageURL && (
               <XMetadataListItem label={t('drawer.softwareHomepage')}>
                 <a href={homepageURL} target="_blank" rel="noreferrer">{app.homepage}</a>
+              </XMetadataListItem>
+            )}
+            {softwareRepository && (
+              <XMetadataListItem label={t('sourceDetail.softwareRepository')}>
+                <a href={softwareRepository} target="_blank" rel="noopener noreferrer">{softwareRepository}</a>
+              </XMetadataListItem>
+            )}
+            {lpkRepository && lpkRepository !== softwareRepository && (
+              <XMetadataListItem label={t('sourceDetail.lpkRepository')}>
+                <a href={lpkRepository} target="_blank" rel="noopener noreferrer">{lpkRepository}</a>
               </XMetadataListItem>
             )}
             {app.license && <XMetadataListItem label={t('drawer.softwareLicense')}>{app.license}</XMetadataListItem>}

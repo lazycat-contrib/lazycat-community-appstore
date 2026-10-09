@@ -49,6 +49,7 @@ import { TagTokenizer } from '../../shared/components/TagTokenizer';
 import { VersionHistoryTable } from '../../shared/components/VersionHistoryTable';
 import { AppIcon } from '../../components/AppIcon';
 import { CommentList } from '../../components/CommentList';
+import { sourceLinks, publicSourceURL } from '../../shared/sourceLinks';
 import type {
   Category,
   CollaboratorRequest,
@@ -186,6 +187,8 @@ export function AppDrawer({
   const latestChangelog = latestVersion?.changelog?.trim() || '';
   const appName = localizedAppName(app);
   const homepageURL = safeExternalURL(app.homepage);
+  const { softwareRepository, lpkRepository } = sourceLinks(app);
+  const upstreamLPKURL = !app.installProtected && latestVersion?.sourceType === 'GITHUB' ? publicSourceURL(latestVersion.downloadUrl) : '';
   const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
   const installable = hasInstallableVersion(app);
   const primaryActionLabel = lazycatInstall ? t('common.install') : t('common.download');
@@ -832,6 +835,21 @@ export function AppDrawer({
           {homepageURL && (
             <XMetadataListItem label={t('drawer.softwareHomepage')}>
               <a href={homepageURL} target="_blank" rel="noreferrer">{app.homepage}</a>
+            </XMetadataListItem>
+          )}
+          {softwareRepository && (
+            <XMetadataListItem label={t('sourceDetail.softwareRepository')}>
+              <a href={softwareRepository} target="_blank" rel="noopener noreferrer">{softwareRepository}</a>
+            </XMetadataListItem>
+          )}
+          {lpkRepository && lpkRepository !== softwareRepository && (
+            <XMetadataListItem label={t('sourceDetail.lpkRepository')}>
+              <a href={lpkRepository} target="_blank" rel="noopener noreferrer">{lpkRepository}</a>
+            </XMetadataListItem>
+          )}
+          {upstreamLPKURL && (
+            <XMetadataListItem label={t('sourceDetail.upstreamUrl')}>
+              <a href={upstreamLPKURL} target="_blank" rel="noopener noreferrer">{upstreamLPKURL}</a>
             </XMetadataListItem>
           )}
           {app.license && <XMetadataListItem label={t('drawer.softwareLicense')}>{app.license}</XMetadataListItem>}

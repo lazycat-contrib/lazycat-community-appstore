@@ -285,6 +285,8 @@ type CommentInput struct {
 }
 
 type ClientSettingsDTO struct {
+	HistoryMaxEntries              int           `json:"historyMaxEntries"`
+	HistoryRetentionDays           int           `json:"historyRetentionDays"`
 	CFEnabled                      bool          `json:"cfEnabled"`
 	CFEndpoint                     string        `json:"cfEndpoint"`
 	CFPresets                      []CFPresetDTO `json:"cfPresets"`
@@ -315,6 +317,8 @@ type ClientSettingsDTO struct {
 }
 
 type ClientSettingsUpdateDTO struct {
+	HistoryMaxEntries              *int    `json:"historyMaxEntries"`
+	HistoryRetentionDays           *int    `json:"historyRetentionDays"`
 	CFEnabled                      *bool   `json:"cfEnabled"`
 	CFEndpoint                     *string `json:"cfEndpoint"`
 	ClientTitle                    string  `json:"clientTitle"`

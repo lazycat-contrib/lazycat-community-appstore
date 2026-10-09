@@ -567,6 +567,17 @@ const en = {
         "optional": "Optional"
 },
       clientSettings: {
+        historyRetention: 'Install history retention',
+        historyRetentionHelp: 'Keeps the latest 500 entries from the last 90 days by default. Both limits apply when history is read or recorded; 0 disables a limit. Save changes before cleaning now.',
+        historyMaxEntries: 'Maximum entries',
+        historyRetentionDays: 'Retention period',
+        historyUnlimited: 'Unlimited',
+        historyEntries: '{{count}} entries',
+        historyDays: '{{count}} days',
+        pruneHistory: 'Clean using saved rules',
+        historyPruned: 'Removed {{count}} install history entries',
+        historyPruneFailed: 'Could not clean install history',
+
         title: 'Client settings',
         subtitle: 'Manage this client device title, sync policy, and comment display identity. Source lists stay focused on subscriptions and sync state.',
         overview: 'Client settings overview',
@@ -993,6 +1004,7 @@ const en = {
         confirm: 'Continue install',
       },
       installOptions: {
+        noMirrors: 'No download mirrors are available for this package. The address provided by the source will be used directly.',
         title: 'Install options',
         body: 'Choose the download path for installing {{name}} this time.',
         mirror: 'Download mirror',
@@ -2217,6 +2229,8 @@ const en = {
         deleteComment: 'Delete comment',
       },
       sourceDetail: {
+        softwareRepository: 'Upstream software repository',
+        lpkRepository: 'LPK repository',
         eyebrow: 'Source app',
         source: 'Source',
         trustReadyTitle: 'Install details complete',

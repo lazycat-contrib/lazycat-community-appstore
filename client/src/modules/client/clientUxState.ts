@@ -46,15 +46,17 @@ export function requiresInstallOptions({
   installProtected,
   installPassword,
   mirrorOptionCount,
+  isClient = false,
   confirmed = false,
 }: {
   installProtected?: boolean;
   installPassword?: string;
   mirrorOptionCount: number;
+  isClient?: boolean;
   confirmed?: boolean;
 }) {
   if (installProtected && !installPassword?.trim()) return true;
-  return !confirmed && mirrorOptionCount > 0;
+  return !confirmed && (isClient || mirrorOptionCount > 0);
 }
 
 export type ClientCatalogSortMode = 'recent' | 'downloads' | 'name' | 'source';
@@ -247,6 +249,8 @@ export type EditableClientSettings = {
   autoSyncIntervalMinutes: number;
   syncOnStartup: boolean;
   installSuccessDismissSeconds: number;
+  historyMaxEntries?: number;
+  historyRetentionDays?: number;
   lastAutoSyncAt?: string;
   lastAutoSyncStatus?: string;
   lastAutoSyncError?: string;
@@ -292,6 +296,8 @@ export function normalizeEditableClientSettings(settings: EditableClientSettings
     installSuccessDismissSeconds: Number.isFinite(Number(settings.installSuccessDismissSeconds))
       ? Number(settings.installSuccessDismissSeconds)
       : 3,
+    historyMaxEntries: settings.historyMaxEntries ?? 500,
+    historyRetentionDays: settings.historyRetentionDays ?? 90,
     autoUpdateEnabled: Boolean(settings.autoUpdateEnabled),
     autoUpdateIntervalMinutes: Number(settings.autoUpdateIntervalMinutes) || 60,
     autoUpdateNotifyEnabled: Boolean(settings.autoUpdateNotifyEnabled),

@@ -1141,6 +1141,7 @@ export function App() {
       installProtected: app.installProtected,
       installPassword: options.installPassword,
       mirrorOptionCount: mirrorOptions.length,
+      isClient: !HAS_API,
       confirmed: options.confirmed,
     })) {
       setInstallPasswordRequest({ app, version: version.version });
@@ -1833,6 +1834,11 @@ export function App() {
                 settings={clientSettings}
                 sourceStats={sourceStats}
                 onSave={saveClientSettings}
+                onPruneHistory={async () => {
+                  const result = await clientApi<{ deleted: number }>('/history/prune', { method: 'POST' });
+                  await loadInstallHistory(1);
+                  return result.deleted;
+                }}
                 onRunMirrorBenchmark={runMirrorBenchmark}
 				onRunUpdates={runAvailableUpdates}
 				isUpdateQueueRunning={isUpdateQueueRunning}

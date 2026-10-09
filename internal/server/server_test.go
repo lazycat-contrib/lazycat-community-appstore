@@ -3267,9 +3267,33 @@ func TestSourceFeedIncludesGroupAppsOnlyWithValidCode(t *testing.T) {
 		t.Fatalf("group feed status = %d body = %s", rec.Code, rec.Body.String())
 	}
 	body := rec.Body.String()
-	for _, want := range []string{`"Private Code"`, `"groups"`, `"name":"Private Group"`, `"invalidGroupCodes":["OLD999"]`} {
+	for _, want := range []string{`"Private Code"`, `"groups"`, `"name":"Private Group"`, `"invalidGroupCodes":["OLD999"]`, `"upstreamDownloadUrl":"https://github.com/acme/private/releases/download/v1/app.lpk"`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("group feed missing %q: %s", want, body)
+		}
+	}
+
+	for _, path := range []string{"/source/v2/index.json?groupCodes=ABC123", "/source/v2/index.json?groupCodes=WRONG"} {
+		rec := app.do(http.MethodGet, path, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("v2 group feed status = %d", rec.Code)
+		}
+		hasUpstream := strings.Contains(rec.Body.String(), "https://github.com/acme/private/releases/download/v1/app.lpk")
+		if hasUpstream != strings.HasSuffix(path, "ABC123") {
+			t.Fatalf("v2 group authorization mismatch: %s", rec.Body.String())
+		}
+	}
+
+	app.login("admin", "changeme")
+	update := app.do(http.MethodPatch, fmt.Sprintf("/api/v1/apps/%d", privateApp.ID), map[string]string{"installPassword": "protected"})
+	if update.Code != http.StatusOK {
+		t.Fatalf("set password: %d %s", update.Code, update.Body.String())
+	}
+	app.cookies = nil
+	for _, path := range []string{"/source/v1/index.json?groupCodes=ABC123", "/source/v2/index.json?groupCodes=ABC123"} {
+		rec := app.do(http.MethodGet, path, nil)
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Private Code") || strings.Contains(rec.Body.String(), "https://github.com/acme/private/") {
+			t.Fatalf("password-protected group feed exposed upstream: %s", rec.Body.String())
 		}
 	}
 }

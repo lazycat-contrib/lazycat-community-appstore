@@ -46,6 +46,10 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid JSON request body")
 		return
 	}
+	if (input.HistoryMaxEntries != nil && (*input.HistoryMaxEntries < 0 || *input.HistoryMaxEntries > 10000)) || (input.HistoryRetentionDays != nil && (*input.HistoryRetentionDays < 0 || *input.HistoryRetentionDays > 3650)) {
+		writeError(w, http.StatusBadRequest, "INVALID_HISTORY_RETENTION", "History limits must be between 0 and 10000 entries or 3650 days")
+		return
+	}
 	if input.CFEndpoint != nil {
 		endpoint, err := cfnetwork.Normalize(*input.CFEndpoint)
 		if err != nil {
@@ -107,6 +111,14 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save network settings")
 		return
 	}
+	for key, value := range map[string]*int{settingHistoryMaxEntries: input.HistoryMaxEntries, settingHistoryRetentionDays: input.HistoryRetentionDays} {
+		if value != nil {
+			if err := s.setClientSetting(r, key, strconv.Itoa(*value)); err != nil {
+				writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save history settings")
+				return
+			}
+		}
+	}
 	syncSetting, err := s.setClientSyncSetting(r.Context(), userID, input)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SETTING_SAVE_FAILED", "Could not save settings")
@@ -115,6 +127,10 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	settings := s.clientSettingsDTO(clientTitle, displayName, defaultPageSize, installSuccessDismissSeconds, autoUpdateNotifyEnabled, syncSetting)
 	s.applyMirrorBenchmarkSettings(r.Context(), userID, &settings)
 	s.applyCFSettings(r.Context(), userID, &settings)
+	if err := s.applyHistoryRetentionSettings(r.Context(), userID, &settings); err != nil {
+		writeError(w, http.StatusInternalServerError, "SETTING_LOAD_FAILED", "Could not load history settings")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"settings": settings})
 }
 
@@ -134,6 +150,9 @@ func (s *Server) clientSettings(ctx context.Context, userID string) (ClientSetti
 	dto := s.clientSettingsDTO(clientTitle, commentDisplayName, defaultPageSize, installSuccessDismissSeconds, autoUpdateNotifyEnabled, syncSetting)
 	s.applyMirrorBenchmarkSettings(ctx, userID, &dto)
 	s.applyCFSettings(ctx, userID, &dto)
+	if err := s.applyHistoryRetentionSettings(ctx, userID, &dto); err != nil {
+		return ClientSettingsDTO{}, err
+	}
 	return dto, nil
 }
 

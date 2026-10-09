@@ -339,6 +339,8 @@ test('editable settings normalization trims strings and applies numeric defaults
       autoSyncIntervalMinutes: 60,
       syncOnStartup: true,
       installSuccessDismissSeconds: 3,
+      historyMaxEntries: 500,
+      historyRetentionDays: 90,
       autoUpdateNotifyEnabled: true,
       autoUpdateEnabled: true,
       autoUpdateIntervalMinutes: 60,
@@ -459,4 +461,19 @@ test('installed app source matching requires package or slug identity and never 
   assert.equal(findStableSourceApp({ appid: 'notes', title: 'Anything' }, sourceApps)?.id, 1);
   assert.equal(findStableSourceApp({ title: 'Same title' }, sourceApps), undefined);
   assert.equal(findStableSourceApp({ appid: 'unknown', title: 'Notes' }, sourceApps), undefined);
+});
+
+
+test('client installs always confirm the download route, even without configured mirrors', () => {
+  assert.equal(requiresInstallOptions({ isClient: true, mirrorOptionCount: 0 }), true);
+  assert.equal(requiresInstallOptions({ isClient: true, mirrorOptionCount: 0, confirmed: true }), false);
+  assert.equal(requiresInstallOptions({ isClient: true, installProtected: true, mirrorOptionCount: 0, confirmed: true }), true);
+});
+
+
+test('history retention changes participate in unsaved settings and zero disables a limit', () => {
+  const base = { clientTitle: '', commentDisplayName: '', defaultPageSize: 24, historyMaxEntries: 500, historyRetentionDays: 90 };
+  assert.equal(sameEditableClientSettings(base, { ...base, historyMaxEntries: 100 }), false);
+  assert.equal(sameEditableClientSettings(base, { ...base, historyRetentionDays: 30 }), false);
+  assert.equal(normalizeEditableClientSettings({ ...base, historyMaxEntries: 0, historyRetentionDays: 0 }).historyMaxEntries, 0);
 });
