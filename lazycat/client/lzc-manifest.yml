@@ -1,6 +1,6 @@
 usage: |
   这是独立客户端，可在不部署服务端的情况下使用。
-  打开应用后在“软件源”页面添加 /source/v2/index.json 地址并同步。
+  客户端没有订阅源时会自动添加部署参数指定的软件源，可在“软件源”页面同步和管理。
 
 application:
   subdomain: lazycat-appstore
@@ -15,6 +15,7 @@ application:
   environment:
     - CLIENT_ADDR=127.0.0.1:8090
     - CLIENT_DB_DSN=/lzcapp/var/data/client.db
+    - CLIENT_DEFAULT_SOURCE_URL={{ .U.default_source_url }}
     - CLIENT_SESSION_SECRET={{ stable_secret "client_session_secret_v1" }}
     - CLIENT_OIDC_ENABLED=true
     - CLIENT_OIDC_ISSUER_URL=${LAZYCAT_AUTH_OIDC_ISSUER_URI}

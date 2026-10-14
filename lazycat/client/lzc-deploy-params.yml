@@ -1,0 +1,13 @@
+params:
+  - id: default_source_url
+    type: string
+    name: "Initial Software Source URL"
+    description: "Software source URL added when the client has no subscriptions"
+    default_value: "https://apps.pushcat.eu.org/source/v2/index.json"
+    optional: false
+
+locales:
+  zh:
+    default_source_url:
+      name: "初始软件订阅源地址"
+      description: "客户端没有软件订阅源时自动添加此地址"

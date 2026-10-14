@@ -36,6 +36,22 @@ func TestLoadConfigSetsBoundedHTTPRuntimeDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadConfigDefaultsAndOverridesInitialSource(t *testing.T) {
+	t.Setenv("CLIENT_DEFAULT_SOURCE_URL", "")
+	if got := LoadConfig().DefaultSourceURL; got != defaultClientSourceURL {
+		t.Fatalf("default source URL = %q", got)
+	}
+	t.Setenv("CLIENT_DEFAULT_SOURCE_URL", " https://custom.example/source/v2/index.json ")
+	if got := LoadConfig().DefaultSourceURL; got != "https://custom.example/source/v2/index.json" {
+		t.Fatalf("configured source URL = %q", got)
+	}
+	cfg := LoadConfig()
+	cfg.DefaultSourceURL = "not-a-url"
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "CLIENT_DEFAULT_SOURCE_URL") {
+		t.Fatalf("invalid source URL error = %v", err)
+	}
+}
+
 func TestLoadConfigParsesDatabasePoolConfiguration(t *testing.T) {
 	t.Setenv("CLIENT_DB_MAX_OPEN_CONNS", "4")
 	t.Setenv("CLIENT_DB_MAX_IDLE_CONNS", "2")

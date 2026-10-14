@@ -15,15 +15,35 @@ import (
 )
 
 func (s *Server) handleListSources(w http.ResponseWriter, r *http.Request) {
-	items, err := s.db.ClientSource.Query().
-		Where(clientsource.UserIDEQ(currentUserID(r))).
-		Order(ent.Desc(clientsource.FieldUpdatedAt)).
-		All(r.Context())
+	userID := currentUserID(r)
+	query := func() ([]*ent.ClientSource, error) {
+		return s.db.ClientSource.Query().
+			Where(clientsource.UserIDEQ(userID)).
+			Order(ent.Desc(clientsource.FieldUpdatedAt)).
+			All(r.Context())
+	}
+	items, err := query()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "SOURCE_LIST_FAILED", "Could not list sources")
 		return
 	}
-	snapshot := s.loadMirrorBenchmarkSnapshot(r.Context(), currentUserID(r))
+	if len(items) == 0 && s.cfg.DefaultSourceURL != "" {
+		_, err = s.db.ClientSource.Create().
+			SetUserID(userID).
+			SetName(s.cfg.DefaultSourceName).
+			SetURL(s.cfg.DefaultSourceURL).
+			Save(r.Context())
+		if err != nil && !ent.IsConstraintError(err) {
+			writeError(w, http.StatusInternalServerError, "SOURCE_CREATE_FAILED", "Could not add default source")
+			return
+		}
+		items, err = query()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "SOURCE_LIST_FAILED", "Could not list sources")
+			return
+		}
+	}
+	snapshot := s.loadMirrorBenchmarkSnapshot(r.Context(), userID)
 	out := make([]SourceDTO, 0, len(items))
 	for _, item := range items {
 		dto := sourceDTO(item)

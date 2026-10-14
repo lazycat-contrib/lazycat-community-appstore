@@ -87,6 +87,51 @@ func TestSourceCRUDIsUserScoped(t *testing.T) {
 	}
 }
 
+func TestClientAddsConfiguredSourceOnlyWhenUserHasNone(t *testing.T) {
+	app := testServer(t)
+	app.server.cfg.DefaultSourceURL = "https://custom.example/source/v2/index.json"
+	app.server.cfg.DefaultSourceName = "Initial Store"
+
+	list := func(userID string) []SourceDTO {
+		t.Helper()
+		rec := app.request(http.MethodGet, "/api/client/v1/sources", "", userID)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("list %s = %d %s", userID, rec.Code, rec.Body.String())
+		}
+		var response struct {
+			Sources []SourceDTO `json:"sources"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
+		return response.Sources
+	}
+
+	alice := list("alice")
+	if len(alice) != 1 || alice[0].URL != app.server.cfg.DefaultSourceURL || alice[0].Name != "Initial Store" {
+		t.Fatalf("initial sources = %+v", alice)
+	}
+	if again := list("alice"); len(again) != 1 || again[0].ID != alice[0].ID {
+		t.Fatalf("repeated list changed sources: %+v", again)
+	}
+
+	create := app.request(http.MethodPost, "/api/client/v1/sources", `{"name":"Existing","url":"https://existing.example/source/v2/index.json"}`, "bob")
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create bob = %d %s", create.Code, create.Body.String())
+	}
+	if bob := list("bob"); len(bob) != 1 || bob[0].URL != "https://existing.example/source/v2/index.json" {
+		t.Fatalf("existing subscription changed: %+v", bob)
+	}
+
+	deleted := app.request(http.MethodDelete, fmt.Sprintf("/api/client/v1/sources/%d", alice[0].ID), "", "alice")
+	if deleted.Code != http.StatusOK {
+		t.Fatalf("delete alice = %d %s", deleted.Code, deleted.Body.String())
+	}
+	if restored := list("alice"); len(restored) != 1 || restored[0].URL != app.server.cfg.DefaultSourceURL {
+		t.Fatalf("empty subscription list was not restored: %+v", restored)
+	}
+}
+
 func TestClientOIDCSessionScopesSources(t *testing.T) {
 	app := testServer(t)
 	aliceCookie := app.sessionCookie(t, clientSessionClaims{

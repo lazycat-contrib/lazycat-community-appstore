@@ -11,6 +11,7 @@ import (
 )
 
 const defaultClientSessionSecret = "dev-client-session-secret-change-me"
+const defaultClientSourceURL = "https://apps.pushcat.eu.org/source/v2/index.json"
 
 type Config struct {
 	Addr              string
@@ -49,7 +50,7 @@ func LoadConfig() Config {
 		DBMaxIdleConns:    envInt("CLIENT_DB_MAX_IDLE_CONNS", 1),
 		DBConnMaxLifetime: envDuration("CLIENT_DB_CONN_MAX_LIFETIME", 30*time.Minute),
 		DBConnMaxIdleTime: envDuration("CLIENT_DB_CONN_MAX_IDLE_TIME", 5*time.Minute),
-		DefaultSourceURL:  strings.TrimSpace(os.Getenv("CLIENT_DEFAULT_SOURCE_URL")),
+		DefaultSourceURL:  env("CLIENT_DEFAULT_SOURCE_URL", defaultClientSourceURL),
 		DefaultSourceName: env("CLIENT_DEFAULT_SOURCE_NAME", "喵喵私有商店"),
 		SyncTimeout:       20 * time.Second,
 		SessionSecret:     env("CLIENT_SESSION_SECRET", defaultClientSessionSecret),
@@ -71,6 +72,9 @@ func LoadConfig() Config {
 func (c Config) Validate() error {
 	if strings.TrimSpace(c.SessionSecret) == "" {
 		return errors.New("CLIENT_SESSION_SECRET is required")
+	}
+	if c.DefaultSourceURL != "" && normalizeSourceURL(c.DefaultSourceURL) == "" {
+		return errors.New("CLIENT_DEFAULT_SOURCE_URL must be an HTTP or HTTPS URL")
 	}
 	host, _, err := net.SplitHostPort(c.Addr)
 	if err != nil {

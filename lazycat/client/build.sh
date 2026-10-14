@@ -27,7 +27,7 @@ const path = require('node:path');
 
 const config = {
   apiBaseURL: process.env.CLIENT_API_BASE_URL || '',
-  defaultSourceURL: process.env.CLIENT_DEFAULT_SOURCE_URL || '',
+  defaultSourceURL: process.env.CLIENT_DEFAULT_SOURCE_URL || 'https://apps.pushcat.eu.org/source/v2/index.json',
   defaultSourceName: process.env.CLIENT_DEFAULT_SOURCE_NAME || '喵喵私有商店',
   appVersion: process.env.CLIENT_APP_VERSION || '',
 };
