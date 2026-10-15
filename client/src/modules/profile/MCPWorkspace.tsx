@@ -323,7 +323,12 @@ function mcpHelpExamples(t: (key: string) => string, endpoint: string): TokenHel
     {
       title: t('mcp.helpPermissionTitle'),
       body: t('mcp.helpPermissionBody'),
-      code: ['USER: appstore_list_my_apps, appstore_create_app_from_url, appstore_publish_version_from_url', 'ADMIN: USER tools + appstore_admin_list_apps'].join('\n'),
+      code: [
+        'USER: appstore_list_my_apps, appstore_create_app_from_url, appstore_publish_version_from_url',
+        'ADMIN: USER tools + appstore_admin_list_apps',
+        'ADMIN: appstore_admin_list_categories, appstore_admin_create_category',
+        'ADMIN: appstore_admin_update_category, appstore_admin_delete_category',
+      ].join('\n'),
       language: 'plaintext',
     },
   ];

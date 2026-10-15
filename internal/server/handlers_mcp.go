@@ -257,6 +257,26 @@ func (s *Server) registerAdminMCPTools(server *mcp.Server) {
 		Title:       "List all app-store apps",
 		Description: "Admin-only list of apps across all submitters, with optional status, owner, and search filters.",
 	}, s.mcpAdminListApps)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_list_categories",
+		Title:       "List store categories",
+		Description: "Admin-only list of all categories, including localized names, parent IDs, and sort order.",
+	}, s.mcpAdminListCategories)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_create_category",
+		Title:       "Create store category",
+		Description: "Admin-only category creation. Categories support at most two hierarchy levels.",
+	}, s.mcpAdminCreateCategory)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_update_category",
+		Title:       "Update store category",
+		Description: "Admin-only update of a category name, translations, slug, parent, or sort order.",
+	}, s.mcpAdminUpdateCategory)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_delete_category",
+		Title:       "Delete store category",
+		Description: "Admin-only category deletion. Child categories must be removed first; linked apps become uncategorized.",
+	}, s.mcpAdminDeleteCategory)
 }
 
 type mcpPrincipal struct {

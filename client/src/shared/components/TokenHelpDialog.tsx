@@ -34,7 +34,6 @@ export function TokenHelpDialog({
   return (
     <ModalLayer onClose={onClose} width="min(760px, calc(100vw - 36px))" maxHeight="min(86vh, 780px)">
       <section className="modal-panel token-help-panel" aria-labelledby={titleId}>
-        <XIconButton type="button" className="close" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onClose} />
         <div className="token-help-head">
           <span className="install-password-icon">
             <Icon size={21} />
@@ -47,6 +46,7 @@ export function TokenHelpDialog({
               {body}
             </XText>
           </div>
+          <XIconButton type="button" variant="ghost" label={t('common.close')} icon={<X size={17} />} onClick={onClose} />
         </div>
         <div className="token-help-content">
           {examples.map((example) => (

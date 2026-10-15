@@ -3378,8 +3378,13 @@ body,
   gap: 14px;
 }
 
-.token-help-panel {
+.modal-dialog-shell .token-help-panel {
   width: min(760px, 100%);
+  max-height: min(86dvh, 780px);
+  overflow: hidden;
+  padding: 0;
+  gap: 0;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .app-submission-dialog {
@@ -3502,10 +3507,19 @@ body,
 
 .token-help-head {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: start;
-  padding-right: 48px;
+  padding: 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.token-help-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 20px 20px;
+  scroll-padding-block: 12px;
 }
 
 .token-help-content,
@@ -5002,6 +5016,18 @@ code {
   .modal-panel,
   .install-password-dialog {
     padding: 16px;
+  }
+
+  .modal-dialog-shell .token-help-panel {
+    padding: 0;
+  }
+
+  .token-help-head {
+    padding: 16px;
+  }
+
+  .token-help-content {
+    padding: 0 16px calc(16px + env(safe-area-inset-bottom));
   }
 
   .form-panel .dialog-actions,
