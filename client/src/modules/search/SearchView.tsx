@@ -22,6 +22,7 @@ export function SearchView({
   onGoWishWall,
   defaultPageSize,
   activeInstallKey,
+  completedInstallKey,
   clientCatalogState,
   onClientCatalogStateChange,
   storefrontSearchState,
@@ -44,6 +45,7 @@ export function SearchView({
   onGoWishWall: () => void;
   defaultPageSize: number;
   activeInstallKey?: string;
+  completedInstallKey?: string;
   clientCatalogState: ClientCatalogViewState;
   onClientCatalogStateChange: Dispatch<SetStateAction<ClientCatalogViewState>>;
   storefrontSearchState: StorefrontSearchViewState;
@@ -63,6 +65,7 @@ export function SearchView({
         onGoWishWall={onGoWishWall}
         defaultPageSize={defaultPageSize}
         activeInstallKey={activeInstallKey}
+        completedInstallKey={completedInstallKey}
         viewState={clientCatalogState}
         onViewStateChange={onClientCatalogStateChange}
       />

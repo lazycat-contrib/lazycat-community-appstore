@@ -55,6 +55,7 @@ export function ClientCatalog({
   onGoWishWall,
   defaultPageSize,
   activeInstallKey,
+  completedInstallKey,
   viewState,
   onViewStateChange,
 }: {
@@ -68,6 +69,7 @@ export function ClientCatalog({
   onGoWishWall: () => void;
   defaultPageSize: number;
   activeInstallKey?: string;
+  completedInstallKey?: string;
   viewState: ClientCatalogViewState;
   onViewStateChange: Dispatch<SetStateAction<ClientCatalogViewState>>;
 }) {
@@ -231,6 +233,7 @@ export function ClientCatalog({
           onInstall={onInstall}
           onGoSources={onGoSources}
           activeInstallKey={activeInstallKey}
+          completedInstallKey={completedInstallKey}
           emptyTitle={sourceEmptyTitle}
           emptyBody={sourceEmptyBody}
         />

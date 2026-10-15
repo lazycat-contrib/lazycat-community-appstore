@@ -16,7 +16,95 @@
 
 .source-app-card.client-source-app-card {
   min-height: 220px;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.client-app-icon-stamp {
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 46px;
+}
+
+.installed-animal-stamp {
+  position: absolute;
+  right: -7px;
+  bottom: -6px;
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: var(--status-success-bg);
+  color: var(--status-success-ink);
+  pointer-events: none;
+}
+
+.installed-animal {
+  opacity: .6;
+  clip-path: inset(0 0 22% 0);
+  transform: translateY(2px);
+  transition:
+    opacity 220ms var(--ease-out),
+    clip-path 220ms var(--ease-out),
+    transform 220ms var(--ease-out);
+}
+
+.installed-animal-stamp.has-update {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-ink);
+}
+
+.installed-animal-state {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid var(--surface);
+  border-radius: 50%;
+  background: var(--green-strong);
+  color: var(--on-strong);
+}
+
+.has-update .installed-animal-state {
+  background: var(--status-warning-ink);
+  color: var(--surface);
+}
+
+.installed-animal-stamp.is-celebrating {
+  animation: installed-animal-arrive 220ms var(--ease-out) both;
+}
+
+@keyframes installed-animal-arrive {
+  from { opacity: 0; transform: scale(.95) rotate(-10deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .client-source-app-card:hover .installed-animal {
+    opacity: .38;
+    clip-path: inset(0);
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .installed-animal-stamp.is-celebrating {
+    animation: none;
+  }
+
+  .installed-animal {
+    transform: none;
+    transition: opacity 120ms ease;
+  }
+
+  .client-source-app-card:hover .installed-animal {
+    transform: none;
+  }
 }
 
 .client-app-facts {

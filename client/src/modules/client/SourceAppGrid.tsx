@@ -1,12 +1,12 @@
 import { Archive, CalendarClock, ChevronRight, Cloud, Download, Plus, RefreshCw, Tag } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { AppIcon } from '../../components/AppIcon';
 import { softwareUpdatedAt } from '../../shared/catalogUpdate';
 import { EmptyState } from '../../shared/components/Feedback';
-import { StatusBadge } from '../../shared/components/StatusBadge';
+import { InstalledAnimalStamp } from './InstalledAnimalStamp';
 import type { InstalledApplication, SourceApp } from '../../shared/types';
 import {
   findInstalledApplication,
@@ -16,6 +16,7 @@ import {
   localizedAppName,
   localizedAppSummary,
   localizedCategory,
+  normalizeAppIdentity,
   sourceActionLabel,
   sourceInstallAction,
 } from '../../shared/utils';
@@ -30,6 +31,7 @@ export function SourceAppGrid({
   emptyTitle,
   emptyBody,
   activeInstallKey,
+  completedInstallKey,
 }: {
   apps: SourceApp[];
   installedApps: InstalledApplication[];
@@ -40,9 +42,30 @@ export function SourceAppGrid({
   emptyTitle?: string;
   emptyBody?: string;
   activeInstallKey?: string;
+  completedInstallKey?: string;
 }) {
   const { t } = useTranslation();
   const [pendingAppKey, setPendingAppKey] = useState('');
+  const [celebrateAppKey, setCelebrateAppKey] = useState('');
+  const lastCompletedKey = useRef(completedInstallKey);
+
+  useEffect(() => {
+    if (!completedInstallKey) {
+      lastCompletedKey.current = undefined;
+      return;
+    }
+    if (lastCompletedKey.current === completedInstallKey) return;
+    const completedApp = apps.find((app) => `${app.sourceId ?? app.sourceName}:${app.id}` === completedInstallKey);
+    if (!completedApp || !findInstalledApplication(completedApp, installedApps)) return;
+    lastCompletedKey.current = completedInstallKey;
+    setCelebrateAppKey(completedInstallKey);
+  }, [apps, completedInstallKey, installedApps]);
+
+  useEffect(() => {
+    if (!celebrateAppKey) return;
+    const timer = window.setTimeout(() => setCelebrateAppKey(''), 300);
+    return () => window.clearTimeout(timer);
+  }, [celebrateAppKey]);
 
   async function runInstall(app: SourceApp, appKey: string) {
     if (pendingAppKey || activeInstallKey) return;
@@ -72,6 +95,7 @@ export function SourceAppGrid({
         const installAction = sourceInstallAction(app, installedMatch);
         const actionLabel = sourceActionLabel(t, installAction);
         const isUpdateAvailable = installAction === 'update';
+        const statusLabel = isUpdateAvailable ? t('app.updateAvailable') : t('app.installed');
         const appName = localizedAppName(app);
         const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
         const appKey = `${app.sourceId ?? app.sourceName}:${app.id}`;
@@ -80,12 +104,22 @@ export function SourceAppGrid({
           <XClickableCard
             className="source-app-card client-source-app-card"
             key={appKey}
-            label={t('app.open', { name: appName })}
+            label={`${t('app.open', { name: appName })}${installedMatch ? ` · ${statusLabel}` : ''}`}
             onClick={() => onOpen(app)}
             padding={3}
           >
             <div className="app-open">
-              <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={appName} />
+              <span className="client-app-icon-stamp">
+                <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={appName} />
+                {installedMatch && (
+                  <InstalledAnimalStamp
+                    identity={normalizeAppIdentity(installedMatch.appid) || normalizeAppIdentity(app.packageId) || appKey}
+                    updateAvailable={isUpdateAvailable}
+                    label={statusLabel}
+                    celebrate={celebrateAppKey === appKey}
+                  />
+                )}
+              </span>
               <div>
                 <h3>{appName}</h3>
                 <p>{appSummary}</p>
@@ -98,12 +132,6 @@ export function SourceAppGrid({
               <span><Archive size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
               <span><CalendarClock size={14} /> {t('app.softwareUpdatedAt', { time: formatDate(softwareUpdatedAt(app)) })}</span>
             </div>
-            {installedMatch && (
-              <StatusBadge
-                tone={isUpdateAvailable ? 'stale' : 'synced'}
-                label={isUpdateAvailable ? t('app.updateAvailable') : t('app.installed')}
-              />
-            )}
             <XButton
               type="button"
               variant={isUpdateAvailable ? 'primary' : 'secondary'}
