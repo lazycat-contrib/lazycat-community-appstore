@@ -1,4 +1,4 @@
-import { CalendarClock, ChevronRight, Download, PackagePlus, Sparkles, Star, Tag } from 'lucide-react';
+import { CalendarClock, ChevronRight, Download, PackagePlus, Star, Tag } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { type MouseEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -50,10 +50,19 @@ export function AppGrid({
         const isInstalling = pendingAppID === app.id;
         const appName = localizedAppName(app);
         const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
+        const voteCount = app.rating?.voteCount || 0;
+        const ratingLabel = t('app.rating', { score: app.rating?.score || 0, count: voteCount });
         return (
-          <XClickableCard className="app-card" key={app.id} label={t('app.open', { name: appName })} onClick={() => void onOpen(app)} padding={3}>
+          <XClickableCard className="app-card" key={app.id} label={`${t('app.open', { name: appName })}${voteCount > 0 ? ` · ${ratingLabel}` : ''}`} onClick={() => void onOpen(app)} padding={3}>
             <div className="app-open">
-              <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={appName} />
+              <span className="storefront-app-icon-stamp">
+                <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={appName} />
+                {voteCount > 0 && (
+                  <span className="storefront-vote-stamp" data-hue={app.id % 3} title={ratingLabel} aria-hidden="true">
+                    {voteCount}
+                  </span>
+                )}
+              </span>
               <div>
                 <h3>{appName}</h3>
                 <p>{appSummary}</p>
@@ -65,7 +74,6 @@ export function AppGrid({
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
               <span><CalendarClock size={14} /> {t('app.softwareUpdatedAt', { time: formatDate(softwareUpdatedAt(app)) })}</span>
 						{app.downloadCount > 0 && <span><Download size={14} /> {t('app.downloads', { count: app.downloadCount })}</span>}
-						{(app.rating?.voteCount || 0) > 0 && <span><Sparkles size={14} /> {t('app.rating', { score: app.rating?.score || 0, count: app.rating?.voteCount || 0 })}</span>}
             </div>
             <XButton
               className="app-card-primary-action"

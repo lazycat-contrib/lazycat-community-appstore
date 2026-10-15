@@ -229,6 +229,7 @@
   min-height: 216px;
   max-width: none;
   max-height: none;
+  align-self: stretch;
   grid-template-rows: auto minmax(0, 1fr) auto;
   background: var(--surface);
   transition:
@@ -239,6 +240,42 @@
 
 :is(.storefront-page, .storefront-search-page) .app-open {
   grid-template-columns: 58px minmax(0, 1fr) 18px;
+}
+
+.storefront-app-icon-stamp {
+  position: relative;
+  display: block;
+  width: 58px;
+  height: 58px;
+}
+
+.storefront-vote-stamp {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: grid;
+  place-items: center;
+  min-width: 27px;
+  height: 27px;
+  padding: 0 5px;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  background: var(--status-info-bg);
+  color: var(--status-info-ink);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.storefront-vote-stamp[data-hue='1'] {
+  background: var(--status-success-bg);
+  color: var(--status-success-ink);
+}
+
+.storefront-vote-stamp[data-hue='2'] {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-ink);
 }
 
 :is(.storefront-page, .storefront-search-page) .app-open .app-artwork,
