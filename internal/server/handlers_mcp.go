@@ -406,23 +406,27 @@ type mcpAdminListAppsInput struct {
 }
 
 type mcpAppSummary struct {
-	ID               int      `json:"id"`
-	OwnerID          int      `json:"ownerId"`
-	Owner            string   `json:"owner"`
-	PackageID        string   `json:"packageId"`
-	Name             string   `json:"name"`
-	CategoryID       *int     `json:"categoryId,omitempty"`
-	Category         string   `json:"category,omitempty"`
-	Tags             []string `json:"tags"`
-	Author           string   `json:"author,omitempty"`
-	Homepage         string   `json:"homepage,omitempty"`
-	License          string   `json:"license,omitempty"`
-	MinOSVersion     string   `json:"minOSVersion,omitempty"`
-	Status           string   `json:"status"`
-	LatestVersion    string   `json:"latestVersion,omitempty"`
-	CanManageApp     bool     `json:"canManageApp"`
-	CanUploadVersion bool     `json:"canUploadVersion"`
-	UpdatedAt        string   `json:"updatedAt"`
+	ID               int               `json:"id"`
+	OwnerID          int               `json:"ownerId"`
+	Owner            string            `json:"owner"`
+	PackageID        string            `json:"packageId"`
+	Name             string            `json:"name"`
+	Summary          string            `json:"summary"`
+	SummaryI18n      map[string]string `json:"summaryI18n,omitempty"`
+	Description      string            `json:"description"`
+	DescriptionI18n  map[string]string `json:"descriptionI18n,omitempty"`
+	CategoryID       *int              `json:"categoryId,omitempty"`
+	Category         string            `json:"category,omitempty"`
+	Tags             []string          `json:"tags"`
+	Author           string            `json:"author,omitempty"`
+	Homepage         string            `json:"homepage,omitempty"`
+	License          string            `json:"license,omitempty"`
+	MinOSVersion     string            `json:"minOSVersion,omitempty"`
+	Status           string            `json:"status"`
+	LatestVersion    string            `json:"latestVersion,omitempty"`
+	CanManageApp     bool              `json:"canManageApp"`
+	CanUploadVersion bool              `json:"canUploadVersion"`
+	UpdatedAt        string            `json:"updatedAt"`
 }
 
 type mcpVersionSummary struct {
@@ -708,6 +712,10 @@ func toMCPAppSummary(dto appSummary) mcpAppSummary {
 		Owner:            dto.Owner,
 		PackageID:        dto.PackageID,
 		Name:             dto.Name,
+		Summary:          dto.Summary,
+		SummaryI18n:      dto.SummaryI18n,
+		Description:      dto.Description,
+		DescriptionI18n:  dto.DescriptionI18n,
 		CategoryID:       dto.CategoryID,
 		Category:         dto.Category,
 		Tags:             dto.Tags,

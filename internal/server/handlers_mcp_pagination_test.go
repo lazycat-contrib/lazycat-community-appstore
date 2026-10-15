@@ -12,9 +12,52 @@ import (
 	entgo "lazycat.community/appstore/ent"
 	"lazycat.community/appstore/ent/mcptoken"
 	"lazycat.community/appstore/ent/user"
+	"lazycat.community/appstore/internal/catalogmeta"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+func TestMCPAppListsIncludeSoftwareDescriptions(t *testing.T) {
+	store := newTestApp(t)
+	ctx := t.Context()
+	admin := store.server.db.User.Query().Where(user.UsernameEQ("admin")).OnlyX(ctx)
+	const packageID = "community.lazycat.mcp-description-test"
+	store.server.db.App.Create().
+		SetOwnerID(admin.ID).
+		SetPackageID(packageID).
+		SetName("Description test").
+		SetSlug("mcp-description-test").
+		SetSummary("Short summary").
+		SetSummaryI18nJSON(catalogmeta.EncodeLocalizedText(catalogmeta.LocalizedText{"zh-CN": "简短说明"})).
+		SetDescription("Full software description").
+		SetDescriptionI18nJSON(catalogmeta.EncodeLocalizedText(catalogmeta.LocalizedText{"zh-CN": "完整软件说明"})).
+		SaveX(ctx)
+
+	for _, tc := range []struct {
+		name string
+		list func() (mcpAppsOutput, error)
+	}{
+		{"user", func() (mcpAppsOutput, error) {
+			_, out, err := store.server.mcpListMyApps(ctx, mcpCategoryTestRequest(admin.ID, mcptoken.PrincipalTypeUSER), mcpListAppsInput{Query: packageID})
+			return out, err
+		}},
+		{"admin", func() (mcpAppsOutput, error) {
+			_, out, err := store.server.mcpAdminListApps(ctx, mcpCategoryTestRequest(admin.ID, mcptoken.PrincipalTypeADMIN), mcpAdminListAppsInput{Query: packageID})
+			return out, err
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := tc.list()
+			if err != nil || len(out.Apps) != 1 {
+				t.Fatalf("list = %+v, err = %v", out, err)
+			}
+			got := out.Apps[0]
+			if got.Summary != "Short summary" || got.Description != "Full software description" || got.SummaryI18n["zh-CN"] != "简短说明" || got.DescriptionI18n["zh-CN"] != "完整软件说明" {
+				t.Fatalf("software descriptions = %+v", got)
+			}
+		})
+	}
+}
 
 func TestMCPAppListToolsExposePageParameter(t *testing.T) {
 	store := newTestApp(t)
