@@ -320,6 +320,7 @@ function mcpHelpExamples(t: (key: string) => string, endpoint: string): TokenHel
   return [
     { title: t('mcp.helpEndpointTitle'), body: t('mcp.helpEndpointBody'), code: mcpClientConfigExample(endpoint), language: 'json' },
     { title: t('mcp.helpToolsTitle'), body: t('mcp.helpToolsBody'), code: mcpToolCallExample, language: 'json' },
+    { title: t('mcp.helpListAppsTitle'), body: t('mcp.helpListAppsBody'), code: 'Tool: appstore_admin_list_apps\n\n{"page": 2, "limit": 200}', language: 'json' },
     {
       title: t('mcp.helpPermissionTitle'),
       body: t('mcp.helpPermissionBody'),

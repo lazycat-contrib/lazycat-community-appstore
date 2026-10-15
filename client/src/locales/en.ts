@@ -1264,6 +1264,8 @@ const en = {
         helpEndpointBody: 'Use /mcp as the Streamable HTTP endpoint and pass the MCP token through Authorization Bearer.',
         helpToolsTitle: 'Publish updates',
         helpToolsBody: 'User tokens can list owned apps, submit new apps, and publish versions for maintainable apps. GitHub URLs use the configured mirror retry chain.',
+        helpListAppsTitle: 'List apps by page',
+        helpListAppsBody: 'Use page and limit on list tools. Start at page 1 and follow nextPage until it is absent. Admin listings allow up to 200 apps per page.',
         helpPermissionTitle: 'Permission split',
         helpPermissionBody: 'User tokens only register user tools. Admin tokens can manage categories and tags, then assign existing IDs to apps. Categories allow two levels; an empty tag list clears app tags.',
         copyEndpoint: 'Copy endpoint',

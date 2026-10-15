@@ -1264,6 +1264,8 @@ const zh = {
         helpEndpointBody: '使用 /mcp 作为 Streamable HTTP 端点，并通过 Authorization Bearer 传入 MCP Token。',
         helpToolsTitle: '更新版本',
         helpToolsBody: '用户 token 可以列出自己的应用、提交新应用和给可维护应用发布版本。GitHub 链接会使用站点配置的镜像重试。',
+        helpListAppsTitle: '分页列出应用',
+        helpListAppsBody: '列表工具使用 page 和 limit 翻页；从第 1 页开始，按结果中的 nextPage 继续，直到不再返回 nextPage。管理员每页最多 200 个应用。',
         helpPermissionTitle: '权限差异',
         helpPermissionBody: '用户 token 只注册用户工具；管理员 token 可管理分类和 Tag，并按已有 ID 为应用设置分类或完整替换 Tag。分类最多两级；空 Tag 列表会清除应用标签。',
         copyEndpoint: '复制端点',

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"lazycat.community/appstore/ent/app"
 	"lazycat.community/appstore/ent/mcptoken"
 	"lazycat.community/appstore/ent/user"
+	"lazycat.community/appstore/internal/pagination"
 
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -238,7 +240,7 @@ func (s *Server) registerUserMCPTools(server *mcp.Server) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "appstore_list_my_apps",
 		Title:       "List my app-store apps",
-		Description: "List apps owned by, or collaborated on by, the token user.",
+		Description: "List apps owned by, or collaborated on by, the token user. Use page and limit to retrieve all pages; nextPage is returned when more apps remain.",
 	}, s.mcpListMyApps)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "appstore_create_app_from_url",
@@ -256,7 +258,7 @@ func (s *Server) registerAdminMCPTools(server *mcp.Server) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "appstore_admin_list_apps",
 		Title:       "List all app-store apps",
-		Description: "Admin-only list of apps across all submitters, with optional status, owner, and search filters.",
+		Description: "Admin-only list of apps across all submitters, with optional status, owner, and search filters. Use page and limit to retrieve all pages.",
 	}, s.mcpAdminListApps)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "appstore_admin_list_categories",
@@ -391,14 +393,16 @@ func mcpRequest(ctx context.Context) *http.Request {
 
 type mcpListAppsInput struct {
 	Query string `json:"query,omitempty" jsonschema:"optional text search"`
-	Limit int    `json:"limit,omitempty" jsonschema:"maximum number of apps to return, default 50, maximum 100"`
+	Page  int    `json:"page,omitempty" jsonschema:"1-based page number, default 1"`
+	Limit int    `json:"limit,omitempty" jsonschema:"apps per page, default 50, maximum 100"`
 }
 
 type mcpAdminListAppsInput struct {
 	Query   string `json:"query,omitempty" jsonschema:"optional text search"`
 	Status  string `json:"status,omitempty" jsonschema:"optional app status filter such as APPROVED, PENDING, REJECTED, or UNLISTED"`
 	OwnerID int    `json:"ownerId,omitempty" jsonschema:"optional owner user ID filter"`
-	Limit   int    `json:"limit,omitempty" jsonschema:"maximum number of apps to return, default 100, maximum 200"`
+	Page    int    `json:"page,omitempty" jsonschema:"1-based page number, default 1"`
+	Limit   int    `json:"limit,omitempty" jsonschema:"apps per page, default 100, maximum 200"`
 }
 
 type mcpAppSummary struct {
@@ -433,7 +437,9 @@ type mcpVersionSummary struct {
 }
 
 type mcpAppsOutput struct {
-	Apps []mcpAppSummary `json:"apps"`
+	Apps       []mcpAppSummary     `json:"apps"`
+	Pagination pagination.Response `json:"pagination"`
+	NextPage   int                 `json:"nextPage,omitempty"`
 }
 
 func (s *Server) mcpListMyApps(ctx context.Context, req *mcp.CallToolRequest, input mcpListAppsInput) (*mcp.CallToolResult, mcpAppsOutput, error) {
@@ -441,9 +447,8 @@ func (s *Server) mcpListMyApps(ctx context.Context, req *mcp.CallToolRequest, in
 	if err != nil {
 		return nil, mcpAppsOutput{}, err
 	}
-	httpReq := mcpRequest(ctx)
 	ids := s.collaboratorAppIDs(ctx, u.ID)
-	q := s.db.App.Query().Order(entgo.Desc(app.FieldUpdatedAt)).Limit(clampLimit(input.Limit, 50, 100))
+	q := s.db.App.Query()
 	if len(ids) > 0 {
 		q.Where(app.Or(app.OwnerIDEQ(u.ID), app.IDIn(ids...)))
 	} else {
@@ -452,11 +457,8 @@ func (s *Server) mcpListMyApps(ctx context.Context, req *mcp.CallToolRequest, in
 	if search := strings.TrimSpace(input.Query); search != "" {
 		q.Where(app.Or(app.NameContainsFold(search), app.PackageIDContainsFold(search), app.SummaryContainsFold(search), app.DescriptionContainsFold(search)))
 	}
-	records, err := q.All(ctx)
-	if err != nil {
-		return nil, mcpAppsOutput{}, err
-	}
-	return nil, mcpAppsOutput{Apps: s.mcpAppSummaries(httpReq, records, u)}, nil
+	out, err := s.mcpListAppsPage(ctx, q, u, input.Page, input.Limit, 50, 100)
+	return nil, out, err
 }
 
 func (s *Server) mcpAdminListApps(ctx context.Context, req *mcp.CallToolRequest, input mcpAdminListAppsInput) (*mcp.CallToolResult, mcpAppsOutput, error) {
@@ -467,8 +469,7 @@ func (s *Server) mcpAdminListApps(ctx context.Context, req *mcp.CallToolRequest,
 	if principalType != mcptoken.PrincipalTypeADMIN {
 		return nil, mcpAppsOutput{}, errors.New("admin MCP token is required")
 	}
-	httpReq := mcpRequest(ctx)
-	q := s.db.App.Query().Order(entgo.Desc(app.FieldUpdatedAt)).Limit(clampLimit(input.Limit, 100, 200))
+	q := s.db.App.Query()
 	if search := strings.TrimSpace(input.Query); search != "" {
 		q.Where(app.Or(app.NameContainsFold(search), app.PackageIDContainsFold(search), app.SummaryContainsFold(search), app.DescriptionContainsFold(search)))
 	}
@@ -478,11 +479,40 @@ func (s *Server) mcpAdminListApps(ctx context.Context, req *mcp.CallToolRequest,
 	if input.OwnerID > 0 {
 		q.Where(app.OwnerIDEQ(input.OwnerID))
 	}
-	records, err := q.All(ctx)
-	if err != nil {
-		return nil, mcpAppsOutput{}, err
+	out, err := s.mcpListAppsPage(ctx, q, u, input.Page, input.Limit, 100, 200)
+	return nil, out, err
+}
+
+func (s *Server) mcpListAppsPage(ctx context.Context, q *entgo.AppQuery, u *entgo.User, page, limit, defaultLimit, maxLimit int) (mcpAppsOutput, error) {
+	if page < 0 {
+		return mcpAppsOutput{}, errors.New("page must be at least 1")
 	}
-	return nil, mcpAppsOutput{Apps: s.mcpAppSummaries(httpReq, records, u)}, nil
+	if page == 0 {
+		page = 1
+	}
+	pageSize := clampLimit(limit, defaultLimit, maxLimit)
+	if page-1 > math.MaxInt/pageSize {
+		return mcpAppsOutput{}, errors.New("page is too large")
+	}
+	params := pagination.Params{Page: page, PageSize: pageSize}
+	total, err := q.Clone().Count(ctx)
+	if err != nil {
+		return mcpAppsOutput{}, err
+	}
+	records, err := q.Order(entgo.Desc(app.FieldUpdatedAt), entgo.Desc(app.FieldID)).
+		Offset(params.Offset()).Limit(pageSize).All(ctx)
+	if err != nil {
+		return mcpAppsOutput{}, err
+	}
+	response := params.Response(total)
+	out := mcpAppsOutput{
+		Apps:       s.mcpAppSummaries(mcpRequest(ctx), records, u),
+		Pagination: response,
+	}
+	if page < response.TotalPages {
+		out.NextPage = page + 1
+	}
+	return out, nil
 }
 
 type mcpCreateAppFromURLInput struct {
