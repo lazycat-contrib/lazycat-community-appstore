@@ -157,7 +157,8 @@ func (s *Server) mcpHandler() http.Handler {
 		}
 		return s.newMCPServer(r.Context(), principalType)
 	}, &mcp.StreamableHTTPOptions{
-		SessionTimeout: 30 * time.Minute,
+		SessionTimeout:             30 * time.Minute,
+		DisableLocalhostProtection: true, // Cloudflared and LazyCat proxy public Hosts to the loopback listener; Bearer auth remains required.
 	})
 	return mcpauth.RequireBearerToken(s.verifyMCPBearerToken, &mcpauth.RequireBearerTokenOptions{
 		Scopes: []string{mcpScope},
