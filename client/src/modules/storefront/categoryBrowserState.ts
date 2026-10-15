@@ -28,13 +28,22 @@ export function categoryBrowserState(
     : undefined;
   const parentValue = selectedParent ? categoryValue(selectedParent) : 'all';
   const railItems: CategoryRailItem[] = [];
+	const searchItems: CategoryRailItem[] = [];
+	for (const parent of roots) {
+		const parentName = categoryName(parent);
+		searchItems.push({ category: parent, label: parentName });
+		for (const child of hierarchy.childrenByParent.get(parent.id) || []) {
+			const browserCategory = child as BrowserCategory;
+			searchItems.push({ category: browserCategory, label: `${parentName} / ${categoryName(browserCategory)}` });
+		}
+	}
 
   if (selectedParent) {
     for (const category of hierarchy.childrenByParent.get(selectedParent.id) || []) {
       const browserCategory = category as BrowserCategory;
       railItems.push({ category: browserCategory, label: categoryName(browserCategory) });
     }
-  } else {
+  } else if (categories.length <= 16) {
     for (const parent of roots) {
       for (const category of hierarchy.childrenByParent.get(parent.id) || []) {
         const browserCategory = category as BrowserCategory;
@@ -46,5 +55,5 @@ export function categoryBrowserState(
     }
   }
 
-  return { roots, selectedParent, parentValue, railItems };
+  return { roots, selectedParent, parentValue, railItems, searchItems };
 }

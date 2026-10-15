@@ -38,3 +38,16 @@ test('hierarchies without children keep the secondary rail empty', () => {
   const state = categoryBrowserState(categories.filter((category) => !category.parentId), 'all', nameOf);
   assert.deepEqual(state.railItems, []);
 });
+
+test('large taxonomies keep the default rail compact and expose searchable paths', () => {
+	const many = [...categories, ...Array.from({ length: 13 }, (_, index) => ({ id: index + 5, name: `Extra ${index}`, slug: `extra-${index}`, sortOrder: index + 3 }))];
+	const state = categoryBrowserState(many, 'all', nameOf);
+	assert.equal(state.railItems.length, 0);
+	assert.deepEqual(state.searchItems.slice(0, 3).map((item) => item.label), [
+		'Artificial Intelligence',
+		'Artificial Intelligence / Agents',
+		'Media',
+	]);
+	const scoped = categoryBrowserState(many, '1', nameOf);
+	assert.deepEqual(scoped.railItems.map((item) => item.label), ['Agents']);
+});

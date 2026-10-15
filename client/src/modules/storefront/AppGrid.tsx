@@ -64,8 +64,8 @@ export function AppGrid({
               <XBadge variant="neutral" icon={<Tag size={13} />} label={localizedCategory(app, t('common.uncategorized'))} />
               <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
               <span><CalendarClock size={14} /> {t('app.softwareUpdatedAt', { time: formatDate(softwareUpdatedAt(app)) })}</span>
-              <span><Download size={14} /> {t('app.downloads', { count: app.downloadCount })}</span>
-              <span><Sparkles size={14} /> {t('app.rating', { score: app.rating?.score || 0, count: app.rating?.voteCount || 0 })}</span>
+						{app.downloadCount > 0 && <span><Download size={14} /> {t('app.downloads', { count: app.downloadCount })}</span>}
+						{(app.rating?.voteCount || 0) > 0 && <span><Sparkles size={14} /> {t('app.rating', { score: app.rating?.score || 0, count: app.rating?.voteCount || 0 })}</span>}
             </div>
             <XButton
               className="app-card-primary-action"

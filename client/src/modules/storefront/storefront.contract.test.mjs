@@ -101,7 +101,7 @@ test('app card layout keeps storefront specificity over global catalog rules', a
       /gap:\s*14px/,
     ]],
     [':is(.storefront-page, .storefront-search-page) .app-card', [
-      /min-height:\s*230px/,
+      /min-height:\s*216px/,
       /max-height:\s*none/,
       /grid-template-rows:\s*auto minmax\(0, 1fr\) auto/,
     ]],
@@ -110,7 +110,7 @@ test('app card layout keeps storefront specificity over global catalog rules', a
     ]],
     [':is(.storefront-page, .storefront-search-page) .app-meta', [
       /align-content:\s*start/,
-      /font-size:\s*12px/,
+      /font-size:\s*13px/,
       /max-height:\s*none/,
     ]],
   ]);
@@ -190,7 +190,8 @@ test('category browser renders child navigation in the default all state', async
 
   assert.match(browser, /categoryBrowserState\(categories, activeCategory, localizedName\)/);
   assert.match(browser, /railItems\.length > 0/);
-  assert.match(browser, /railItems\.map\(\(item\) =>/);
+  assert.match(browser, /visibleRailItems\.map\(\(item, index\) =>/);
+  assert.match(browser, /category-search-results/);
   assert.doesNotMatch(browser, /selectedParent && childCategories\.length > 0/);
 });
 

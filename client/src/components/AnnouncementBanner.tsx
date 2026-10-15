@@ -40,14 +40,6 @@ export function AnnouncementBanner({
     if (index >= items.length) setIndex(0);
   }, [index, items.length]);
 
-  useEffect(() => {
-    if (!hasMultiple) return;
-    const timer = window.setInterval(() => {
-      setIndex((currentIndex) => (currentIndex + 1) % items.length);
-    }, 6800);
-    return () => window.clearInterval(timer);
-  }, [hasMultiple, items.length]);
-
   if (!current) return null;
 
   const tone = current.level || 'info';
