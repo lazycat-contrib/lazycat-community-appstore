@@ -125,6 +125,14 @@ func TestAdminMCPCategoryToolsAreNotListedForUserTokens(t *testing.T) {
 			"appstore_admin_create_category",
 			"appstore_admin_update_category",
 			"appstore_admin_delete_category",
+			"appstore_admin_list_tags",
+			"appstore_admin_create_tag",
+			"appstore_admin_update_tag",
+			"appstore_admin_delete_tag",
+			"appstore_admin_set_app_category",
+			"appstore_admin_set_app_tags",
+			"appstore_admin_add_app_tag",
+			"appstore_admin_remove_app_tag",
 		} {
 			if got := slices.Contains(names, name); got != tc.want {
 				t.Errorf("%s listed for %s = %v, want %v", name, tc.principal, got, tc.want)

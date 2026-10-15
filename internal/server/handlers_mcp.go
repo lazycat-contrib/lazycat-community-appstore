@@ -278,6 +278,46 @@ func (s *Server) registerAdminMCPTools(server *mcp.Server) {
 		Title:       "Delete store category",
 		Description: "Admin-only category deletion. Child categories must be removed first; linked apps become uncategorized.",
 	}, s.mcpAdminDeleteCategory)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_list_tags",
+		Title:       "List store tags",
+		Description: "Admin-only list of tags with IDs, names, localized names, and slugs.",
+	}, s.mcpAdminListTags)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_create_tag",
+		Title:       "Create store tag",
+		Description: "Admin-only creation of a reusable app tag.",
+	}, s.mcpAdminCreateTag)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_update_tag",
+		Title:       "Update store tag",
+		Description: "Admin-only update of a tag name, translations, or slug.",
+	}, s.mcpAdminUpdateTag)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_delete_tag",
+		Title:       "Delete store tag",
+		Description: "Admin-only tag deletion; removes the tag from linked apps.",
+	}, s.mcpAdminDeleteTag)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_set_app_category",
+		Title:       "Set app category",
+		Description: "Admin-only assignment or clearing of an app category by app ID or package ID.",
+	}, s.mcpAdminSetAppCategory)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_set_app_tags",
+		Title:       "Set app tags",
+		Description: "Admin-only replacement of all tags on an app using existing tag IDs; an empty list clears them.",
+	}, s.mcpAdminSetAppTags)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_add_app_tag",
+		Title:       "Add app tag",
+		Description: "Admin-only assignment of one existing tag to an app, preserving its other tags.",
+	}, s.mcpAdminAddAppTag)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "appstore_admin_remove_app_tag",
+		Title:       "Remove app tag",
+		Description: "Admin-only removal of one tag from an app, preserving its other tags.",
+	}, s.mcpAdminRemoveAppTag)
 }
 
 type mcpPrincipal struct {
@@ -362,20 +402,23 @@ type mcpAdminListAppsInput struct {
 }
 
 type mcpAppSummary struct {
-	ID               int    `json:"id"`
-	OwnerID          int    `json:"ownerId"`
-	Owner            string `json:"owner"`
-	PackageID        string `json:"packageId"`
-	Name             string `json:"name"`
-	Author           string `json:"author,omitempty"`
-	Homepage         string `json:"homepage,omitempty"`
-	License          string `json:"license,omitempty"`
-	MinOSVersion     string `json:"minOSVersion,omitempty"`
-	Status           string `json:"status"`
-	LatestVersion    string `json:"latestVersion,omitempty"`
-	CanManageApp     bool   `json:"canManageApp"`
-	CanUploadVersion bool   `json:"canUploadVersion"`
-	UpdatedAt        string `json:"updatedAt"`
+	ID               int      `json:"id"`
+	OwnerID          int      `json:"ownerId"`
+	Owner            string   `json:"owner"`
+	PackageID        string   `json:"packageId"`
+	Name             string   `json:"name"`
+	CategoryID       *int     `json:"categoryId,omitempty"`
+	Category         string   `json:"category,omitempty"`
+	Tags             []string `json:"tags"`
+	Author           string   `json:"author,omitempty"`
+	Homepage         string   `json:"homepage,omitempty"`
+	License          string   `json:"license,omitempty"`
+	MinOSVersion     string   `json:"minOSVersion,omitempty"`
+	Status           string   `json:"status"`
+	LatestVersion    string   `json:"latestVersion,omitempty"`
+	CanManageApp     bool     `json:"canManageApp"`
+	CanUploadVersion bool     `json:"canUploadVersion"`
+	UpdatedAt        string   `json:"updatedAt"`
 }
 
 type mcpVersionSummary struct {
@@ -635,6 +678,9 @@ func toMCPAppSummary(dto appSummary) mcpAppSummary {
 		Owner:            dto.Owner,
 		PackageID:        dto.PackageID,
 		Name:             dto.Name,
+		CategoryID:       dto.CategoryID,
+		Category:         dto.Category,
+		Tags:             dto.Tags,
 		Author:           dto.Author,
 		Homepage:         dto.Homepage,
 		License:          dto.License,
