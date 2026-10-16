@@ -1276,7 +1276,7 @@ const zh = {
         helpListAppsTitle: '分页列出应用',
         helpListAppsBody: '列表工具使用 page 和 limit 翻页；从第 1 页开始，按结果中的 nextPage 继续，直到不再返回 nextPage。管理员每页最多 200 个应用。',
         helpPermissionTitle: '权限差异',
-        helpPermissionBody: '用户 token 只注册用户工具；管理员 token 可管理分类和 Tag，并按已有 ID 为应用设置分类或完整替换 Tag。分类最多两级；空 Tag 列表会清除应用标签。',
+        helpPermissionBody: '用户 token 可维护自己提交的许愿并查看公开许愿；管理员 token 可维护所有人的许愿、回复及更新状态，也可管理分类和 Tag。分类最多两级；空 Tag 列表会清除应用标签。',
         copyEndpoint: '复制端点',
         endpointCopied: 'MCP 端点已复制',
         copyFailed: '复制失败',

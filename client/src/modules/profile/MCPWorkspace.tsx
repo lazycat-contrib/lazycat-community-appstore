@@ -326,7 +326,11 @@ function mcpHelpExamples(t: (key: string) => string, endpoint: string): TokenHel
       body: t('mcp.helpPermissionBody'),
       code: [
         'USER: appstore_list_my_apps, appstore_create_app_from_url, appstore_publish_version_from_url',
+        'USER: appstore_list_wishes, appstore_get_wish, appstore_create_wish',
+        'USER: appstore_update_wish, appstore_delete_wish (own wishes)',
         'ADMIN: USER tools + appstore_admin_list_apps',
+        'ADMIN: appstore_admin_reply_to_wish, appstore_admin_set_wish_status',
+        'ADMIN: appstore_update_wish, appstore_delete_wish (any wish)',
         'ADMIN: appstore_admin_list_categories, appstore_admin_create_category',
         'ADMIN: appstore_admin_update_category, appstore_admin_delete_category',
         'ADMIN: appstore_admin_list_tags, appstore_admin_create_tag',

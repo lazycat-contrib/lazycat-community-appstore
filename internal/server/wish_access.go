@@ -13,6 +13,7 @@ type wishActor struct {
 	ClientUserID string
 	OwnerID      string
 	DisplayName  string
+	UserID       int
 }
 
 type wishViewer struct {

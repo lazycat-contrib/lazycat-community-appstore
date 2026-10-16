@@ -160,9 +160,14 @@ func (s *Server) createWish(ctx context.Context, actor wishActor, input createWi
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.WishStatusEvent.Create().SetWishID(record.ID).SetToStatus(wishstatusevent.ToStatusOPEN).
-		SetActorType(wishstatusevent.ActorTypeCLIENT).SetActorClientUserID(actor.ClientUserID).
-		SetActorName(actor.DisplayName).SetText(input.StatusText).SetCreatedAt(now).Save(ctx)
+	event := tx.WishStatusEvent.Create().SetWishID(record.ID).SetToStatus(wishstatusevent.ToStatusOPEN).
+		SetActorName(actor.DisplayName).SetText(input.StatusText).SetCreatedAt(now)
+	if actor.UserID > 0 {
+		event.SetActorType(wishstatusevent.ActorTypeUSER).SetActorUserID(actor.UserID)
+	} else {
+		event.SetActorType(wishstatusevent.ActorTypeCLIENT).SetActorClientUserID(actor.ClientUserID)
+	}
+	_, err = event.Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +397,10 @@ func (s *Server) wishToDTO(ctx context.Context, record *entgo.Wish, viewer wishV
 	legacyOwner := record.OwnerID == "" && viewer.ClientUserID != "" && viewer.ClientUserID == record.ClientUserID
 	private := viewer.isAdmin() || canManage || legacyOwner
 	if private {
-		dto.ClientUserID, dto.ContactEmail, dto.ContactOther = record.ClientUserID, record.ContactEmail, record.ContactOther
+		if strings.HasPrefix(record.ClientUserID, "lc_") {
+			dto.ClientUserID = record.ClientUserID
+		}
+		dto.ContactEmail, dto.ContactOther = record.ContactEmail, record.ContactOther
 	}
 	for _, reply := range replies {
 		dto.Replies = append(dto.Replies, wishReplyDTO{ID: reply.ID, AuthorName: reply.AuthorName, Body: reply.Body, CreatedAt: reply.CreatedAt, UpdatedAt: reply.UpdatedAt})

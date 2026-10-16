@@ -252,9 +252,11 @@ func (s *Server) registerUserMCPTools(server *mcp.Server) {
 		Title:       "Publish app version from LPK URL",
 		Description: "Publish a new version for an existing app from a remote LPK URL.",
 	}, s.mcpPublishVersionFromURL)
+	s.registerWishMCPTools(server)
 }
 
 func (s *Server) registerAdminMCPTools(server *mcp.Server) {
+	s.registerAdminWishMCPTools(server)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "appstore_admin_list_apps",
 		Title:       "List all app-store apps",

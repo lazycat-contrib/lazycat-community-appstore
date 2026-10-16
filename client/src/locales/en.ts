@@ -1276,7 +1276,7 @@ const en = {
         helpListAppsTitle: 'List apps by page',
         helpListAppsBody: 'Use page and limit on list tools. Start at page 1 and follow nextPage until it is absent. Admin listings allow up to 200 apps per page.',
         helpPermissionTitle: 'Permission split',
-        helpPermissionBody: 'User tokens only register user tools. Admin tokens can manage categories and tags, then assign existing IDs to apps. Categories allow two levels; an empty tag list clears app tags.',
+        helpPermissionBody: 'User tokens can manage their own wishes and read public wishes. Admin tokens can manage any wish, reply, change status, and maintain categories and tags. Categories allow two levels; an empty tag list clears app tags.',
         copyEndpoint: 'Copy endpoint',
         endpointCopied: 'MCP endpoint copied',
         copyFailed: 'Copy failed',
