@@ -51,8 +51,10 @@ func TestMCPAcceptsTunnelDomainHostWithBearerToken(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer response.Body.Close()
 			body, err := io.ReadAll(response.Body)
+			if closeErr := response.Body.Close(); closeErr != nil {
+				t.Fatal(closeErr)
+			}
 			if err != nil {
 				t.Fatal(err)
 			}

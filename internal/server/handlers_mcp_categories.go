@@ -171,7 +171,7 @@ func (s *Server) mcpAdminDeleteCategory(ctx context.Context, req *mcp.CallToolRe
 	if err != nil {
 		return nil, okResponse{}, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.App.Update().Where(app.CategoryIDEQ(input.ID)).ClearCategoryID().Save(ctx); err != nil {
 		return nil, okResponse{}, err
 	}

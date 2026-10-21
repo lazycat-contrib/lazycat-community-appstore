@@ -94,7 +94,7 @@ func (s *Server) mcpAdminSetAppTags(ctx context.Context, req *mcp.CallToolReques
 	if err != nil {
 		return nil, mcpAppTaxonomyOutput{}, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if len(ids) > 0 {
 		count, err := tx.Tag.Query().Where(tag.IDIn(ids...)).Count(ctx)
 		if err != nil {

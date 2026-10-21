@@ -128,7 +128,7 @@ func (s *Server) mcpAdminDeleteTag(ctx context.Context, req *mcp.CallToolRequest
 	if err != nil {
 		return nil, okResponse{}, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.AppTag.Delete().Where(apptag.TagIDEQ(input.ID)).Exec(ctx); err != nil {
 		return nil, okResponse{}, err
 	}
