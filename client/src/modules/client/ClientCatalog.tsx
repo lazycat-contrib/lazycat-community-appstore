@@ -1,4 +1,4 @@
-import { Cloud, Download, Lightbulb, PackageCheck, Search, Server } from 'lucide-react';
+import { ArrowUpRight, Cloud, Download, Lightbulb, PackageCheck, Search, Server } from 'lucide-react';
 import { type Dispatch, type SetStateAction, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
@@ -53,6 +53,7 @@ export function ClientCatalog({
   onInstall,
   onGoSources,
   onGoWishWall,
+  onGoInstalled,
   defaultPageSize,
   activeInstallKey,
   completedInstallKey,
@@ -67,6 +68,7 @@ export function ClientCatalog({
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
   onGoWishWall: () => void;
+  onGoInstalled: () => void;
   defaultPageSize: number;
   activeInstallKey?: string;
   completedInstallKey?: string;
@@ -175,7 +177,11 @@ export function ClientCatalog({
       <div className="catalog-status-line" role="status">
         <span>{t('search.sourceCount', { count: sourceStats.sourceCount })}</span>
         <span>{t('search.syncedAppsTotal')} <strong>{sourceStats.sourceAppCount}</strong></span>
-        {updateSourceApps.length > 0 && <span className="catalog-update-count">{t('search.updatesAvailable')} <strong>{updateSourceApps.length}</strong></span>}
+        {updateSourceApps.length > 0 && (
+          <button type="button" className="catalog-update-count" onClick={onGoInstalled} aria-label={t('search.openInstalledUpdates', { count: updateSourceApps.length })}>
+            {t('search.updatesAvailable')} <strong>{updateSourceApps.length}</strong><ArrowUpRight size={14} aria-hidden="true" />
+          </button>
+        )}
       </div>
       <section className="panel">
         <div className="catalog-search-toolbar">

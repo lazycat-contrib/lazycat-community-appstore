@@ -1746,6 +1746,7 @@ export function App() {
                 onInstall={installApp}
                 onGoSources={() => navigateTo('sources')}
                 onGoWishWall={() => navigateTo('wishwall')}
+                onGoInstalled={() => navigateTo('profile')}
                 defaultPageSize={HAS_API ? siteProfile.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE : clientSettings.defaultPageSize || DEFAULT_CLIENT_PAGE_SIZE}
 				activeInstallKey={installActivity?.status === 'running' ? installActivity.appKey : undefined}
 				completedInstallKey={installActivity?.status === 'success' ? installActivity.appKey : undefined}

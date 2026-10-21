@@ -20,6 +20,7 @@ export function SearchView({
   onInstall,
   onGoSources,
   onGoWishWall,
+  onGoInstalled,
   defaultPageSize,
   activeInstallKey,
   completedInstallKey,
@@ -43,6 +44,7 @@ export function SearchView({
   onInstall: (app: StoreApp | SourceApp, options?: InstallOptions) => void | Promise<void>;
   onGoSources: () => void;
   onGoWishWall: () => void;
+  onGoInstalled: () => void;
   defaultPageSize: number;
   activeInstallKey?: string;
   completedInstallKey?: string;
@@ -63,6 +65,7 @@ export function SearchView({
         onInstall={onInstall}
         onGoSources={onGoSources}
         onGoWishWall={onGoWishWall}
+        onGoInstalled={onGoInstalled}
         defaultPageSize={defaultPageSize}
         activeInstallKey={activeInstallKey}
         completedInstallKey={completedInstallKey}

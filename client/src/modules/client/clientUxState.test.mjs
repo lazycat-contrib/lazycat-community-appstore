@@ -23,6 +23,8 @@ import {
   normalizeEditableClientSettings,
   normalizeAutomationSettings,
   orderClientUpdateRowsLast,
+  selectUpdateCandidates,
+  updateCandidateSelectionKey,
   requiresInstallOptions,
   sameEditableClientSettings,
   sortClientCatalogApps,
@@ -405,6 +407,20 @@ test('bulk update candidate snapshot matches the visible confirmation rows', () 
     { item: { appid: 'first', version: '1.0.0' }, source: { id: 11, sourceId: 2, packageId: 'first', latestVersion: { version: '2.0.0' } } },
     { item: { appid: 'protected', version: '1.0.0' }, source: { id: 12, sourceId: 2, packageId: 'protected', installProtected: true, latestVersion: { version: '2.0.0' } } },
   ]), [{ appId: 11, sourceId: 2, packageId: 'first', installedVersion: '1.0.0', targetVersion: '2.0.0' }]);
+});
+
+test('bulk update selection sends only chosen candidates and never falls back to all', () => {
+  const candidates = [
+    { appId: 1, sourceId: 2, packageId: 'Alpha', installedVersion: '1', targetVersion: '2' },
+    { appId: 2, sourceId: 2, packageId: 'beta', installedVersion: '1', targetVersion: '2' },
+    { appId: 3, sourceId: 3, packageId: 'Alpha', installedVersion: '1', targetVersion: '2' },
+  ];
+  assert.deepEqual(selectUpdateCandidates(candidates, new Set()), []);
+  assert.deepEqual(
+    selectUpdateCandidates(candidates, new Set([updateCandidateSelectionKey({ sourceId: 2, packageId: ' alpha ' })])),
+    [candidates[0]],
+  );
+  assert.equal(candidates.length, 3);
 });
 
 test('bulk update order keeps the client itself last', () => {

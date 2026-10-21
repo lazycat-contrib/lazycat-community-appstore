@@ -9,7 +9,31 @@
   font-size: 13px;
 }
 .catalog-status-line strong { color: var(--ink); font-variant-numeric: tabular-nums; }
-.catalog-update-count { color: var(--amber); }
+.catalog-update-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  margin: -6px -8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--amber);
+  font: inherit;
+  cursor: pointer;
+}
+
+.catalog-update-count strong { color: inherit; }
+.catalog-update-count:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .catalog-update-count:hover { background: var(--status-warning-bg); }
+}
+
+@media (pointer: coarse) {
+  .catalog-update-count { min-height: 44px; }
+}
 .source-advanced-options { display: grid; gap: 12px; }
 .source-advanced-options summary { cursor: pointer; padding: 12px 0; color: var(--muted); font-size: 14px; }
 .source-advanced-options[open] > :not(summary) { margin-top: 12px; }
@@ -729,10 +753,85 @@
 .update-app-section-head {
 	display: flex;
 	justify-content: space-between;
+	align-items: center;
 	gap: 12px;
 	padding: 11px 13px;
 	border-bottom: 1px solid var(--line);
 }
+
+.update-app-section-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.update-app-section-head small { color: var(--muted); }
+
+.update-select-toggle {
+  min-height: 36px;
+  flex: none;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.update-select-toggle:focus-visible,
+.update-cargo-slot button:focus-visible {
+  outline: 2px solid var(--green-strong);
+  outline-offset: 2px;
+}
+
+.update-rocket-hangar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.update-rocket-hangar svg { color: var(--green-strong); }
+
+.update-style-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.update-style-choice > div {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--field);
+}
+
+.update-style-choice button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.update-style-choice button[aria-pressed='true'] { background: var(--surface); color: var(--ink); font-weight: 700; }
+.update-style-choice button:focus-visible { outline: 2px solid var(--green-strong); outline-offset: 2px; }
 
 .update-app-preview > div {
 	min-width: 0;
@@ -749,6 +848,137 @@
 
 .update-app-preview > div.is-skipped {
 	background: color-mix(in srgb, var(--status-warning-bg) 55%, transparent);
+}
+
+.update-standard-preview { max-height: 300px; }
+
+.update-standard-preview > .update-standard-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.update-standard-row label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.update-standard-row label:has(input:disabled) { cursor: not-allowed; }
+.update-standard-row input { width: 18px; height: 18px; flex: none; accent-color: var(--green-strong); }
+.update-standard-row input:focus-visible { outline: 2px solid var(--green-strong); outline-offset: 2px; }
+
+.update-app-preview .update-standard-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  color: var(--ink);
+  text-align: left;
+}
+
+.update-standard-copy strong,
+.update-standard-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.update-standard-copy small { color: var(--muted); font-size: 12px; }
+
+.update-cargo-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 300px;
+  padding: 0 12px 12px;
+}
+
+.update-cargo-grid > .update-cargo-slot {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.update-cargo-grid > .update-cargo-slot + .update-cargo-slot { border-top: 0; }
+
+.update-cargo-slot button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 25px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 70px;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 140ms var(--ease-out);
+}
+
+.update-cargo-slot.is-loaded button {
+  border-style: solid;
+  border-color: var(--status-success-line);
+  background: color-mix(in srgb, var(--status-success-bg) 60%, var(--surface));
+}
+
+.update-cargo-slot.is-skipped button {
+  cursor: not-allowed;
+  opacity: .62;
+}
+
+.update-cargo-icon {
+  display: block;
+  width: 34px;
+  height: 34px;
+  opacity: .65;
+  transform: translateY(4px) scale(.95);
+  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out);
+}
+
+.update-cargo-slot.is-loaded .update-cargo-icon {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.update-cargo-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  text-align: left;
+}
+
+.update-cargo-copy strong,
+.update-cargo-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.update-cargo-copy small { color: var(--muted); font-size: 12px; }
+
+.update-cargo-control {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--field);
+  color: var(--muted);
+}
+
+.update-cargo-slot.is-loaded .update-cargo-control {
+  background: var(--status-success-bg);
+  color: var(--status-success-ink);
+}
+
+.update-cargo-slot .update-app-badges { padding: 5px 3px 2px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .update-cargo-slot button:hover:not(:disabled) { border-color: var(--green-strong); }
+  .update-cargo-slot button:active:not(:focus-visible) { transform: scale(.98); }
+  .update-select-toggle:hover { background: var(--field); }
 }
 
 .update-app-preview > div > div:first-child {
@@ -772,6 +1002,14 @@
 	text-align: end;
 }
 
+.update-app-preview .update-cargo-copy,
+.update-app-preview .update-cargo-copy strong {
+  color: var(--ink);
+  text-align: left;
+}
+
+.update-app-preview .update-cargo-copy small { color: var(--muted); text-align: left; }
+
 .update-app-preview b {
 	font-weight: 500;
 }
@@ -786,6 +1024,61 @@
 .update-dialog-actions {
 	justify-content: center;
 	padding-top: 2px;
+}
+
+.update-flight-scene {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--subtle-surface);
+  overflow: hidden;
+}
+
+.update-flight-track { display: block; width: min(340px, 100%); height: auto; }
+.update-flight-route { fill: none; stroke: var(--line); stroke-width: 2; stroke-dasharray: 5 7; }
+.update-rocket-body { fill: var(--mint); stroke: var(--green-strong); stroke-width: 2; }
+.update-rocket-fin { fill: none; stroke: var(--green-strong); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.update-rocket-window { fill: var(--surface); stroke: var(--green-strong); stroke-width: 1.5; }
+.update-rocket-flame { fill: none; stroke: var(--amber); stroke-width: 3; stroke-linecap: round; }
+.update-rocket-parked.is-hidden { opacity: 0; }
+
+.update-flight-cargo,
+.update-landed-bay { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+
+.update-flight-seat,
+.update-landed-app {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.update-flight-seat { transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out); }
+.update-flight-seat.is-departed { opacity: .25; transform: translateY(12px); }
+.update-flight-seat.is-failed { border-color: var(--status-danger-line); }
+
+.update-landed-bay {
+  width: 100%;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--status-success-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.update-landed-app { width: 34px; height: 34px; animation: update-app-landed 200ms var(--ease-out) both; }
+.update-landed-app > svg:last-child { position: absolute; right: -5px; bottom: -5px; color: var(--status-success-ink); background: var(--surface); border-radius: 50%; }
+
+@keyframes update-app-landed {
+  from { opacity: 0; transform: translateY(-10px) scale(.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .update-dialog-actions > .astryx-button {
@@ -890,6 +1183,10 @@
 }
 
 @media (max-width: 720px) {
+  .update-cargo-grid { grid-template-columns: minmax(0, 1fr); max-height: none; overflow: visible; }
+  .update-standard-preview { max-height: none; overflow: visible; }
+  .update-style-choice button { min-height: 44px; }
+
   .update-mirror-source {
     grid-template-columns: 1fr;
   }
@@ -1392,6 +1689,19 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .update-rocket-flying { display: none; }
+  .update-rocket-parked.is-hidden { opacity: 1; }
+  .update-cargo-slot button { transition-property: background-color, border-color; }
+  .update-cargo-slot button:active:not(:focus-visible) { transform: none; }
+  .update-cargo-icon,
+  .update-cargo-slot.is-loaded .update-cargo-icon,
+  .update-flight-seat,
+  .update-flight-seat.is-departed {
+    transform: none;
+    transition: opacity 120ms ease;
+  }
+  .update-landed-app { animation: none; }
+
   .detail-page-shell,
   .client-source-row button,
   .client-source-onboarding button,

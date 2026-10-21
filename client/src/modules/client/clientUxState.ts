@@ -239,6 +239,14 @@ export function buildUpdateCandidateSnapshot<T extends {
   });
 }
 
+export function updateCandidateSelectionKey(candidate: { sourceId: number; packageId: string }) {
+  return `${candidate.sourceId}:${candidate.packageId.trim().toLowerCase()}`;
+}
+
+export function selectUpdateCandidates<T extends { sourceId: number; packageId: string }>(candidates: T[], selectedKeys: ReadonlySet<string>): T[] {
+  return candidates.filter((candidate) => selectedKeys.has(updateCandidateSelectionKey(candidate)));
+}
+
 export type EditableClientSettings = {
   cfEnabled?: boolean;
   cfEndpoint?: string;

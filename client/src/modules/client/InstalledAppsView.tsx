@@ -1,5 +1,5 @@
-import { AlertCircle, CalendarClock, CheckCircle2, Download, PackageOpen, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { AlertCircle, CalendarClock, CheckCircle2, Download, ListChecks, LockKeyhole, PackageOpen, Plus, RefreshCw, Rocket, ShieldCheck, X, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
@@ -12,10 +12,20 @@ import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { ClientSettings, InstalledApplication, SourceApp, SourceSubscription, UpdateQueueRequest, UpdateQueueResult } from '../../shared/types';
 import { compareVersions, cx, formatDate, sourceMirrorOptions } from '../../shared/utils';
-import { autoUpdatePolicyPresentation, autoUpdateSchedulePresentation, buildUpdateCandidateSnapshot, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation, isUpdateQueueActive, orderClientUpdateRowsLast } from './clientUxState';
+import { autoUpdatePolicyPresentation, autoUpdateSchedulePresentation, buildUpdateCandidateSnapshot, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation, isUpdateQueueActive, orderClientUpdateRowsLast, selectUpdateCandidates, updateCandidateSelectionKey } from './clientUxState';
 
 type InstalledRow = { item: InstalledApplication; source?: SourceApp };
 type InstalledGroupKind = 'updates' | 'managed' | 'local';
+type UpdatePresentationStyle = 'standard' | 'rocket';
+const updatePresentationStorageKey = 'lazycat-appstore-update-presentation';
+
+function readUpdatePresentationStyle(): UpdatePresentationStyle {
+  try {
+    return localStorage.getItem(updatePresentationStorageKey) === 'rocket' ? 'rocket' : 'standard';
+  } catch {
+    return 'standard';
+  }
+}
 
 export function InstalledAppsView({
   installedApps,
@@ -49,7 +59,19 @@ export function InstalledAppsView({
   const { t } = useTranslation();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [isLaunching, setIsLaunching] = useState(false);
+  const [launchedFromHere, setLaunchedFromHere] = useState(false);
+  const [selectionMode, setSelectionMode] = useState<'all' | 'choose'>('all');
+  const [presentationStyle, setPresentationStyle] = useState<UpdatePresentationStyle>(readUpdatePresentationStyle);
+  const [confirmationRows, setConfirmationRows] = useState<InstalledRow[]>([]);
+  const [selectedUpdateKeys, setSelectedUpdateKeys] = useState<Set<string>>(() => new Set());
   const [mirrorOverrides, setMirrorOverrides] = useState<Record<string, { downloadMirrorId: string; rawMirrorId: string }>>({});
+
+  useEffect(() => {
+    if (!isLaunching) return;
+    const timer = window.setTimeout(() => setIsLaunching(false), 1050);
+    return () => window.clearTimeout(timer);
+  }, [isLaunching]);
   const installedGroups = useMemo(() => {
     const updates: InstalledRow[] = [];
     const managed: InstalledRow[] = [];
@@ -76,16 +98,24 @@ export function InstalledAppsView({
   const installedEmptyBody = installedState === 'idle' ? t('profile.installedIdleBody') : undefined;
   const updateConfirmation = useMemo(() => buildUpdateConfirmation(installedGroups.updates), [installedGroups.updates]);
   const updateCandidates = useMemo(() => buildUpdateCandidateSnapshot(installedGroups.updates), [installedGroups.updates]);
-  const canRunUpdates = Boolean(onRunUpdates && updateConfirmation.eligible.length > 0 && installedState === 'loaded');
+  const canRunUpdates = Boolean(onRunUpdates && updateCandidates.length > 0 && installedState === 'loaded');
+  const confirmationSummary = useMemo(() => buildUpdateConfirmation(confirmationRows), [confirmationRows]);
+  const confirmationCandidates = useMemo(() => buildUpdateCandidateSnapshot(confirmationRows), [confirmationRows]);
+  const selectedCandidates = useMemo(() => selectUpdateCandidates(confirmationCandidates, selectedUpdateKeys), [confirmationCandidates, selectedUpdateKeys]);
+  const selectedCandidateKeys = useMemo(() => new Set(selectedCandidates.map(updateCandidateSelectionKey)), [selectedCandidates]);
+  const loadedRows = useMemo(() => confirmationRows.filter((row) => {
+    const candidate = buildUpdateCandidateSnapshot([row])[0];
+    return candidate && selectedCandidateKeys.has(updateCandidateSelectionKey(candidate));
+  }), [confirmationRows, selectedCandidateKeys]);
   const updateItems = updateQueueResult?.items || [];
   const updateSummary = updateItems.reduce<Record<string, number>>((summary, item) => {
     summary[item.status] = (summary[item.status] || 0) + 1;
     return summary;
   }, {});
   const updateSources = useMemo(() => {
-    const ids = new Set(installedGroups.updates.map(({ source }) => Number(source?.sourceId)).filter((id) => id > 0));
+    const ids = new Set(selectedCandidates.map((candidate) => candidate.sourceId));
     return sources.filter((source) => ids.has(Number(source.id)));
-  }, [installedGroups.updates, sources]);
+  }, [selectedCandidates, sources]);
   const currentItem = updateItems.find((item) => item.status === 'running');
   const completedCount = updateItems.filter((item) => ['success', 'failed', 'cancelled'].includes(item.status)).length;
   const currentNumber = currentItem ? Math.min(completedCount + 1, updateItems.length) : completedCount;
@@ -104,7 +134,36 @@ export function InstalledAppsView({
     downloadOptions: sourceMirrorOptions(source, 'download', t('installOptions.direct'), t('installOptions.autoMirror')),
     rawOptions: sourceMirrorOptions(source, 'raw', t('installOptions.direct'), t('installOptions.autoMirror')),
   })).filter(({ downloadOptions, rawOptions }) => downloadOptions.length > 1 || rawOptions.length > 1);
-  const updateSourceCount = new Set(updateCandidates.map((candidate) => candidate.sourceId)).size;
+  const updateSourceCount = new Set(selectedCandidates.map((candidate) => candidate.sourceId)).size;
+
+  function openUpdateDialog(mode: 'all' | 'choose') {
+    setSelectionMode(mode);
+    setConfirmationRows(installedGroups.updates);
+    setSelectedUpdateKeys(mode === 'all' ? new Set(updateCandidates.map(updateCandidateSelectionKey)) : new Set());
+    setMirrorOverrides({});
+    setHasStarted(isUpdateQueueRunning);
+    setIsLaunching(false);
+    setLaunchedFromHere(false);
+    setIsConfirmOpen(true);
+  }
+
+  function toggleUpdateCandidate(key: string) {
+    setSelectedUpdateKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function choosePresentationStyle(style: UpdatePresentationStyle) {
+    setPresentationStyle(style);
+    try {
+      localStorage.setItem(updatePresentationStorageKey, style);
+    } catch {
+      // The choice still applies to this session when storage is unavailable.
+    }
+  }
   const autoUpdateSchedule = autoUpdateSchedulePresentation({
     enabled: autoUpdateSettings?.autoUpdateEnabled ?? false,
     intervalMinutes: autoUpdateSettings?.autoUpdateIntervalMinutes ?? 60,
@@ -220,14 +279,14 @@ export function InstalledAppsView({
 			<XButton
 			  type="button"
 			  variant="secondary"
-			  label={isUpdateQueueRunning ? t('updateQueue.running') : t('updateQueue.updateAll', { count: updateConfirmation.eligible.length })}
+			  label={isUpdateQueueRunning ? t('updateQueue.running') : t('updateQueue.updateAll', { count: updateCandidates.length })}
 			  icon={<RefreshCw size={18} className={isUpdateQueueRunning ? 'spin' : undefined} />}
 			  isDisabled={false}
-			  onClick={() => {
-				setHasStarted(isUpdateQueueRunning);
-				setIsConfirmOpen(true);
-              }}
+			  onClick={() => openUpdateDialog('all')}
 			/>
+		  )}
+		  {canRunUpdates && !isUpdateQueueRunning && (
+			<XButton type="button" variant="secondary" label={t('updateQueue.chooseApps')} icon={<ListChecks size={18} />} onClick={() => openUpdateDialog('choose')} />
 		  )}
         </div>
       </div>
@@ -290,20 +349,77 @@ export function InstalledAppsView({
                     <div className="update-dialog-icon" aria-hidden="true"><RefreshCw size={22} /></div>
                     <div>
                       <span className="eyebrow subtle">{t('updateQueue.readyEyebrow')}</span>
-                      <h2 id="update-confirm-title">{t('updateQueue.confirmTitle')}</h2>
-                      <p>{t('updateQueue.confirmBody', { count: updateConfirmation.eligible.length })}</p>
+					  <h2 id="update-confirm-title">{t(selectionMode === 'choose' ? 'updateQueue.chooseTitle' : 'updateQueue.confirmTitle')}</h2>
+					  <p>{selectionMode === 'choose' ? t(presentationStyle === 'rocket' ? 'updateQueue.chooseBody' : 'updateQueue.chooseStandardBody') : t('updateQueue.confirmBody', { count: selectedCandidates.length })}</p>
                     </div>
                   </header>
 
+                  <div className="update-style-choice" role="group" aria-label={t('updateQueue.presentationStyle')}>
+                    <span>{t('updateQueue.presentationStyle')}</span>
+                    <div>
+                      <button type="button" aria-pressed={presentationStyle === 'standard'} onClick={() => choosePresentationStyle('standard')}>{t('updateQueue.standardStyle')}</button>
+                      <button type="button" aria-pressed={presentationStyle === 'rocket'} onClick={() => choosePresentationStyle('rocket')}><Rocket size={15} aria-hidden="true" />{t('updateQueue.rocketStyle')}</button>
+                    </div>
+                  </div>
+
                   <div className="update-dialog-facts" aria-label={t('updateQueue.confirmSummary')}>
-                    <div><PackageOpen size={17} aria-hidden="true" /><span>{t('updateQueue.appsLabel')}</span><strong>{updateConfirmation.eligible.length}</strong></div>
+					<div><PackageOpen size={17} aria-hidden="true" /><span>{t('updateQueue.appsLabel')}</span><strong>{selectedCandidates.length}</strong></div>
                     <div><ShieldCheck size={17} aria-hidden="true" /><span>{t('updateQueue.sourcesLabel')}</span><strong>{updateSourceCount}</strong></div>
                     <div className="is-schedule"><CalendarClock size={17} aria-hidden="true" /><span>{t('updateQueue.nextAutoLabel')}</span><strong>{nextAutoUpdateLabel}</strong></div>
                   </div>
 
-                  {updateConfirmation.skipped.length > 0 && (
-                    <p className="update-dialog-notice"><AlertCircle size={16} aria-hidden="true" /><span>{t('updateQueue.protectedSkipped', { count: updateConfirmation.skipped.length })}</span></p>
+				  {confirmationSummary.skipped.length > 0 && (
+				    <p className="update-dialog-notice"><AlertCircle size={16} aria-hidden="true" /><span>{t('updateQueue.protectedSkipped', { count: confirmationSummary.skipped.length })}</span></p>
                   )}
+
+                  <section className="update-app-section" aria-labelledby="update-preview-title">
+                    <div className="update-app-section-head">
+                      <div><strong id="update-preview-title">{t(presentationStyle === 'rocket' ? 'updateQueue.rocketBayTitle' : 'updateQueue.previewTitle')}</strong><small>{t(presentationStyle === 'rocket' ? 'updateQueue.selectedCount' : 'updateQueue.selectedCountStandard', { selected: selectedCandidates.length, total: confirmationCandidates.length })}</small></div>
+                      {confirmationCandidates.length > 0 && (
+                        <button type="button" className="update-select-toggle" onClick={() => setSelectedUpdateKeys(selectedCandidates.length === confirmationCandidates.length ? new Set() : new Set(confirmationCandidates.map(updateCandidateSelectionKey)))}>
+                          {t(selectedCandidates.length === confirmationCandidates.length ? presentationStyle === 'rocket' ? 'updateQueue.clearSelection' : 'updateQueue.clearSelectionStandard' : presentationStyle === 'rocket' ? 'updateQueue.selectAll' : 'updateQueue.selectAllStandard')}
+                        </button>
+                      )}
+                    </div>
+				    {presentationStyle === 'standard' ? <div className="update-app-preview update-standard-preview">
+				      {confirmationRows.map(({ item, source }) => {
+                        const candidate = buildUpdateCandidateSnapshot([{ item, source }])[0];
+                        const key = candidate ? updateCandidateSelectionKey(candidate) : '';
+                        const name = item.title || source?.name || item.appid || t('common.app');
+                        return <div className={cx('update-standard-row', !candidate && 'is-skipped')} key={item.appid || source?.id}>
+                          <label>
+                            <input type="checkbox" checked={Boolean(key && selectedUpdateKeys.has(key))} disabled={!candidate} onChange={() => toggleUpdateCandidate(key)} aria-label={candidate ? t('updateQueue.selectApp', { name }) : t('updateQueue.cannotLoad', { name })} />
+                            <span className="update-standard-copy"><strong>{name}</strong><small>{item.version || '-'} → {source?.latestVersion?.version || '-'}</small></span>
+                          </label>
+                          <div className="update-app-badges">
+                            {source?.installProtected && <small className="manual-update-only">{t('updateQueue.passwordBadge')}</small>}
+                            {item.autoUpdateEnabled === false && <small className="manual-update-only">{t('updatePolicy.manualOnlyBadge')}</small>}
+                          </div>
+                        </div>;
+                      })}
+                    </div> : <>
+                    <div className="update-rocket-hangar" aria-hidden="true"><Rocket size={22} /><span>{t('updateQueue.rocketBayHelp')}</span></div>
+				    <div className="update-app-preview update-cargo-grid">
+				      {confirmationRows.map(({ item, source }) => {
+                        const candidate = buildUpdateCandidateSnapshot([{ item, source }])[0];
+                        const key = candidate ? updateCandidateSelectionKey(candidate) : '';
+                        const loaded = Boolean(key && selectedUpdateKeys.has(key));
+                        const name = item.title || source?.name || item.appid || t('common.app');
+                        return <div className={cx('update-cargo-slot', loaded && 'is-loaded', !candidate && 'is-skipped')} key={item.appid || source?.id}>
+                          <button type="button" aria-pressed={loaded} aria-label={candidate ? t(loaded ? 'updateQueue.removeFromRocket' : 'updateQueue.addToRocket', { name }) : t('updateQueue.cannotLoad', { name })} disabled={!candidate} onClick={() => toggleUpdateCandidate(key)}>
+                            <span className="update-cargo-icon"><AppIcon src={item.icon || source?.iconUrl} seed={item.appid || name} title={name} size={34} /></span>
+                            <span className="update-cargo-copy"><strong>{name}</strong><small>{item.version || '-'} → {source?.latestVersion?.version || '-'}</small></span>
+                            <span className="update-cargo-control" aria-hidden="true">{candidate ? loaded ? <X size={16} /> : <Plus size={16} /> : <LockKeyhole size={16} />}</span>
+                          </button>
+                          {(source?.installProtected || item.autoUpdateEnabled === false) && <div className="update-app-badges">
+                            {source?.installProtected && <small className="manual-update-only">{t('updateQueue.passwordBadge')}</small>}
+                            {item.autoUpdateEnabled === false && <small className="manual-update-only">{t('updatePolicy.manualOnlyBadge')}</small>}
+                          </div>}
+                        </div>;
+                      })}
+				    </div>
+                    </>}
+                  </section>
 
                   {updateSourceChoices.length > 0 && <section className="update-mirror-groups">
 				    <div><strong>{t('updateQueue.mirrorTitle')}</strong><small>{t('updateQueue.mirrorHelp')}</small></div>
@@ -317,25 +433,14 @@ export function InstalledAppsView({
 				    })}
 				  </section>}
 
-                  <section className="update-app-section" aria-labelledby="update-preview-title">
-                    <div className="update-app-section-head"><strong id="update-preview-title">{t('updateQueue.previewTitle')}</strong><small>{t('updateQueue.previewCount', { count: installedGroups.updates.length })}</small></div>
-				    <div className="update-app-preview">
-				      {installedGroups.updates.map(({ item, source }) => <div className={cx(source?.installProtected && 'is-skipped')} key={item.appid || source?.id}>
-                        <div><strong>{item.title || source?.name || item.appid}</strong><small>{item.appid}</small></div>
-                        <span>{item.version || '-'} <b aria-hidden="true">→</b> {source?.latestVersion?.version || '-'}</span>
-                        <div className="update-app-badges">
-                          {source?.installProtected && <small className="manual-update-only">{t('updateQueue.passwordBadge')}</small>}
-                          {item.autoUpdateEnabled === false && <small className="manual-update-only">{t('updatePolicy.manualOnlyBadge')}</small>}
-                        </div>
-                      </div>)}
-				    </div>
-                  </section>
-
 				  <footer className="dialog-actions update-dialog-actions">
 				    <XButton type="button" variant="secondary" label={t('common.cancel')} onClick={() => setIsConfirmOpen(false)} />
-				    <XButton type="button" variant="primary" label={t('updateQueue.start')} icon={<RefreshCw size={17} />} onClick={() => {
+				    <XButton type="button" variant="primary" label={t(presentationStyle === 'rocket' ? 'updateQueue.launchSelected' : 'updateQueue.startSelected', { count: selectedCandidates.length })} icon={presentationStyle === 'rocket' ? <Rocket size={17} /> : <RefreshCw size={17} />} isDisabled={selectedCandidates.length === 0} onClick={() => {
+					  if (selectedCandidates.length === 0) return;
 					  setHasStarted(true);
-					  void onRunUpdates?.({ candidates: updateCandidates, mirrorOverrides: updateSources.map((source) => {
+					  setLaunchedFromHere(true);
+					  setIsLaunching(presentationStyle === 'rocket');
+					  void onRunUpdates?.({ candidates: selectedCandidates, mirrorOverrides: updateSources.map((source) => {
 					    const value = mirrorOverrides[String(source.id)];
 					    return { sourceId: Number(source.id), downloadMirrorId: value?.downloadMirrorId ?? source.defaultDownloadMirrorId ?? '', rawMirrorId: value?.rawMirrorId ?? source.defaultRawMirrorId ?? '' };
 					  }) });
@@ -360,6 +465,42 @@ export function InstalledAppsView({
                     <XProgressBar label={t('installActivity.progressLabel')} isLabelHidden value={queueProgress} isIndeterminate={queueIsActive && updateItems.length === 0} variant="accent" />
                     {updateItems.length > 0 && <small>{t('updateQueue.queueCounts', { success: updateSummary.success || 0, failed: updateSummary.failed || 0, queued: (updateSummary.queued || 0) + (updateSummary.running || 0) })}</small>}
                   </div>
+
+                  {presentationStyle === 'rocket' && launchedFromHere && loadedRows.length > 0 && <div className="update-flight-scene" aria-hidden="true">
+                    <svg className="update-flight-track" viewBox="0 0 340 136">
+                      <path className="update-flight-route" d="M52 22 H288 Q316 22 316 50 V86 Q316 114 288 114 H52 Q24 114 24 86 V50 Q24 22 52 22 Z" />
+                      <defs>
+                        <g id="update-rocket-shape">
+                          <path className="update-rocket-body" d="M-17-8 Q-4-17 17 0 Q-4 17-17 8 Z" />
+                          <path className="update-rocket-fin" d="M-13-8-19-15-20-4 M-13 8-19 15-20 4" />
+                          <circle className="update-rocket-window" cx="-1" cy="0" r="4" />
+                          <path className="update-rocket-flame" d="M-18-4 Q-30 0-18 4" />
+                        </g>
+                      </defs>
+                      <use className={cx('update-rocket-parked', isLaunching && 'is-hidden')} href="#update-rocket-shape" transform="translate(52 22) rotate(-90)" />
+                      {isLaunching && <use className="update-rocket-flying" href="#update-rocket-shape">
+                        <animateMotion dur="950ms" fill="freeze" rotate="auto" path="M52 22 H288 Q316 22 316 50 V86 Q316 114 288 114 H52 Q24 114 24 86 V50 Q24 22 52 22 Z" />
+                      </use>}
+                    </svg>
+                    <div className="update-flight-cargo">
+                      {loadedRows.map(({ item, source }) => {
+                        const candidate = buildUpdateCandidateSnapshot([{ item, source }])[0];
+                        const status = updateItems.find((entry) => candidate && updateCandidateSelectionKey(entry) === updateCandidateSelectionKey(candidate))?.status || 'queued';
+                        return <span className={cx('update-flight-seat', status === 'success' && 'is-departed', status === 'failed' && 'is-failed')} key={item.appid || source?.id}>
+                          <AppIcon src={item.icon || source?.iconUrl} seed={item.appid || item.title || 'app'} size={30} />
+                        </span>;
+                      })}
+                    </div>
+                    {updateItems.some((item) => item.status === 'success') && <div className="update-landed-bay">
+                      <span>{t('updateQueue.landed')}</span>
+                      {loadedRows.filter(({ item, source }) => {
+                        const candidate = buildUpdateCandidateSnapshot([{ item, source }])[0];
+                        return candidate && updateItems.some((entry) => entry.status === 'success' && updateCandidateSelectionKey(entry) === updateCandidateSelectionKey(candidate));
+                      }).map(({ item, source }) => <span className="update-landed-app" key={item.appid || source?.id}>
+                        <AppIcon src={item.icon || source?.iconUrl} seed={item.appid || item.title || 'app'} size={26} /><CheckCircle2 size={13} />
+                      </span>)}
+                    </div>}
+                  </div>}
 
 				  {currentItem && <div className="update-current-app">
 					<strong>{currentItem.appName}</strong>
