@@ -209,6 +209,10 @@ test('update dialog activity follows queue status instead of surrounding refresh
   assert.equal(isUpdateQueueActive('already_running'), true);
   assert.equal(isUpdateQueueActive('success'), false);
   assert.equal(isUpdateQueueActive('failed'), false);
+  assert.equal(isUpdateQueueActive('partial'), false);
+  assert.equal(isUpdateQueueActive('cancelled'), false);
+  assert.equal(isUpdateQueueActive('requires_password'), false);
+  assert.equal(isUpdateQueueActive('no_updates'), false);
 });
 
 test('installed app runtime status hides LazyCat SDK enum formatting', () => {

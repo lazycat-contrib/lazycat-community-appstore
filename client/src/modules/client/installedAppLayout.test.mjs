@@ -20,3 +20,10 @@ test('password-protected updates remain visible when no automatic update is elig
   assert.match(installedAppsView, /updateConfirmation\.skipped\.length > 0/);
   assert.match(installedAppsView, /updateQueue\.protectedPending/);
 });
+
+test('rocket loops until the update queue stops instead of timing out after launch', () => {
+  assert.match(installedAppsView, /const isLaunching = isUpdateQueueRunning && queueIsActive;/);
+  assert.doesNotMatch(installedAppsView, /setIsLaunching|setTimeout/);
+  assert.match(installedAppsView, /<animateMotion[^>]*repeatCount="indefinite"[^>]*calcMode="linear"/);
+  assert.match(clientStyles, /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.update-rocket-flying \{ display: none; \}\s*\.update-rocket-parked\.is-hidden \{ opacity: 1; \}/);
+});

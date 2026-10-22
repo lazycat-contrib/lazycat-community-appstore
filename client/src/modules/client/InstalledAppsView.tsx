@@ -1,5 +1,5 @@
 import { AlertCircle, CalendarClock, CheckCircle2, Download, ListChecks, LockKeyhole, PackageOpen, Plus, RefreshCw, Rocket, ShieldCheck, X, XCircle } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
@@ -59,7 +59,6 @@ export function InstalledAppsView({
   const { t } = useTranslation();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
-  const [isLaunching, setIsLaunching] = useState(false);
   const [launchedFromHere, setLaunchedFromHere] = useState(false);
   const [selectionMode, setSelectionMode] = useState<'all' | 'choose'>('all');
   const [presentationStyle, setPresentationStyle] = useState<UpdatePresentationStyle>(readUpdatePresentationStyle);
@@ -67,11 +66,6 @@ export function InstalledAppsView({
   const [selectedUpdateKeys, setSelectedUpdateKeys] = useState<Set<string>>(() => new Set());
   const [mirrorOverrides, setMirrorOverrides] = useState<Record<string, { downloadMirrorId: string; rawMirrorId: string }>>({});
 
-  useEffect(() => {
-    if (!isLaunching) return;
-    const timer = window.setTimeout(() => setIsLaunching(false), 1050);
-    return () => window.clearTimeout(timer);
-  }, [isLaunching]);
   const installedGroups = useMemo(() => {
     const updates: InstalledRow[] = [];
     const managed: InstalledRow[] = [];
@@ -121,6 +115,7 @@ export function InstalledAppsView({
   const currentNumber = currentItem ? Math.min(completedCount + 1, updateItems.length) : completedCount;
   const queueStatus = updateQueueResult?.status || 'running';
   const queueIsActive = isUpdateQueueActive(queueStatus);
+  const isLaunching = isUpdateQueueRunning && queueIsActive;
   const queueProgress = updateItems.length > 0 ? Math.round((completedCount / updateItems.length) * 100) : 0;
   const queueTone = queueStatus === 'failed'
     ? 'failed'
@@ -142,7 +137,6 @@ export function InstalledAppsView({
     setSelectedUpdateKeys(mode === 'all' ? new Set(updateCandidates.map(updateCandidateSelectionKey)) : new Set());
     setMirrorOverrides({});
     setHasStarted(isUpdateQueueRunning);
-    setIsLaunching(false);
     setLaunchedFromHere(false);
     setIsConfirmOpen(true);
   }
@@ -439,7 +433,6 @@ export function InstalledAppsView({
 					  if (selectedCandidates.length === 0) return;
 					  setHasStarted(true);
 					  setLaunchedFromHere(true);
-					  setIsLaunching(presentationStyle === 'rocket');
 					  void onRunUpdates?.({ candidates: selectedCandidates, mirrorOverrides: updateSources.map((source) => {
 					    const value = mirrorOverrides[String(source.id)];
 					    return { sourceId: Number(source.id), downloadMirrorId: value?.downloadMirrorId ?? source.defaultDownloadMirrorId ?? '', rawMirrorId: value?.rawMirrorId ?? source.defaultRawMirrorId ?? '' };
@@ -479,7 +472,7 @@ export function InstalledAppsView({
                       </defs>
                       <use className={cx('update-rocket-parked', isLaunching && 'is-hidden')} href="#update-rocket-shape" transform="translate(52 22) rotate(-90)" />
                       {isLaunching && <use className="update-rocket-flying" href="#update-rocket-shape">
-                        <animateMotion dur="950ms" fill="freeze" rotate="auto" path="M52 22 H288 Q316 22 316 50 V86 Q316 114 288 114 H52 Q24 114 24 86 V50 Q24 22 52 22 Z" />
+                        <animateMotion dur="950ms" repeatCount="indefinite" calcMode="linear" rotate="auto" path="M52 22 H288 Q316 22 316 50 V86 Q316 114 288 114 H52 Q24 114 24 86 V50 Q24 22 52 22 Z" />
                       </use>}
                     </svg>
                     <div className="update-flight-cargo">
