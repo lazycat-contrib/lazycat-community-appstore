@@ -3,6 +3,7 @@
 @import './styles/client.css';
 @import './styles/admin.css';
 @import './styles/apple-polish.css';
+@import './styles/source-colors.css';
 
 :root {
   color-scheme: light;

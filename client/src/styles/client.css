@@ -131,7 +131,8 @@
   }
 }
 
-.app-shell-client .app-side-nav button:has(.client-nav-pet) {
+.app-shell-client .app-side-nav button:has(.client-nav-pet),
+.astryx-side-nav-item:has(.client-nav-pet) {
   position: relative;
   min-height: 44px;
   margin-block: 4px;
@@ -139,7 +140,8 @@
   overflow: visible;
 }
 
-.app-shell-client .app-side-nav [aria-current='page']:has(.client-nav-pet) {
+.app-shell-client .app-side-nav [aria-current='page']:has(.client-nav-pet),
+.astryx-side-nav-item[aria-current='page']:has(.client-nav-pet) {
   background: var(--status-success-bg);
   color: var(--status-success-ink);
   border-color: color-mix(in srgb, var(--status-success-ink) 30%, transparent);
@@ -183,12 +185,14 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .app-shell-client .app-side-nav button:has(.client-nav-pet):not([aria-current='page']):hover {
+  .app-shell-client .app-side-nav button:has(.client-nav-pet):not([aria-current='page']):hover,
+  .astryx-side-nav-item:has(.client-nav-pet):not([aria-current='page']):hover {
     background: color-mix(in srgb, var(--ink) 4%, transparent);
     box-shadow: none;
   }
 
-  .app-shell-client .app-side-nav [aria-current='page']:hover .client-nav-pet-glyph {
+  .app-shell-client .app-side-nav [aria-current='page']:hover .client-nav-pet-glyph,
+  .astryx-side-nav-item[aria-current='page']:hover .client-nav-pet-glyph {
     opacity: 1;
     transform: translateY(-2px) rotate(-10deg);
   }
@@ -205,7 +209,8 @@ html[data-input-method='keyboard'] :is(.client-nav-pet-reveal, .client-nav-pet-g
     transition: opacity 120ms ease;
   }
 
-  .app-shell-client .app-side-nav [aria-current='page']:hover .client-nav-pet-glyph {
+  .app-shell-client .app-side-nav [aria-current='page']:hover .client-nav-pet-glyph,
+  .astryx-side-nav-item[aria-current='page']:hover .client-nav-pet-glyph {
     transform: none;
   }
 

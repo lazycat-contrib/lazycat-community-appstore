@@ -256,6 +256,7 @@ func (s *Server) registerUserMCPTools(server *mcp.Server) {
 }
 
 func (s *Server) registerAdminMCPTools(server *mcp.Server) {
+	s.registerAdminAppMCPTools(server)
 	s.registerAdminWishMCPTools(server)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "appstore_admin_list_apps",
@@ -435,6 +436,7 @@ type mcpVersionSummary struct {
 	ID        int    `json:"id"`
 	AppID     int    `json:"appId"`
 	Version   string `json:"version"`
+	Changelog string `json:"changelog"`
 	Status    string `json:"status"`
 	Source    string `json:"sourceType"`
 	SHA256    string `json:"sha256"`
@@ -738,6 +740,7 @@ func toMCPVersionSummary(v *entgo.AppVersion) mcpVersionSummary {
 		ID:        v.ID,
 		AppID:     v.AppID,
 		Version:   v.Version,
+		Changelog: v.Changelog,
 		Status:    string(v.Status),
 		Source:    string(v.SourceType),
 		SHA256:    v.Sha256,

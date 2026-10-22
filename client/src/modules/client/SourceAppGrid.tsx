@@ -1,5 +1,6 @@
 import { Archive, CalendarClock, Cloud, Download, Plus, RefreshCw, Tag } from 'lucide-react';
-import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties } from 'react';
+import { sourceColorMap } from './sourceIdentity';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
@@ -7,7 +8,7 @@ import { AppIcon } from '../../components/AppIcon';
 import { softwareUpdatedAt } from '../../shared/catalogUpdate';
 import { EmptyState } from '../../shared/components/Feedback';
 import { InstalledAnimalStamp } from './InstalledAnimalStamp';
-import type { InstalledApplication, SourceApp } from '../../shared/types';
+import type { InstalledApplication, SourceApp, SourceSubscription } from '../../shared/types';
 import {
   findInstalledApplication,
   formatDate,
@@ -23,6 +24,7 @@ import {
 
 export function SourceAppGrid({
   apps,
+  sources,
   installedApps,
   onOpen,
   onInstall,
@@ -35,6 +37,7 @@ export function SourceAppGrid({
   completedInstallKey,
 }: {
   apps: SourceApp[];
+  sources: SourceSubscription[];
   installedApps: InstalledApplication[];
   onOpen: (app: SourceApp) => void;
   onInstall: (app: SourceApp) => void | Promise<void>;
@@ -47,6 +50,7 @@ export function SourceAppGrid({
   completedInstallKey?: string;
 }) {
   const { t } = useTranslation();
+  const colors = useMemo(() => sourceColorMap(sources), [sources]);
   const [pendingAppKey, setPendingAppKey] = useState('');
   const [celebrateAppKey, setCelebrateAppKey] = useState('');
   const lastCompletedKey = useRef(completedInstallKey);
@@ -101,10 +105,12 @@ export function SourceAppGrid({
         const appName = localizedAppName(app);
         const appSummary = localizedAppSummary(app, localizedAppDescription(app, t('common.lpkApp')));
         const appKey = `${app.sourceId ?? app.sourceName}:${app.id}`;
+        const color = app.sourceId == null ? undefined : colors.get(String(app.sourceId));
         const isPending = pendingAppKey === appKey || activeInstallKey === appKey;
         return (
           <XClickableCard
-            className="source-app-card client-source-app-card"
+            className={`source-app-card client-source-app-card${color ? ' source-identity-card' : ''}`}
+            style={{ '--source-color': color } as CSSProperties}
             key={appKey}
             label={`${t('app.open', { name: appName })}${installedMatch ? ` · ${statusLabel}` : ''}`}
             onClick={() => onOpen(app)}
@@ -128,7 +134,7 @@ export function SourceAppGrid({
               </div>
             </div>
             <div className="client-app-facts">
-              <span><Cloud size={14} aria-hidden="true" /> {app.sourceName}</span>
+              <span>{color ? <span className="source-identity-dot" aria-hidden="true" /> : <Cloud size={14} aria-hidden="true" />} {app.sourceName}</span>
               <span><Tag size={14} aria-hidden="true" /> {localizedCategory(app, t('common.uncategorized'))}</span>
               <span><Archive size={14} aria-hidden="true" /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
               <span><CalendarClock size={14} aria-hidden="true" /> {t('app.softwareUpdatedAt', { time: formatDate(softwareUpdatedAt(app)) })}</span>

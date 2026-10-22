@@ -730,6 +730,14 @@ func (s *Server) handleDeleteApp(w http.ResponseWriter, r *http.Request, u *entg
 		writeError(w, http.StatusForbidden, "FORBIDDEN", "Only the owner or an admin can delete this app", nil)
 		return
 	}
+	if err := s.deleteAppData(r, id); err != nil {
+		writeError(w, http.StatusInternalServerError, "APP_DELETE_FAILED", "Could not delete app", nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) deleteAppData(r *http.Request, id int) error {
 	versions, _ := s.db.AppVersion.Query().Where(appversion.AppIDEQ(id)).All(r.Context())
 	for _, version := range versions {
 		if version.StoragePath != "" {
@@ -757,11 +765,10 @@ func (s *Server) handleDeleteApp(w http.ResponseWriter, r *http.Request, u *entg
 	_, _ = s.db.AppDownload.Delete().Where(appdownload.AppIDEQ(id)).Exec(r.Context())
 	_, _ = s.db.AppVote.Delete().Where(appvote.AppIDEQ(id)).Exec(r.Context())
 	if err := s.db.App.DeleteOneID(id).Exec(r.Context()); err != nil {
-		writeError(w, http.StatusInternalServerError, "APP_DELETE_FAILED", "Could not delete app", nil)
-		return
+		return err
 	}
 	_ = s.deleteAssetLinksForOwner(r.Context(), assetOwnerApp, id)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	return nil
 }
 
 func (s *Server) handleUnlistApp(w http.ResponseWriter, r *http.Request, u *entgo.User) {

@@ -1,5 +1,6 @@
 import { AlertCircle, CalendarClock, CheckCircle2, Download, ListChecks, LockKeyhole, PackageOpen, Plus, RefreshCw, Rocket, ShieldCheck, X, XCircle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
+import { sourceColorMap } from './sourceIdentity';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ProgressBar as XProgressBar } from '@astryxdesign/core/ProgressBar';
@@ -57,6 +58,7 @@ export function InstalledAppsView({
   isUpdateQueueRunning?: boolean;
 }) {
   const { t } = useTranslation();
+  const colors = useMemo(() => sourceColorMap(sources), [sources]);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [launchedFromHere, setLaunchedFromHere] = useState(false);
@@ -198,6 +200,7 @@ export function InstalledAppsView({
         </div>
         <div className="installed-app-grid">
           {rows.map(({ item, source }) => {
+            const color = source?.sourceId == null ? undefined : colors.get(String(source.sourceId));
             const updateAvailable = Boolean(
               source?.latestVersion?.version && item.version && compareVersions(item.version, source.latestVersion.version) < 0,
             );
@@ -214,7 +217,7 @@ export function InstalledAppsView({
               unknown: 'unsynced',
             }[runtimeStatus.key];
             return (
-              <article className="installed-app-card" key={item.appid || item.title}>
+              <article className={cx('installed-app-card', color && 'source-identity-card')} style={{ '--source-color': color } as CSSProperties} key={item.appid || item.title}>
                 {item.icon ? (
                   <img className="installed-app-icon" src={item.icon} alt="" />
                 ) : (
@@ -223,7 +226,7 @@ export function InstalledAppsView({
                 <div className="installed-app-identity">
                   <strong title={item.title || item.appid || undefined}>{item.title || item.appid || t('common.app')}</strong>
                   <span title={item.appid || undefined}>{item.appid || t('profile.installedAppIdMissing')}</span>
-                  <small>{source ? t('profile.installedFromSource', { source: source.sourceName }) : t('profile.installedLocalExisting')}</small>
+                  <small>{color && <span className="source-identity-dot" aria-hidden="true" />} {source ? t('profile.installedFromSource', { source: source.sourceName }) : t('profile.installedLocalExisting')}</small>
                 </div>
                 <div className="installed-app-meta">
                   <span>{item.version || '-'}</span>

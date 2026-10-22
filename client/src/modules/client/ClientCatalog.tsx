@@ -241,6 +241,7 @@ export function ClientCatalog({
         <CatalogResultSummary label={t('search.clientTitle')} count={filteredSourceApps.length} onReset={hasActiveFilters ? clearSearch : undefined} />
         <SourceAppGrid
           apps={pagedSourceApps}
+          sources={sources}
           installedApps={installedApps}
           onOpen={onOpenSource}
           onInstall={onInstall}

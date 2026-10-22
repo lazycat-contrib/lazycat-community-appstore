@@ -24,3 +24,9 @@ test('selected navigation pets use interruptible transitions and gated hover mot
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{\s*\.client-nav-pet-reveal,[\s\S]*?transition: opacity 120ms ease/);
   assert.doesNotMatch(styles, /animation:[^;]*client-nav/);
 });
+
+test('mobile drawer items keep their own animal positioning when SideNav drops its desktop wrapper', async () => {
+  const styles = await source('../../styles/client.css');
+  assert.match(styles, /\.astryx-side-nav-item:has\(\.client-nav-pet\) \{\s*position: relative;/);
+  assert.match(styles, /\.astryx-side-nav-item\[aria-current='page'\]:has\(\.client-nav-pet\) \{\s*background: var\(--status-success-bg\);/);
+});

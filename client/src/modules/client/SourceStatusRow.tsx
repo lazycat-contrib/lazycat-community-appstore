@@ -1,7 +1,8 @@
 import { AlertCircle, KeyRound, Pencil, RefreshCw, Server, Trash2, UsersRound } from 'lucide-react';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { sourceColor, sourceDisplayURL } from './sourceIdentity';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { SourceHealth, SourceSubscription } from '../../shared/types';
@@ -50,16 +51,18 @@ export function SourceStatusRow({
   const { t } = useTranslation();
   const groupCount = source.groups?.length || source.groupCodes?.length || 0;
   const issue = error || source.lastError || '';
+  const color = sourceColor(source.url);
+  const displayURL = sourceDisplayURL(source.url);
   return (
     <article className={cx('client-source-row', issue && 'has-error')} aria-busy={isSyncing}>
       <div className="client-source-row-main">
         <SourceIcon source={source} />
         <div>
           <div className="client-source-row-title">
-            <strong>{source.name}</strong>
+            <strong>{color && <span className="source-identity-dot" style={{ '--source-color': color } as CSSProperties} aria-hidden="true" />}{source.name}</strong>
             <StatusBadge tone={health} label={t(`sources.health.${health}`)} />
           </div>
-          <span className="client-source-url" title={source.url}>{source.url}</span>
+          <span className="client-source-url" title={displayURL}>{displayURL}</span>
           <div className="client-source-facts">
             <span>{source.lastSync ? t('sources.lastSync', { time: formatDate(source.lastSync) }) : t('sources.neverSynced')}</span>
             <span>{t('sources.syncedAppCount', { count: appCount })}</span>

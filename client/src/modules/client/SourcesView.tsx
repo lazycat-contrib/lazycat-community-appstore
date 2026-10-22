@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { type FormEvent, useRef, useState } from 'react';
+import { type CSSProperties, type FormEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { IconButton as XIconButton } from '@astryxdesign/core/IconButton';
@@ -46,6 +46,7 @@ import { MAX_SOURCE_GROUP_CODES, normalizeGroupCodes, normalizeSourceURL, parseS
 import { GroupCodeInput } from './GroupCodeInput';
 import { SourceOnboarding } from './SourceOnboarding';
 import { SourceStatusRow } from './SourceStatusRow';
+import { sourceColor, sourceDisplayURL } from './sourceIdentity';
 
 const emptySourceDraft: SourceInput = {
   name: '',
@@ -105,6 +106,8 @@ export function SourcesView({
 
   const parsedDraftConfig = parseSourceConfigInput(draft.url, DEFAULT_SOURCE_URL);
   const normalizedDraftURL = parsedDraftConfig?.url || '';
+  const draftColor = sourceColor(normalizedDraftURL);
+  const editColor = sourceColor(editDraft.url);
   const draftGroupCodes = normalizeGroupCodes(draft.groupCodes || []);
   const sourceNameReady = Boolean(draft.name.trim());
   const sourceURLReady = Boolean(normalizedDraftURL);
@@ -404,6 +407,10 @@ export function SourcesView({
 
             <XTextInput hasAutoFocus label={t('common.name')} value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
             <XTextInput label={t('sources.urlOrConfig')} value={draft.url} onChange={updateDraftURL} />
+            {draftColor && <p className="source-identity-preview" style={{ '--source-color': draftColor } as CSSProperties}>
+              <span className="source-identity-dot" aria-hidden="true" />
+              <span>{draft.name.trim() || sourceDisplayURL(normalizedDraftURL)}</span>
+            </p>}
             <details className="source-advanced-options">
               <summary>{t('sources.advancedOptions')}</summary>
             <GroupCodeInput
@@ -440,6 +447,10 @@ export function SourcesView({
             <SectionTitle icon={Pencil} title={t('sources.editTitle')} />
             <XTextInput label={t('common.name')} value={editDraft.name} onChange={(value) => setEditDraft({ ...editDraft, name: value })} />
             <XTextInput label={t('sources.url')} value={editDraft.url} onChange={(value) => setEditDraft({ ...editDraft, url: value })} />
+            {editColor && <p className="source-identity-preview" style={{ '--source-color': editColor } as CSSProperties}>
+              <span className="source-identity-dot" aria-hidden="true" />
+              <span>{editDraft.name.trim() || sourceDisplayURL(editDraft.url)}</span>
+            </p>}
             <GroupCodeInput
               value={normalizeGroupCodes(editDraft.groupCodes || [])}
               isDisabled={savingSource}

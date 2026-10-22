@@ -1,0 +1,77 @@
+.source-identity-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.source-identity-preview > :last-child {
+  min-width: 0;
+}
+
+.source-identity-dot {
+  display: inline-block;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  flex: 0 0 0.4375rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--source-color) 82%, var(--ink));
+  vertical-align: 0.0625rem;
+}
+
+.client-source-row-title .source-identity-dot {
+  margin-inline-end: 0.4375rem;
+}
+
+.installed-app-identity .source-identity-dot {
+  display: inline-block;
+  margin-top: 0;
+}
+
+.source-identity-card {
+  position: relative;
+}
+
+.source-identity-card::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 1.125rem;
+  width: 2px;
+  height: 1.5rem;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--source-color) 82%, var(--ink));
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.source-identity-card:focus-visible::before,
+.source-identity-card:has(:focus-visible)::before {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .source-identity-card:hover::before {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .source-identity-card::before {
+    transition: opacity 140ms var(--ease-out);
+  }
+}
+
+html[data-input-method='keyboard'] .source-identity-card::before {
+  transition: none;
+}
+
+@media (forced-colors: active) {
+  .source-identity-dot,
+  .source-identity-card::before {
+    background: CanvasText;
+  }
+}
