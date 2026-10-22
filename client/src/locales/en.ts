@@ -392,7 +392,8 @@ const en = {
         catalogSearchTags: 'Tags',
         catalogSearchSource: 'Source',
         catalogSearchStatus: 'Install status',
-        resultCount: '{{count}} results',
+        resultCount_one: '{{count}} result',
+        resultCount_other: '{{count}} results',
         operators: {
           contains: 'contains',
           is: 'is',

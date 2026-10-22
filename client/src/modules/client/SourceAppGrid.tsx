@@ -1,5 +1,5 @@
 import { Archive, CalendarClock, ChevronRight, Cloud, Download, Plus, RefreshCw, Tag } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
@@ -30,6 +30,7 @@ export function SourceAppGrid({
   showEmptyAction = true,
   emptyTitle,
   emptyBody,
+  emptyAction,
   activeInstallKey,
   completedInstallKey,
 }: {
@@ -41,6 +42,7 @@ export function SourceAppGrid({
   showEmptyAction?: boolean;
   emptyTitle?: string;
   emptyBody?: string;
+  emptyAction?: ComponentProps<typeof EmptyState>['action'];
   activeInstallKey?: string;
   completedInstallKey?: string;
 }) {
@@ -83,7 +85,7 @@ export function SourceAppGrid({
         icon={Cloud}
         title={emptyTitle || t('search.noSyncedApps')}
         body={emptyBody}
-        action={showEmptyAction ? { label: t('search.noSyncedAppsAction'), icon: Plus, onClick: onGoSources } : undefined}
+        action={emptyAction ?? (showEmptyAction ? { label: t('search.noSyncedAppsAction'), icon: Plus, onClick: onGoSources } : undefined)}
       />
     );
   }

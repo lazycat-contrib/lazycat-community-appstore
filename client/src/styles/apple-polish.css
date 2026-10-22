@@ -5,15 +5,15 @@
 
 .app-shell {
   --radius-inner: 6px;
-  --radius-element: 8px;
-  --radius-container: 12px;
+  --radius-element: 10px;
+  --radius-container: 16px;
   --radius-page: 20px;
   --radius-chat: 22px;
   --size-element-sm: 36px;
   --size-element-md: 40px;
   --size-element-lg: 44px;
   --material-thin: color-mix(in srgb, var(--surface) 78%, transparent);
-  --material-regular: color-mix(in srgb, var(--surface) 88%, transparent);
+  --material-regular: color-mix(in srgb, var(--surface) 96%, transparent);
   --material-thick: color-mix(in srgb, var(--surface) 95%, transparent);
   --material-edge: color-mix(in srgb, white 42%, var(--line));
   --shadow-resting: 0 1px 2px color-mix(in srgb, var(--ink) 5%, transparent);
@@ -38,6 +38,43 @@
 
 .app-shell .page-heading p {
   color: color-mix(in srgb, var(--muted) 82%, var(--ink));
+  text-wrap: pretty;
+}
+
+.app-shell .page-heading {
+  padding-block: 8px;
+}
+
+.app-shell :is(.panel, .settings-section) {
+  padding: clamp(16px, 2vw, 24px);
+}
+
+.app-shell :is(.app-card, .source-app-card, .client-source-row, .installed-app-card) {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.app-shell :is(.app-card, .source-app-card):focus-within {
+  border-color: var(--green-strong);
+}
+
+.app-shell :is(.admin-task-heading, .settings-section-head) p {
+  max-width: 64ch;
+  line-height: 1.6;
+}
+
+.app-shell :is(input, textarea, select, button, a, [tabindex]) {
+  scroll-margin-block: 88px;
+}
+
+.app-shell .app-side-nav [aria-current='page'] {
+  box-shadow: inset 3px 0 0 var(--green-strong);
+}
+
+.app-shell .catalog-filter-search:focus-within {
+  border-radius: var(--radius-element);
+  outline: 2px solid var(--green-strong);
+  outline-offset: 3px;
 }
 
 .app-shell :is(.metric-card strong, .admin-metric-card strong, .settings-signal-card strong, code) {
@@ -238,10 +275,8 @@
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent);
   }
 
-  .app-shell :is(.panel, .app-card, .source-app-card, .client-source-row):hover {
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, white 38%, transparent),
-      0 14px 38px color-mix(in srgb, var(--ink) 10%, transparent);
+  .app-shell :is(.app-card, .source-app-card, .client-source-row):hover {
+    border-color: color-mix(in srgb, var(--green-strong) 48%, var(--line));
   }
 }
 
@@ -279,11 +314,11 @@
     border-radius: 18px;
   }
 
-  .app-shell-client .catalog-search-toolbar {
+  .app-shell .catalog-search-toolbar {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .app-shell-client .catalog-search-toolbar > * {
+  .app-shell .catalog-search-toolbar > * {
     width: 100%;
     min-width: 0;
   }
@@ -349,13 +384,32 @@
 .app-shell .page-heading h1 { font-size: 28px; line-height: 1.2; font-weight: 650; }
 .app-shell .page-heading p { max-width: 64ch; line-height: 1.55; }
 .app-shell :is(.app-card, .source-app-card) { box-shadow: none; }
-.app-shell :is(.panel, .app-card, .source-app-card, .client-source-row):hover { box-shadow: var(--shadow-resting); }
 .app-shell .app-icon-fallback { display: inline-grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--subtle-surface); color: var(--ink); flex: none; }
 .app-icon-fallback > span { font-size: 24px; font-weight: 650; line-height: 1; }
 .app-shell .astryx-badge[data-variant='error'] { background: var(--status-danger-bg); color: var(--status-danger-ink); }
-.app-shell .modal-dialog-shell { border-radius: 16px; overflow: hidden; animation: none !important; }
+.app-shell .modal-dialog-shell {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-page);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-floating);
+  animation: none !important;
+  opacity: 1;
+  transform: scale(1);
+  transform-origin: center;
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
+
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+.app-shell .modal-dialog-shell :is(.modal-panel, .install-password-dialog) {
+  transform: none;
+  transition: none;
+}
 .modal-dialog-shell > div { width: 100%; min-width: 0; }
-.app-shell .modal-dialog-shell .modal-panel { width: 100%; max-width: none; border: 0; border-radius: 0; box-shadow: none; background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.app-shell .modal-dialog-shell :is(.modal-panel, .install-password-dialog) { width: 100%; max-width: none; border: 0; border-radius: 0; box-shadow: none; background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .appearance-dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .appearance-dialog h2 { margin: 0; font-size: 20px; }
 .appearance-setting { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-width: 0; }
@@ -366,7 +420,13 @@
 .app-shell .login-brand :is(.brand-mark, strong) { display: inline-flex; align-items: center; }
 .app-shell .login-brand .brand-mark { width: 34px; height: 34px; flex: none; }
 .app-shell .login-brand strong { font-size: 16px; white-space: nowrap; }
-html[data-input-method='keyboard'] .app-shell :is(button, .modal-panel) { transform: none !important; transition: none !important; }
+html[data-input-method='keyboard'] .app-shell :is(button, .modal-panel, .install-password-dialog, .modal-dialog-shell, .drawer) { transform: none !important; transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .modal-dialog-shell {
+    transform: none !important;
+    transition: opacity 120ms var(--ease-out);
+  }
+}
 @media (max-width: 640px) {
   .app-shell .topbar { padding-inline: 8px; }
   .app-shell .account-trigger-name { display: none; }

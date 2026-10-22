@@ -3503,12 +3503,6 @@ body,
   white-space: pre-wrap;
 }
 
-.modal-dialog-shell {
-  background: transparent !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-}
-
 .modal-dialog-shell .modal-panel,
 .modal-dialog-shell .install-password-dialog {
   max-height: calc(100vh - 36px);

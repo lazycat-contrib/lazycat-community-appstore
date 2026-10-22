@@ -5,6 +5,7 @@ import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { PowerSearch, type PowerSearchConfig, type PowerSearchField, type PowerSearchFilter } from '@astryxdesign/core/PowerSearch';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { SectionTitle } from '../../shared/components/Feedback';
+import { CatalogResultSummary } from '../../shared/components/CatalogResultSummary';
 import { softwareUpdatedAtMillis } from '../../shared/catalogUpdate';
 import { categoryDescendantIds } from '../../shared/categoryTree';
 import type { Category, InstallOptions, SortMode, SourceApp, StoreApp } from '../../shared/types';
@@ -180,10 +181,7 @@ export function StorefrontSearch({
             width="100%"
           />
         </div>
-        <div className="catalog-result-summary" role="status" aria-live="polite" aria-atomic="true">
-          <span>{activeCategoryLabel}</span>
-          <strong>{t('search.resultCount', { count: filteredApps.length })}</strong>
-        </div>
+        <CatalogResultSummary label={activeCategoryLabel} count={filteredApps.length} onReset={hasActiveFilters ? clearSearch : undefined} />
         <AppGrid
           apps={pagedApps}
           onOpen={onOpen}

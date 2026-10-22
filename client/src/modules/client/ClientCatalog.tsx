@@ -1,4 +1,4 @@
-import { ArrowUpRight, Cloud, Download, Lightbulb, PackageCheck, Search, Server } from 'lucide-react';
+import { ArrowUpRight, Cloud, Download, Lightbulb, PackageCheck, RotateCcw, Search, Server } from 'lucide-react';
 import { type Dispatch, type SetStateAction, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
@@ -6,6 +6,7 @@ import { Pagination as XPagination } from '@astryxdesign/core/Pagination';
 import { PowerSearch, type PowerSearchConfig, type PowerSearchFilter } from '@astryxdesign/core/PowerSearch';
 import { Selector as XSelector } from '@astryxdesign/core/Selector';
 import { SourceAppGrid } from './SourceAppGrid';
+import { CatalogResultSummary } from '../../shared/components/CatalogResultSummary';
 import { CategoryBrowser } from '../storefront/CategoryBrowser';
 import type {
   ClientSourceStats,
@@ -148,6 +149,12 @@ export function ClientCatalog({
     onViewStateChange((current) => ({ ...current, ...patch }));
   }
 
+  const hasActiveFilters = filters.length > 0 || selectedCategoryFilter !== 'all';
+
+  function clearSearch() {
+    updateViewState({ filters: [], selectedCategoryFilter: 'all', page: 1 });
+  }
+
   useEffect(() => {
     if (page === currentPage) return;
     onViewStateChange((current) => (current.page === currentPage ? current : { ...current, page: currentPage }));
@@ -193,7 +200,6 @@ export function ClientCatalog({
             label={t('search.catalogSearchLabel')}
             placeholder={t('search.clientCatalogSearchPlaceholder')}
             startIcon={<Search size={16} />}
-            resultCount={t('search.resultCount', { count: filteredSourceApps.length })}
             popoverSaveButtonLabel={t('common.apply')}
             tokenOverflowBehavior="unfocusedInline"
             hasClear
@@ -232,6 +238,7 @@ export function ClientCatalog({
             onCategory={(value) => updateViewState({ selectedCategoryFilter: value, page: 1 })}
           />
         )}
+        <CatalogResultSummary label={t('search.clientTitle')} count={filteredSourceApps.length} onReset={hasActiveFilters ? clearSearch : undefined} />
         <SourceAppGrid
           apps={pagedSourceApps}
           installedApps={installedApps}
@@ -242,6 +249,7 @@ export function ClientCatalog({
           completedInstallKey={completedInstallKey}
           emptyTitle={sourceEmptyTitle}
           emptyBody={sourceEmptyBody}
+          emptyAction={sourceApps.length > 0 && hasActiveFilters ? { label: t('search.clearFilters'), icon: RotateCcw, onClick: clearSearch } : undefined}
         />
         {filteredSourceApps.length > pageSize && (
           <XPagination

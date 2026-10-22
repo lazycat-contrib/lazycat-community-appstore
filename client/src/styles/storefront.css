@@ -332,7 +332,25 @@
   gap: 12px;
   border-top: 1px solid var(--line);
   padding-top: 12px;
+  padding-bottom: 16px;
   color: var(--muted);
+  flex-wrap: wrap;
+}
+
+.catalog-result-count {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.catalog-result-count > span {
+  font-size: 13px;
+}
+
+.catalog-result-summary > button {
+  margin-inline-start: auto;
 }
 
 .catalog-result-summary span,

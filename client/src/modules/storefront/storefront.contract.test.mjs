@@ -157,10 +157,14 @@ test('server app loads LazyCat capability and keeps install payload server-deriv
 });
 
 test('search keeps current conditions visible and offers one empty-state recovery', async () => {
-  const search = await source('./StorefrontSearch.tsx');
+  const [search, summary] = await Promise.all([
+    source('./StorefrontSearch.tsx'),
+    source('../../shared/components/CatalogResultSummary.tsx'),
+  ]);
 
   assert.match(search, /className="page-grid storefront-search-page"/);
-  assert.match(search, /className="catalog-result-summary" role="status" aria-live="polite"/);
+  assert.match(search, /<CatalogResultSummary label=\{activeCategoryLabel\} count=\{filteredApps.length\} onReset=\{hasActiveFilters \? clearSearch : undefined\}/);
+  assert.match(summary, /role="status" aria-live="polite" aria-atomic="true"/);
   assert.match(search, /function clearSearch\(\)/);
   assert.match(search, /action: hasActiveFilters/);
   assert.match(search, /updateViewState\(\{ activeCategory: 'all', filters: \[\], page: 1 \}\)/);
