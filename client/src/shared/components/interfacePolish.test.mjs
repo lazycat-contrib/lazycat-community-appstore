@@ -32,6 +32,30 @@ test('both catalogs share a live count and a persistent filter recovery action',
   assert.match(summary, /aria-hidden="true"/);
 });
 
+test('catalog presentation gives apps room without nesting another framed panel', async () => {
+  const [styles, home, client, server, appGrid, sourceGrid] = await Promise.all([
+    source('../../styles/apple-polish.css'),
+    source('../../modules/storefront/StorefrontHome.tsx'),
+    source('../../modules/client/ClientCatalog.tsx'),
+    source('../../modules/storefront/StorefrontSearch.tsx'),
+    source('../../modules/storefront/AppGrid.tsx'),
+    source('../../modules/client/SourceAppGrid.tsx'),
+  ]);
+  for (const catalog of [home, client, server]) assert.match(catalog, /className="panel[^"\n]*catalog-section"/);
+  for (const grid of [appGrid, sourceGrid]) {
+    assert.match(grid, /<AppIcon[^>]*size=\{64\}/);
+    assert.doesNotMatch(grid, /ChevronRight/);
+  }
+  assert.match(styles, /\.app-shell \.panel\.catalog-section \{\s*border: 0;\s*background: transparent;\s*box-shadow: none;\s*padding: 0;/);
+  assert.match(styles, /\.app-shell \.catalog-section \.app-open h3 \{[^}]*white-space: normal;[^}]*-webkit-line-clamp: 2;/);
+  assert.match(styles, /\.app-shell \.catalog-section :is\(\.app-card-primary-action, \.client-app-primary-action\) \{[^}]*border-radius: 999px;/);
+  assert.match(styles, /\.app-shell \.catalog-section :is\(\.app-card, \.source-app-card\) \{[^}]*align-self: stretch;/);
+  assert.match(styles, /client-app-primary-action:not\(\[data-action='update'\]\)/);
+  assert.match(sourceGrid, /data-action=\{installAction\}/);
+  assert.match(styles, /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\) \{\s*\.app-shell \.topbar \{[^}]*backdrop-filter: none;/);
+  assert.match(styles, /@media \(prefers-contrast: more\) \{\s*\.app-shell \.catalog-section :is\(\.app-card, \.source-app-card\) \{\s*border-color: var\(--ink\);/);
+});
+
 test('empty filtered results reset the catalog instead of adding another source', async () => {
   const [catalog, grid] = await Promise.all([
     source('../../modules/client/ClientCatalog.tsx'),

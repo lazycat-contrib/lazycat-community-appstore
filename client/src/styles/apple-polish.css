@@ -31,9 +31,72 @@
   text-rendering: optimizeLegibility;
 }
 
-.app-shell :is(h1, h2, h3, .astryx-heading) {
+.app-shell :is(h1, h2, .astryx-heading) {
   letter-spacing: -0.018em;
   text-wrap: balance;
+}
+
+.app-shell h3 {
+  letter-spacing: 0;
+  text-wrap: pretty;
+}
+
+.app-shell .panel.catalog-section {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.app-shell .catalog-section :is(.app-grid, .source-app-grid) {
+  gap: 20px;
+}
+
+.app-shell .catalog-section :is(.app-card, .source-app-card) {
+  padding: 20px;
+  gap: 16px;
+  max-height: none;
+  align-self: stretch;
+  border-color: color-mix(in srgb, var(--line) 65%, transparent);
+}
+
+.app-shell .catalog-section .app-open {
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.app-shell .catalog-section .app-open h3 {
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  font-weight: 650;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .catalog-section .app-open p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.app-shell .catalog-section .app-artwork {
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 var(--material-edge), var(--shadow-resting);
+}
+
+.app-shell .catalog-section :is(.app-card-primary-action, .client-app-primary-action) {
+  justify-self: end;
+  border-radius: 999px;
+  min-width: 88px;
+  padding-inline: 18px;
+}
+
+.app-shell .catalog-section :is(.app-card-primary-action, .client-app-primary-action:not([data-action='update'])):not(:disabled) {
+  background: var(--status-info-bg);
+  color: var(--status-info-ink);
 }
 
 .app-shell .page-heading p {
@@ -370,10 +433,10 @@
   top: 0;
   min-height: 56px;
   border-radius: 0;
-  background: var(--surface);
+  background: var(--material-thin);
   box-shadow: 0 1px 0 var(--line);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+  backdrop-filter: blur(16px) saturate(145%);
   padding: 6px 14px;
   flex-wrap: nowrap;
 }
@@ -381,7 +444,7 @@
 .topbar-brand strong { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-shell .top-actions { flex-wrap: nowrap; flex: 0 0 auto; }
 .app-shell :is(.astryx-button, .astryx-icon-button) { min-height: 44px; }
-.app-shell .page-heading h1 { font-size: 28px; line-height: 1.2; font-weight: 650; }
+.app-shell .page-heading h1 { font-size: 2rem; line-height: 1.15; font-weight: 700; letter-spacing: -0.025em; }
 .app-shell .page-heading p { max-width: 64ch; line-height: 1.55; }
 .app-shell :is(.app-card, .source-app-card) { box-shadow: none; }
 .app-shell .app-icon-fallback { display: inline-grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--subtle-surface); color: var(--ink); flex: none; }
@@ -433,7 +496,8 @@ html[data-input-method='keyboard'] .app-shell :is(button, .modal-panel, .install
   .app-shell .account-trigger { padding-inline: 8px; }
   .app-shell .topbar-brand strong { max-width: 140px; }
   .app-shell .page-heading { gap: 12px; }
-  .app-shell .page-heading h1 { font-size: 24px; }
+  .app-shell .page-heading h1 { font-size: 1.75rem; }
+  .app-shell .catalog-section :is(.app-card, .source-app-card) { padding: 16px; }
   .app-shell .page-heading .row-actions { flex-wrap: wrap; }
   .app-shell .appearance-setting { gap: 8px; }
 }
@@ -464,3 +528,18 @@ html[data-input-method='keyboard'] .app-shell :is(button, .modal-panel, .install
   .auth-path-options { margin-top: 16px; }
 }
 .topbar-logo { width: 26px; height: 26px; object-fit: contain; flex: none; }
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .app-shell .topbar {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .app-shell .catalog-section :is(.app-card, .source-app-card) {
+    border-color: var(--ink);
+    box-shadow: none;
+  }
+}

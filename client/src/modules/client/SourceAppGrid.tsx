@@ -1,4 +1,4 @@
-import { Archive, CalendarClock, ChevronRight, Cloud, Download, Plus, RefreshCw, Tag } from 'lucide-react';
+import { Archive, CalendarClock, Cloud, Download, Plus, RefreshCw, Tag } from 'lucide-react';
 import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button as XButton } from '@astryxdesign/core/Button';
@@ -112,7 +112,7 @@ export function SourceAppGrid({
           >
             <div className="app-open">
               <span className="client-app-icon-stamp">
-                <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={appName} />
+                <AppIcon src={app.iconUrl} seed={`${app.sourceName}:${app.slug || app.name}`} title={appName} size={64} />
                 {installedMatch && (
                   <InstalledAnimalStamp
                     identity={normalizeAppIdentity(installedMatch.appid) || normalizeAppIdentity(app.packageId) || appKey}
@@ -126,15 +126,16 @@ export function SourceAppGrid({
                 <h3>{appName}</h3>
                 <p>{appSummary}</p>
               </div>
-              <ChevronRight size={18} />
             </div>
             <div className="client-app-facts">
-              <span><Cloud size={14} /> {app.sourceName}</span>
-              <span><Tag size={14} /> {localizedCategory(app, t('common.uncategorized'))}</span>
-              <span><Archive size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
-              <span><CalendarClock size={14} /> {t('app.softwareUpdatedAt', { time: formatDate(softwareUpdatedAt(app)) })}</span>
+              <span><Cloud size={14} aria-hidden="true" /> {app.sourceName}</span>
+              <span><Tag size={14} aria-hidden="true" /> {localizedCategory(app, t('common.uncategorized'))}</span>
+              <span><Archive size={14} aria-hidden="true" /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
+              <span><CalendarClock size={14} aria-hidden="true" /> {t('app.softwareUpdatedAt', { time: formatDate(softwareUpdatedAt(app)) })}</span>
             </div>
             <XButton
+              className="client-app-primary-action"
+              data-action={installAction}
               type="button"
               variant={isUpdateAvailable ? 'primary' : 'secondary'}
               label={isPending ? t('installActivity.status.running') : actionLabel}

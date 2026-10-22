@@ -177,7 +177,7 @@ export function ClientCatalog({
           <h1>{t('search.clientTitle')}</h1>
         </div>
         <div className="row-actions">
-          <XButton type="button" variant="secondary" label={t('wishWall.title')} icon={<Lightbulb size={18} />} onClick={onGoWishWall} />
+          <XButton type="button" variant="ghost" label={t('wishWall.title')} icon={<Lightbulb size={18} />} onClick={onGoWishWall} />
           <XButton type="button" variant="secondary" label={t('search.noSyncedAppsAction')} icon={<Cloud size={18} />} onClick={onGoSources} />
         </div>
       </div>
@@ -190,7 +190,7 @@ export function ClientCatalog({
           </button>
         )}
       </div>
-      <section className="panel">
+      <section className="panel catalog-section">
         <div className="catalog-search-toolbar">
           <PowerSearch
             className="catalog-filter-search"

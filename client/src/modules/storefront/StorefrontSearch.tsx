@@ -143,7 +143,7 @@ export function StorefrontSearch({
         <h1>{t('search.serverTitle')}</h1>
         <p>{t('search.serverDescription')}</p>
       </div>
-      <section className="panel storefront-search-panel">
+      <section className="panel storefront-search-panel catalog-section">
         {categories.length > 0 && (
           <CategoryBrowser
             categories={categories}

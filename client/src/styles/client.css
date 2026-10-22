@@ -39,15 +39,15 @@
 .source-advanced-options[open] > :not(summary) { margin-top: 12px; }
 
 .source-app-card.client-source-app-card {
-  min-height: 220px;
+  min-height: 236px;
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .client-app-icon-stamp {
   position: relative;
   display: block;
-  width: 46px;
-  height: 46px;
+  width: 64px;
+  height: 64px;
 }
 
 .installed-animal-stamp {

@@ -1,8 +1,7 @@
-import { CalendarClock, ChevronRight, Download, PackagePlus, Star, Tag } from 'lucide-react';
+import { Archive, CalendarClock, Download, PackagePlus, Tag } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { type MouseEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Badge as XBadge } from '@astryxdesign/core/Badge';
 import { Button as XButton } from '@astryxdesign/core/Button';
 import { ClickableCard as XClickableCard } from '@astryxdesign/core/ClickableCard';
 import { AppIcon } from '../../components/AppIcon';
@@ -56,7 +55,7 @@ export function AppGrid({
           <XClickableCard className="app-card" key={app.id} label={`${t('app.open', { name: appName })}${voteCount > 0 ? ` · ${ratingLabel}` : ''}`} onClick={() => void onOpen(app)} padding={3}>
             <div className="app-open">
               <span className="storefront-app-icon-stamp">
-                <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={appName} />
+                <AppIcon src={app.iconUrl} seed={app.slug || app.name} title={appName} size={64} />
                 {voteCount > 0 && (
                   <span className="storefront-vote-stamp" data-hue={app.id % 3} title={ratingLabel} aria-hidden="true">
                     {voteCount}
@@ -67,12 +66,11 @@ export function AppGrid({
                 <h3>{appName}</h3>
                 <p>{appSummary}</p>
               </div>
-              <ChevronRight size={18} />
             </div>
             <div className="app-meta">
-              <XBadge variant="neutral" icon={<Tag size={13} />} label={localizedCategory(app, t('common.uncategorized'))} />
-              <span><Star size={14} /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
-              <span><CalendarClock size={14} /> {t('app.softwareUpdatedAt', { time: formatDate(softwareUpdatedAt(app)) })}</span>
+              <span><Tag size={13} aria-hidden="true" /> {localizedCategory(app, t('common.uncategorized'))}</span>
+              <span><Archive size={14} aria-hidden="true" /> {app.latestVersion?.version || t('app.noPublishedVersion')}</span>
+              <span><CalendarClock size={14} aria-hidden="true" /> {t('app.softwareUpdatedAt', { time: formatDate(softwareUpdatedAt(app)) })}</span>
 						{app.downloadCount > 0 && <span><Download size={14} /> {t('app.downloads', { count: app.downloadCount })}</span>}
             </div>
             <XButton

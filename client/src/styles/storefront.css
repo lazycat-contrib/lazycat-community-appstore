@@ -220,13 +220,13 @@
 }
 
 :is(.storefront-page, .storefront-search-page) .app-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   justify-content: start;
-  gap: 14px;
+  gap: 20px;
 }
 
 :is(.storefront-page, .storefront-search-page) .app-card {
-  min-height: 216px;
+  min-height: 236px;
   max-width: none;
   max-height: none;
   align-self: stretch;
@@ -239,14 +239,14 @@
 }
 
 :is(.storefront-page, .storefront-search-page) .app-open {
-  grid-template-columns: 58px minmax(0, 1fr) 18px;
+  grid-template-columns: 64px minmax(0, 1fr);
 }
 
 .storefront-app-icon-stamp {
   position: relative;
   display: block;
-  width: 58px;
-  height: 58px;
+  width: 64px;
+  height: 64px;
 }
 
 .storefront-vote-stamp {
@@ -280,8 +280,8 @@
 
 :is(.storefront-page, .storefront-search-page) .app-open .app-artwork,
 :is(.storefront-page, .storefront-search-page) .app-open .humation-avatar {
-  width: 58px !important;
-  height: 58px !important;
+  width: 64px !important;
+  height: 64px !important;
 }
 
 :is(.storefront-page, .storefront-search-page) .app-open h3 {
@@ -299,15 +299,14 @@
 
 :is(.storefront-page, .storefront-search-page) .app-meta span {
   min-height: 24px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--field);
-  padding: 3px 7px;
+  border: 0;
+  background: transparent;
+  padding: 0;
 }
 
 :is(.storefront-page, .storefront-search-page) .app-card-primary-action {
   align-self: end;
-  justify-self: stretch;
+  justify-self: end;
 }
 
 .storefront-search-page {

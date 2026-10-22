@@ -149,7 +149,7 @@ export function StorefrontHome({
         </section>
       )}
 
-      <section className="panel">
+      <section className="panel catalog-section">
         <SectionTitle icon={History} title={t('home.latest')} />
         <AppGrid
           apps={pagedLatest}
@@ -181,7 +181,7 @@ export function StorefrontHome({
         )}
       </section>
       {collections.map((collection) => (
-        <section className="panel" key={collection.id}>
+        <section className="panel catalog-section" key={collection.id}>
           <SectionTitle icon={Layers3} title={collection.name} />
           <AppGrid apps={collection.apps || []} onOpen={onOpen} onInstall={onInstall} lazycatInstall={lazycatInstall} />
         </section>
