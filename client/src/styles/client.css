@@ -131,6 +131,87 @@
   }
 }
 
+.app-shell-client .app-side-nav button:has(.client-nav-pet) {
+  position: relative;
+  min-height: 44px;
+  margin-block: 4px;
+  border: 1px solid transparent;
+  overflow: visible;
+}
+
+.app-shell-client .app-side-nav [aria-current='page']:has(.client-nav-pet) {
+  background: var(--status-success-bg);
+  color: var(--status-success-ink);
+  border-color: color-mix(in srgb, var(--status-success-ink) 30%, transparent);
+  box-shadow: none;
+}
+
+.client-nav-pet {
+  position: absolute;
+  inset-inline-end: 18px;
+  top: -13px;
+  width: 32px;
+  height: 28px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.client-nav-pet-reveal {
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: translateY(100%);
+  transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
+}
+
+[aria-current='page'] .client-nav-pet {
+  pointer-events: auto;
+}
+
+[aria-current='page'] .client-nav-pet-reveal {
+  opacity: 1;
+  transform: translateY(3px);
+}
+
+.client-nav-pet-glyph {
+  display: block;
+  color: var(--status-success-ink);
+  fill: var(--status-success-bg);
+  opacity: .9;
+  transform-origin: 50% 85%;
+  transition: transform 160ms var(--ease-out), opacity 160ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-shell-client .app-side-nav button:has(.client-nav-pet):not([aria-current='page']):hover {
+    background: color-mix(in srgb, var(--ink) 4%, transparent);
+    box-shadow: none;
+  }
+
+  .app-shell-client .app-side-nav [aria-current='page']:hover .client-nav-pet-glyph {
+    opacity: 1;
+    transform: translateY(-2px) rotate(-10deg);
+  }
+}
+
+html[data-input-method='keyboard'] :is(.client-nav-pet-reveal, .client-nav-pet-glyph) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .client-nav-pet-reveal,
+  [aria-current='page'] .client-nav-pet-reveal {
+    transform: translateY(3px);
+    transition: opacity 120ms ease;
+  }
+
+  .app-shell-client .app-side-nav [aria-current='page']:hover .client-nav-pet-glyph {
+    transform: none;
+  }
+
+  .client-nav-pet-glyph { transition: opacity 120ms ease; }
+}
+
 .client-app-facts {
   min-width: 0;
   display: flex;

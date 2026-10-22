@@ -29,10 +29,18 @@ const animals = [
   Panda, Pig, Rabbit, Rat, Shrimp, Snail, Squirrel, Turtle, Worm,
 ] as const;
 
+const animalHeads = [Cat, Cow, Dog, Fox, Mouse, Owl, Panda, Pig, Rabbit] as const;
+
 export function installedAnimalIndex(identity: string) {
   let hash = 2166136261;
   for (const char of identity) hash = Math.imul(hash ^ char.codePointAt(0)!, 16777619);
   return (hash >>> 0) % animals.length;
+}
+
+export function AnimalGlyph({ identity, size = 18, className, headOnly = false }: { identity: string; size?: number; className?: string; headOnly?: boolean }) {
+  const index = installedAnimalIndex(identity);
+  const Animal = headOnly ? animalHeads[index % animalHeads.length] : animals[index];
+  return <Animal className={className} size={size} strokeWidth={2} />;
 }
 
 export function InstalledAnimalStamp({ identity, updateAvailable, label, celebrate }: {
@@ -41,14 +49,13 @@ export function InstalledAnimalStamp({ identity, updateAvailable, label, celebra
   label: string;
   celebrate: boolean;
 }) {
-  const Animal = animals[installedAnimalIndex(identity)];
   return (
     <span
       className={`installed-animal-stamp${updateAvailable ? ' has-update' : ''}${celebrate ? ' is-celebrating' : ''}`}
       title={label}
       aria-hidden="true"
     >
-      <Animal className="installed-animal" size={18} strokeWidth={2} />
+      <AnimalGlyph className="installed-animal" identity={identity} />
       <span className="installed-animal-state">
         {updateAvailable ? <ArrowUp size={10} strokeWidth={3} /> : <Check size={10} strokeWidth={3} />}
       </span>

@@ -748,7 +748,7 @@ const zh = {
         stageInstall: '安装阶段',
         stageStableInstall: '正在下载、校验并安装应用',
         stageProcessing: '处理中',
-        queueCounts: '已完成 {{success}} · 失败 {{failed}} · 等待 {{queued}}',
+        queueCounts: '已完成 {{success}} · 处理中 {{running}} · 失败 {{failed}} · 等待 {{queued}}',
         start: '开始更新',
         running: '正在更新应用',
         keepRunning: '转到后台运行',
@@ -767,7 +767,7 @@ const zh = {
           cancelled: '已取消',
         },
         result: {
-          running: '正在检查更新',
+          running: '正在更新应用',
           success: '更新完成',
           partial: '部分更新需要处理',
           failed: '更新失败',

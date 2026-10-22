@@ -749,7 +749,7 @@ const en = {
         stageInstall: 'Install',
         stageStableInstall: 'Downloading, verifying, and installing the app',
         stageProcessing: 'Processing',
-        queueCounts: '{{success}} complete · {{failed}} failed · {{queued}} waiting',
+        queueCounts: '{{success}} complete · {{running}} running · {{failed}} failed · {{queued}} waiting',
         start: 'Start updates',
         running: 'Updating apps',
         keepRunning: 'Continue in background',
@@ -768,7 +768,7 @@ const en = {
           cancelled: 'cancelled',
         },
         result: {
-          running: 'Checking for updates',
+          running: 'Updating apps',
           success: 'Updates complete',
           partial: 'Some updates need attention',
           failed: 'Update failed',

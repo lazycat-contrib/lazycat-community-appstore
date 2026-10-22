@@ -42,6 +42,10 @@ export function isUpdateQueueActive(status?: string) {
   return status === 'running' || status === 'cancelling' || status === 'already_running';
 }
 
+export function updateQueueHeadingKey(status: string, itemCount: number) {
+  return status === 'running' && itemCount === 0 ? 'updateQueue.checkingSources' : `updateQueue.result.${status}`;
+}
+
 export function requiresInstallOptions({
   installProtected,
   installPassword,

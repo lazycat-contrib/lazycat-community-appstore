@@ -26,6 +26,7 @@ import { TopNav as XTopNav } from '@astryxdesign/core/TopNav';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from './i18n';
+import { ClientNavAnimal } from './modules/client/ClientNavAnimal';
 import { API_BASE, APP_VERSION, DEFAULT_SOURCE_NAME, DEFAULT_SOURCE_URL, HAS_API } from './config';
 import { api, clientApi, fetchAllPaginated } from './shared/api';
 import {
@@ -1480,6 +1481,7 @@ export function App() {
                     label={t(item.labelKey)}
                     icon={<Icon size={19} />}
                     isSelected={tab === item.key}
+                    endContent={!HAS_API ? <ClientNavAnimal /> : undefined}
                     onClick={() => navigateTo(item.key)}
                   />
                 );

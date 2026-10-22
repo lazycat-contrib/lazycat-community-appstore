@@ -20,6 +20,7 @@ import {
 	installedRuntimeStatusPresentation,
 	inspectionPresentation,
   isUpdateQueueActive,
+  updateQueueHeadingKey,
   normalizeEditableClientSettings,
   normalizeAutomationSettings,
   orderClientUpdateRowsLast,
@@ -213,6 +214,15 @@ test('update dialog activity follows queue status instead of surrounding refresh
   assert.equal(isUpdateQueueActive('cancelled'), false);
   assert.equal(isUpdateQueueActive('requires_password'), false);
   assert.equal(isUpdateQueueActive('no_updates'), false);
+});
+
+test('update headings distinguish queue preparation from installing apps and terminal results', () => {
+  assert.equal(updateQueueHeadingKey('running', 0), 'updateQueue.checkingSources');
+  assert.equal(updateQueueHeadingKey('running', 1), 'updateQueue.result.running');
+  for (const status of ['success', 'partial', 'failed', 'cancelled', 'cancelling', 'already_running', 'no_updates', 'requires_password']) {
+    assert.equal(updateQueueHeadingKey(status, 0), `updateQueue.result.${status}`);
+    assert.equal(updateQueueHeadingKey(status, 2), `updateQueue.result.${status}`);
+  }
 });
 
 test('installed app runtime status hides LazyCat SDK enum formatting', () => {

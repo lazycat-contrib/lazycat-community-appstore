@@ -27,3 +27,11 @@ test('rocket loops until the update queue stops instead of timing out after laun
   assert.match(installedAppsView, /<animateMotion[^>]*repeatCount="indefinite"[^>]*calcMode="linear"/);
   assert.match(clientStyles, /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.update-rocket-flying \{ display: none; \}\s*\.update-rocket-parked\.is-hidden \{ opacity: 1; \}/);
 });
+
+test('update progress shares one heading and does not count running apps as waiting', () => {
+  assert.match(installedAppsView, /const queueTitle = t\(updateQueueHeadingKey\(queueStatus, updateItems\.length\)\);/);
+  assert.match(installedAppsView, /id="update-confirm-title">\{queueTitle\}/);
+  assert.match(installedAppsView, /<StatusBadge tone=\{queueTone\} label=\{queueTitle\}/);
+  assert.match(installedAppsView, /running: updateSummary\.running \|\| 0/);
+  assert.match(installedAppsView, /queued: updateSummary\.queued \|\| 0/);
+});

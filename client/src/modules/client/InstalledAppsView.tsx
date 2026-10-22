@@ -12,7 +12,7 @@ import { ModalLayer } from '../../shared/components/ModalLayer';
 import { StatusBadge } from '../../shared/components/StatusBadge';
 import type { ClientSettings, InstalledApplication, SourceApp, SourceSubscription, UpdateQueueRequest, UpdateQueueResult } from '../../shared/types';
 import { compareVersions, cx, formatDate, sourceMirrorOptions } from '../../shared/utils';
-import { autoUpdatePolicyPresentation, autoUpdateSchedulePresentation, buildUpdateCandidateSnapshot, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation, isUpdateQueueActive, orderClientUpdateRowsLast, selectUpdateCandidates, updateCandidateSelectionKey } from './clientUxState';
+import { autoUpdatePolicyPresentation, autoUpdateSchedulePresentation, buildUpdateCandidateSnapshot, buildUpdateConfirmation, findStableSourceApp, installedRuntimeStatusPresentation, isUpdateQueueActive, orderClientUpdateRowsLast, selectUpdateCandidates, updateCandidateSelectionKey, updateQueueHeadingKey } from './clientUxState';
 
 type InstalledRow = { item: InstalledApplication; source?: SourceApp };
 type InstalledGroupKind = 'updates' | 'managed' | 'local';
@@ -114,6 +114,7 @@ export function InstalledAppsView({
   const completedCount = updateItems.filter((item) => ['success', 'failed', 'cancelled'].includes(item.status)).length;
   const currentNumber = currentItem ? Math.min(completedCount + 1, updateItems.length) : completedCount;
   const queueStatus = updateQueueResult?.status || 'running';
+  const queueTitle = t(updateQueueHeadingKey(queueStatus, updateItems.length));
   const queueIsActive = isUpdateQueueActive(queueStatus);
   const isLaunching = isUpdateQueueRunning && queueIsActive;
   const queueProgress = updateItems.length > 0 ? Math.round((completedCount / updateItems.length) * 100) : 0;
@@ -446,17 +447,17 @@ export function InstalledAppsView({
                     </div>
                     <div>
                       <span className="eyebrow subtle">{t('updateQueue.progressEyebrow')}</span>
-                      <h2 id="update-confirm-title">{t(`updateQueue.result.${queueStatus}`)}</h2>
+                      <h2 id="update-confirm-title">{queueTitle}</h2>
                       <p>{updateItems.length
                         ? t(queueIsActive ? 'updateQueue.overallProgress' : 'updateQueue.completedProgress', { current: currentNumber, total: updateItems.length })
                         : updateQueueResult?.error || t('updateQueue.checkingSources')}</p>
                     </div>
-                    <StatusBadge tone={queueTone} label={t(`updateQueue.result.${queueStatus}`)} />
+                    <StatusBadge tone={queueTone} label={queueTitle} />
                   </header>
 
                   <div className="update-overall-progress">
                     <XProgressBar label={t('installActivity.progressLabel')} isLabelHidden value={queueProgress} isIndeterminate={queueIsActive && updateItems.length === 0} variant="accent" />
-                    {updateItems.length > 0 && <small>{t('updateQueue.queueCounts', { success: updateSummary.success || 0, failed: updateSummary.failed || 0, queued: (updateSummary.queued || 0) + (updateSummary.running || 0) })}</small>}
+                    {updateItems.length > 0 && <small>{t('updateQueue.queueCounts', { success: updateSummary.success || 0, running: updateSummary.running || 0, failed: updateSummary.failed || 0, queued: updateSummary.queued || 0 })}</small>}
                   </div>
 
                   {presentationStyle === 'rocket' && launchedFromHere && loadedRows.length > 0 && <div className="update-flight-scene" aria-hidden="true">
