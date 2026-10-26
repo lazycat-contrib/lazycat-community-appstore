@@ -1,0 +1,19 @@
+package: community.lazycat.app-store
+version: 0.1.57
+name: 喵喵私有商店
+description: 独立的 LPK 软件源浏览与安装客户端。
+author: czyt
+license: MIT
+homepage: https://github.com/lazycat-contrib/lazycat-community-appstore
+min_os_version: 1.6.0
+permissions:
+  required:
+    - net.internet
+    - user.notify
+locales:
+  zh:
+    name: 喵喵私有商店
+    description: 独立的 LPK 软件源浏览与安装客户端。
+  en:
+    name: MiaoMiao Private Store
+    description: Standalone LPK source browser and installer client.

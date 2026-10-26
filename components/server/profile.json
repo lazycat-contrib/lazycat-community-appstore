@@ -1,0 +1,17 @@
+{
+  "name": "喵喵商店服务端",
+  "packageId": "community.lazycat.app-store-server",
+  "tagPrefix": "server-v",
+  "artifactPrefix": "server-lpk-v",
+  "workflow": "build-server.yml",
+  "root": "components/server",
+  "binary": "store-server",
+  "contentFiles": [
+    "store-server",
+    "lazycat-injects/lzc-file-chooser-inject.js"
+  ],
+  "exports": [
+    "exports/mcp-providers/appstore/mcp.yml"
+  ],
+  "official": false
+}

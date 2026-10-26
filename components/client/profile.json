@@ -1,0 +1,15 @@
+{
+  "name": "喵喵商店客户端",
+  "packageId": "community.lazycat.app-store",
+  "tagPrefix": "client-v",
+  "artifactPrefix": "client-lpk-v",
+  "workflow": "build-client.yml",
+  "root": "components/client",
+  "binary": "store-client",
+  "contentFiles": [
+    "store-client",
+    "lazycat-injects/lzc-file-chooser-inject.js"
+  ],
+  "exports": [],
+  "official": true
+}

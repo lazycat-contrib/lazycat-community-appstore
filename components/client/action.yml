@@ -1,0 +1,40 @@
+version: 1
+project:
+  root: components/client
+  build_config: lzc-build.yml
+  package_file: package.yml
+  output: dist/application.lpk
+  target_arch: amd64
+update:
+  strategy: publish
+  allow_downgrade: false
+  version_source:
+    type: git
+  sync_homepage: false
+  sync_license: false
+build:
+  run_buildscript: false
+images: []
+stores:
+  official:
+    enabled: true
+    skip_if_version_exists: true
+    create_if_missing: true
+    changelog_locales:
+    - zh
+    - en
+    retry:
+      enabled: false
+    application:
+      language: zh
+      name: 喵喵私有商店
+      source: https://github.com/lazycat-contrib/lazycat-community-appstore
+      source_author: lazycat-contrib
+  private:
+    enabled: true
+    skip_if_version_exists: true
+    name: 喵喵私有商店
+    summary: 由 GitHub Actions 自动构建并发布。
+release:
+  use_github_release_notes: true
+  store_changelog_format: plain

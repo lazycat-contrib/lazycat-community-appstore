@@ -1,0 +1,31 @@
+version: 1
+project:
+  root: components/server
+  build_config: lzc-build.yml
+  package_file: package.yml
+  output: dist/application.lpk
+  target_arch: amd64
+update:
+  strategy: publish
+  allow_downgrade: false
+  version_source:
+    type: git
+  sync_homepage: false
+  sync_license: false
+build:
+  run_buildscript: false
+images: []
+stores:
+  official:
+    enabled: false
+    skip_if_version_exists: false
+    retry:
+      enabled: false
+  private:
+    enabled: true
+    skip_if_version_exists: true
+    name: 喵喵私有商店服务端
+    summary: 由 GitHub Actions 自动构建并发布。
+release:
+  use_github_release_notes: true
+  store_changelog_format: plain
